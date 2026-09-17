@@ -19,7 +19,7 @@ def test_ping() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["data"]["message"] == "pong"
-    assert body["data"]["environment"] == "development"
+    assert body["data"]["environment"] == "test"
 
 
 def test_echo() -> None:

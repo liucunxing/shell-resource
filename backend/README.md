@@ -1,14 +1,15 @@
 # Shell Forecast Backend
 
-Distributor 资源投资规划与追踪工具的后端基础框架。当前版本只提供工程骨架、配置、数据库接入层、SSO 扩展口和测试接口，不包含任何业务逻辑。
+Distributor 资源投资规划与追踪工具的 Python 3.11 + FastAPI 后端基础框架。当前版本提供工程分层、统一响应、数据库接入、环境配置、SSO 扩展口和测试接口，不包含业务逻辑。
 
 ## 技术栈
 
 - Python 3.11
 - FastAPI + Uvicorn
-- Pydantic Settings（配置校验）
-- SQLAlchemy 2.x Async + Alembic（DO 与数据库迁移）
-- Pytest、Ruff、Mypy（测试与代码质量）
+- Pydantic（配置校验）
+- SQLAlchemy 2.x Async + Alembic
+- PostgreSQL `asyncpg` / 测试与备用 SQLite `aiosqlite`
+- Pytest、Ruff、Mypy
 
 ## 项目分层
 
@@ -32,29 +33,62 @@ src/app/
 
 ## 首次安装（Windows PowerShell）
 
-先进入后端目录：
-
 ```powershell
 cd D:\work\Develop\shell-forecast\backend
-```
-
-然后创建环境并安装依赖：
-
-```powershell
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements-dev.txt
-Copy-Item .env.example .env
+Copy-Item config/settings.example.toml config/settings.toml
 ```
 
-如果 PowerShell 阻止激活脚本，也可以始终使用 `.\.venv\Scripts\python.exe` 和 `.\.venv\Scripts\uvicorn.exe` 执行后续命令。
+然后编辑 `config/settings.toml`，把 development 和 production 区域内的占位值换成当前环境可以使用的真实配置。该文件可能包含密码，已被 Git 忽略。
+
+## 配置模型
+
+项目只使用一个环境选择文件和一个本地配置文件：
+
+```text
+.env                  # 提交到 Git，默认选择 development
+config/settings.toml  # 同时保存 development、test、production 三套配置
+```
+
+Git 中提交：
+
+```text
+ .env                         # 不包含密码，只选择环境
+config/settings.example.toml
+```
+
+`config/settings.toml` 包含真实连接信息，仍然不提交 Git。
+
+`.env` 支持以下环境名：
+
+```dotenv
+APP_ENV=development
+```
+
+也可以使用简写 `dev`、`test`、`prod`。程序根据 `APP_ENV` 读取 `settings.toml` 中同名区域：
+
+```toml
+[development]
+debug = true
+database_url = "开发数据库连接"
+
+[production]
+debug = false
+database_url = "生产数据库连接"
+```
+
+修改 `.env` 或 `settings.toml` 后必须重启应用。系统环境变量 `APP_ENV` 可以临时覆盖 `.env` 中的环境选择；其他业务配置统一从选中的 TOML 区域读取。
+
+仓库中的 `.env` 默认是 `APP_ENV=development`，因此新成员拉取代码后无需再复制 `.env`。生产服务器可以把该值改成 `production`；修改后的生产 `.env` 不应反向提交到 Git。
 
 ## 启动
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-uvicorn app.main:app --app-dir src --reload --host 127.0.0.1 --port 8000
+python -m uvicorn app.main:app --app-dir src --reload --host 127.0.0.1 --port 8000
 ```
 
 启动后访问：
@@ -64,7 +98,7 @@ uvicorn app.main:app --app-dir src --reload --host 127.0.0.1 --port 8000
 - 健康检查: <http://127.0.0.1:8000/health>
 - 测试接口: <http://127.0.0.1:8000/api/v1/test/ping>
 
-`GET /api/v1/test/ping` 的响应示例：
+统一响应示例：
 
 ```json
 {
@@ -78,46 +112,17 @@ uvicorn app.main:app --app-dir src --reload --host 127.0.0.1 --port 8000
 }
 ```
 
-Swagger 中还可以调用 `POST /api/v1/test/echo`，用于验证请求体校验和统一响应结构。404、422、500 等异常也会返回同样的 `code/msg/data` 外壳。
+## PyCharm 配置
 
-## 多环境配置
-
-配置按以下优先级覆盖（后者优先）：
-
-1. `config/env/.env.<APP_ENV>`：项目内可提交的环境默认值；
-2. 根目录 `.env`：本机私有覆盖，不进入 Git；
-3. 操作系统或部署平台环境变量：生产环境推荐方式。
-
-本地默认使用 `development`。切换测试环境：
-
-```powershell
-$env:APP_ENV = "test"
-uvicorn app.main:app --app-dir src --reload
-```
-
-生产环境不要把密码提交到仓库。可以复制模板后在服务器填写，也可以直接由部署平台注入环境变量：
-
-```powershell
-Copy-Item config/env/.env.production.example config/env/.env.production
-$env:APP_ENV = "production"
-$env:DATABASE_URL = "postgresql+asyncpg://..."
-$env:SSO_CLIENT_SECRET = "..."
-uvicorn app.main:app --app-dir src --host 0.0.0.0 --port 8000
-```
-
-如果采用 PostgreSQL，还需把对应的异步驱动（例如 `asyncpg`）加入依赖；数据库产品尚未确认，因此当前开发环境使用 SQLite，避免提前绑定生产数据库。
-
-## SSO 预留
-
-- `src/app/security/sso.py` 定义与 SAML/OIDC 厂商无关的用户身份及认证器契约。
-- `src/app/dependencies/auth.py` 是未来受保护接口统一引用的依赖入口。
-- `SSO_ENABLED`、Issuer、Client ID、Client Secret 已进入配置模型。
-
-在 SSO 协议、身份提供商、Claim/角色映射确定前，不实现伪登录。当前测试和健康接口为公开接口。
+- Module name：`uvicorn`
+- Parameters：`app.main:app --app-dir src --reload --host 127.0.0.1 --port 8000`
+- Working directory：`D:\work\Develop\shell-forecast\backend`
+- Environment variables：留空，让 `.env` 决定当前环境
+- Interpreter：项目约定的 Python 3.11 解释器
 
 ## 数据库迁移
 
-新增 DO 后，先在 `src/app/models/do/__init__.py` 中导入该模型，再执行：
+新增 DO 后，先在 `src/app/models/do/__init__.py` 中导入模型，再执行：
 
 ```powershell
 alembic revision --autogenerate -m "create example table"
@@ -132,6 +137,14 @@ ruff check .
 mypy src
 ```
 
+## SSO 预留
+
+- `src/app/security/sso.py` 定义与 SAML/OIDC 厂商无关的用户身份及认证器契约。
+- `src/app/dependencies/auth.py` 是未来受保护接口统一引用的依赖入口。
+- SSO 的开关、Issuer、Client ID 和 Client Secret 存放在各环境 TOML 区域。
+
+SSO 协议、身份提供商和 Claim/角色映射确定前，不实现伪登录。当前测试和健康接口为公开接口。
+
 ## Git 说明
 
-Git 仓库根目录位于后端目录的上一层。分支、提交和 Pull Request 流程见根目录的 `docs/GITHUB_WORKFLOW.md`。后端修改应在功能分支完成，不直接向 `main` 推送。
+Git 仓库根目录位于后端目录的上一层。`.env` 只包含环境选择，可以提交；真实 `config/settings.toml` 不得提交。分支和 Pull Request 流程见根目录 `docs/GITHUB_WORKFLOW.md`。
