@@ -1,6 +1,7 @@
 """SQLAlchemy database objects. Import concrete DO classes here for migrations."""
 
 from app.models.do.base import BaseDO, TimestampMixin
+from app.models.do.test_table import TestTableDO
 
-__all__ = ["BaseDO", "TimestampMixin"]
+__all__ = ["BaseDO", "TestTableDO", "TimestampMixin"]
 

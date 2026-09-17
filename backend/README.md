@@ -8,7 +8,7 @@ Distributor 资源投资规划与追踪工具的 Python 3.11 + FastAPI 后端基
 - FastAPI + Uvicorn
 - Pydantic（配置校验）
 - SQLAlchemy 2.x Async + Alembic
-- PostgreSQL `asyncpg` / 测试与备用 SQLite `aiosqlite`
+- PostgreSQL 异步驱动 `asyncpg`
 - Pytest、Ruff、Mypy
 
 ## 项目分层
