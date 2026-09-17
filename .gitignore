@@ -86,6 +86,9 @@ node_modules/
 
 # Version-controlled configuration templates
 !**/.env.example
-!backend/config/env/.env.development
-!backend/config/env/.env.test
-!backend/config/env/.env.production.example
+
+# This selector contains no credentials and is intentionally version-controlled.
+!backend/.env
+
+# Local multi-environment settings with real credentials
+backend/config/settings.toml
