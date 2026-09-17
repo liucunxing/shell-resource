@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState } from "react";
+import { Suspense, lazy, useRef, useState } from "react";
 import {
   Button,
   Dialog,
@@ -8,12 +8,14 @@ import {
   DialogSurface,
   DialogTitle,
   Spinner,
+  useRestoreFocusTarget,
 } from "@fluentui/react-components";
 import {
   ArrowSquareOut,
   ArrowsClockwise,
   ChartBar,
   CheckCircle,
+  ChatsCircle,
   Database,
   Flag,
   GitBranch,
@@ -29,6 +31,7 @@ import type { Page } from "./domain/types";
 import { createDemoState, createEmptyState } from "./domain/demo";
 import { useWorkspace } from "./state/WorkspaceContext";
 import { HomePage } from "./pages/HomePage";
+import { YiwenPanel } from "./components/YiwenPanel";
 const DataPage = lazy(() =>
   import("./pages/DataPage").then((m) => ({ default: m.DataPage })),
 );
@@ -61,11 +64,19 @@ const nav: { page: Page; label: string; icon: typeof House; step?: string }[] =
 export default function App() {
   const { state, page, navigate, run, toast, dismissToast, persistenceError } =
     useWorkspace();
+  const restoreYiwenFocus = useRestoreFocusTarget();
+  const yiwenTrigger = useRef<HTMLButtonElement>(null);
   const [mobileNav, setMobileNav] = useState(false);
+  const [yiwenOpen, setYiwenOpen] = useState(false);
+  const closeYiwen = () => {
+    setYiwenOpen(false);
+    requestAnimationFrame(() => yiwenTrigger.current?.focus());
+  };
   const [reset, setReset] = useState<"demo" | "empty" | null>(null);
   const title = nav.find((n) => n.page === page)?.label;
   const goto = (p: Page) => {
     navigate(p);
+    setYiwenOpen(false);
     setMobileNav(false);
   };
   return (
@@ -168,7 +179,10 @@ export default function App() {
               appearance="subtle"
               icon={<List size={22} />}
               aria-label="打开导航"
-              onClick={() => setMobileNav(true)}
+              onClick={() => {
+                setYiwenOpen(false);
+                setMobileNav(true);
+              }}
             />
             <span>资源投资规划</span>
             <span className="breadcrumb-separator">/</span>
@@ -180,6 +194,23 @@ export default function App() {
               {persistenceError ? "仅本次会话" : "本机工作区"}
             </span>
             <span className="planning-year">2027 规划</span>
+            <Button
+              className="yiwen-trigger"
+              ref={yiwenTrigger}
+              {...restoreYiwenFocus}
+              appearance="secondary"
+              icon={<ChatsCircle size={19} />}
+              aria-label="小One问数Agent"
+              aria-expanded={yiwenOpen}
+              aria-controls="yiwen-panel"
+              onClick={() => {
+                setMobileNav(false);
+                setYiwenOpen((open) => !open);
+              }}
+            >
+              <span className="yiwen-trigger-label">小One问数Agent</span>
+              <span className="yiwen-trigger-mobile">小One</span>
+            </Button>
             <span className="user-avatar" title="本机演示用户">
               规
             </span>
@@ -231,6 +262,7 @@ export default function App() {
           </footer>
         </main>
       </div>
+      <YiwenPanel open={yiwenOpen} onClose={closeYiwen} />
       {toast && (
         <div
           className={`app-toast ${toast.kind}`}

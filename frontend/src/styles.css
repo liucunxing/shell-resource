@@ -15,6 +15,7 @@
   --canvas: #f5f6f8;
   --yellow: #f4ca49;
   --radius: 8px;
+  --sidebar-width: 272px;
 }
 * {
   box-sizing: border-box;
@@ -70,7 +71,7 @@ svg {
   line-height: 1.6;
 }
 .sidebar {
-  width: 240px;
+  width: var(--sidebar-width);
   position: fixed;
   inset: 0 auto 0 0;
   background: #fff;
@@ -239,8 +240,9 @@ svg {
   border-top: 1px solid var(--line);
 }
 .app-main {
-  margin-left: 240px;
+  margin-left: var(--sidebar-width);
   min-width: 0;
+  container-type: inline-size;
 }
 .topbar {
   height: 66px;
@@ -1096,7 +1098,7 @@ svg {
 .app-toast {
   position: fixed;
   bottom: 26px;
-  left: calc(50% + 120px);
+  left: calc(50% + 136px);
   transform: translateX(-50%);
   z-index: 1000;
   display: flex;
@@ -1241,10 +1243,10 @@ svg {
 }
 @media (max-width: 1280px) {
   .sidebar {
-    width: 216px;
+    width: var(--sidebar-width);
   }
   .app-main {
-    margin-left: 216px;
+    margin-left: var(--sidebar-width);
   }
   .brand {
     padding: 0 16px;
@@ -1290,15 +1292,18 @@ svg {
     grid-template-columns: 1fr 1fr;
   }
   .app-toast {
-    left: calc(50% + 108px);
+    left: calc(50% + 136px);
   }
 }
 @media (max-width: 1023px) {
+  :root {
+    --sidebar-width: 248px;
+  }
   .sidebar {
-    width: 200px;
+    width: var(--sidebar-width);
   }
   .app-main {
-    margin-left: 200px;
+    margin-left: var(--sidebar-width);
   }
   .brand-symbol {
     display: none;
@@ -1374,12 +1379,15 @@ svg {
     grid-template-columns: 1fr;
   }
   .app-toast {
-    left: calc(50% + 100px);
+    left: calc(50% + 124px);
   }
 }
 @media (max-width: 767px) {
+  :root {
+    --sidebar-width: 0px;
+  }
   .sidebar {
-    width: 250px;
+    width: 272px;
     transform: translateX(-100%);
     visibility: hidden;
     transition: transform 0.16s ease;
@@ -1630,5 +1638,226 @@ svg {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* The ask-data workspace stays mounted when collapsed to retain its session. */
+.yiwen-trigger.fui-Button {
+  color: #a92b30;
+  border-color: #ead6d7;
+  background: #fffafa;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.yiwen-trigger[aria-expanded="true"].fui-Button {
+  background: #fff0f0;
+  border-color: #d8999c;
+}
+.yiwen-trigger-mobile {
+  display: none;
+}
+.yiwen-panel.fui-OverlayDrawer {
+  align-items: stretch;
+  width: calc(100% - var(--sidebar-width));
+  max-width: 100vw;
+  height: 100dvh;
+  padding: 0;
+  background: #fff;
+  border-left: 1px solid var(--line);
+  color: var(--ink);
+}
+.yiwen-panel.is-docked {
+  box-shadow: -5px 0 18px #252b3606;
+}
+.yiwen-panel[data-open="false"] {
+  visibility: hidden;
+  pointer-events: none;
+}
+.yiwen-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+  min-height: 66px;
+  padding: 0 17px 0 23px;
+  border-bottom: 1px solid var(--line);
+}
+.yiwen-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.yiwen-heading > svg {
+  color: var(--red);
+}
+.yiwen-heading h2 {
+  font-size: 15px;
+  font-weight: 650;
+}
+.yiwen-phase {
+  padding: 1px 6px;
+  border: 1px solid #e9e2cf;
+  border-radius: 4px;
+  color: #897141;
+  background: #fbf8ef;
+  font-size: 10px;
+}
+.yiwen-placeholder {
+  flex: 1;
+  overflow-y: auto;
+  padding: 52px 30px 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 42px;
+  background: linear-gradient(180deg, #fafbfc 0%, #fff 80%);
+}
+.yiwen-placeholder-intro {
+  text-align: center;
+}
+.yiwen-placeholder-icon {
+  display: grid;
+  place-items: center;
+  margin: 0 auto 25px;
+  width: 68px;
+  height: 68px;
+  border-radius: 18px;
+  border: 1px solid #efdfe0;
+  background: #fff5f4;
+  color: #bd3035;
+}
+.yiwen-placeholder h3 {
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+.yiwen-placeholder-intro p {
+  max-width: 280px;
+  margin: 0 auto;
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--muted);
+}
+.yiwen-placeholder-note {
+  align-self: center;
+  width: min(100%, 360px);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 17px 19px;
+  background: #f7f8fa;
+  border: 1px solid #eceef1;
+  border-radius: 7px;
+}
+.yiwen-status-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #b69b61;
+  margin-top: 7px;
+}
+.yiwen-placeholder-note b {
+  font-size: 12px;
+  font-weight: 600;
+  color: #626874;
+}
+.yiwen-placeholder-note p {
+  margin-top: 5px;
+  font-size: 11px;
+  color: #838994;
+}
+.yiwen-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 23px;
+  border-top: 1px solid var(--line);
+  font-size: 10px;
+  color: #9197a1;
+}
+.yiwen-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--muted);
+}
+.yiwen-toolbar > div,
+.yiwen-toolbar a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.yiwen-toolbar a {
+  gap: 4px;
+  text-decoration: none;
+}
+.yiwen-toolbar a:hover {
+  color: var(--red);
+  text-decoration: underline;
+}
+.yiwen-frame-area {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.yiwen-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
+.yiwen-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  pointer-events: none;
+}
+.yiwen-frame-help {
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
+@container (max-width: 1100px) {
+  .workspace-grid,
+  .overview-grid,
+  .overview-bottom {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .topbar {
+    padding-inline: 24px;
+  }
+  .topbar-right {
+    gap: 12px;
+  }
+}
+@media (max-width: 767px) {
+  .yiwen-trigger-label {
+    display: none;
+  }
+  .yiwen-trigger-mobile {
+    display: inline;
+  }
+  .yiwen-trigger.fui-Button {
+    min-width: 66px;
+    padding-inline: 8px;
+  }
+  .topbar-right .planning-year,
+  .topbar-right .user-avatar {
+    display: none;
+  }
+  .yiwen-header {
+    min-height: 58px;
+    padding-inline: 16px;
   }
 }

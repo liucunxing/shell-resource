@@ -5,7 +5,7 @@
 ## 自动检查
 
 - TypeScript 与 Vite 生产构建通过。
-- Vitest：2个测试文件，16项通过。覆盖尾差、负/非法金额、锁定重算、转移、权重缺失、FY/季度、项目守恒、待分配原因、确认撤销、版本快照、YTD和Excel校验。
+- Vitest：3个测试文件，38项通过。覆盖尾差、负/非法金额、锁定重算、转移、权重缺失、FY/季度、项目守恒、待分配原因、确认撤销、版本快照、YTD、Excel校验，以及22项问数嵌入地址校验。
 - npm audit：0条已知漏洞。
 - ExcelJS按需加载；生产构建仍提示其解析包大于500KB，首屏不加载该包。
 
@@ -35,3 +35,12 @@
 本地截图与操作脚本放在 `output/playwright/`（Git忽略），包括 `final-overview-desktop.png`、`final-data-desktop.png`、`final-allocation-desktop.png`、`final-adjust-desktop.png`、`final-submit-desktop.png`、`final-tracking-desktop.png`、`final-home-mobile.png`、`final-adjust-mobile.png`。
 
 这些结果证明独立前端演示流程可用，不代表企业认证、服务端权限、多人并发、真实数据核对、所有业务Insight或生产部署已经验收。具体口径与尚未接入能力见README。
+
+## 小One问数Agent 二期入口
+
+- 桌面左导航加宽至272px（小平板248px）。问数面板展开至左导航右缘，覆盖业务内容区；手机全屏。1440px窗口下实际面板宽1168px。
+- 生产预览在1720、1440、1024、390px下展开/折叠均无整页横向溢出；关闭按钮和Escape可收起，焦点回到入口。手机导航与问数面板互斥。
+- 左导航六页切换会收起问数面板，页面正常显示；面板内部实例不卸载。未配置地址时iframe数量为0。
+- 单独的本地跨源iframe夹具验证：首次展开前0次请求；输入测试问题后，折叠、切页、重开、改为手机尺寸均保留同一实例和输入；手动重新加载才产生新实例。该检查未访问真实易问服务。
+- 最终生产浏览器检查无运行错误与控制台告警。截图：`output/playwright/one-agent-1720.png`、`one-agent-1440.png`、`one-agent-1024.png`、`one-agent-390.png`。
+- iframe容器使用受限sandbox，不传业务数据或凭据；真实易问的嵌入许可、登录、Cookie和权限需二期联调。iframe加载事件不等于认证或产品可用性验证。
