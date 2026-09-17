@@ -35,7 +35,7 @@ app_version = "0.1.0"
 debug = false
 docs_enabled = true
 api_v1_prefix = "/api/v1"
-database_url = "sqlite+aiosqlite:///:memory:"
+database_url = "postgresql+asyncpg://USER:ENCODED_PASSWORD@TEST_HOST:5432/TEST_DATABASE?ssl=require"
 db_echo = false
 cors_origins = []
 sso_enabled = false
