@@ -33,11 +33,9 @@ htmlcov/
 junit.xml
 
 # Virtual environments
-/.venv/
-/venv/
-/env/
-/ENV/
-/venv*/
+**/.venv/
+**/venv/
+**/venv*/
 
 # IDE / OS
 .idea/
@@ -51,8 +49,8 @@ Desktop.ini
 *~
 
 # Runtime data and logs
-data/*
-!data/.gitkeep
+**/data/*
+!**/data/.gitkeep
 logs/
 *.log
 *.pid
@@ -70,7 +68,7 @@ exports/
 *.sqlite
 *.sqlite3
 
-# Frontend/package-manager caches if a frontend is added later
+# Frontend/package-manager caches
 node_modules/
 .npm/
 .yarn/cache/
@@ -79,11 +77,15 @@ node_modules/
 # Local and secret configuration
 .env
 .env.*
+**/.env
+**/.env.*
 *.local
 .envrc
 *.pem
 *.key
-config/env/.env.*
-!config/env/.env.development
-!config/env/.env.test
-!config/env/.env.production.example
+
+# Version-controlled configuration templates
+!**/.env.example
+!backend/config/env/.env.development
+!backend/config/env/.env.test
+!backend/config/env/.env.production.example

@@ -32,6 +32,14 @@ src/app/
 
 ## 首次安装（Windows PowerShell）
 
+先进入后端目录：
+
+```powershell
+cd D:\work\Develop\shell-forecast\backend
+```
+
+然后创建环境并安装依赖：
+
 ```powershell
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
@@ -126,15 +134,4 @@ mypy src
 
 ## Git 说明
 
-仓库已在本地初始化为 `main` 分支。建议在测试通过、团队确认目录结构后再创建首次提交并关联远程仓库：
-
-```powershell
-git status
-git add .
-git commit -m "chore: initialize FastAPI backend skeleton"
-git remote add origin <remote-url>
-git push -u origin main
-```
-
-以上提交和推送命令仅供参考，本项目不会自动执行提交或推送。
-
+Git 仓库根目录位于后端目录的上一层。分支、提交和 Pull Request 流程见根目录的 `docs/GITHUB_WORKFLOW.md`。后端修改应在功能分支完成，不直接向 `main` 推送。

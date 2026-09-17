@@ -27,7 +27,7 @@ git diff --cached --stat
 git commit -m "chore: initialize FastAPI backend skeleton"
 ```
 
-`git add .` 会包含项目原有的两份 HTML 需求/原型文件。提交前必须通过 `git status` 和 `git diff --cached --stat` 确认文件范围。
+`git add .` 会包含 `backend/`、`frontend/`、`docs/` 和根目录项目文件。提交前必须通过 `git status` 和 `git diff --cached --stat` 确认文件范围。
 
 如果误暂存某个文件，可以在提交前撤销暂存，不会删除本地文件：
 
@@ -68,8 +68,8 @@ git remote -v
 ```powershell
 git switch main
 git pull --ff-only origin main
-git switch -c feature/backend-foundation
-git push -u origin feature/backend-foundation
+git switch -c feature/your-name/backend-foundation
+git push -u origin feature/your-name/backend-foundation
 ```
 
 推荐分支命名：
@@ -98,7 +98,7 @@ git push
 共享分支已经推送后，使用 merge 不需要改写远端历史：
 
 ```powershell
-git switch feature/backend-foundation
+git switch feature/your-name/backend-foundation
 git fetch origin
 git merge origin/main
 git push
@@ -117,7 +117,7 @@ git push
 ## 7. 创建 Pull Request
 
 1. 在 GitHub 打开仓库。
-2. 选择 `feature/backend-foundation` 分支。
+2. 选择 `feature/your-name/backend-foundation` 分支。
 3. 点击 Compare & pull request。
 4. Base 选择 `main`（如果团队以后建立 `develop`，则按团队规则选择）。
 5. 填写修改内容、验证结果和注意事项，提交 Pull Request。
@@ -130,13 +130,13 @@ git push
 ```powershell
 git switch main
 git pull --ff-only origin main
-git branch -d feature/backend-foundation
+git branch -d feature/your-name/backend-foundation
 ```
 
 确认远端分支不再需要后，可以在 GitHub PR 页面删除，或者执行：
 
 ```powershell
-git push origin --delete feature/backend-foundation
+git push origin --delete feature/your-name/backend-foundation
 ```
 
 删除远端分支前，应确认 PR 已经合并且没有其他人继续使用该分支。
@@ -151,4 +151,3 @@ git log --oneline --decorate --graph --all -20
 git diff
 git diff --cached
 ```
-
