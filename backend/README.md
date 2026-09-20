@@ -9,13 +9,15 @@ Distributor 资源投资规划与追踪工具的 Python 3.11 + FastAPI 后端基
 - Pydantic（配置校验）
 - SQLAlchemy 2.x Async + Alembic
 - PostgreSQL 异步驱动 `asyncpg`
+- Azure Blob Storage 异步 SDK
 - Pytest、Ruff、Mypy
 
 ## 项目分层
 
 ```text
 src/app/
-├─ api/               # Controller/API 路由层
+├─ api/               # 路由聚合和版本前缀
+├─ controllers/       # Controller：定义 HTTP 接口、参数和响应
 ├─ services/          # Service 业务编排层
 ├─ repositories/      # Repository 数据访问层
 ├─ models/do/         # SQLAlchemy DO，映射数据库表
@@ -23,13 +25,14 @@ src/app/
 ├─ schemas/vo/        # 返回前端的 VO
 ├─ db/                # 数据库连接和 Session
 ├─ core/              # 配置、日志、统一响应、异常处理
+├─ storage/           # Azure Blob 等外部对象存储适配器
 ├─ security/          # SSO 抽象契约
 ├─ dependencies/      # FastAPI 依赖注入入口
 ├─ health/            # 运维健康检查
 └─ main.py            # 应用工厂和启动入口
 ```
 
-调用方向：`API → Service → Repository → DO/Database`。API 不直接访问数据库；DO 不作为页面返回对象，接口通过 DTO/VO 隔离数据库结构。
+调用方向：`Controller → Service → Repository → DO/Database`。Controller 不直接访问数据库；DO 不作为页面返回对象，接口通过 DTO/VO 隔离数据库结构。
 
 ## 首次安装（Windows PowerShell）
 
@@ -61,6 +64,22 @@ config/settings.example.toml
 ```
 
 `config/settings.toml` 包含真实连接信息，仍然不提交 Git。
+
+Azure Blob 测试上传配置位于各环境区域：
+
+```toml
+azure_blob_test_upload_enabled = true
+azure_blob_account_url = "https://账户名.blob.core.chinacloudapi.cn"
+azure_blob_account_key = "本地填写的存储账户密钥"
+azure_blob_container_name = "容器名"
+azure_blob_max_upload_bytes = 20971520
+```
+
+生产配置默认关闭测试上传接口。存储账户密钥只允许写入被 Git 忽略的
+`config/settings.toml`，不得写入 `.env`、模板、代码或日志。
+
+当前测试上传会把文件直接保存到配置容器的根目录，Blob 名称就是上传时的
+原始文件名；同名文件不会被覆盖，接口会返回 409。
 
 `.env` 支持以下环境名：
 
@@ -97,6 +116,7 @@ python -m uvicorn app.main:app --app-dir src --reload --host 127.0.0.1 --port 80
 - ReDoc: <http://127.0.0.1:8000/redoc>
 - 健康检查: <http://127.0.0.1:8000/health>
 - 测试接口: <http://127.0.0.1:8000/api/v1/test/ping>
+- Azure Blob 测试上传: `POST /api/v1/test/blob/upload`（在 Swagger 选择文件）
 
 统一响应示例：
 
@@ -128,6 +148,15 @@ python -m uvicorn app.main:app --app-dir src --reload --host 127.0.0.1 --port 80
 alembic revision --autogenerate -m "create example table"
 alembic upgrade head
 ```
+
+## 数据准备 DDL 初稿
+
+数据准备页的预算、历史表现和预算变更日志初步设计位于：
+
+- [DDL SQL](docs/database/data_preparation_v1.sql)
+- [字段映射与设计假设](docs/database/data_preparation_v1.md)
+
+该 DDL 当前仅供评审，尚未执行到数据库，也尚未转为 Alembic migration。
 
 ## 验证与质量检查
 

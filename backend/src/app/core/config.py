@@ -72,6 +72,12 @@ class Settings(BaseModel):
     db_echo: bool = False
     cors_origins: list[str] = Field(default_factory=list)
 
+    azure_blob_test_upload_enabled: bool = False
+    azure_blob_account_url: str | None = None
+    azure_blob_account_key: SecretStr | None = None
+    azure_blob_container_name: str | None = None
+    azure_blob_max_upload_bytes: int = Field(default=20 * 1024 * 1024, gt=0)
+
     sso_enabled: bool = False
     sso_issuer: str | None = None
     sso_client_id: str | None = None

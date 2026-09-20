@@ -10,6 +10,11 @@ api_v1_prefix = "/api/v1"
 database_url = "postgresql+asyncpg://USER:ENCODED_PASSWORD@DEV_HOST:5432/DEV_DATABASE?ssl=require"
 db_echo = false
 cors_origins = ["http://localhost:3000", "http://localhost:5173"]
+azure_blob_test_upload_enabled = true
+azure_blob_account_url = "https://ACCOUNT_NAME.blob.core.chinacloudapi.cn"
+azure_blob_account_key = "REPLACE_WITH_STORAGE_ACCOUNT_KEY"
+azure_blob_container_name = "resource-dev"
+azure_blob_max_upload_bytes = 20971520
 sso_enabled = false
 sso_issuer = ""
 sso_client_id = ""
@@ -24,6 +29,11 @@ api_v1_prefix = "/api/v1"
 database_url = "postgresql+asyncpg://USER:ENCODED_PASSWORD@PROD_HOST:5432/PROD_DATABASE?ssl=require"
 db_echo = false
 cors_origins = ["https://frontend.example.com"]
+azure_blob_test_upload_enabled = false
+azure_blob_account_url = "https://ACCOUNT_NAME.blob.core.chinacloudapi.cn"
+azure_blob_account_key = "REPLACE_WITH_PRODUCTION_STORAGE_CREDENTIAL"
+azure_blob_container_name = "REPLACE_WITH_PRODUCTION_CONTAINER"
+azure_blob_max_upload_bytes = 20971520
 sso_enabled = true
 sso_issuer = "https://sso.example.com"
 sso_client_id = "replace-me"
@@ -38,6 +48,11 @@ api_v1_prefix = "/api/v1"
 database_url = "postgresql+asyncpg://USER:ENCODED_PASSWORD@TEST_HOST:5432/TEST_DATABASE?ssl=require"
 db_echo = false
 cors_origins = []
+azure_blob_test_upload_enabled = true
+azure_blob_account_url = "https://test-account.blob.core.chinacloudapi.cn"
+azure_blob_account_key = "test-key"
+azure_blob_container_name = "test-container"
+azure_blob_max_upload_bytes = 20971520
 sso_enabled = false
 sso_issuer = ""
 sso_client_id = ""
