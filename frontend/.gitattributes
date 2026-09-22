@@ -1,0 +1,2 @@
+# Keep the customer snapshot bytes; treat its CRLF as line endings during whitespace checks.
+prototypes/资源投资规划工作台_V1.3.html -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

@@ -1,0 +1,5624 @@
+{
+  "metadata": {
+    "dataset": "资源投资工作台 V1.2 演示数据",
+    "sourceFile": "资源分析Demo数据_V1.2_演示修正版.xlsx",
+    "sourceSheets": {
+      "initiatives": "所有资源",
+      "allocations": "资源by经销商",
+      "dealerHistory": "经销商历史数据"
+    },
+    "scope": "模拟演示数据；不代表已验证的实际业务数据。",
+    "planYear": 2027,
+    "sourceAmountUnit": null,
+    "sourceAmountUnitNote": "源工作簿未标注金额单位，数值按原表保留。",
+    "historyPeriodNote": "2024和2025为全年演示口径；2026为1-8月累计演示口径，不默认同比或年化。",
+    "counts": {
+      "initiatives": 75,
+      "allocations": 600,
+      "dealers": 60
+    },
+    "budgetTotal": 6402000,
+    "allocationTotal": 6402000
+  },
+  "initiatives": [
+    {
+      "id": "initiative-001",
+      "name": "业绩返利",
+      "resourceType": "ICE Rebate",
+      "sector": "P",
+      "growthProduct": "ALL",
+      "budget": 180000,
+      "sourceRow": 2
+    },
+    {
+      "id": "initiative-002",
+      "name": "Project A",
+      "resourceType": "ICE Rebate",
+      "sector": "P",
+      "growthProduct": "Product A",
+      "budget": 107000,
+      "sourceRow": 3
+    },
+    {
+      "id": "initiative-003",
+      "name": "Project B",
+      "resourceType": "ICE Rebate",
+      "sector": "P",
+      "growthProduct": "Product B",
+      "budget": 22000,
+      "sourceRow": 4
+    },
+    {
+      "id": "initiative-004",
+      "name": "Project C",
+      "resourceType": "ICE Rebate",
+      "sector": "P",
+      "growthProduct": "Product A",
+      "budget": 10000,
+      "sourceRow": 5
+    },
+    {
+      "id": "initiative-005",
+      "name": "高端产品促销",
+      "resourceType": "SP&A",
+      "sector": "P",
+      "growthProduct": "Product A",
+      "budget": 370000,
+      "sourceRow": 6
+    },
+    {
+      "id": "initiative-006",
+      "name": "活动A支持",
+      "resourceType": "SP&A",
+      "sector": "P",
+      "growthProduct": "ALL",
+      "budget": 30000,
+      "sourceRow": 7
+    },
+    {
+      "id": "initiative-007",
+      "name": "活动B支持",
+      "resourceType": "SP&A",
+      "sector": "P",
+      "growthProduct": "Product C",
+      "budget": 24000,
+      "sourceRow": 8
+    },
+    {
+      "id": "initiative-008",
+      "name": "推广会",
+      "resourceType": "MRD",
+      "sector": "P",
+      "growthProduct": "Product A",
+      "budget": 56000,
+      "sourceRow": 9
+    },
+    {
+      "id": "initiative-009",
+      "name": "渠道支持",
+      "resourceType": "MRD",
+      "sector": "P",
+      "growthProduct": "Product B",
+      "budget": 16000,
+      "sourceRow": 10
+    },
+    {
+      "id": "initiative-010",
+      "name": "Product A上市支持",
+      "resourceType": "MRD",
+      "sector": "P",
+      "growthProduct": "Product A",
+      "budget": 48000,
+      "sourceRow": 11
+    },
+    {
+      "id": "initiative-011",
+      "name": "开店",
+      "resourceType": "Capex",
+      "sector": "P",
+      "growthProduct": "Product A",
+      "budget": 280000,
+      "sourceRow": 12
+    },
+    {
+      "id": "initiative-012",
+      "name": "C业绩返利",
+      "resourceType": "ICE Rebate",
+      "sector": "C",
+      "growthProduct": "ALL",
+      "budget": 250000,
+      "sourceRow": 13
+    },
+    {
+      "id": "initiative-013",
+      "name": "C旗舰门店返利",
+      "resourceType": "ICE Rebate",
+      "sector": "C",
+      "growthProduct": "Product D",
+      "budget": 175000,
+      "sourceRow": 14
+    },
+    {
+      "id": "initiative-014",
+      "name": "C新能源专项",
+      "resourceType": "ICE Rebate",
+      "sector": "C",
+      "growthProduct": "Product E",
+      "budget": 105000,
+      "sourceRow": 15
+    },
+    {
+      "id": "initiative-015",
+      "name": "C增量激励",
+      "resourceType": "ICE Rebate",
+      "sector": "C",
+      "growthProduct": "Product D",
+      "budget": 70000,
+      "sourceRow": 16
+    },
+    {
+      "id": "initiative-016",
+      "name": "C高端客户促销",
+      "resourceType": "SP&A",
+      "sector": "C",
+      "growthProduct": "Product D",
+      "budget": 310000,
+      "sourceRow": 17
+    },
+    {
+      "id": "initiative-017",
+      "name": "C会员活动支持",
+      "resourceType": "SP&A",
+      "sector": "C",
+      "growthProduct": "ALL",
+      "budget": 50000,
+      "sourceRow": 18
+    },
+    {
+      "id": "initiative-018",
+      "name": "C试驾活动支持",
+      "resourceType": "SP&A",
+      "sector": "C",
+      "growthProduct": "Product E",
+      "budget": 38000,
+      "sourceRow": 19
+    },
+    {
+      "id": "initiative-019",
+      "name": "C数字营销支持",
+      "resourceType": "SP&A",
+      "sector": "C",
+      "growthProduct": "Product D",
+      "budget": 90000,
+      "sourceRow": 20
+    },
+    {
+      "id": "initiative-020",
+      "name": "C区域推广会",
+      "resourceType": "MRD",
+      "sector": "C",
+      "growthProduct": "Product D",
+      "budget": 66000,
+      "sourceRow": 21
+    },
+    {
+      "id": "initiative-021",
+      "name": "C渠道培训",
+      "resourceType": "MRD",
+      "sector": "C",
+      "growthProduct": "ALL",
+      "budget": 34000,
+      "sourceRow": 22
+    },
+    {
+      "id": "initiative-022",
+      "name": "C上市发布支持",
+      "resourceType": "MRD",
+      "sector": "C",
+      "growthProduct": "Product E",
+      "budget": 45000,
+      "sourceRow": 23
+    },
+    {
+      "id": "initiative-023",
+      "name": "C重点客户开发",
+      "resourceType": "MRD",
+      "sector": "C",
+      "growthProduct": "Product D",
+      "budget": 87000,
+      "sourceRow": 24
+    },
+    {
+      "id": "initiative-024",
+      "name": "C展厅升级",
+      "resourceType": "Capex",
+      "sector": "C",
+      "growthProduct": "Product D",
+      "budget": 220000,
+      "sourceRow": 25
+    },
+    {
+      "id": "initiative-025",
+      "name": "C充电设施",
+      "resourceType": "Capex",
+      "sector": "C",
+      "growthProduct": "Product E",
+      "budget": 95000,
+      "sourceRow": 26
+    },
+    {
+      "id": "initiative-026",
+      "name": "P销量达成返利1",
+      "resourceType": "ICE Rebate",
+      "sector": "P",
+      "growthProduct": "Product A",
+      "budget": 43000,
+      "sourceRow": 27
+    },
+    {
+      "id": "initiative-027",
+      "name": "C终端促销支持1",
+      "resourceType": "SP&A",
+      "sector": "C",
+      "growthProduct": "Product E",
+      "budget": 67000,
+      "sourceRow": 28
+    },
+    {
+      "id": "initiative-028",
+      "name": "P上市传播1",
+      "resourceType": "MRD",
+      "sector": "P",
+      "growthProduct": "Product C",
+      "budget": 33000,
+      "sourceRow": 29
+    },
+    {
+      "id": "initiative-029",
+      "name": "C充电设施1",
+      "resourceType": "Capex",
+      "sector": "C",
+      "growthProduct": "ALL",
+      "budget": 109000,
+      "sourceRow": 30
+    },
+    {
+      "id": "initiative-030",
+      "name": "P重点客户返利1",
+      "resourceType": "ICE Rebate",
+      "sector": "P",
+      "growthProduct": "Product B",
+      "budget": 69000,
+      "sourceRow": 31
+    },
+    {
+      "id": "initiative-031",
+      "name": "C门店客流提升1",
+      "resourceType": "SP&A",
+      "sector": "C",
+      "growthProduct": "Product F",
+      "budget": 102000,
+      "sourceRow": 32
+    },
+    {
+      "id": "initiative-032",
+      "name": "P商圈推广1",
+      "resourceType": "MRD",
+      "sector": "P",
+      "growthProduct": "Product A",
+      "budget": 47000,
+      "sourceRow": 33
+    },
+    {
+      "id": "initiative-033",
+      "name": "C展厅翻新1",
+      "resourceType": "Capex",
+      "sector": "C",
+      "growthProduct": "ALL",
+      "budget": 76000,
+      "sourceRow": 34
+    },
+    {
+      "id": "initiative-034",
+      "name": "P季度增量返利2",
+      "resourceType": "ICE Rebate",
+      "sector": "P",
+      "growthProduct": "Product C",
+      "budget": 50000,
+      "sourceRow": 35
+    },
+    {
+      "id": "initiative-035",
+      "name": "C数字广告投放2",
+      "resourceType": "SP&A",
+      "sector": "C",
+      "growthProduct": "Product D",
+      "budget": 76000,
+      "sourceRow": 36
+    },
+    {
+      "id": "initiative-036",
+      "name": "P经销商大会2",
+      "resourceType": "MRD",
+      "sector": "P",
+      "growthProduct": "Product B",
+      "budget": 36000,
+      "sourceRow": 37
+    },
+    {
+      "id": "initiative-037",
+      "name": "C体验区改造2",
+      "resourceType": "Capex",
+      "sector": "C",
+      "growthProduct": "ALL",
+      "budget": 120000,
+      "sourceRow": 38
+    },
+    {
+      "id": "initiative-038",
+      "name": "P区域增长返利2",
+      "resourceType": "ICE Rebate",
+      "sector": "P",
+      "growthProduct": "Product A",
+      "budget": 75000,
+      "sourceRow": 39
+    },
+    {
+      "id": "initiative-039",
+      "name": "C高端客户沙龙2",
+      "resourceType": "SP&A",
+      "sector": "C",
+      "growthProduct": "Product E",
+      "budget": 111000,
+      "sourceRow": 40
+    },
+    {
+      "id": "initiative-040",
+      "name": "P区域路演2",
+      "resourceType": "MRD",
+      "sector": "P",
+      "growthProduct": "Product C",
+      "budget": 25000,
+      "sourceRow": 41
+    },
+    {
+      "id": "initiative-041",
+      "name": "C形象店建设2",
+      "resourceType": "Capex",
+      "sector": "C",
+      "growthProduct": "ALL",
+      "budget": 87000,
+      "sourceRow": 42
+    },
+    {
+      "id": "initiative-042",
+      "name": "P核心门店奖励3",
+      "resourceType": "ICE Rebate",
+      "sector": "P",
+      "growthProduct": "Product B",
+      "budget": 56000,
+      "sourceRow": 43
+    },
+    {
+      "id": "initiative-043",
+      "name": "C试驾体验活动3",
+      "resourceType": "SP&A",
+      "sector": "C",
+      "growthProduct": "Product F",
+      "budget": 85000,
+      "sourceRow": 44
+    },
+    {
+      "id": "initiative-044",
+      "name": "P客户开发3",
+      "resourceType": "MRD",
+      "sector": "P",
+      "growthProduct": "Product A",
+      "budget": 40000,
+      "sourceRow": 45
+    },
+    {
+      "id": "initiative-045",
+      "name": "C仓储优化3",
+      "resourceType": "Capex",
+      "sector": "C",
+      "growthProduct": "ALL",
+      "budget": 131000,
+      "sourceRow": 46
+    },
+    {
+      "id": "initiative-046",
+      "name": "P服务体验返利3",
+      "resourceType": "ICE Rebate",
+      "sector": "P",
+      "growthProduct": "Product C",
+      "budget": 81000,
+      "sourceRow": 47
+    },
+    {
+      "id": "initiative-047",
+      "name": "C会员积分活动3",
+      "resourceType": "SP&A",
+      "sector": "C",
+      "growthProduct": "Product D",
+      "budget": 59000,
+      "sourceRow": 48
+    },
+    {
+      "id": "initiative-048",
+      "name": "P渠道培训3",
+      "resourceType": "MRD",
+      "sector": "P",
+      "growthProduct": "Product B",
+      "budget": 29000,
+      "sourceRow": 49
+    },
+    {
+      "id": "initiative-049",
+      "name": "C设备升级3",
+      "resourceType": "Capex",
+      "sector": "C",
+      "growthProduct": "ALL",
+      "budget": 98000,
+      "sourceRow": 50
+    },
+    {
+      "id": "initiative-050",
+      "name": "P新品铺货返利4",
+      "resourceType": "ICE Rebate",
+      "sector": "P",
+      "growthProduct": "Product A",
+      "budget": 62000,
+      "sourceRow": 51
+    },
+    {
+      "id": "initiative-051",
+      "name": "C节假日促销4",
+      "resourceType": "SP&A",
+      "sector": "C",
+      "growthProduct": "Product E",
+      "budget": 93000,
+      "sourceRow": 52
+    },
+    {
+      "id": "initiative-052",
+      "name": "P媒体合作4",
+      "resourceType": "MRD",
+      "sector": "P",
+      "growthProduct": "Product C",
+      "budget": 44000,
+      "sourceRow": 53
+    },
+    {
+      "id": "initiative-053",
+      "name": "C数字化工具4",
+      "resourceType": "Capex",
+      "sector": "C",
+      "growthProduct": "ALL",
+      "budget": 142000,
+      "sourceRow": 54
+    },
+    {
+      "id": "initiative-054",
+      "name": "P销量达成返利4",
+      "resourceType": "ICE Rebate",
+      "sector": "P",
+      "growthProduct": "Product B",
+      "budget": 43000,
+      "sourceRow": 55
+    },
+    {
+      "id": "initiative-055",
+      "name": "C终端促销支持4",
+      "resourceType": "SP&A",
+      "sector": "C",
+      "growthProduct": "Product F",
+      "budget": 67000,
+      "sourceRow": 56
+    },
+    {
+      "id": "initiative-056",
+      "name": "P上市传播4",
+      "resourceType": "MRD",
+      "sector": "P",
+      "growthProduct": "Product A",
+      "budget": 33000,
+      "sourceRow": 57
+    },
+    {
+      "id": "initiative-057",
+      "name": "C充电设施4",
+      "resourceType": "Capex",
+      "sector": "C",
+      "growthProduct": "ALL",
+      "budget": 109000,
+      "sourceRow": 58
+    },
+    {
+      "id": "initiative-058",
+      "name": "P重点客户返利5",
+      "resourceType": "ICE Rebate",
+      "sector": "P",
+      "growthProduct": "Product C",
+      "budget": 69000,
+      "sourceRow": 59
+    },
+    {
+      "id": "initiative-059",
+      "name": "C门店客流提升5",
+      "resourceType": "SP&A",
+      "sector": "C",
+      "growthProduct": "Product D",
+      "budget": 102000,
+      "sourceRow": 60
+    },
+    {
+      "id": "initiative-060",
+      "name": "P商圈推广5",
+      "resourceType": "MRD",
+      "sector": "P",
+      "growthProduct": "Product B",
+      "budget": 47000,
+      "sourceRow": 61
+    },
+    {
+      "id": "initiative-061",
+      "name": "C展厅翻新5",
+      "resourceType": "Capex",
+      "sector": "C",
+      "growthProduct": "ALL",
+      "budget": 76000,
+      "sourceRow": 62
+    },
+    {
+      "id": "initiative-062",
+      "name": "P季度增量返利5",
+      "resourceType": "ICE Rebate",
+      "sector": "P",
+      "growthProduct": "Product A",
+      "budget": 50000,
+      "sourceRow": 63
+    },
+    {
+      "id": "initiative-063",
+      "name": "C数字广告投放5",
+      "resourceType": "SP&A",
+      "sector": "C",
+      "growthProduct": "Product E",
+      "budget": 76000,
+      "sourceRow": 64
+    },
+    {
+      "id": "initiative-064",
+      "name": "P经销商大会5",
+      "resourceType": "MRD",
+      "sector": "P",
+      "growthProduct": "Product C",
+      "budget": 36000,
+      "sourceRow": 65
+    },
+    {
+      "id": "initiative-065",
+      "name": "C体验区改造5",
+      "resourceType": "Capex",
+      "sector": "C",
+      "growthProduct": "ALL",
+      "budget": 120000,
+      "sourceRow": 66
+    },
+    {
+      "id": "initiative-066",
+      "name": "P区域增长返利6",
+      "resourceType": "ICE Rebate",
+      "sector": "P",
+      "growthProduct": "Product B",
+      "budget": 75000,
+      "sourceRow": 67
+    },
+    {
+      "id": "initiative-067",
+      "name": "C高端客户沙龙6",
+      "resourceType": "SP&A",
+      "sector": "C",
+      "growthProduct": "Product F",
+      "budget": 111000,
+      "sourceRow": 68
+    },
+    {
+      "id": "initiative-068",
+      "name": "P区域路演6",
+      "resourceType": "MRD",
+      "sector": "P",
+      "growthProduct": "Product A",
+      "budget": 25000,
+      "sourceRow": 69
+    },
+    {
+      "id": "initiative-069",
+      "name": "C形象店建设6",
+      "resourceType": "Capex",
+      "sector": "C",
+      "growthProduct": "ALL",
+      "budget": 87000,
+      "sourceRow": 70
+    },
+    {
+      "id": "initiative-070",
+      "name": "P核心门店奖励6",
+      "resourceType": "ICE Rebate",
+      "sector": "P",
+      "growthProduct": "Product C",
+      "budget": 56000,
+      "sourceRow": 71
+    },
+    {
+      "id": "initiative-071",
+      "name": "C试驾体验活动6",
+      "resourceType": "SP&A",
+      "sector": "C",
+      "growthProduct": "Product D",
+      "budget": 85000,
+      "sourceRow": 72
+    },
+    {
+      "id": "initiative-072",
+      "name": "P客户开发6",
+      "resourceType": "MRD",
+      "sector": "P",
+      "growthProduct": "Product B",
+      "budget": 40000,
+      "sourceRow": 73
+    },
+    {
+      "id": "initiative-073",
+      "name": "C仓储优化6",
+      "resourceType": "Capex",
+      "sector": "C",
+      "growthProduct": "ALL",
+      "budget": 131000,
+      "sourceRow": 74
+    },
+    {
+      "id": "initiative-074",
+      "name": "P服务体验返利7",
+      "resourceType": "ICE Rebate",
+      "sector": "P",
+      "growthProduct": "Product A",
+      "budget": 81000,
+      "sourceRow": 75
+    },
+    {
+      "id": "initiative-075",
+      "name": "C会员积分活动7",
+      "resourceType": "SP&A",
+      "sector": "C",
+      "growthProduct": "Product E",
+      "budget": 59000,
+      "sourceRow": 76
+    }
+  ],
+  "allocations": [
+    {
+      "initiativeId": "initiative-001",
+      "dealerId": "100",
+      "amount": 5000,
+      "sourceRow": 2
+    },
+    {
+      "initiativeId": "initiative-001",
+      "dealerId": "200",
+      "amount": 6000,
+      "sourceRow": 3
+    },
+    {
+      "initiativeId": "initiative-001",
+      "dealerId": "300",
+      "amount": 40000,
+      "sourceRow": 4
+    },
+    {
+      "initiativeId": "initiative-001",
+      "dealerId": "400",
+      "amount": 5000,
+      "sourceRow": 5
+    },
+    {
+      "initiativeId": "initiative-001",
+      "dealerId": "500",
+      "amount": 30000,
+      "sourceRow": 6
+    },
+    {
+      "initiativeId": "initiative-001",
+      "dealerId": "600",
+      "amount": 4000,
+      "sourceRow": 7
+    },
+    {
+      "initiativeId": "initiative-001",
+      "dealerId": "700",
+      "amount": 5000,
+      "sourceRow": 8
+    },
+    {
+      "initiativeId": "initiative-001",
+      "dealerId": "800",
+      "amount": 5000,
+      "sourceRow": 9
+    },
+    {
+      "initiativeId": "initiative-001",
+      "dealerId": "900",
+      "amount": 60000,
+      "sourceRow": 10
+    },
+    {
+      "initiativeId": "initiative-001",
+      "dealerId": "1000",
+      "amount": 20000,
+      "sourceRow": 11
+    },
+    {
+      "initiativeId": "initiative-002",
+      "dealerId": "100",
+      "amount": 50000,
+      "sourceRow": 12
+    },
+    {
+      "initiativeId": "initiative-002",
+      "dealerId": "300",
+      "amount": 3000,
+      "sourceRow": 13
+    },
+    {
+      "initiativeId": "initiative-002",
+      "dealerId": "400",
+      "amount": 40000,
+      "sourceRow": 14
+    },
+    {
+      "initiativeId": "initiative-002",
+      "dealerId": "600",
+      "amount": 5000,
+      "sourceRow": 15
+    },
+    {
+      "initiativeId": "initiative-002",
+      "dealerId": "800",
+      "amount": 7000,
+      "sourceRow": 16
+    },
+    {
+      "initiativeId": "initiative-002",
+      "dealerId": "900",
+      "amount": 2000,
+      "sourceRow": 17
+    },
+    {
+      "initiativeId": "initiative-003",
+      "dealerId": "100",
+      "amount": 5000,
+      "sourceRow": 18
+    },
+    {
+      "initiativeId": "initiative-003",
+      "dealerId": "400",
+      "amount": 2000,
+      "sourceRow": 19
+    },
+    {
+      "initiativeId": "initiative-003",
+      "dealerId": "700",
+      "amount": 5000,
+      "sourceRow": 20
+    },
+    {
+      "initiativeId": "initiative-003",
+      "dealerId": "900",
+      "amount": 6000,
+      "sourceRow": 21
+    },
+    {
+      "initiativeId": "initiative-003",
+      "dealerId": "1000",
+      "amount": 4000,
+      "sourceRow": 22
+    },
+    {
+      "initiativeId": "initiative-004",
+      "dealerId": "300",
+      "amount": 4000,
+      "sourceRow": 23
+    },
+    {
+      "initiativeId": "initiative-004",
+      "dealerId": "500",
+      "amount": 3000,
+      "sourceRow": 24
+    },
+    {
+      "initiativeId": "initiative-004",
+      "dealerId": "700",
+      "amount": 2000,
+      "sourceRow": 25
+    },
+    {
+      "initiativeId": "initiative-004",
+      "dealerId": "800",
+      "amount": 1000,
+      "sourceRow": 26
+    },
+    {
+      "initiativeId": "initiative-005",
+      "dealerId": "100",
+      "amount": 50000,
+      "sourceRow": 27
+    },
+    {
+      "initiativeId": "initiative-005",
+      "dealerId": "200",
+      "amount": 30000,
+      "sourceRow": 28
+    },
+    {
+      "initiativeId": "initiative-005",
+      "dealerId": "300",
+      "amount": 20000,
+      "sourceRow": 29
+    },
+    {
+      "initiativeId": "initiative-005",
+      "dealerId": "500",
+      "amount": 30000,
+      "sourceRow": 30
+    },
+    {
+      "initiativeId": "initiative-005",
+      "dealerId": "600",
+      "amount": 40000,
+      "sourceRow": 31
+    },
+    {
+      "initiativeId": "initiative-005",
+      "dealerId": "700",
+      "amount": 50000,
+      "sourceRow": 32
+    },
+    {
+      "initiativeId": "initiative-005",
+      "dealerId": "800",
+      "amount": 50000,
+      "sourceRow": 33
+    },
+    {
+      "initiativeId": "initiative-005",
+      "dealerId": "900",
+      "amount": 90000,
+      "sourceRow": 34
+    },
+    {
+      "initiativeId": "initiative-005",
+      "dealerId": "1000",
+      "amount": 10000,
+      "sourceRow": 35
+    },
+    {
+      "initiativeId": "initiative-006",
+      "dealerId": "100",
+      "amount": 10000,
+      "sourceRow": 36
+    },
+    {
+      "initiativeId": "initiative-006",
+      "dealerId": "500",
+      "amount": 4000,
+      "sourceRow": 37
+    },
+    {
+      "initiativeId": "initiative-006",
+      "dealerId": "700",
+      "amount": 6000,
+      "sourceRow": 38
+    },
+    {
+      "initiativeId": "initiative-006",
+      "dealerId": "900",
+      "amount": 8000,
+      "sourceRow": 39
+    },
+    {
+      "initiativeId": "initiative-006",
+      "dealerId": "1000",
+      "amount": 2000,
+      "sourceRow": 40
+    },
+    {
+      "initiativeId": "initiative-007",
+      "dealerId": "200",
+      "amount": 5000,
+      "sourceRow": 41
+    },
+    {
+      "initiativeId": "initiative-007",
+      "dealerId": "400",
+      "amount": 4000,
+      "sourceRow": 42
+    },
+    {
+      "initiativeId": "initiative-007",
+      "dealerId": "600",
+      "amount": 3000,
+      "sourceRow": 43
+    },
+    {
+      "initiativeId": "initiative-007",
+      "dealerId": "700",
+      "amount": 2000,
+      "sourceRow": 44
+    },
+    {
+      "initiativeId": "initiative-007",
+      "dealerId": "900",
+      "amount": 1000,
+      "sourceRow": 45
+    },
+    {
+      "initiativeId": "initiative-007",
+      "dealerId": "1000",
+      "amount": 9000,
+      "sourceRow": 46
+    },
+    {
+      "initiativeId": "initiative-008",
+      "dealerId": "100",
+      "amount": 5000,
+      "sourceRow": 47
+    },
+    {
+      "initiativeId": "initiative-008",
+      "dealerId": "200",
+      "amount": 8000,
+      "sourceRow": 48
+    },
+    {
+      "initiativeId": "initiative-008",
+      "dealerId": "300",
+      "amount": 5000,
+      "sourceRow": 49
+    },
+    {
+      "initiativeId": "initiative-008",
+      "dealerId": "400",
+      "amount": 3000,
+      "sourceRow": 50
+    },
+    {
+      "initiativeId": "initiative-008",
+      "dealerId": "500",
+      "amount": 2000,
+      "sourceRow": 51
+    },
+    {
+      "initiativeId": "initiative-008",
+      "dealerId": "600",
+      "amount": 8000,
+      "sourceRow": 52
+    },
+    {
+      "initiativeId": "initiative-008",
+      "dealerId": "700",
+      "amount": 5000,
+      "sourceRow": 53
+    },
+    {
+      "initiativeId": "initiative-008",
+      "dealerId": "800",
+      "amount": 4000,
+      "sourceRow": 54
+    },
+    {
+      "initiativeId": "initiative-008",
+      "dealerId": "900",
+      "amount": 10000,
+      "sourceRow": 55
+    },
+    {
+      "initiativeId": "initiative-008",
+      "dealerId": "1000",
+      "amount": 6000,
+      "sourceRow": 56
+    },
+    {
+      "initiativeId": "initiative-009",
+      "dealerId": "200",
+      "amount": 3000,
+      "sourceRow": 57
+    },
+    {
+      "initiativeId": "initiative-009",
+      "dealerId": "500",
+      "amount": 2000,
+      "sourceRow": 58
+    },
+    {
+      "initiativeId": "initiative-009",
+      "dealerId": "700",
+      "amount": 7000,
+      "sourceRow": 59
+    },
+    {
+      "initiativeId": "initiative-009",
+      "dealerId": "800",
+      "amount": 3000,
+      "sourceRow": 60
+    },
+    {
+      "initiativeId": "initiative-009",
+      "dealerId": "900",
+      "amount": 1000,
+      "sourceRow": 61
+    },
+    {
+      "initiativeId": "initiative-010",
+      "dealerId": "100",
+      "amount": 1000,
+      "sourceRow": 62
+    },
+    {
+      "initiativeId": "initiative-010",
+      "dealerId": "200",
+      "amount": 5000,
+      "sourceRow": 63
+    },
+    {
+      "initiativeId": "initiative-010",
+      "dealerId": "300",
+      "amount": 3000,
+      "sourceRow": 64
+    },
+    {
+      "initiativeId": "initiative-010",
+      "dealerId": "400",
+      "amount": 8000,
+      "sourceRow": 65
+    },
+    {
+      "initiativeId": "initiative-010",
+      "dealerId": "500",
+      "amount": 4000,
+      "sourceRow": 66
+    },
+    {
+      "initiativeId": "initiative-010",
+      "dealerId": "600",
+      "amount": 5000,
+      "sourceRow": 67
+    },
+    {
+      "initiativeId": "initiative-010",
+      "dealerId": "700",
+      "amount": 2000,
+      "sourceRow": 68
+    },
+    {
+      "initiativeId": "initiative-010",
+      "dealerId": "800",
+      "amount": 5000,
+      "sourceRow": 69
+    },
+    {
+      "initiativeId": "initiative-010",
+      "dealerId": "900",
+      "amount": 6000,
+      "sourceRow": 70
+    },
+    {
+      "initiativeId": "initiative-010",
+      "dealerId": "1000",
+      "amount": 9000,
+      "sourceRow": 71
+    },
+    {
+      "initiativeId": "initiative-011",
+      "dealerId": "100",
+      "amount": 50000,
+      "sourceRow": 72
+    },
+    {
+      "initiativeId": "initiative-011",
+      "dealerId": "300",
+      "amount": 20000,
+      "sourceRow": 73
+    },
+    {
+      "initiativeId": "initiative-011",
+      "dealerId": "500",
+      "amount": 40000,
+      "sourceRow": 74
+    },
+    {
+      "initiativeId": "initiative-011",
+      "dealerId": "600",
+      "amount": 50000,
+      "sourceRow": 75
+    },
+    {
+      "initiativeId": "initiative-011",
+      "dealerId": "700",
+      "amount": 90000,
+      "sourceRow": 76
+    },
+    {
+      "initiativeId": "initiative-011",
+      "dealerId": "900",
+      "amount": 10000,
+      "sourceRow": 77
+    },
+    {
+      "initiativeId": "initiative-011",
+      "dealerId": "1000",
+      "amount": 20000,
+      "sourceRow": 78
+    },
+    {
+      "initiativeId": "initiative-012",
+      "dealerId": "1100",
+      "amount": 18000,
+      "sourceRow": 79
+    },
+    {
+      "initiativeId": "initiative-012",
+      "dealerId": "1200",
+      "amount": 22000,
+      "sourceRow": 80
+    },
+    {
+      "initiativeId": "initiative-012",
+      "dealerId": "1300",
+      "amount": 35000,
+      "sourceRow": 81
+    },
+    {
+      "initiativeId": "initiative-012",
+      "dealerId": "1400",
+      "amount": 12000,
+      "sourceRow": 82
+    },
+    {
+      "initiativeId": "initiative-012",
+      "dealerId": "1500",
+      "amount": 28000,
+      "sourceRow": 83
+    },
+    {
+      "initiativeId": "initiative-012",
+      "dealerId": "1600",
+      "amount": 15000,
+      "sourceRow": 84
+    },
+    {
+      "initiativeId": "initiative-012",
+      "dealerId": "1700",
+      "amount": 24000,
+      "sourceRow": 85
+    },
+    {
+      "initiativeId": "initiative-012",
+      "dealerId": "1800",
+      "amount": 20000,
+      "sourceRow": 86
+    },
+    {
+      "initiativeId": "initiative-012",
+      "dealerId": "1900",
+      "amount": 46000,
+      "sourceRow": 87
+    },
+    {
+      "initiativeId": "initiative-012",
+      "dealerId": "2000",
+      "amount": 30000,
+      "sourceRow": 88
+    },
+    {
+      "initiativeId": "initiative-013",
+      "dealerId": "1100",
+      "amount": 35000,
+      "sourceRow": 89
+    },
+    {
+      "initiativeId": "initiative-013",
+      "dealerId": "1300",
+      "amount": 20000,
+      "sourceRow": 90
+    },
+    {
+      "initiativeId": "initiative-013",
+      "dealerId": "1400",
+      "amount": 28000,
+      "sourceRow": 91
+    },
+    {
+      "initiativeId": "initiative-013",
+      "dealerId": "1500",
+      "amount": 12000,
+      "sourceRow": 92
+    },
+    {
+      "initiativeId": "initiative-013",
+      "dealerId": "1700",
+      "amount": 30000,
+      "sourceRow": 93
+    },
+    {
+      "initiativeId": "initiative-013",
+      "dealerId": "1800",
+      "amount": 15000,
+      "sourceRow": 94
+    },
+    {
+      "initiativeId": "initiative-013",
+      "dealerId": "1900",
+      "amount": 25000,
+      "sourceRow": 95
+    },
+    {
+      "initiativeId": "initiative-013",
+      "dealerId": "2000",
+      "amount": 10000,
+      "sourceRow": 96
+    },
+    {
+      "initiativeId": "initiative-014",
+      "dealerId": "1200",
+      "amount": 16000,
+      "sourceRow": 97
+    },
+    {
+      "initiativeId": "initiative-014",
+      "dealerId": "1300",
+      "amount": 12000,
+      "sourceRow": 98
+    },
+    {
+      "initiativeId": "initiative-014",
+      "dealerId": "1500",
+      "amount": 18000,
+      "sourceRow": 99
+    },
+    {
+      "initiativeId": "initiative-014",
+      "dealerId": "1600",
+      "amount": 14000,
+      "sourceRow": 100
+    },
+    {
+      "initiativeId": "initiative-014",
+      "dealerId": "1800",
+      "amount": 10000,
+      "sourceRow": 101
+    },
+    {
+      "initiativeId": "initiative-014",
+      "dealerId": "1900",
+      "amount": 20000,
+      "sourceRow": 102
+    },
+    {
+      "initiativeId": "initiative-014",
+      "dealerId": "2000",
+      "amount": 15000,
+      "sourceRow": 103
+    },
+    {
+      "initiativeId": "initiative-015",
+      "dealerId": "1100",
+      "amount": 8000,
+      "sourceRow": 104
+    },
+    {
+      "initiativeId": "initiative-015",
+      "dealerId": "1200",
+      "amount": 6000,
+      "sourceRow": 105
+    },
+    {
+      "initiativeId": "initiative-015",
+      "dealerId": "1300",
+      "amount": 10000,
+      "sourceRow": 106
+    },
+    {
+      "initiativeId": "initiative-015",
+      "dealerId": "1400",
+      "amount": 4000,
+      "sourceRow": 107
+    },
+    {
+      "initiativeId": "initiative-015",
+      "dealerId": "1500",
+      "amount": 7000,
+      "sourceRow": 108
+    },
+    {
+      "initiativeId": "initiative-015",
+      "dealerId": "1600",
+      "amount": 5000,
+      "sourceRow": 109
+    },
+    {
+      "initiativeId": "initiative-015",
+      "dealerId": "1700",
+      "amount": 9000,
+      "sourceRow": 110
+    },
+    {
+      "initiativeId": "initiative-015",
+      "dealerId": "1800",
+      "amount": 3000,
+      "sourceRow": 111
+    },
+    {
+      "initiativeId": "initiative-015",
+      "dealerId": "1900",
+      "amount": 12000,
+      "sourceRow": 112
+    },
+    {
+      "initiativeId": "initiative-015",
+      "dealerId": "2000",
+      "amount": 6000,
+      "sourceRow": 113
+    },
+    {
+      "initiativeId": "initiative-016",
+      "dealerId": "1100",
+      "amount": 42000,
+      "sourceRow": 114
+    },
+    {
+      "initiativeId": "initiative-016",
+      "dealerId": "1200",
+      "amount": 38000,
+      "sourceRow": 115
+    },
+    {
+      "initiativeId": "initiative-016",
+      "dealerId": "1300",
+      "amount": 26000,
+      "sourceRow": 116
+    },
+    {
+      "initiativeId": "initiative-016",
+      "dealerId": "1400",
+      "amount": 22000,
+      "sourceRow": 117
+    },
+    {
+      "initiativeId": "initiative-016",
+      "dealerId": "1500",
+      "amount": 18000,
+      "sourceRow": 118
+    },
+    {
+      "initiativeId": "initiative-016",
+      "dealerId": "1600",
+      "amount": 30000,
+      "sourceRow": 119
+    },
+    {
+      "initiativeId": "initiative-016",
+      "dealerId": "1700",
+      "amount": 36000,
+      "sourceRow": 120
+    },
+    {
+      "initiativeId": "initiative-016",
+      "dealerId": "1800",
+      "amount": 28000,
+      "sourceRow": 121
+    },
+    {
+      "initiativeId": "initiative-016",
+      "dealerId": "1900",
+      "amount": 50000,
+      "sourceRow": 122
+    },
+    {
+      "initiativeId": "initiative-016",
+      "dealerId": "2000",
+      "amount": 20000,
+      "sourceRow": 123
+    },
+    {
+      "initiativeId": "initiative-017",
+      "dealerId": "1100",
+      "amount": 8000,
+      "sourceRow": 124
+    },
+    {
+      "initiativeId": "initiative-017",
+      "dealerId": "1200",
+      "amount": 5000,
+      "sourceRow": 125
+    },
+    {
+      "initiativeId": "initiative-017",
+      "dealerId": "1300",
+      "amount": 6000,
+      "sourceRow": 126
+    },
+    {
+      "initiativeId": "initiative-017",
+      "dealerId": "1400",
+      "amount": 3000,
+      "sourceRow": 127
+    },
+    {
+      "initiativeId": "initiative-017",
+      "dealerId": "1500",
+      "amount": 4000,
+      "sourceRow": 128
+    },
+    {
+      "initiativeId": "initiative-017",
+      "dealerId": "1600",
+      "amount": 3000,
+      "sourceRow": 129
+    },
+    {
+      "initiativeId": "initiative-017",
+      "dealerId": "1700",
+      "amount": 5000,
+      "sourceRow": 130
+    },
+    {
+      "initiativeId": "initiative-017",
+      "dealerId": "1800",
+      "amount": 4000,
+      "sourceRow": 131
+    },
+    {
+      "initiativeId": "initiative-017",
+      "dealerId": "1900",
+      "amount": 7000,
+      "sourceRow": 132
+    },
+    {
+      "initiativeId": "initiative-017",
+      "dealerId": "2000",
+      "amount": 5000,
+      "sourceRow": 133
+    },
+    {
+      "initiativeId": "initiative-018",
+      "dealerId": "1200",
+      "amount": 7000,
+      "sourceRow": 134
+    },
+    {
+      "initiativeId": "initiative-018",
+      "dealerId": "1300",
+      "amount": 5000,
+      "sourceRow": 135
+    },
+    {
+      "initiativeId": "initiative-018",
+      "dealerId": "1500",
+      "amount": 6000,
+      "sourceRow": 136
+    },
+    {
+      "initiativeId": "initiative-018",
+      "dealerId": "1600",
+      "amount": 4000,
+      "sourceRow": 137
+    },
+    {
+      "initiativeId": "initiative-018",
+      "dealerId": "1800",
+      "amount": 3000,
+      "sourceRow": 138
+    },
+    {
+      "initiativeId": "initiative-018",
+      "dealerId": "1900",
+      "amount": 8000,
+      "sourceRow": 139
+    },
+    {
+      "initiativeId": "initiative-018",
+      "dealerId": "2000",
+      "amount": 5000,
+      "sourceRow": 140
+    },
+    {
+      "initiativeId": "initiative-019",
+      "dealerId": "1100",
+      "amount": 12000,
+      "sourceRow": 141
+    },
+    {
+      "initiativeId": "initiative-019",
+      "dealerId": "1200",
+      "amount": 10000,
+      "sourceRow": 142
+    },
+    {
+      "initiativeId": "initiative-019",
+      "dealerId": "1300",
+      "amount": 9000,
+      "sourceRow": 143
+    },
+    {
+      "initiativeId": "initiative-019",
+      "dealerId": "1400",
+      "amount": 6000,
+      "sourceRow": 144
+    },
+    {
+      "initiativeId": "initiative-019",
+      "dealerId": "1500",
+      "amount": 7000,
+      "sourceRow": 145
+    },
+    {
+      "initiativeId": "initiative-019",
+      "dealerId": "1600",
+      "amount": 5000,
+      "sourceRow": 146
+    },
+    {
+      "initiativeId": "initiative-019",
+      "dealerId": "1700",
+      "amount": 11000,
+      "sourceRow": 147
+    },
+    {
+      "initiativeId": "initiative-019",
+      "dealerId": "1800",
+      "amount": 8000,
+      "sourceRow": 148
+    },
+    {
+      "initiativeId": "initiative-019",
+      "dealerId": "1900",
+      "amount": 14000,
+      "sourceRow": 149
+    },
+    {
+      "initiativeId": "initiative-019",
+      "dealerId": "2000",
+      "amount": 8000,
+      "sourceRow": 150
+    },
+    {
+      "initiativeId": "initiative-020",
+      "dealerId": "1100",
+      "amount": 9000,
+      "sourceRow": 151
+    },
+    {
+      "initiativeId": "initiative-020",
+      "dealerId": "1200",
+      "amount": 7000,
+      "sourceRow": 152
+    },
+    {
+      "initiativeId": "initiative-020",
+      "dealerId": "1300",
+      "amount": 6000,
+      "sourceRow": 153
+    },
+    {
+      "initiativeId": "initiative-020",
+      "dealerId": "1400",
+      "amount": 5000,
+      "sourceRow": 154
+    },
+    {
+      "initiativeId": "initiative-020",
+      "dealerId": "1500",
+      "amount": 4000,
+      "sourceRow": 155
+    },
+    {
+      "initiativeId": "initiative-020",
+      "dealerId": "1600",
+      "amount": 6000,
+      "sourceRow": 156
+    },
+    {
+      "initiativeId": "initiative-020",
+      "dealerId": "1700",
+      "amount": 8000,
+      "sourceRow": 157
+    },
+    {
+      "initiativeId": "initiative-020",
+      "dealerId": "1800",
+      "amount": 5000,
+      "sourceRow": 158
+    },
+    {
+      "initiativeId": "initiative-020",
+      "dealerId": "1900",
+      "amount": 10000,
+      "sourceRow": 159
+    },
+    {
+      "initiativeId": "initiative-020",
+      "dealerId": "2000",
+      "amount": 6000,
+      "sourceRow": 160
+    },
+    {
+      "initiativeId": "initiative-021",
+      "dealerId": "1100",
+      "amount": 4000,
+      "sourceRow": 161
+    },
+    {
+      "initiativeId": "initiative-021",
+      "dealerId": "1200",
+      "amount": 3000,
+      "sourceRow": 162
+    },
+    {
+      "initiativeId": "initiative-021",
+      "dealerId": "1300",
+      "amount": 5000,
+      "sourceRow": 163
+    },
+    {
+      "initiativeId": "initiative-021",
+      "dealerId": "1400",
+      "amount": 2000,
+      "sourceRow": 164
+    },
+    {
+      "initiativeId": "initiative-021",
+      "dealerId": "1500",
+      "amount": 3000,
+      "sourceRow": 165
+    },
+    {
+      "initiativeId": "initiative-021",
+      "dealerId": "1600",
+      "amount": 2000,
+      "sourceRow": 166
+    },
+    {
+      "initiativeId": "initiative-021",
+      "dealerId": "1700",
+      "amount": 4000,
+      "sourceRow": 167
+    },
+    {
+      "initiativeId": "initiative-021",
+      "dealerId": "1800",
+      "amount": 3000,
+      "sourceRow": 168
+    },
+    {
+      "initiativeId": "initiative-021",
+      "dealerId": "1900",
+      "amount": 5000,
+      "sourceRow": 169
+    },
+    {
+      "initiativeId": "initiative-021",
+      "dealerId": "2000",
+      "amount": 3000,
+      "sourceRow": 170
+    },
+    {
+      "initiativeId": "initiative-022",
+      "dealerId": "1200",
+      "amount": 8000,
+      "sourceRow": 171
+    },
+    {
+      "initiativeId": "initiative-022",
+      "dealerId": "1300",
+      "amount": 6000,
+      "sourceRow": 172
+    },
+    {
+      "initiativeId": "initiative-022",
+      "dealerId": "1500",
+      "amount": 7000,
+      "sourceRow": 173
+    },
+    {
+      "initiativeId": "initiative-022",
+      "dealerId": "1600",
+      "amount": 5000,
+      "sourceRow": 174
+    },
+    {
+      "initiativeId": "initiative-022",
+      "dealerId": "1800",
+      "amount": 4000,
+      "sourceRow": 175
+    },
+    {
+      "initiativeId": "initiative-022",
+      "dealerId": "1900",
+      "amount": 9000,
+      "sourceRow": 176
+    },
+    {
+      "initiativeId": "initiative-022",
+      "dealerId": "2000",
+      "amount": 6000,
+      "sourceRow": 177
+    },
+    {
+      "initiativeId": "initiative-023",
+      "dealerId": "1100",
+      "amount": 10000,
+      "sourceRow": 178
+    },
+    {
+      "initiativeId": "initiative-023",
+      "dealerId": "1200",
+      "amount": 8000,
+      "sourceRow": 179
+    },
+    {
+      "initiativeId": "initiative-023",
+      "dealerId": "1300",
+      "amount": 12000,
+      "sourceRow": 180
+    },
+    {
+      "initiativeId": "initiative-023",
+      "dealerId": "1400",
+      "amount": 5000,
+      "sourceRow": 181
+    },
+    {
+      "initiativeId": "initiative-023",
+      "dealerId": "1500",
+      "amount": 7000,
+      "sourceRow": 182
+    },
+    {
+      "initiativeId": "initiative-023",
+      "dealerId": "1600",
+      "amount": 6000,
+      "sourceRow": 183
+    },
+    {
+      "initiativeId": "initiative-023",
+      "dealerId": "1700",
+      "amount": 9000,
+      "sourceRow": 184
+    },
+    {
+      "initiativeId": "initiative-023",
+      "dealerId": "1800",
+      "amount": 7000,
+      "sourceRow": 185
+    },
+    {
+      "initiativeId": "initiative-023",
+      "dealerId": "1900",
+      "amount": 15000,
+      "sourceRow": 186
+    },
+    {
+      "initiativeId": "initiative-023",
+      "dealerId": "2000",
+      "amount": 8000,
+      "sourceRow": 187
+    },
+    {
+      "initiativeId": "initiative-024",
+      "dealerId": "1100",
+      "amount": 45000,
+      "sourceRow": 188
+    },
+    {
+      "initiativeId": "initiative-024",
+      "dealerId": "1300",
+      "amount": 30000,
+      "sourceRow": 189
+    },
+    {
+      "initiativeId": "initiative-024",
+      "dealerId": "1400",
+      "amount": 25000,
+      "sourceRow": 190
+    },
+    {
+      "initiativeId": "initiative-024",
+      "dealerId": "1600",
+      "amount": 20000,
+      "sourceRow": 191
+    },
+    {
+      "initiativeId": "initiative-024",
+      "dealerId": "1700",
+      "amount": 35000,
+      "sourceRow": 192
+    },
+    {
+      "initiativeId": "initiative-024",
+      "dealerId": "1900",
+      "amount": 40000,
+      "sourceRow": 193
+    },
+    {
+      "initiativeId": "initiative-024",
+      "dealerId": "2000",
+      "amount": 25000,
+      "sourceRow": 194
+    },
+    {
+      "initiativeId": "initiative-025",
+      "dealerId": "1200",
+      "amount": 18000,
+      "sourceRow": 195
+    },
+    {
+      "initiativeId": "initiative-025",
+      "dealerId": "1300",
+      "amount": 12000,
+      "sourceRow": 196
+    },
+    {
+      "initiativeId": "initiative-025",
+      "dealerId": "1500",
+      "amount": 15000,
+      "sourceRow": 197
+    },
+    {
+      "initiativeId": "initiative-025",
+      "dealerId": "1600",
+      "amount": 10000,
+      "sourceRow": 198
+    },
+    {
+      "initiativeId": "initiative-025",
+      "dealerId": "1800",
+      "amount": 8000,
+      "sourceRow": 199
+    },
+    {
+      "initiativeId": "initiative-025",
+      "dealerId": "1900",
+      "amount": 20000,
+      "sourceRow": 200
+    },
+    {
+      "initiativeId": "initiative-025",
+      "dealerId": "2000",
+      "amount": 12000,
+      "sourceRow": 201
+    },
+    {
+      "initiativeId": "initiative-026",
+      "dealerId": "2100",
+      "amount": 4000,
+      "sourceRow": 202
+    },
+    {
+      "initiativeId": "initiative-026",
+      "dealerId": "2600",
+      "amount": 5000,
+      "sourceRow": 203
+    },
+    {
+      "initiativeId": "initiative-026",
+      "dealerId": "3100",
+      "amount": 6000,
+      "sourceRow": 204
+    },
+    {
+      "initiativeId": "initiative-026",
+      "dealerId": "3600",
+      "amount": 7000,
+      "sourceRow": 205
+    },
+    {
+      "initiativeId": "initiative-026",
+      "dealerId": "4100",
+      "amount": 8000,
+      "sourceRow": 206
+    },
+    {
+      "initiativeId": "initiative-026",
+      "dealerId": "4600",
+      "amount": 4000,
+      "sourceRow": 207
+    },
+    {
+      "initiativeId": "initiative-026",
+      "dealerId": "5100",
+      "amount": 5000,
+      "sourceRow": 208
+    },
+    {
+      "initiativeId": "initiative-026",
+      "dealerId": "5600",
+      "amount": 4000,
+      "sourceRow": 209
+    },
+    {
+      "initiativeId": "initiative-027",
+      "dealerId": "2400",
+      "amount": 6000,
+      "sourceRow": 210
+    },
+    {
+      "initiativeId": "initiative-027",
+      "dealerId": "2900",
+      "amount": 8000,
+      "sourceRow": 211
+    },
+    {
+      "initiativeId": "initiative-027",
+      "dealerId": "3400",
+      "amount": 10000,
+      "sourceRow": 212
+    },
+    {
+      "initiativeId": "initiative-027",
+      "dealerId": "3900",
+      "amount": 11000,
+      "sourceRow": 213
+    },
+    {
+      "initiativeId": "initiative-027",
+      "dealerId": "4400",
+      "amount": 6000,
+      "sourceRow": 214
+    },
+    {
+      "initiativeId": "initiative-027",
+      "dealerId": "4900",
+      "amount": 7000,
+      "sourceRow": 215
+    },
+    {
+      "initiativeId": "initiative-027",
+      "dealerId": "5400",
+      "amount": 9000,
+      "sourceRow": 216
+    },
+    {
+      "initiativeId": "initiative-027",
+      "dealerId": "5900",
+      "amount": 10000,
+      "sourceRow": 217
+    },
+    {
+      "initiativeId": "initiative-028",
+      "dealerId": "2700",
+      "amount": 3000,
+      "sourceRow": 218
+    },
+    {
+      "initiativeId": "initiative-028",
+      "dealerId": "3200",
+      "amount": 4000,
+      "sourceRow": 219
+    },
+    {
+      "initiativeId": "initiative-028",
+      "dealerId": "3700",
+      "amount": 5000,
+      "sourceRow": 220
+    },
+    {
+      "initiativeId": "initiative-028",
+      "dealerId": "4200",
+      "amount": 5000,
+      "sourceRow": 221
+    },
+    {
+      "initiativeId": "initiative-028",
+      "dealerId": "4700",
+      "amount": 3000,
+      "sourceRow": 222
+    },
+    {
+      "initiativeId": "initiative-028",
+      "dealerId": "5200",
+      "amount": 4000,
+      "sourceRow": 223
+    },
+    {
+      "initiativeId": "initiative-028",
+      "dealerId": "5700",
+      "amount": 4000,
+      "sourceRow": 224
+    },
+    {
+      "initiativeId": "initiative-028",
+      "dealerId": "2200",
+      "amount": 5000,
+      "sourceRow": 225
+    },
+    {
+      "initiativeId": "initiative-029",
+      "dealerId": "3000",
+      "amount": 12000,
+      "sourceRow": 226
+    },
+    {
+      "initiativeId": "initiative-029",
+      "dealerId": "3500",
+      "amount": 14000,
+      "sourceRow": 227
+    },
+    {
+      "initiativeId": "initiative-029",
+      "dealerId": "4000",
+      "amount": 17000,
+      "sourceRow": 228
+    },
+    {
+      "initiativeId": "initiative-029",
+      "dealerId": "4500",
+      "amount": 8000,
+      "sourceRow": 229
+    },
+    {
+      "initiativeId": "initiative-029",
+      "dealerId": "5000",
+      "amount": 11000,
+      "sourceRow": 230
+    },
+    {
+      "initiativeId": "initiative-029",
+      "dealerId": "5500",
+      "amount": 13000,
+      "sourceRow": 231
+    },
+    {
+      "initiativeId": "initiative-029",
+      "dealerId": "6000",
+      "amount": 16000,
+      "sourceRow": 232
+    },
+    {
+      "initiativeId": "initiative-029",
+      "dealerId": "2500",
+      "amount": 18000,
+      "sourceRow": 233
+    },
+    {
+      "initiativeId": "initiative-030",
+      "dealerId": "3300",
+      "amount": 8000,
+      "sourceRow": 234
+    },
+    {
+      "initiativeId": "initiative-030",
+      "dealerId": "3800",
+      "amount": 10000,
+      "sourceRow": 235
+    },
+    {
+      "initiativeId": "initiative-030",
+      "dealerId": "4300",
+      "amount": 12000,
+      "sourceRow": 236
+    },
+    {
+      "initiativeId": "initiative-030",
+      "dealerId": "4800",
+      "amount": 6000,
+      "sourceRow": 237
+    },
+    {
+      "initiativeId": "initiative-030",
+      "dealerId": "5300",
+      "amount": 8000,
+      "sourceRow": 238
+    },
+    {
+      "initiativeId": "initiative-030",
+      "dealerId": "5800",
+      "amount": 9000,
+      "sourceRow": 239
+    },
+    {
+      "initiativeId": "initiative-030",
+      "dealerId": "2300",
+      "amount": 11000,
+      "sourceRow": 240
+    },
+    {
+      "initiativeId": "initiative-030",
+      "dealerId": "2800",
+      "amount": 5000,
+      "sourceRow": 241
+    },
+    {
+      "initiativeId": "initiative-031",
+      "dealerId": "3600",
+      "amount": 14000,
+      "sourceRow": 242
+    },
+    {
+      "initiativeId": "initiative-031",
+      "dealerId": "4100",
+      "amount": 16000,
+      "sourceRow": 243
+    },
+    {
+      "initiativeId": "initiative-031",
+      "dealerId": "4600",
+      "amount": 8000,
+      "sourceRow": 244
+    },
+    {
+      "initiativeId": "initiative-031",
+      "dealerId": "5100",
+      "amount": 10000,
+      "sourceRow": 245
+    },
+    {
+      "initiativeId": "initiative-031",
+      "dealerId": "5600",
+      "amount": 13000,
+      "sourceRow": 246
+    },
+    {
+      "initiativeId": "initiative-031",
+      "dealerId": "2100",
+      "amount": 15000,
+      "sourceRow": 247
+    },
+    {
+      "initiativeId": "initiative-031",
+      "dealerId": "2600",
+      "amount": 17000,
+      "sourceRow": 248
+    },
+    {
+      "initiativeId": "initiative-031",
+      "dealerId": "3100",
+      "amount": 9000,
+      "sourceRow": 249
+    },
+    {
+      "initiativeId": "initiative-032",
+      "dealerId": "3900",
+      "amount": 7000,
+      "sourceRow": 250
+    },
+    {
+      "initiativeId": "initiative-032",
+      "dealerId": "4400",
+      "amount": 8000,
+      "sourceRow": 251
+    },
+    {
+      "initiativeId": "initiative-032",
+      "dealerId": "4900",
+      "amount": 4000,
+      "sourceRow": 252
+    },
+    {
+      "initiativeId": "initiative-032",
+      "dealerId": "5400",
+      "amount": 5000,
+      "sourceRow": 253
+    },
+    {
+      "initiativeId": "initiative-032",
+      "dealerId": "5900",
+      "amount": 6000,
+      "sourceRow": 254
+    },
+    {
+      "initiativeId": "initiative-032",
+      "dealerId": "2400",
+      "amount": 7000,
+      "sourceRow": 255
+    },
+    {
+      "initiativeId": "initiative-032",
+      "dealerId": "2900",
+      "amount": 4000,
+      "sourceRow": 256
+    },
+    {
+      "initiativeId": "initiative-032",
+      "dealerId": "3400",
+      "amount": 6000,
+      "sourceRow": 257
+    },
+    {
+      "initiativeId": "initiative-033",
+      "dealerId": "4200",
+      "amount": 12000,
+      "sourceRow": 258
+    },
+    {
+      "initiativeId": "initiative-033",
+      "dealerId": "4700",
+      "amount": 6000,
+      "sourceRow": 259
+    },
+    {
+      "initiativeId": "initiative-033",
+      "dealerId": "5200",
+      "amount": 8000,
+      "sourceRow": 260
+    },
+    {
+      "initiativeId": "initiative-033",
+      "dealerId": "5700",
+      "amount": 10000,
+      "sourceRow": 261
+    },
+    {
+      "initiativeId": "initiative-033",
+      "dealerId": "2200",
+      "amount": 11000,
+      "sourceRow": 262
+    },
+    {
+      "initiativeId": "initiative-033",
+      "dealerId": "2700",
+      "amount": 13000,
+      "sourceRow": 263
+    },
+    {
+      "initiativeId": "initiative-033",
+      "dealerId": "3200",
+      "amount": 7000,
+      "sourceRow": 264
+    },
+    {
+      "initiativeId": "initiative-033",
+      "dealerId": "3700",
+      "amount": 9000,
+      "sourceRow": 265
+    },
+    {
+      "initiativeId": "initiative-034",
+      "dealerId": "4500",
+      "amount": 9000,
+      "sourceRow": 266
+    },
+    {
+      "initiativeId": "initiative-034",
+      "dealerId": "5000",
+      "amount": 5000,
+      "sourceRow": 267
+    },
+    {
+      "initiativeId": "initiative-034",
+      "dealerId": "5500",
+      "amount": 6000,
+      "sourceRow": 268
+    },
+    {
+      "initiativeId": "initiative-034",
+      "dealerId": "6000",
+      "amount": 7000,
+      "sourceRow": 269
+    },
+    {
+      "initiativeId": "initiative-034",
+      "dealerId": "2500",
+      "amount": 8000,
+      "sourceRow": 270
+    },
+    {
+      "initiativeId": "initiative-034",
+      "dealerId": "3000",
+      "amount": 4000,
+      "sourceRow": 271
+    },
+    {
+      "initiativeId": "initiative-034",
+      "dealerId": "3500",
+      "amount": 5000,
+      "sourceRow": 272
+    },
+    {
+      "initiativeId": "initiative-034",
+      "dealerId": "4000",
+      "amount": 6000,
+      "sourceRow": 273
+    },
+    {
+      "initiativeId": "initiative-035",
+      "dealerId": "4800",
+      "amount": 6000,
+      "sourceRow": 274
+    },
+    {
+      "initiativeId": "initiative-035",
+      "dealerId": "5300",
+      "amount": 8000,
+      "sourceRow": 275
+    },
+    {
+      "initiativeId": "initiative-035",
+      "dealerId": "5800",
+      "amount": 10000,
+      "sourceRow": 276
+    },
+    {
+      "initiativeId": "initiative-035",
+      "dealerId": "2300",
+      "amount": 12000,
+      "sourceRow": 277
+    },
+    {
+      "initiativeId": "initiative-035",
+      "dealerId": "2800",
+      "amount": 13000,
+      "sourceRow": 278
+    },
+    {
+      "initiativeId": "initiative-035",
+      "dealerId": "3300",
+      "amount": 7000,
+      "sourceRow": 279
+    },
+    {
+      "initiativeId": "initiative-035",
+      "dealerId": "3800",
+      "amount": 9000,
+      "sourceRow": 280
+    },
+    {
+      "initiativeId": "initiative-035",
+      "dealerId": "4300",
+      "amount": 11000,
+      "sourceRow": 281
+    },
+    {
+      "initiativeId": "initiative-036",
+      "dealerId": "5100",
+      "amount": 3000,
+      "sourceRow": 282
+    },
+    {
+      "initiativeId": "initiative-036",
+      "dealerId": "5600",
+      "amount": 4000,
+      "sourceRow": 283
+    },
+    {
+      "initiativeId": "initiative-036",
+      "dealerId": "2100",
+      "amount": 5000,
+      "sourceRow": 284
+    },
+    {
+      "initiativeId": "initiative-036",
+      "dealerId": "2600",
+      "amount": 6000,
+      "sourceRow": 285
+    },
+    {
+      "initiativeId": "initiative-036",
+      "dealerId": "3100",
+      "amount": 3000,
+      "sourceRow": 286
+    },
+    {
+      "initiativeId": "initiative-036",
+      "dealerId": "3600",
+      "amount": 4000,
+      "sourceRow": 287
+    },
+    {
+      "initiativeId": "initiative-036",
+      "dealerId": "4100",
+      "amount": 5000,
+      "sourceRow": 288
+    },
+    {
+      "initiativeId": "initiative-036",
+      "dealerId": "4600",
+      "amount": 6000,
+      "sourceRow": 289
+    },
+    {
+      "initiativeId": "initiative-037",
+      "dealerId": "5400",
+      "amount": 12000,
+      "sourceRow": 290
+    },
+    {
+      "initiativeId": "initiative-037",
+      "dealerId": "5900",
+      "amount": 14000,
+      "sourceRow": 291
+    },
+    {
+      "initiativeId": "initiative-037",
+      "dealerId": "2400",
+      "amount": 17000,
+      "sourceRow": 292
+    },
+    {
+      "initiativeId": "initiative-037",
+      "dealerId": "2900",
+      "amount": 20000,
+      "sourceRow": 293
+    },
+    {
+      "initiativeId": "initiative-037",
+      "dealerId": "3400",
+      "amount": 10000,
+      "sourceRow": 294
+    },
+    {
+      "initiativeId": "initiative-037",
+      "dealerId": "3900",
+      "amount": 13000,
+      "sourceRow": 295
+    },
+    {
+      "initiativeId": "initiative-037",
+      "dealerId": "4400",
+      "amount": 16000,
+      "sourceRow": 296
+    },
+    {
+      "initiativeId": "initiative-037",
+      "dealerId": "4900",
+      "amount": 18000,
+      "sourceRow": 297
+    },
+    {
+      "initiativeId": "initiative-038",
+      "dealerId": "5700",
+      "amount": 8000,
+      "sourceRow": 298
+    },
+    {
+      "initiativeId": "initiative-038",
+      "dealerId": "2200",
+      "amount": 10000,
+      "sourceRow": 299
+    },
+    {
+      "initiativeId": "initiative-038",
+      "dealerId": "2700",
+      "amount": 12000,
+      "sourceRow": 300
+    },
+    {
+      "initiativeId": "initiative-038",
+      "dealerId": "3200",
+      "amount": 6000,
+      "sourceRow": 301
+    },
+    {
+      "initiativeId": "initiative-038",
+      "dealerId": "3700",
+      "amount": 7000,
+      "sourceRow": 302
+    },
+    {
+      "initiativeId": "initiative-038",
+      "dealerId": "4200",
+      "amount": 9000,
+      "sourceRow": 303
+    },
+    {
+      "initiativeId": "initiative-038",
+      "dealerId": "4700",
+      "amount": 11000,
+      "sourceRow": 304
+    },
+    {
+      "initiativeId": "initiative-038",
+      "dealerId": "5200",
+      "amount": 12000,
+      "sourceRow": 305
+    },
+    {
+      "initiativeId": "initiative-039",
+      "dealerId": "6000",
+      "amount": 14000,
+      "sourceRow": 306
+    },
+    {
+      "initiativeId": "initiative-039",
+      "dealerId": "2500",
+      "amount": 16000,
+      "sourceRow": 307
+    },
+    {
+      "initiativeId": "initiative-039",
+      "dealerId": "3000",
+      "amount": 19000,
+      "sourceRow": 308
+    },
+    {
+      "initiativeId": "initiative-039",
+      "dealerId": "3500",
+      "amount": 10000,
+      "sourceRow": 309
+    },
+    {
+      "initiativeId": "initiative-039",
+      "dealerId": "4000",
+      "amount": 12000,
+      "sourceRow": 310
+    },
+    {
+      "initiativeId": "initiative-039",
+      "dealerId": "4500",
+      "amount": 15000,
+      "sourceRow": 311
+    },
+    {
+      "initiativeId": "initiative-039",
+      "dealerId": "5000",
+      "amount": 17000,
+      "sourceRow": 312
+    },
+    {
+      "initiativeId": "initiative-039",
+      "dealerId": "5500",
+      "amount": 8000,
+      "sourceRow": 313
+    },
+    {
+      "initiativeId": "initiative-040",
+      "dealerId": "2300",
+      "amount": 3000,
+      "sourceRow": 314
+    },
+    {
+      "initiativeId": "initiative-040",
+      "dealerId": "2800",
+      "amount": 4000,
+      "sourceRow": 315
+    },
+    {
+      "initiativeId": "initiative-040",
+      "dealerId": "3300",
+      "amount": 2000,
+      "sourceRow": 316
+    },
+    {
+      "initiativeId": "initiative-040",
+      "dealerId": "3800",
+      "amount": 3000,
+      "sourceRow": 317
+    },
+    {
+      "initiativeId": "initiative-040",
+      "dealerId": "4300",
+      "amount": 3000,
+      "sourceRow": 318
+    },
+    {
+      "initiativeId": "initiative-040",
+      "dealerId": "4800",
+      "amount": 4000,
+      "sourceRow": 319
+    },
+    {
+      "initiativeId": "initiative-040",
+      "dealerId": "5300",
+      "amount": 4000,
+      "sourceRow": 320
+    },
+    {
+      "initiativeId": "initiative-040",
+      "dealerId": "5800",
+      "amount": 2000,
+      "sourceRow": 321
+    },
+    {
+      "initiativeId": "initiative-041",
+      "dealerId": "2600",
+      "amount": 13000,
+      "sourceRow": 322
+    },
+    {
+      "initiativeId": "initiative-041",
+      "dealerId": "3100",
+      "amount": 15000,
+      "sourceRow": 323
+    },
+    {
+      "initiativeId": "initiative-041",
+      "dealerId": "3600",
+      "amount": 8000,
+      "sourceRow": 324
+    },
+    {
+      "initiativeId": "initiative-041",
+      "dealerId": "4100",
+      "amount": 10000,
+      "sourceRow": 325
+    },
+    {
+      "initiativeId": "initiative-041",
+      "dealerId": "4600",
+      "amount": 12000,
+      "sourceRow": 326
+    },
+    {
+      "initiativeId": "initiative-041",
+      "dealerId": "5100",
+      "amount": 14000,
+      "sourceRow": 327
+    },
+    {
+      "initiativeId": "initiative-041",
+      "dealerId": "5600",
+      "amount": 7000,
+      "sourceRow": 328
+    },
+    {
+      "initiativeId": "initiative-041",
+      "dealerId": "2100",
+      "amount": 8000,
+      "sourceRow": 329
+    },
+    {
+      "initiativeId": "initiative-042",
+      "dealerId": "2900",
+      "amount": 9000,
+      "sourceRow": 330
+    },
+    {
+      "initiativeId": "initiative-042",
+      "dealerId": "3400",
+      "amount": 5000,
+      "sourceRow": 331
+    },
+    {
+      "initiativeId": "initiative-042",
+      "dealerId": "3900",
+      "amount": 6000,
+      "sourceRow": 332
+    },
+    {
+      "initiativeId": "initiative-042",
+      "dealerId": "4400",
+      "amount": 7000,
+      "sourceRow": 333
+    },
+    {
+      "initiativeId": "initiative-042",
+      "dealerId": "4900",
+      "amount": 8000,
+      "sourceRow": 334
+    },
+    {
+      "initiativeId": "initiative-042",
+      "dealerId": "5400",
+      "amount": 10000,
+      "sourceRow": 335
+    },
+    {
+      "initiativeId": "initiative-042",
+      "dealerId": "5900",
+      "amount": 5000,
+      "sourceRow": 336
+    },
+    {
+      "initiativeId": "initiative-042",
+      "dealerId": "2400",
+      "amount": 6000,
+      "sourceRow": 337
+    },
+    {
+      "initiativeId": "initiative-043",
+      "dealerId": "3200",
+      "amount": 15000,
+      "sourceRow": 338
+    },
+    {
+      "initiativeId": "initiative-043",
+      "dealerId": "3700",
+      "amount": 8000,
+      "sourceRow": 339
+    },
+    {
+      "initiativeId": "initiative-043",
+      "dealerId": "4200",
+      "amount": 10000,
+      "sourceRow": 340
+    },
+    {
+      "initiativeId": "initiative-043",
+      "dealerId": "4700",
+      "amount": 12000,
+      "sourceRow": 341
+    },
+    {
+      "initiativeId": "initiative-043",
+      "dealerId": "5200",
+      "amount": 14000,
+      "sourceRow": 342
+    },
+    {
+      "initiativeId": "initiative-043",
+      "dealerId": "5700",
+      "amount": 7000,
+      "sourceRow": 343
+    },
+    {
+      "initiativeId": "initiative-043",
+      "dealerId": "2200",
+      "amount": 9000,
+      "sourceRow": 344
+    },
+    {
+      "initiativeId": "initiative-043",
+      "dealerId": "2700",
+      "amount": 10000,
+      "sourceRow": 345
+    },
+    {
+      "initiativeId": "initiative-044",
+      "dealerId": "3500",
+      "amount": 3000,
+      "sourceRow": 346
+    },
+    {
+      "initiativeId": "initiative-044",
+      "dealerId": "4000",
+      "amount": 4000,
+      "sourceRow": 347
+    },
+    {
+      "initiativeId": "initiative-044",
+      "dealerId": "4500",
+      "amount": 5000,
+      "sourceRow": 348
+    },
+    {
+      "initiativeId": "initiative-044",
+      "dealerId": "5000",
+      "amount": 6000,
+      "sourceRow": 349
+    },
+    {
+      "initiativeId": "initiative-044",
+      "dealerId": "5500",
+      "amount": 7000,
+      "sourceRow": 350
+    },
+    {
+      "initiativeId": "initiative-044",
+      "dealerId": "6000",
+      "amount": 4000,
+      "sourceRow": 351
+    },
+    {
+      "initiativeId": "initiative-044",
+      "dealerId": "2500",
+      "amount": 5000,
+      "sourceRow": 352
+    },
+    {
+      "initiativeId": "initiative-044",
+      "dealerId": "3000",
+      "amount": 6000,
+      "sourceRow": 353
+    },
+    {
+      "initiativeId": "initiative-045",
+      "dealerId": "3800",
+      "amount": 12000,
+      "sourceRow": 354
+    },
+    {
+      "initiativeId": "initiative-045",
+      "dealerId": "4300",
+      "amount": 16000,
+      "sourceRow": 355
+    },
+    {
+      "initiativeId": "initiative-045",
+      "dealerId": "4800",
+      "amount": 19000,
+      "sourceRow": 356
+    },
+    {
+      "initiativeId": "initiative-045",
+      "dealerId": "5300",
+      "amount": 22000,
+      "sourceRow": 357
+    },
+    {
+      "initiativeId": "initiative-045",
+      "dealerId": "5800",
+      "amount": 11000,
+      "sourceRow": 358
+    },
+    {
+      "initiativeId": "initiative-045",
+      "dealerId": "2300",
+      "amount": 14000,
+      "sourceRow": 359
+    },
+    {
+      "initiativeId": "initiative-045",
+      "dealerId": "2800",
+      "amount": 17000,
+      "sourceRow": 360
+    },
+    {
+      "initiativeId": "initiative-045",
+      "dealerId": "3300",
+      "amount": 20000,
+      "sourceRow": 361
+    },
+    {
+      "initiativeId": "initiative-046",
+      "dealerId": "4100",
+      "amount": 8000,
+      "sourceRow": 362
+    },
+    {
+      "initiativeId": "initiative-046",
+      "dealerId": "4600",
+      "amount": 10000,
+      "sourceRow": 363
+    },
+    {
+      "initiativeId": "initiative-046",
+      "dealerId": "5100",
+      "amount": 11000,
+      "sourceRow": 364
+    },
+    {
+      "initiativeId": "initiative-046",
+      "dealerId": "5600",
+      "amount": 13000,
+      "sourceRow": 365
+    },
+    {
+      "initiativeId": "initiative-046",
+      "dealerId": "2100",
+      "amount": 7000,
+      "sourceRow": 366
+    },
+    {
+      "initiativeId": "initiative-046",
+      "dealerId": "2600",
+      "amount": 9000,
+      "sourceRow": 367
+    },
+    {
+      "initiativeId": "initiative-046",
+      "dealerId": "3100",
+      "amount": 11000,
+      "sourceRow": 368
+    },
+    {
+      "initiativeId": "initiative-046",
+      "dealerId": "3600",
+      "amount": 12000,
+      "sourceRow": 369
+    },
+    {
+      "initiativeId": "initiative-047",
+      "dealerId": "4400",
+      "amount": 6000,
+      "sourceRow": 370
+    },
+    {
+      "initiativeId": "initiative-047",
+      "dealerId": "4900",
+      "amount": 8000,
+      "sourceRow": 371
+    },
+    {
+      "initiativeId": "initiative-047",
+      "dealerId": "5400",
+      "amount": 9000,
+      "sourceRow": 372
+    },
+    {
+      "initiativeId": "initiative-047",
+      "dealerId": "5900",
+      "amount": 5000,
+      "sourceRow": 373
+    },
+    {
+      "initiativeId": "initiative-047",
+      "dealerId": "2400",
+      "amount": 6000,
+      "sourceRow": 374
+    },
+    {
+      "initiativeId": "initiative-047",
+      "dealerId": "2900",
+      "amount": 7000,
+      "sourceRow": 375
+    },
+    {
+      "initiativeId": "initiative-047",
+      "dealerId": "3400",
+      "amount": 8000,
+      "sourceRow": 376
+    },
+    {
+      "initiativeId": "initiative-047",
+      "dealerId": "3900",
+      "amount": 10000,
+      "sourceRow": 377
+    },
+    {
+      "initiativeId": "initiative-048",
+      "dealerId": "4700",
+      "amount": 4000,
+      "sourceRow": 378
+    },
+    {
+      "initiativeId": "initiative-048",
+      "dealerId": "5200",
+      "amount": 4000,
+      "sourceRow": 379
+    },
+    {
+      "initiativeId": "initiative-048",
+      "dealerId": "5700",
+      "amount": 5000,
+      "sourceRow": 380
+    },
+    {
+      "initiativeId": "initiative-048",
+      "dealerId": "2200",
+      "amount": 3000,
+      "sourceRow": 381
+    },
+    {
+      "initiativeId": "initiative-048",
+      "dealerId": "2700",
+      "amount": 3000,
+      "sourceRow": 382
+    },
+    {
+      "initiativeId": "initiative-048",
+      "dealerId": "3200",
+      "amount": 4000,
+      "sourceRow": 383
+    },
+    {
+      "initiativeId": "initiative-048",
+      "dealerId": "3700",
+      "amount": 5000,
+      "sourceRow": 384
+    },
+    {
+      "initiativeId": "initiative-048",
+      "dealerId": "4200",
+      "amount": 1000,
+      "sourceRow": 385
+    },
+    {
+      "initiativeId": "initiative-049",
+      "dealerId": "5000",
+      "amount": 13000,
+      "sourceRow": 386
+    },
+    {
+      "initiativeId": "initiative-049",
+      "dealerId": "5500",
+      "amount": 15000,
+      "sourceRow": 387
+    },
+    {
+      "initiativeId": "initiative-049",
+      "dealerId": "6000",
+      "amount": 8000,
+      "sourceRow": 388
+    },
+    {
+      "initiativeId": "initiative-049",
+      "dealerId": "2500",
+      "amount": 10000,
+      "sourceRow": 389
+    },
+    {
+      "initiativeId": "initiative-049",
+      "dealerId": "3000",
+      "amount": 12000,
+      "sourceRow": 390
+    },
+    {
+      "initiativeId": "initiative-049",
+      "dealerId": "3500",
+      "amount": 14000,
+      "sourceRow": 391
+    },
+    {
+      "initiativeId": "initiative-049",
+      "dealerId": "4000",
+      "amount": 17000,
+      "sourceRow": 392
+    },
+    {
+      "initiativeId": "initiative-049",
+      "dealerId": "4500",
+      "amount": 9000,
+      "sourceRow": 393
+    },
+    {
+      "initiativeId": "initiative-050",
+      "dealerId": "5300",
+      "amount": 9000,
+      "sourceRow": 394
+    },
+    {
+      "initiativeId": "initiative-050",
+      "dealerId": "5800",
+      "amount": 11000,
+      "sourceRow": 395
+    },
+    {
+      "initiativeId": "initiative-050",
+      "dealerId": "2300",
+      "amount": 6000,
+      "sourceRow": 396
+    },
+    {
+      "initiativeId": "initiative-050",
+      "dealerId": "2800",
+      "amount": 7000,
+      "sourceRow": 397
+    },
+    {
+      "initiativeId": "initiative-050",
+      "dealerId": "3300",
+      "amount": 8000,
+      "sourceRow": 398
+    },
+    {
+      "initiativeId": "initiative-050",
+      "dealerId": "3800",
+      "amount": 10000,
+      "sourceRow": 399
+    },
+    {
+      "initiativeId": "initiative-050",
+      "dealerId": "4300",
+      "amount": 5000,
+      "sourceRow": 400
+    },
+    {
+      "initiativeId": "initiative-050",
+      "dealerId": "4800",
+      "amount": 6000,
+      "sourceRow": 401
+    },
+    {
+      "initiativeId": "initiative-051",
+      "dealerId": "5600",
+      "amount": 15000,
+      "sourceRow": 402
+    },
+    {
+      "initiativeId": "initiative-051",
+      "dealerId": "2100",
+      "amount": 7000,
+      "sourceRow": 403
+    },
+    {
+      "initiativeId": "initiative-051",
+      "dealerId": "2600",
+      "amount": 10000,
+      "sourceRow": 404
+    },
+    {
+      "initiativeId": "initiative-051",
+      "dealerId": "3100",
+      "amount": 12000,
+      "sourceRow": 405
+    },
+    {
+      "initiativeId": "initiative-051",
+      "dealerId": "3600",
+      "amount": 14000,
+      "sourceRow": 406
+    },
+    {
+      "initiativeId": "initiative-051",
+      "dealerId": "4100",
+      "amount": 16000,
+      "sourceRow": 407
+    },
+    {
+      "initiativeId": "initiative-051",
+      "dealerId": "4600",
+      "amount": 9000,
+      "sourceRow": 408
+    },
+    {
+      "initiativeId": "initiative-051",
+      "dealerId": "5100",
+      "amount": 10000,
+      "sourceRow": 409
+    },
+    {
+      "initiativeId": "initiative-052",
+      "dealerId": "5900",
+      "amount": 8000,
+      "sourceRow": 410
+    },
+    {
+      "initiativeId": "initiative-052",
+      "dealerId": "2400",
+      "amount": 4000,
+      "sourceRow": 411
+    },
+    {
+      "initiativeId": "initiative-052",
+      "dealerId": "2900",
+      "amount": 5000,
+      "sourceRow": 412
+    },
+    {
+      "initiativeId": "initiative-052",
+      "dealerId": "3400",
+      "amount": 6000,
+      "sourceRow": 413
+    },
+    {
+      "initiativeId": "initiative-052",
+      "dealerId": "3900",
+      "amount": 7000,
+      "sourceRow": 414
+    },
+    {
+      "initiativeId": "initiative-052",
+      "dealerId": "4400",
+      "amount": 4000,
+      "sourceRow": 415
+    },
+    {
+      "initiativeId": "initiative-052",
+      "dealerId": "4900",
+      "amount": 5000,
+      "sourceRow": 416
+    },
+    {
+      "initiativeId": "initiative-052",
+      "dealerId": "5400",
+      "amount": 5000,
+      "sourceRow": 417
+    },
+    {
+      "initiativeId": "initiative-053",
+      "dealerId": "2200",
+      "amount": 12000,
+      "sourceRow": 418
+    },
+    {
+      "initiativeId": "initiative-053",
+      "dealerId": "2700",
+      "amount": 15000,
+      "sourceRow": 419
+    },
+    {
+      "initiativeId": "initiative-053",
+      "dealerId": "3200",
+      "amount": 18000,
+      "sourceRow": 420
+    },
+    {
+      "initiativeId": "initiative-053",
+      "dealerId": "3700",
+      "amount": 22000,
+      "sourceRow": 421
+    },
+    {
+      "initiativeId": "initiative-053",
+      "dealerId": "4200",
+      "amount": 25000,
+      "sourceRow": 422
+    },
+    {
+      "initiativeId": "initiative-053",
+      "dealerId": "4700",
+      "amount": 13000,
+      "sourceRow": 423
+    },
+    {
+      "initiativeId": "initiative-053",
+      "dealerId": "5200",
+      "amount": 17000,
+      "sourceRow": 424
+    },
+    {
+      "initiativeId": "initiative-053",
+      "dealerId": "5700",
+      "amount": 20000,
+      "sourceRow": 425
+    },
+    {
+      "initiativeId": "initiative-054",
+      "dealerId": "2500",
+      "amount": 4000,
+      "sourceRow": 426
+    },
+    {
+      "initiativeId": "initiative-054",
+      "dealerId": "3000",
+      "amount": 5000,
+      "sourceRow": 427
+    },
+    {
+      "initiativeId": "initiative-054",
+      "dealerId": "3500",
+      "amount": 6000,
+      "sourceRow": 428
+    },
+    {
+      "initiativeId": "initiative-054",
+      "dealerId": "4000",
+      "amount": 7000,
+      "sourceRow": 429
+    },
+    {
+      "initiativeId": "initiative-054",
+      "dealerId": "4500",
+      "amount": 4000,
+      "sourceRow": 430
+    },
+    {
+      "initiativeId": "initiative-054",
+      "dealerId": "5000",
+      "amount": 5000,
+      "sourceRow": 431
+    },
+    {
+      "initiativeId": "initiative-054",
+      "dealerId": "5500",
+      "amount": 6000,
+      "sourceRow": 432
+    },
+    {
+      "initiativeId": "initiative-054",
+      "dealerId": "6000",
+      "amount": 6000,
+      "sourceRow": 433
+    },
+    {
+      "initiativeId": "initiative-055",
+      "dealerId": "2800",
+      "amount": 7000,
+      "sourceRow": 434
+    },
+    {
+      "initiativeId": "initiative-055",
+      "dealerId": "3300",
+      "amount": 8000,
+      "sourceRow": 435
+    },
+    {
+      "initiativeId": "initiative-055",
+      "dealerId": "3800",
+      "amount": 9000,
+      "sourceRow": 436
+    },
+    {
+      "initiativeId": "initiative-055",
+      "dealerId": "4300",
+      "amount": 11000,
+      "sourceRow": 437
+    },
+    {
+      "initiativeId": "initiative-055",
+      "dealerId": "4800",
+      "amount": 6000,
+      "sourceRow": 438
+    },
+    {
+      "initiativeId": "initiative-055",
+      "dealerId": "5300",
+      "amount": 7000,
+      "sourceRow": 439
+    },
+    {
+      "initiativeId": "initiative-055",
+      "dealerId": "5800",
+      "amount": 9000,
+      "sourceRow": 440
+    },
+    {
+      "initiativeId": "initiative-055",
+      "dealerId": "2300",
+      "amount": 10000,
+      "sourceRow": 441
+    },
+    {
+      "initiativeId": "initiative-056",
+      "dealerId": "3100",
+      "amount": 4000,
+      "sourceRow": 442
+    },
+    {
+      "initiativeId": "initiative-056",
+      "dealerId": "3600",
+      "amount": 4000,
+      "sourceRow": 443
+    },
+    {
+      "initiativeId": "initiative-056",
+      "dealerId": "4100",
+      "amount": 5000,
+      "sourceRow": 444
+    },
+    {
+      "initiativeId": "initiative-056",
+      "dealerId": "4600",
+      "amount": 3000,
+      "sourceRow": 445
+    },
+    {
+      "initiativeId": "initiative-056",
+      "dealerId": "5100",
+      "amount": 3000,
+      "sourceRow": 446
+    },
+    {
+      "initiativeId": "initiative-056",
+      "dealerId": "5600",
+      "amount": 4000,
+      "sourceRow": 447
+    },
+    {
+      "initiativeId": "initiative-056",
+      "dealerId": "2100",
+      "amount": 5000,
+      "sourceRow": 448
+    },
+    {
+      "initiativeId": "initiative-056",
+      "dealerId": "2600",
+      "amount": 5000,
+      "sourceRow": 449
+    },
+    {
+      "initiativeId": "initiative-057",
+      "dealerId": "3400",
+      "amount": 13000,
+      "sourceRow": 450
+    },
+    {
+      "initiativeId": "initiative-057",
+      "dealerId": "3900",
+      "amount": 16000,
+      "sourceRow": 451
+    },
+    {
+      "initiativeId": "initiative-057",
+      "dealerId": "4400",
+      "amount": 18000,
+      "sourceRow": 452
+    },
+    {
+      "initiativeId": "initiative-057",
+      "dealerId": "4900",
+      "amount": 10000,
+      "sourceRow": 453
+    },
+    {
+      "initiativeId": "initiative-057",
+      "dealerId": "5400",
+      "amount": 12000,
+      "sourceRow": 454
+    },
+    {
+      "initiativeId": "initiative-057",
+      "dealerId": "5900",
+      "amount": 15000,
+      "sourceRow": 455
+    },
+    {
+      "initiativeId": "initiative-057",
+      "dealerId": "2400",
+      "amount": 17000,
+      "sourceRow": 456
+    },
+    {
+      "initiativeId": "initiative-057",
+      "dealerId": "2900",
+      "amount": 8000,
+      "sourceRow": 457
+    },
+    {
+      "initiativeId": "initiative-058",
+      "dealerId": "3700",
+      "amount": 9000,
+      "sourceRow": 458
+    },
+    {
+      "initiativeId": "initiative-058",
+      "dealerId": "4200",
+      "amount": 11000,
+      "sourceRow": 459
+    },
+    {
+      "initiativeId": "initiative-058",
+      "dealerId": "4700",
+      "amount": 5000,
+      "sourceRow": 460
+    },
+    {
+      "initiativeId": "initiative-058",
+      "dealerId": "5200",
+      "amount": 7000,
+      "sourceRow": 461
+    },
+    {
+      "initiativeId": "initiative-058",
+      "dealerId": "5700",
+      "amount": 9000,
+      "sourceRow": 462
+    },
+    {
+      "initiativeId": "initiative-058",
+      "dealerId": "2200",
+      "amount": 10000,
+      "sourceRow": 463
+    },
+    {
+      "initiativeId": "initiative-058",
+      "dealerId": "2700",
+      "amount": 12000,
+      "sourceRow": 464
+    },
+    {
+      "initiativeId": "initiative-058",
+      "dealerId": "3200",
+      "amount": 6000,
+      "sourceRow": 465
+    },
+    {
+      "initiativeId": "initiative-059",
+      "dealerId": "4000",
+      "amount": 15000,
+      "sourceRow": 466
+    },
+    {
+      "initiativeId": "initiative-059",
+      "dealerId": "4500",
+      "amount": 17000,
+      "sourceRow": 467
+    },
+    {
+      "initiativeId": "initiative-059",
+      "dealerId": "5000",
+      "amount": 9000,
+      "sourceRow": 468
+    },
+    {
+      "initiativeId": "initiative-059",
+      "dealerId": "5500",
+      "amount": 12000,
+      "sourceRow": 469
+    },
+    {
+      "initiativeId": "initiative-059",
+      "dealerId": "6000",
+      "amount": 14000,
+      "sourceRow": 470
+    },
+    {
+      "initiativeId": "initiative-059",
+      "dealerId": "2500",
+      "amount": 16000,
+      "sourceRow": 471
+    },
+    {
+      "initiativeId": "initiative-059",
+      "dealerId": "3000",
+      "amount": 8000,
+      "sourceRow": 472
+    },
+    {
+      "initiativeId": "initiative-059",
+      "dealerId": "3500",
+      "amount": 11000,
+      "sourceRow": 473
+    },
+    {
+      "initiativeId": "initiative-060",
+      "dealerId": "4300",
+      "amount": 8000,
+      "sourceRow": 474
+    },
+    {
+      "initiativeId": "initiative-060",
+      "dealerId": "4800",
+      "amount": 4000,
+      "sourceRow": 475
+    },
+    {
+      "initiativeId": "initiative-060",
+      "dealerId": "5300",
+      "amount": 5000,
+      "sourceRow": 476
+    },
+    {
+      "initiativeId": "initiative-060",
+      "dealerId": "5800",
+      "amount": 6000,
+      "sourceRow": 477
+    },
+    {
+      "initiativeId": "initiative-060",
+      "dealerId": "2300",
+      "amount": 7000,
+      "sourceRow": 478
+    },
+    {
+      "initiativeId": "initiative-060",
+      "dealerId": "2800",
+      "amount": 8000,
+      "sourceRow": 479
+    },
+    {
+      "initiativeId": "initiative-060",
+      "dealerId": "3300",
+      "amount": 4000,
+      "sourceRow": 480
+    },
+    {
+      "initiativeId": "initiative-060",
+      "dealerId": "3800",
+      "amount": 5000,
+      "sourceRow": 481
+    },
+    {
+      "initiativeId": "initiative-061",
+      "dealerId": "4600",
+      "amount": 13000,
+      "sourceRow": 482
+    },
+    {
+      "initiativeId": "initiative-061",
+      "dealerId": "5100",
+      "amount": 7000,
+      "sourceRow": 483
+    },
+    {
+      "initiativeId": "initiative-061",
+      "dealerId": "5600",
+      "amount": 9000,
+      "sourceRow": 484
+    },
+    {
+      "initiativeId": "initiative-061",
+      "dealerId": "2100",
+      "amount": 11000,
+      "sourceRow": 485
+    },
+    {
+      "initiativeId": "initiative-061",
+      "dealerId": "2600",
+      "amount": 12000,
+      "sourceRow": 486
+    },
+    {
+      "initiativeId": "initiative-061",
+      "dealerId": "3100",
+      "amount": 6000,
+      "sourceRow": 487
+    },
+    {
+      "initiativeId": "initiative-061",
+      "dealerId": "3600",
+      "amount": 8000,
+      "sourceRow": 488
+    },
+    {
+      "initiativeId": "initiative-061",
+      "dealerId": "4100",
+      "amount": 10000,
+      "sourceRow": 489
+    },
+    {
+      "initiativeId": "initiative-062",
+      "dealerId": "4900",
+      "amount": 4000,
+      "sourceRow": 490
+    },
+    {
+      "initiativeId": "initiative-062",
+      "dealerId": "5400",
+      "amount": 5000,
+      "sourceRow": 491
+    },
+    {
+      "initiativeId": "initiative-062",
+      "dealerId": "5900",
+      "amount": 6000,
+      "sourceRow": 492
+    },
+    {
+      "initiativeId": "initiative-062",
+      "dealerId": "2400",
+      "amount": 8000,
+      "sourceRow": 493
+    },
+    {
+      "initiativeId": "initiative-062",
+      "dealerId": "2900",
+      "amount": 9000,
+      "sourceRow": 494
+    },
+    {
+      "initiativeId": "initiative-062",
+      "dealerId": "3400",
+      "amount": 5000,
+      "sourceRow": 495
+    },
+    {
+      "initiativeId": "initiative-062",
+      "dealerId": "3900",
+      "amount": 6000,
+      "sourceRow": 496
+    },
+    {
+      "initiativeId": "initiative-062",
+      "dealerId": "4400",
+      "amount": 7000,
+      "sourceRow": 497
+    },
+    {
+      "initiativeId": "initiative-063",
+      "dealerId": "5200",
+      "amount": 7000,
+      "sourceRow": 498
+    },
+    {
+      "initiativeId": "initiative-063",
+      "dealerId": "5700",
+      "amount": 9000,
+      "sourceRow": 499
+    },
+    {
+      "initiativeId": "initiative-063",
+      "dealerId": "2200",
+      "amount": 11000,
+      "sourceRow": 500
+    },
+    {
+      "initiativeId": "initiative-063",
+      "dealerId": "2700",
+      "amount": 13000,
+      "sourceRow": 501
+    },
+    {
+      "initiativeId": "initiative-063",
+      "dealerId": "3200",
+      "amount": 6000,
+      "sourceRow": 502
+    },
+    {
+      "initiativeId": "initiative-063",
+      "dealerId": "3700",
+      "amount": 8000,
+      "sourceRow": 503
+    },
+    {
+      "initiativeId": "initiative-063",
+      "dealerId": "4200",
+      "amount": 10000,
+      "sourceRow": 504
+    },
+    {
+      "initiativeId": "initiative-063",
+      "dealerId": "4700",
+      "amount": 12000,
+      "sourceRow": 505
+    },
+    {
+      "initiativeId": "initiative-064",
+      "dealerId": "5500",
+      "amount": 4000,
+      "sourceRow": 506
+    },
+    {
+      "initiativeId": "initiative-064",
+      "dealerId": "6000",
+      "amount": 4000,
+      "sourceRow": 507
+    },
+    {
+      "initiativeId": "initiative-064",
+      "dealerId": "2500",
+      "amount": 5000,
+      "sourceRow": 508
+    },
+    {
+      "initiativeId": "initiative-064",
+      "dealerId": "3000",
+      "amount": 6000,
+      "sourceRow": 509
+    },
+    {
+      "initiativeId": "initiative-064",
+      "dealerId": "3500",
+      "amount": 3000,
+      "sourceRow": 510
+    },
+    {
+      "initiativeId": "initiative-064",
+      "dealerId": "4000",
+      "amount": 4000,
+      "sourceRow": 511
+    },
+    {
+      "initiativeId": "initiative-064",
+      "dealerId": "4500",
+      "amount": 5000,
+      "sourceRow": 512
+    },
+    {
+      "initiativeId": "initiative-064",
+      "dealerId": "5000",
+      "amount": 5000,
+      "sourceRow": 513
+    },
+    {
+      "initiativeId": "initiative-065",
+      "dealerId": "5800",
+      "amount": 13000,
+      "sourceRow": 514
+    },
+    {
+      "initiativeId": "initiative-065",
+      "dealerId": "2300",
+      "amount": 16000,
+      "sourceRow": 515
+    },
+    {
+      "initiativeId": "initiative-065",
+      "dealerId": "2800",
+      "amount": 18000,
+      "sourceRow": 516
+    },
+    {
+      "initiativeId": "initiative-065",
+      "dealerId": "3300",
+      "amount": 9000,
+      "sourceRow": 517
+    },
+    {
+      "initiativeId": "initiative-065",
+      "dealerId": "3800",
+      "amount": 12000,
+      "sourceRow": 518
+    },
+    {
+      "initiativeId": "initiative-065",
+      "dealerId": "4300",
+      "amount": 15000,
+      "sourceRow": 519
+    },
+    {
+      "initiativeId": "initiative-065",
+      "dealerId": "4800",
+      "amount": 17000,
+      "sourceRow": 520
+    },
+    {
+      "initiativeId": "initiative-065",
+      "dealerId": "5300",
+      "amount": 20000,
+      "sourceRow": 521
+    },
+    {
+      "initiativeId": "initiative-066",
+      "dealerId": "2100",
+      "amount": 9000,
+      "sourceRow": 522
+    },
+    {
+      "initiativeId": "initiative-066",
+      "dealerId": "2600",
+      "amount": 11000,
+      "sourceRow": 523
+    },
+    {
+      "initiativeId": "initiative-066",
+      "dealerId": "3100",
+      "amount": 13000,
+      "sourceRow": 524
+    },
+    {
+      "initiativeId": "initiative-066",
+      "dealerId": "3600",
+      "amount": 7000,
+      "sourceRow": 525
+    },
+    {
+      "initiativeId": "initiative-066",
+      "dealerId": "4100",
+      "amount": 8000,
+      "sourceRow": 526
+    },
+    {
+      "initiativeId": "initiative-066",
+      "dealerId": "4600",
+      "amount": 10000,
+      "sourceRow": 527
+    },
+    {
+      "initiativeId": "initiative-066",
+      "dealerId": "5100",
+      "amount": 12000,
+      "sourceRow": 528
+    },
+    {
+      "initiativeId": "initiative-066",
+      "dealerId": "5600",
+      "amount": 5000,
+      "sourceRow": 529
+    },
+    {
+      "initiativeId": "initiative-067",
+      "dealerId": "2400",
+      "amount": 15000,
+      "sourceRow": 530
+    },
+    {
+      "initiativeId": "initiative-067",
+      "dealerId": "2900",
+      "amount": 17000,
+      "sourceRow": 531
+    },
+    {
+      "initiativeId": "initiative-067",
+      "dealerId": "3400",
+      "amount": 9000,
+      "sourceRow": 532
+    },
+    {
+      "initiativeId": "initiative-067",
+      "dealerId": "3900",
+      "amount": 11000,
+      "sourceRow": 533
+    },
+    {
+      "initiativeId": "initiative-067",
+      "dealerId": "4400",
+      "amount": 14000,
+      "sourceRow": 534
+    },
+    {
+      "initiativeId": "initiative-067",
+      "dealerId": "4900",
+      "amount": 16000,
+      "sourceRow": 535
+    },
+    {
+      "initiativeId": "initiative-067",
+      "dealerId": "5400",
+      "amount": 19000,
+      "sourceRow": 536
+    },
+    {
+      "initiativeId": "initiative-067",
+      "dealerId": "5900",
+      "amount": 10000,
+      "sourceRow": 537
+    },
+    {
+      "initiativeId": "initiative-068",
+      "dealerId": "2700",
+      "amount": 4000,
+      "sourceRow": 538
+    },
+    {
+      "initiativeId": "initiative-068",
+      "dealerId": "3200",
+      "amount": 4000,
+      "sourceRow": 539
+    },
+    {
+      "initiativeId": "initiative-068",
+      "dealerId": "3700",
+      "amount": 2000,
+      "sourceRow": 540
+    },
+    {
+      "initiativeId": "initiative-068",
+      "dealerId": "4200",
+      "amount": 3000,
+      "sourceRow": 541
+    },
+    {
+      "initiativeId": "initiative-068",
+      "dealerId": "4700",
+      "amount": 3000,
+      "sourceRow": 542
+    },
+    {
+      "initiativeId": "initiative-068",
+      "dealerId": "5200",
+      "amount": 4000,
+      "sourceRow": 543
+    },
+    {
+      "initiativeId": "initiative-068",
+      "dealerId": "5700",
+      "amount": 2000,
+      "sourceRow": 544
+    },
+    {
+      "initiativeId": "initiative-068",
+      "dealerId": "2200",
+      "amount": 3000,
+      "sourceRow": 545
+    },
+    {
+      "initiativeId": "initiative-069",
+      "dealerId": "3000",
+      "amount": 14000,
+      "sourceRow": 546
+    },
+    {
+      "initiativeId": "initiative-069",
+      "dealerId": "3500",
+      "amount": 7000,
+      "sourceRow": 547
+    },
+    {
+      "initiativeId": "initiative-069",
+      "dealerId": "4000",
+      "amount": 9000,
+      "sourceRow": 548
+    },
+    {
+      "initiativeId": "initiative-069",
+      "dealerId": "4500",
+      "amount": 11000,
+      "sourceRow": 549
+    },
+    {
+      "initiativeId": "initiative-069",
+      "dealerId": "5000",
+      "amount": 13000,
+      "sourceRow": 550
+    },
+    {
+      "initiativeId": "initiative-069",
+      "dealerId": "5500",
+      "amount": 15000,
+      "sourceRow": 551
+    },
+    {
+      "initiativeId": "initiative-069",
+      "dealerId": "6000",
+      "amount": 8000,
+      "sourceRow": 552
+    },
+    {
+      "initiativeId": "initiative-069",
+      "dealerId": "2500",
+      "amount": 10000,
+      "sourceRow": 553
+    },
+    {
+      "initiativeId": "initiative-070",
+      "dealerId": "3300",
+      "amount": 10000,
+      "sourceRow": 554
+    },
+    {
+      "initiativeId": "initiative-070",
+      "dealerId": "3800",
+      "amount": 5000,
+      "sourceRow": 555
+    },
+    {
+      "initiativeId": "initiative-070",
+      "dealerId": "4300",
+      "amount": 7000,
+      "sourceRow": 556
+    },
+    {
+      "initiativeId": "initiative-070",
+      "dealerId": "4800",
+      "amount": 8000,
+      "sourceRow": 557
+    },
+    {
+      "initiativeId": "initiative-070",
+      "dealerId": "5300",
+      "amount": 9000,
+      "sourceRow": 558
+    },
+    {
+      "initiativeId": "initiative-070",
+      "dealerId": "5800",
+      "amount": 5000,
+      "sourceRow": 559
+    },
+    {
+      "initiativeId": "initiative-070",
+      "dealerId": "2300",
+      "amount": 6000,
+      "sourceRow": 560
+    },
+    {
+      "initiativeId": "initiative-070",
+      "dealerId": "2800",
+      "amount": 6000,
+      "sourceRow": 561
+    },
+    {
+      "initiativeId": "initiative-071",
+      "dealerId": "3600",
+      "amount": 7000,
+      "sourceRow": 562
+    },
+    {
+      "initiativeId": "initiative-071",
+      "dealerId": "4100",
+      "amount": 9000,
+      "sourceRow": 563
+    },
+    {
+      "initiativeId": "initiative-071",
+      "dealerId": "4600",
+      "amount": 11000,
+      "sourceRow": 564
+    },
+    {
+      "initiativeId": "initiative-071",
+      "dealerId": "5100",
+      "amount": 13000,
+      "sourceRow": 565
+    },
+    {
+      "initiativeId": "initiative-071",
+      "dealerId": "5600",
+      "amount": 15000,
+      "sourceRow": 566
+    },
+    {
+      "initiativeId": "initiative-071",
+      "dealerId": "2100",
+      "amount": 8000,
+      "sourceRow": 567
+    },
+    {
+      "initiativeId": "initiative-071",
+      "dealerId": "2600",
+      "amount": 10000,
+      "sourceRow": 568
+    },
+    {
+      "initiativeId": "initiative-071",
+      "dealerId": "3100",
+      "amount": 12000,
+      "sourceRow": 569
+    },
+    {
+      "initiativeId": "initiative-072",
+      "dealerId": "3900",
+      "amount": 4000,
+      "sourceRow": 570
+    },
+    {
+      "initiativeId": "initiative-072",
+      "dealerId": "4400",
+      "amount": 5000,
+      "sourceRow": 571
+    },
+    {
+      "initiativeId": "initiative-072",
+      "dealerId": "4900",
+      "amount": 6000,
+      "sourceRow": 572
+    },
+    {
+      "initiativeId": "initiative-072",
+      "dealerId": "5400",
+      "amount": 7000,
+      "sourceRow": 573
+    },
+    {
+      "initiativeId": "initiative-072",
+      "dealerId": "5900",
+      "amount": 3000,
+      "sourceRow": 574
+    },
+    {
+      "initiativeId": "initiative-072",
+      "dealerId": "2400",
+      "amount": 4000,
+      "sourceRow": 575
+    },
+    {
+      "initiativeId": "initiative-072",
+      "dealerId": "2900",
+      "amount": 5000,
+      "sourceRow": 576
+    },
+    {
+      "initiativeId": "initiative-072",
+      "dealerId": "3400",
+      "amount": 6000,
+      "sourceRow": 577
+    },
+    {
+      "initiativeId": "initiative-073",
+      "dealerId": "4200",
+      "amount": 13000,
+      "sourceRow": 578
+    },
+    {
+      "initiativeId": "initiative-073",
+      "dealerId": "4700",
+      "amount": 16000,
+      "sourceRow": 579
+    },
+    {
+      "initiativeId": "initiative-073",
+      "dealerId": "5200",
+      "amount": 19000,
+      "sourceRow": 580
+    },
+    {
+      "initiativeId": "initiative-073",
+      "dealerId": "5700",
+      "amount": 21000,
+      "sourceRow": 581
+    },
+    {
+      "initiativeId": "initiative-073",
+      "dealerId": "2200",
+      "amount": 11000,
+      "sourceRow": 582
+    },
+    {
+      "initiativeId": "initiative-073",
+      "dealerId": "2700",
+      "amount": 14000,
+      "sourceRow": 583
+    },
+    {
+      "initiativeId": "initiative-073",
+      "dealerId": "3200",
+      "amount": 17000,
+      "sourceRow": 584
+    },
+    {
+      "initiativeId": "initiative-073",
+      "dealerId": "3700",
+      "amount": 20000,
+      "sourceRow": 585
+    },
+    {
+      "initiativeId": "initiative-074",
+      "dealerId": "4500",
+      "amount": 9000,
+      "sourceRow": 586
+    },
+    {
+      "initiativeId": "initiative-074",
+      "dealerId": "5000",
+      "amount": 11000,
+      "sourceRow": 587
+    },
+    {
+      "initiativeId": "initiative-074",
+      "dealerId": "5500",
+      "amount": 12000,
+      "sourceRow": 588
+    },
+    {
+      "initiativeId": "initiative-074",
+      "dealerId": "6000",
+      "amount": 6000,
+      "sourceRow": 589
+    },
+    {
+      "initiativeId": "initiative-074",
+      "dealerId": "2500",
+      "amount": 8000,
+      "sourceRow": 590
+    },
+    {
+      "initiativeId": "initiative-074",
+      "dealerId": "3000",
+      "amount": 10000,
+      "sourceRow": 591
+    },
+    {
+      "initiativeId": "initiative-074",
+      "dealerId": "3500",
+      "amount": 12000,
+      "sourceRow": 592
+    },
+    {
+      "initiativeId": "initiative-074",
+      "dealerId": "4000",
+      "amount": 13000,
+      "sourceRow": 593
+    },
+    {
+      "initiativeId": "initiative-075",
+      "dealerId": "4800",
+      "amount": 7000,
+      "sourceRow": 594
+    },
+    {
+      "initiativeId": "initiative-075",
+      "dealerId": "5300",
+      "amount": 9000,
+      "sourceRow": 595
+    },
+    {
+      "initiativeId": "initiative-075",
+      "dealerId": "5800",
+      "amount": 10000,
+      "sourceRow": 596
+    },
+    {
+      "initiativeId": "initiative-075",
+      "dealerId": "2300",
+      "amount": 5000,
+      "sourceRow": 597
+    },
+    {
+      "initiativeId": "initiative-075",
+      "dealerId": "2800",
+      "amount": 7000,
+      "sourceRow": 598
+    },
+    {
+      "initiativeId": "initiative-075",
+      "dealerId": "3300",
+      "amount": 8000,
+      "sourceRow": 599
+    },
+    {
+      "initiativeId": "initiative-075",
+      "dealerId": "3800",
+      "amount": 9000,
+      "sourceRow": 600
+    },
+    {
+      "initiativeId": "initiative-075",
+      "dealerId": "4300",
+      "amount": 4000,
+      "sourceRow": 601
+    }
+  ],
+  "dealers": [
+    {
+      "id": "100",
+      "name": null,
+      "history": {
+        "vol2024": 500000,
+        "c32024": 1000000,
+        "vol2025": 400000,
+        "c32025": 880000,
+        "vol2026Ytd": 600000,
+        "c32026Ytd": 1260000,
+        "resource2025": 130000,
+        "resources2025": {
+          "ICE Rebate": 50000,
+          "MRD": 20000,
+          "SP&A": 30000,
+          "Capex": 30000
+        },
+        "yield2025": 6.769230769230769,
+        "resourcePerLiter2025": 0.325
+      },
+      "sourceRow": 2
+    },
+    {
+      "id": "200",
+      "name": null,
+      "history": {
+        "vol2024": 200000,
+        "c32024": 400000,
+        "vol2025": 300000,
+        "c32025": 660000,
+        "vol2026Ytd": 400000,
+        "c32026Ytd": 840000,
+        "resource2025": 80000,
+        "resources2025": {
+          "ICE Rebate": 30000,
+          "MRD": 10000,
+          "SP&A": 30000,
+          "Capex": 10000
+        },
+        "yield2025": 8.25,
+        "resourcePerLiter2025": 0.26666666666666666
+      },
+      "sourceRow": 3
+    },
+    {
+      "id": "300",
+      "name": null,
+      "history": {
+        "vol2024": 400000,
+        "c32024": 800000,
+        "vol2025": 300000,
+        "c32025": 660000,
+        "vol2026Ytd": 250000,
+        "c32026Ytd": 525000,
+        "resource2025": 50000,
+        "resources2025": {
+          "ICE Rebate": 30000,
+          "MRD": 10000,
+          "SP&A": 6000,
+          "Capex": 4000
+        },
+        "yield2025": 13.2,
+        "resourcePerLiter2025": 0.16666666666666666
+      },
+      "sourceRow": 4
+    },
+    {
+      "id": "400",
+      "name": null,
+      "history": {
+        "vol2024": 200000,
+        "c32024": 400000,
+        "vol2025": 250000,
+        "c32025": 550000,
+        "vol2026Ytd": 300000,
+        "c32026Ytd": 630000,
+        "resource2025": 70000,
+        "resources2025": {
+          "ICE Rebate": 25000,
+          "MRD": 10000,
+          "SP&A": 20000,
+          "Capex": 15000
+        },
+        "yield2025": 7.857142857142857,
+        "resourcePerLiter2025": 0.28
+      },
+      "sourceRow": 5
+    },
+    {
+      "id": "500",
+      "name": null,
+      "history": {
+        "vol2024": 100000,
+        "c32024": 200000,
+        "vol2025": 110000,
+        "c32025": 242000,
+        "vol2026Ytd": 180000,
+        "c32026Ytd": 378000,
+        "resource2025": 10000,
+        "resources2025": {
+          "ICE Rebate": 6000,
+          "MRD": 2000,
+          "SP&A": 2000,
+          "Capex": 0
+        },
+        "yield2025": 24.2,
+        "resourcePerLiter2025": 0.09090909090909091
+      },
+      "sourceRow": 6
+    },
+    {
+      "id": "600",
+      "name": null,
+      "history": {
+        "vol2024": 200000,
+        "c32024": 400000,
+        "vol2025": 230000,
+        "c32025": 506000,
+        "vol2026Ytd": 400000,
+        "c32026Ytd": 840000,
+        "resource2025": 20000,
+        "resources2025": {
+          "ICE Rebate": 12000,
+          "MRD": 4000,
+          "SP&A": 4000,
+          "Capex": 0
+        },
+        "yield2025": 25.3,
+        "resourcePerLiter2025": 0.08695652173913043
+      },
+      "sourceRow": 7
+    },
+    {
+      "id": "700",
+      "name": null,
+      "history": {
+        "vol2024": 500000,
+        "c32024": 1000000,
+        "vol2025": 400000,
+        "c32025": 880000,
+        "vol2026Ytd": 310000,
+        "c32026Ytd": 651000,
+        "resource2025": 80000,
+        "resources2025": {
+          "ICE Rebate": 35000,
+          "MRD": 10000,
+          "SP&A": 25000,
+          "Capex": 10000
+        },
+        "yield2025": 11,
+        "resourcePerLiter2025": 0.2
+      },
+      "sourceRow": 8
+    },
+    {
+      "id": "800",
+      "name": null,
+      "history": {
+        "vol2024": 400000,
+        "c32024": 800000,
+        "vol2025": 350000,
+        "c32025": 770000,
+        "vol2026Ytd": 200000,
+        "c32026Ytd": 420000,
+        "resource2025": 30000,
+        "resources2025": {
+          "ICE Rebate": 15000,
+          "MRD": 10000,
+          "SP&A": 5000,
+          "Capex": 0
+        },
+        "yield2025": 25.666666666666668,
+        "resourcePerLiter2025": 0.08571428571428572
+      },
+      "sourceRow": 9
+    },
+    {
+      "id": "900",
+      "name": null,
+      "history": {
+        "vol2024": 200000,
+        "c32024": 400000,
+        "vol2025": 180000,
+        "c32025": 396000,
+        "vol2026Ytd": 500000,
+        "c32026Ytd": 1050000,
+        "resource2025": 40000,
+        "resources2025": {
+          "ICE Rebate": 10000,
+          "MRD": 10000,
+          "SP&A": 20000,
+          "Capex": 0
+        },
+        "yield2025": 9.9,
+        "resourcePerLiter2025": 0.2222222222222222
+      },
+      "sourceRow": 10
+    },
+    {
+      "id": "1000",
+      "name": null,
+      "history": {
+        "vol2024": 500000,
+        "c32024": 1000000,
+        "vol2025": 500000,
+        "c32025": 1100000,
+        "vol2026Ytd": 500000,
+        "c32026Ytd": 1050000,
+        "resource2025": 150000,
+        "resources2025": {
+          "ICE Rebate": 70000,
+          "MRD": 30000,
+          "SP&A": 40000,
+          "Capex": 10000
+        },
+        "yield2025": 7.333333333333333,
+        "resourcePerLiter2025": 0.3
+      },
+      "sourceRow": 11
+    },
+    {
+      "id": "1100",
+      "name": null,
+      "history": {
+        "vol2024": 320000,
+        "c32024": 640000,
+        "vol2025": 360000,
+        "c32025": 792000,
+        "vol2026Ytd": 430000,
+        "c32026Ytd": 903000,
+        "resource2025": 126000,
+        "resources2025": {
+          "ICE Rebate": 35000,
+          "MRD": 18000,
+          "SP&A": 28000,
+          "Capex": 45000
+        },
+        "yield2025": 6.285714285714286,
+        "resourcePerLiter2025": 0.35
+      },
+      "sourceRow": 12
+    },
+    {
+      "id": "1200",
+      "name": null,
+      "history": {
+        "vol2024": 260000,
+        "c32024": 520000,
+        "vol2025": 310000,
+        "c32025": 682000,
+        "vol2026Ytd": 390000,
+        "c32026Ytd": 819000,
+        "resource2025": 86000,
+        "resources2025": {
+          "ICE Rebate": 28000,
+          "MRD": 15000,
+          "SP&A": 25000,
+          "Capex": 18000
+        },
+        "yield2025": 7.930232558139535,
+        "resourcePerLiter2025": 0.27741935483870966
+      },
+      "sourceRow": 13
+    },
+    {
+      "id": "1300",
+      "name": null,
+      "history": {
+        "vol2024": 420000,
+        "c32024": 840000,
+        "vol2025": 380000,
+        "c32025": 836000,
+        "vol2026Ytd": 360000,
+        "c32026Ytd": 756000,
+        "resource2025": 98000,
+        "resources2025": {
+          "ICE Rebate": 30000,
+          "MRD": 16000,
+          "SP&A": 22000,
+          "Capex": 30000
+        },
+        "yield2025": 8.53061224489796,
+        "resourcePerLiter2025": 0.2578947368421053
+      },
+      "sourceRow": 14
+    },
+    {
+      "id": "1400",
+      "name": null,
+      "history": {
+        "vol2024": 180000,
+        "c32024": 360000,
+        "vol2025": 220000,
+        "c32025": 484000,
+        "vol2026Ytd": 270000,
+        "c32026Ytd": 567000,
+        "resource2025": 70000,
+        "resources2025": {
+          "ICE Rebate": 20000,
+          "MRD": 9000,
+          "SP&A": 16000,
+          "Capex": 25000
+        },
+        "yield2025": 6.914285714285715,
+        "resourcePerLiter2025": 0.3181818181818182
+      },
+      "sourceRow": 15
+    },
+    {
+      "id": "1500",
+      "name": null,
+      "history": {
+        "vol2024": 240000,
+        "c32024": 480000,
+        "vol2025": 260000,
+        "c32025": 572000,
+        "vol2026Ytd": 340000,
+        "c32026Ytd": 714000,
+        "resource2025": 71000,
+        "resources2025": {
+          "ICE Rebate": 24000,
+          "MRD": 12000,
+          "SP&A": 20000,
+          "Capex": 15000
+        },
+        "yield2025": 8.056338028169014,
+        "resourcePerLiter2025": 0.27307692307692305
+      },
+      "sourceRow": 16
+    },
+    {
+      "id": "1600",
+      "name": null,
+      "history": {
+        "vol2024": 210000,
+        "c32024": 420000,
+        "vol2025": 250000,
+        "c32025": 550000,
+        "vol2026Ytd": 330000,
+        "c32026Ytd": 693000,
+        "resource2025": 71000,
+        "resources2025": {
+          "ICE Rebate": 22000,
+          "MRD": 11000,
+          "SP&A": 18000,
+          "Capex": 20000
+        },
+        "yield2025": 7.746478873239437,
+        "resourcePerLiter2025": 0.284
+      },
+      "sourceRow": 17
+    },
+    {
+      "id": "1700",
+      "name": null,
+      "history": {
+        "vol2024": 360000,
+        "c32024": 720000,
+        "vol2025": 390000,
+        "c32025": 858000,
+        "vol2026Ytd": 470000,
+        "c32026Ytd": 987000,
+        "resource2025": 111000,
+        "resources2025": {
+          "ICE Rebate": 33000,
+          "MRD": 17000,
+          "SP&A": 26000,
+          "Capex": 35000
+        },
+        "yield2025": 7.72972972972973,
+        "resourcePerLiter2025": 0.2846153846153846
+      },
+      "sourceRow": 18
+    },
+    {
+      "id": "1800",
+      "name": null,
+      "history": {
+        "vol2024": 280000,
+        "c32024": 560000,
+        "vol2025": 300000,
+        "c32025": 660000,
+        "vol2026Ytd": 320000,
+        "c32026Ytd": 672000,
+        "resource2025": 63000,
+        "resources2025": {
+          "ICE Rebate": 24000,
+          "MRD": 12000,
+          "SP&A": 19000,
+          "Capex": 8000
+        },
+        "yield2025": 10.476190476190476,
+        "resourcePerLiter2025": 0.21
+      },
+      "sourceRow": 19
+    },
+    {
+      "id": "1900",
+      "name": null,
+      "history": {
+        "vol2024": 450000,
+        "c32024": 900000,
+        "vol2025": 430000,
+        "c32025": 946000,
+        "vol2026Ytd": 560000,
+        "c32026Ytd": 1176000,
+        "resource2025": 144000,
+        "resources2025": {
+          "ICE Rebate": 45000,
+          "MRD": 24000,
+          "SP&A": 35000,
+          "Capex": 40000
+        },
+        "yield2025": 6.569444444444445,
+        "resourcePerLiter2025": 0.33488372093023255
+      },
+      "sourceRow": 20
+    },
+    {
+      "id": "2000",
+      "name": null,
+      "history": {
+        "vol2024": 300000,
+        "c32024": 600000,
+        "vol2025": 340000,
+        "c32025": 748000,
+        "vol2026Ytd": 410000,
+        "c32026Ytd": 861000,
+        "resource2025": 94000,
+        "resources2025": {
+          "ICE Rebate": 30000,
+          "MRD": 15000,
+          "SP&A": 24000,
+          "Capex": 25000
+        },
+        "yield2025": 7.957446808510638,
+        "resourcePerLiter2025": 0.27647058823529413
+      },
+      "sourceRow": 21
+    },
+    {
+      "id": "2100",
+      "name": null,
+      "history": {
+        "vol2024": 128000,
+        "c32024": 256000,
+        "vol2025": 113000,
+        "c32025": 232000,
+        "vol2026Ytd": 104000,
+        "c32026Ytd": 213000,
+        "resource2025": 15000,
+        "resources2025": {
+          "ICE Rebate": 7000,
+          "MRD": 3000,
+          "SP&A": 5000,
+          "Capex": 0
+        },
+        "yield2025": 15.466666666666667,
+        "resourcePerLiter2025": 0.13274336283185842
+      },
+      "sourceRow": 22
+    },
+    {
+      "id": "2200",
+      "name": null,
+      "history": {
+        "vol2024": 180000,
+        "c32024": 360000,
+        "vol2025": 169000,
+        "c32025": 355000,
+        "vol2026Ytd": 167000,
+        "c32026Ytd": 349000,
+        "resource2025": 35000,
+        "resources2025": {
+          "ICE Rebate": 13000,
+          "MRD": 6000,
+          "SP&A": 10000,
+          "Capex": 6000
+        },
+        "yield2025": 10.142857142857142,
+        "resourcePerLiter2025": 0.20710059171597633
+      },
+      "sourceRow": 23
+    },
+    {
+      "id": "2300",
+      "name": null,
+      "history": {
+        "vol2024": 240000,
+        "c32024": 480000,
+        "vol2025": 240000,
+        "c32025": 516000,
+        "vol2026Ytd": 254000,
+        "c32026Ytd": 541000,
+        "resource2025": 62000,
+        "resources2025": {
+          "ICE Rebate": 22000,
+          "MRD": 11000,
+          "SP&A": 17000,
+          "Capex": 12000
+        },
+        "yield2025": 8.32258064516129,
+        "resourcePerLiter2025": 0.25833333333333336
+      },
+      "sourceRow": 24
+    },
+    {
+      "id": "2400",
+      "name": null,
+      "history": {
+        "vol2024": 307000,
+        "c32024": 614000,
+        "vol2025": 325000,
+        "c32025": 715000,
+        "vol2026Ytd": 367000,
+        "c32026Ytd": 796000,
+        "resource2025": 95000,
+        "resources2025": {
+          "ICE Rebate": 36000,
+          "MRD": 12000,
+          "SP&A": 28000,
+          "Capex": 19000
+        },
+        "yield2025": 7.526315789473684,
+        "resourcePerLiter2025": 0.2923076923076923
+      },
+      "sourceRow": 25
+    },
+    {
+      "id": "2500",
+      "name": null,
+      "history": {
+        "vol2024": 381000,
+        "c32024": 762000,
+        "vol2025": 427000,
+        "c32025": 875000,
+        "vol2026Ytd": 512000,
+        "c32026Ytd": 1132000,
+        "resource2025": 125000,
+        "resources2025": {
+          "ICE Rebate": 42000,
+          "MRD": 21000,
+          "SP&A": 31000,
+          "Capex": 31000
+        },
+        "yield2025": 7,
+        "resourcePerLiter2025": 0.2927400468384075
+      },
+      "sourceRow": 26
+    },
+    {
+      "id": "2600",
+      "name": null,
+      "history": {
+        "vol2024": 462000,
+        "c32024": 924000,
+        "vol2025": 545000,
+        "c32025": 1144000,
+        "vol2026Ytd": 692000,
+        "c32026Ytd": 1419000,
+        "resource2025": 81000,
+        "resources2025": {
+          "ICE Rebate": 36000,
+          "MRD": 18000,
+          "SP&A": 27000,
+          "Capex": 0
+        },
+        "yield2025": 14.123456790123457,
+        "resourcePerLiter2025": 0.14862385321100918
+      },
+      "sourceRow": 27
+    },
+    {
+      "id": "2700",
+      "name": null,
+      "history": {
+        "vol2024": 550000,
+        "c32024": 1100000,
+        "vol2025": 484000,
+        "c32025": 1041000,
+        "vol2026Ytd": 649000,
+        "c32026Ytd": 1356000,
+        "resource2025": 101000,
+        "resources2025": {
+          "ICE Rebate": 40000,
+          "MRD": 14000,
+          "SP&A": 31000,
+          "Capex": 16000
+        },
+        "yield2025": 10.306930693069306,
+        "resourcePerLiter2025": 0.20867768595041322
+      },
+      "sourceRow": 28
+    },
+    {
+      "id": "2800",
+      "name": null,
+      "history": {
+        "vol2024": 646000,
+        "c32024": 1292000,
+        "vol2025": 607000,
+        "c32025": 1335000,
+        "vol2026Ytd": 558000,
+        "c32026Ytd": 1189000,
+        "resource2025": 156000,
+        "resources2025": {
+          "ICE Rebate": 60000,
+          "MRD": 23000,
+          "SP&A": 47000,
+          "Capex": 26000
+        },
+        "yield2025": 8.557692307692308,
+        "resourcePerLiter2025": 0.257001647446458
+      },
+      "sourceRow": 29
+    },
+    {
+      "id": "2900",
+      "name": null,
+      "history": {
+        "vol2024": 266000,
+        "c32024": 532000,
+        "vol2025": 266000,
+        "c32025": 545000,
+        "vol2026Ytd": 263000,
+        "c32026Ytd": 571000,
+        "resource2025": 69000,
+        "resources2025": {
+          "ICE Rebate": 24000,
+          "MRD": 13000,
+          "SP&A": 18000,
+          "Capex": 14000
+        },
+        "yield2025": 7.898550724637682,
+        "resourcePerLiter2025": 0.2593984962406015
+      },
+      "sourceRow": 30
+    },
+    {
+      "id": "3000",
+      "name": null,
+      "history": {
+        "vol2024": 350000,
+        "c32024": 700000,
+        "vol2025": 371000,
+        "c32025": 779000,
+        "vol2026Ytd": 393000,
+        "c32026Ytd": 869000,
+        "resource2025": 108000,
+        "resources2025": {
+          "ICE Rebate": 39000,
+          "MRD": 15000,
+          "SP&A": 30000,
+          "Capex": 24000
+        },
+        "yield2025": 7.212962962962963,
+        "resourcePerLiter2025": 0.29110512129380056
+      },
+      "sourceRow": 31
+    },
+    {
+      "id": "3100",
+      "name": null,
+      "history": {
+        "vol2024": 237000,
+        "c32024": 474000,
+        "vol2025": 265000,
+        "c32025": 570000,
+        "vol2026Ytd": 299000,
+        "c32026Ytd": 613000,
+        "resource2025": 40000,
+        "resources2025": {
+          "ICE Rebate": 18000,
+          "MRD": 8000,
+          "SP&A": 14000,
+          "Capex": 0
+        },
+        "yield2025": 14.25,
+        "resourcePerLiter2025": 0.1509433962264151
+      },
+      "sourceRow": 32
+    },
+    {
+      "id": "3200",
+      "name": null,
+      "history": {
+        "vol2024": 301000,
+        "c32024": 602000,
+        "vol2025": 355000,
+        "c32025": 781000,
+        "vol2026Ytd": 426000,
+        "c32026Ytd": 890000,
+        "resource2025": 89000,
+        "resources2025": {
+          "ICE Rebate": 31000,
+          "MRD": 14000,
+          "SP&A": 24000,
+          "Capex": 20000
+        },
+        "yield2025": 8.775280898876405,
+        "resourcePerLiter2025": 0.2507042253521127
+      },
+      "sourceRow": 33
+    },
+    {
+      "id": "3300",
+      "name": null,
+      "history": {
+        "vol2024": 372000,
+        "c32024": 744000,
+        "vol2025": 327000,
+        "c32025": 670000,
+        "vol2026Ytd": 415000,
+        "c32026Ytd": 884000,
+        "resource2025": 68000,
+        "resources2025": {
+          "ICE Rebate": 26000,
+          "MRD": 11000,
+          "SP&A": 19000,
+          "Capex": 12000
+        },
+        "yield2025": 9.852941176470589,
+        "resourcePerLiter2025": 0.20795107033639143
+      },
+      "sourceRow": 34
+    },
+    {
+      "id": "3400",
+      "name": null,
+      "history": {
+        "vol2024": 451000,
+        "c32024": 902000,
+        "vol2025": 424000,
+        "c32025": 890000,
+        "vol2026Ytd": 568000,
+        "c32026Ytd": 1233000,
+        "resource2025": 112000,
+        "resources2025": {
+          "ICE Rebate": 41000,
+          "MRD": 19000,
+          "SP&A": 31000,
+          "Capex": 21000
+        },
+        "yield2025": 7.946428571428571,
+        "resourcePerLiter2025": 0.2641509433962264
+      },
+      "sourceRow": 35
+    },
+    {
+      "id": "3500",
+      "name": null,
+      "history": {
+        "vol2024": 537000,
+        "c32024": 1074000,
+        "vol2025": 537000,
+        "c32025": 1155000,
+        "vol2026Ytd": 494000,
+        "c32026Ytd": 1092000,
+        "resource2025": 171000,
+        "resources2025": {
+          "ICE Rebate": 62000,
+          "MRD": 29000,
+          "SP&A": 48000,
+          "Capex": 32000
+        },
+        "yield2025": 6.754385964912281,
+        "resourcePerLiter2025": 0.31843575418994413
+      },
+      "sourceRow": 36
+    },
+    {
+      "id": "3600",
+      "name": null,
+      "history": {
+        "vol2024": 630000,
+        "c32024": 1260000,
+        "vol2025": 668000,
+        "c32025": 1470000,
+        "vol2026Ytd": 661000,
+        "c32026Ytd": 1355000,
+        "resource2025": 107000,
+        "resources2025": {
+          "ICE Rebate": 50000,
+          "MRD": 17000,
+          "SP&A": 40000,
+          "Capex": 0
+        },
+        "yield2025": 13.738317757009346,
+        "resourcePerLiter2025": 0.1601796407185629
+      },
+      "sourceRow": 37
+    },
+    {
+      "id": "3700",
+      "name": null,
+      "history": {
+        "vol2024": 281000,
+        "c32024": 562000,
+        "vol2025": 315000,
+        "c32025": 646000,
+        "vol2026Ytd": 334000,
+        "c32026Ytd": 698000,
+        "resource2025": 65000,
+        "resources2025": {
+          "ICE Rebate": 22000,
+          "MRD": 11000,
+          "SP&A": 16000,
+          "Capex": 16000
+        },
+        "yield2025": 9.938461538461539,
+        "resourcePerLiter2025": 0.20634920634920634
+      },
+      "sourceRow": 38
+    },
+    {
+      "id": "3800",
+      "name": null,
+      "history": {
+        "vol2024": 362000,
+        "c32024": 724000,
+        "vol2025": 427000,
+        "c32025": 897000,
+        "vol2026Ytd": 483000,
+        "c32026Ytd": 1029000,
+        "resource2025": 111000,
+        "resources2025": {
+          "ICE Rebate": 37000,
+          "MRD": 19000,
+          "SP&A": 28000,
+          "Capex": 27000
+        },
+        "yield2025": 8.08108108108108,
+        "resourcePerLiter2025": 0.25995316159250587
+      },
+      "sourceRow": 39
+    },
+    {
+      "id": "3900",
+      "name": null,
+      "history": {
+        "vol2024": 450000,
+        "c32024": 900000,
+        "vol2025": 396000,
+        "c32025": 851000,
+        "vol2026Ytd": 475000,
+        "c32026Ytd": 1031000,
+        "resource2025": 105000,
+        "resources2025": {
+          "ICE Rebate": 41000,
+          "MRD": 15000,
+          "SP&A": 32000,
+          "Capex": 17000
+        },
+        "yield2025": 8.104761904761904,
+        "resourcePerLiter2025": 0.26515151515151514
+      },
+      "sourceRow": 40
+    },
+    {
+      "id": "4000",
+      "name": null,
+      "history": {
+        "vol2024": 545000,
+        "c32024": 1090000,
+        "vol2025": 512000,
+        "c32025": 1126000,
+        "vol2026Ytd": 650000,
+        "c32026Ytd": 1437000,
+        "resource2025": 164000,
+        "resources2025": {
+          "ICE Rebate": 63000,
+          "MRD": 25000,
+          "SP&A": 49000,
+          "Capex": 27000
+        },
+        "yield2025": 6.865853658536586,
+        "resourcePerLiter2025": 0.3203125
+      },
+      "sourceRow": 41
+    },
+    {
+      "id": "4100",
+      "name": null,
+      "history": {
+        "vol2024": 359000,
+        "c32024": 718000,
+        "vol2025": 359000,
+        "c32025": 736000,
+        "vol2026Ytd": 481000,
+        "c32026Ytd": 986000,
+        "resource2025": 50000,
+        "resources2025": {
+          "ICE Rebate": 22000,
+          "MRD": 12000,
+          "SP&A": 16000,
+          "Capex": 0
+        },
+        "yield2025": 14.72,
+        "resourcePerLiter2025": 0.1392757660167131
+      },
+      "sourceRow": 42
+    },
+    {
+      "id": "4200",
+      "name": null,
+      "history": {
+        "vol2024": 435000,
+        "c32024": 870000,
+        "vol2025": 461000,
+        "c32025": 968000,
+        "vol2026Ytd": 424000,
+        "c32026Ytd": 886000,
+        "resource2025": 97000,
+        "resources2025": {
+          "ICE Rebate": 35000,
+          "MRD": 14000,
+          "SP&A": 26000,
+          "Capex": 22000
+        },
+        "yield2025": 9.97938144329897,
+        "resourcePerLiter2025": 0.210412147505423
+      },
+      "sourceRow": 43
+    },
+    {
+      "id": "4300",
+      "name": null,
+      "history": {
+        "vol2024": 518000,
+        "c32024": 1036000,
+        "vol2025": 580000,
+        "c32025": 1247000,
+        "vol2026Ytd": 574000,
+        "c32026Ytd": 1223000,
+        "resource2025": 152000,
+        "resources2025": {
+          "ICE Rebate": 54000,
+          "MRD": 23000,
+          "SP&A": 41000,
+          "Capex": 34000
+        },
+        "yield2025": 8.203947368421053,
+        "resourcePerLiter2025": 0.2620689655172414
+      },
+      "sourceRow": 44
+    },
+    {
+      "id": "4400",
+      "name": null,
+      "history": {
+        "vol2024": 609000,
+        "c32024": 1218000,
+        "vol2025": 719000,
+        "c32025": 1582000,
+        "vol2026Ytd": 762000,
+        "c32026Ytd": 1654000,
+        "resource2025": 229000,
+        "resources2025": {
+          "ICE Rebate": 79000,
+          "MRD": 35000,
+          "SP&A": 63000,
+          "Capex": 52000
+        },
+        "yield2025": 6.908296943231441,
+        "resourcePerLiter2025": 0.3184979137691238
+      },
+      "sourceRow": 45
+    },
+    {
+      "id": "4500",
+      "name": null,
+      "history": {
+        "vol2024": 291000,
+        "c32024": 582000,
+        "vol2025": 256000,
+        "c32025": 525000,
+        "vol2026Ytd": 289000,
+        "c32026Ytd": 639000,
+        "resource2025": 67000,
+        "resources2025": {
+          "ICE Rebate": 25000,
+          "MRD": 11000,
+          "SP&A": 19000,
+          "Capex": 12000
+        },
+        "yield2025": 7.835820895522388,
+        "resourcePerLiter2025": 0.26171875
+      },
+      "sourceRow": 46
+    },
+    {
+      "id": "4600",
+      "name": null,
+      "history": {
+        "vol2024": 370000,
+        "c32024": 740000,
+        "vol2025": 348000,
+        "c32025": 731000,
+        "vol2026Ytd": 418000,
+        "c32026Ytd": 857000,
+        "resource2025": 50000,
+        "resources2025": {
+          "ICE Rebate": 23000,
+          "MRD": 10000,
+          "SP&A": 17000,
+          "Capex": 0
+        },
+        "yield2025": 14.62,
+        "resourcePerLiter2025": 0.14367816091954022
+      },
+      "sourceRow": 47
+    },
+    {
+      "id": "4700",
+      "name": null,
+      "history": {
+        "vol2024": 455000,
+        "c32024": 910000,
+        "vol2025": 455000,
+        "c32025": 978000,
+        "vol2026Ytd": 578000,
+        "c32026Ytd": 1208000,
+        "resource2025": 103000,
+        "resources2025": {
+          "ICE Rebate": 37000,
+          "MRD": 18000,
+          "SP&A": 29000,
+          "Capex": 19000
+        },
+        "yield2025": 9.495145631067961,
+        "resourcePerLiter2025": 0.22637362637362637
+      },
+      "sourceRow": 48
+    },
+    {
+      "id": "4800",
+      "name": null,
+      "history": {
+        "vol2024": 548000,
+        "c32024": 1096000,
+        "vol2025": 581000,
+        "c32025": 1278000,
+        "vol2026Ytd": 779000,
+        "c32026Ytd": 1659000,
+        "resource2025": 153000,
+        "resources2025": {
+          "ICE Rebate": 57000,
+          "MRD": 20000,
+          "SP&A": 45000,
+          "Capex": 31000
+        },
+        "yield2025": 8.352941176470589,
+        "resourcePerLiter2025": 0.2633390705679862
+      },
+      "sourceRow": 49
+    },
+    {
+      "id": "4900",
+      "name": null,
+      "history": {
+        "vol2024": 647000,
+        "c32024": 1294000,
+        "vol2025": 725000,
+        "c32025": 1486000,
+        "vol2026Ytd": 667000,
+        "c32026Ytd": 1447000,
+        "resource2025": 192000,
+        "resources2025": {
+          "ICE Rebate": 65000,
+          "MRD": 31000,
+          "SP&A": 48000,
+          "Capex": 48000
+        },
+        "yield2025": 7.739583333333333,
+        "resourcePerLiter2025": 0.26482758620689656
+      },
+      "sourceRow": 50
+    },
+    {
+      "id": "5000",
+      "name": null,
+      "history": {
+        "vol2024": 754000,
+        "c32024": 1508000,
+        "vol2025": 890000,
+        "c32025": 1869000,
+        "vol2026Ytd": 881000,
+        "c32026Ytd": 1947000,
+        "resource2025": 286000,
+        "resources2025": {
+          "ICE Rebate": 95000,
+          "MRD": 49000,
+          "SP&A": 72000,
+          "Capex": 70000
+        },
+        "yield2025": 6.534965034965035,
+        "resourcePerLiter2025": 0.32134831460674157
+      },
+      "sourceRow": 51
+    },
+    {
+      "id": "5100",
+      "name": null,
+      "history": {
+        "vol2024": 495000,
+        "c32024": 990000,
+        "vol2025": 436000,
+        "c32025": 937000,
+        "vol2026Ytd": 462000,
+        "c32026Ytd": 947000,
+        "resource2025": 66000,
+        "resources2025": {
+          "ICE Rebate": 31000,
+          "MRD": 11000,
+          "SP&A": 24000,
+          "Capex": 0
+        },
+        "yield2025": 14.196969696969697,
+        "resourcePerLiter2025": 0.15137614678899083
+      },
+      "sourceRow": 52
+    },
+    {
+      "id": "5200",
+      "name": null,
+      "history": {
+        "vol2024": 583000,
+        "c32024": 1166000,
+        "vol2025": 548000,
+        "c32025": 1206000,
+        "vol2026Ytd": 619000,
+        "c32026Ytd": 1294000,
+        "resource2025": 124000,
+        "resources2025": {
+          "ICE Rebate": 47000,
+          "MRD": 19000,
+          "SP&A": 37000,
+          "Capex": 21000
+        },
+        "yield2025": 9.725806451612904,
+        "resourcePerLiter2025": 0.22627737226277372
+      },
+      "sourceRow": 53
+    },
+    {
+      "id": "5300",
+      "name": null,
+      "history": {
+        "vol2024": 296000,
+        "c32024": 592000,
+        "vol2025": 296000,
+        "c32025": 607000,
+        "vol2026Ytd": 355000,
+        "c32026Ytd": 756000,
+        "resource2025": 68000,
+        "resources2025": {
+          "ICE Rebate": 24000,
+          "MRD": 13000,
+          "SP&A": 17000,
+          "Capex": 14000
+        },
+        "yield2025": 8.926470588235293,
+        "resourcePerLiter2025": 0.22972972972972974
+      },
+      "sourceRow": 54
+    },
+    {
+      "id": "5400",
+      "name": null,
+      "history": {
+        "vol2024": 372000,
+        "c32024": 744000,
+        "vol2025": 394000,
+        "c32025": 827000,
+        "vol2026Ytd": 500000,
+        "c32026Ytd": 1085000,
+        "resource2025": 106000,
+        "resources2025": {
+          "ICE Rebate": 38000,
+          "MRD": 15000,
+          "SP&A": 29000,
+          "Capex": 24000
+        },
+        "yield2025": 7.80188679245283,
+        "resourcePerLiter2025": 0.26903553299492383
+      },
+      "sourceRow": 55
+    },
+    {
+      "id": "5500",
+      "name": null,
+      "history": {
+        "vol2024": 455000,
+        "c32024": 910000,
+        "vol2025": 510000,
+        "c32025": 1097000,
+        "vol2026Ytd": 683000,
+        "c32026Ytd": 1509000,
+        "resource2025": 166000,
+        "resources2025": {
+          "ICE Rebate": 59000,
+          "MRD": 25000,
+          "SP&A": 45000,
+          "Capex": 37000
+        },
+        "yield2025": 6.608433734939759,
+        "resourcePerLiter2025": 0.3254901960784314
+      },
+      "sourceRow": 56
+    },
+    {
+      "id": "5600",
+      "name": null,
+      "history": {
+        "vol2024": 545000,
+        "c32024": 1090000,
+        "vol2025": 643000,
+        "c32025": 1415000,
+        "vol2026Ytd": 592000,
+        "c32026Ytd": 1214000,
+        "resource2025": 108000,
+        "resources2025": {
+          "ICE Rebate": 48000,
+          "MRD": 22000,
+          "SP&A": 38000,
+          "Capex": 0
+        },
+        "yield2025": 13.101851851851851,
+        "resourcePerLiter2025": 0.16796267496111975
+      },
+      "sourceRow": 57
+    },
+    {
+      "id": "5700",
+      "name": null,
+      "history": {
+        "vol2024": 642000,
+        "c32024": 1284000,
+        "vol2025": 565000,
+        "c32025": 1158000,
+        "vol2026Ytd": 559000,
+        "c32026Ytd": 1168000,
+        "resource2025": 105000,
+        "resources2025": {
+          "ICE Rebate": 40000,
+          "MRD": 17000,
+          "SP&A": 29000,
+          "Capex": 19000
+        },
+        "yield2025": 11.028571428571428,
+        "resourcePerLiter2025": 0.18584070796460178
+      },
+      "sourceRow": 58
+    },
+    {
+      "id": "5800",
+      "name": null,
+      "history": {
+        "vol2024": 747000,
+        "c32024": 1494000,
+        "vol2025": 702000,
+        "c32025": 1474000,
+        "vol2026Ytd": 744000,
+        "c32026Ytd": 1585000,
+        "resource2025": 163000,
+        "resources2025": {
+          "ICE Rebate": 60000,
+          "MRD": 27000,
+          "SP&A": 46000,
+          "Capex": 30000
+        },
+        "yield2025": 9.042944785276074,
+        "resourcePerLiter2025": 0.23219373219373218
+      },
+      "sourceRow": 59
+    },
+    {
+      "id": "5900",
+      "name": null,
+      "history": {
+        "vol2024": 859000,
+        "c32024": 1718000,
+        "vol2025": 859000,
+        "c32025": 1847000,
+        "vol2026Ytd": 971000,
+        "c32026Ytd": 2107000,
+        "resource2025": 246000,
+        "resources2025": {
+          "ICE Rebate": 89000,
+          "MRD": 42000,
+          "SP&A": 69000,
+          "Capex": 46000
+        },
+        "yield2025": 7.508130081300813,
+        "resourcePerLiter2025": 0.28637951105937137
+      },
+      "sourceRow": 60
+    },
+    {
+      "id": "6000",
+      "name": null,
+      "history": {
+        "vol2024": 978000,
+        "c32024": 1956000,
+        "vol2025": 1037000,
+        "c32025": 2281000,
+        "vol2026Ytd": 1244000,
+        "c32026Ytd": 2749000,
+        "resource2025": 339000,
+        "resources2025": {
+          "ICE Rebate": 127000,
+          "MRD": 43000,
+          "SP&A": 100000,
+          "Capex": 69000
+        },
+        "yield2025": 6.728613569321534,
+        "resourcePerLiter2025": 0.32690453230472516
+      },
+      "sourceRow": 61
+    }
+  ]
+}

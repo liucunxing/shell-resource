@@ -7,6 +7,8 @@
     "skipLibCheck": true,
     "moduleResolution": "Bundler",
     "allowImportingTsExtensions": true,
+    "allowJs": true,
+    "checkJs": false,
     "resolveJsonModule": true,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,

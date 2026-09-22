@@ -4,27 +4,27 @@ import { createRoot } from "react-dom/client";
 import { FluentProvider, webLightTheme } from "@fluentui/react-components";
 import { IconContext } from "@phosphor-icons/react";
 import App from "./App";
-import { WorkspaceProvider } from "./state/WorkspaceContext";
+import { WorkbenchProvider } from "./workbench/WorkbenchContext.jsx";
 import "./styles.css";
 
 const theme = {
   ...webLightTheme,
   fontFamilyBase: '"Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif',
-  colorBrandBackground: "#cf292e",
-  colorBrandBackgroundHover: "#b62025",
+  colorBrandBackground: "#da291c",
+  colorBrandBackgroundHover: "#b82218",
   colorBrandBackgroundPressed: "#981c21",
-  colorBrandForeground1: "#bd262b",
+  colorBrandForeground1: "#b82218",
   colorBrandForeground2: "#a51f24",
-  colorBrandStroke1: "#cf292e",
-  colorBrandBackground2: "#fff0f0",
-  colorCompoundBrandBackground: "#cf292e",
-  colorCompoundBrandBackgroundHover: "#b62025",
+  colorBrandStroke1: "#da291c",
+  colorBrandBackground2: "#fff7d1",
+  colorCompoundBrandBackground: "#da291c",
+  colorCompoundBrandBackgroundHover: "#b82218",
   colorCompoundBrandBackgroundPressed: "#981c21",
-  colorCompoundBrandStroke: "#cf292e",
-  colorCompoundBrandStrokeHover: "#b62025",
+  colorCompoundBrandStroke: "#da291c",
+  colorCompoundBrandStrokeHover: "#b82218",
   colorCompoundBrandStrokePressed: "#981c21",
-  colorCompoundBrandForeground1: "#bd262b",
-  colorCompoundBrandForeground1Hover: "#b62025",
+  colorCompoundBrandForeground1: "#b82218",
+  colorCompoundBrandForeground1Hover: "#b82218",
   colorCompoundBrandForeground1Pressed: "#981c21",
   borderRadiusMedium: "6px",
   borderRadiusSmall: "4px",
@@ -56,9 +56,9 @@ createRoot(document.getElementById("root")!).render(
   <FluentProvider theme={theme}>
     <IconContext.Provider value={{ weight: "regular", size: 18 }}>
       <ErrorBoundary>
-        <WorkspaceProvider>
+        <WorkbenchProvider>
           <App />
-        </WorkspaceProvider>
+        </WorkbenchProvider>
       </ErrorBoundary>
     </IconContext.Provider>
   </FluentProvider>,
