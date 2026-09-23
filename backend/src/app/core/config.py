@@ -61,8 +61,8 @@ class Settings(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    app_name: str = "Shell Forecast Backend"
-    app_version: str = "0.1.0"
+    app_name: str = "资源投资工作台"
+    app_version: str = "1.4.0"
     app_env: Environment
     debug: bool = False
     docs_enabled: bool = True
@@ -71,6 +71,14 @@ class Settings(BaseModel):
     database_url: SecretStr
     db_echo: bool = False
     cors_origins: list[str] = Field(default_factory=list)
+    serve_frontend: bool = False
+    frontend_dist_path: str = str(PROJECT_ROOT.parent / "frontend" / "dist")
+
+    # Server-only values. Never return this model from an API or log its secrets.
+    ai_api_key: SecretStr | None = None
+    ai_base_url: str = ""
+    ai_model: str = "qwen-plus"
+    ai_timeout_seconds: float = Field(default=60, gt=0, le=180)
 
     azure_blob_test_upload_enabled: bool = False
     azure_blob_account_url: str | None = None

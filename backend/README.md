@@ -1,179 +1,82 @@
-# Shell Forecast Backend
+# 资源投资工作台后端 V1.4
 
-Distributor 资源投资规划与追踪工具的 Python 3.11 + FastAPI 后端基础框架。当前版本提供工程分层、统一响应、数据库接入、环境配置、SSO 扩展口和测试接口，不包含业务逻辑。
+FastAPI + SQLAlchemy Async + PostgreSQL。沿用 `Controller → Service → Repository → DO`：请求校验在 DTO，业务规则和事务在 Service，明确的数据查询在 Repository。无权限缓存、Agent 框架或向量库。
 
-## 技术栈
+## 安装与配置
 
-- Python 3.11
-- FastAPI + Uvicorn
-- Pydantic（配置校验）
-- SQLAlchemy 2.x Async + Alembic
-- PostgreSQL 异步驱动 `asyncpg`
-- Azure Blob Storage 异步 SDK
-- Pytest、Ruff、Mypy
-
-## 项目分层
-
-```text
-src/app/
-├─ api/               # 路由聚合和版本前缀
-├─ controllers/       # Controller：定义 HTTP 接口、参数和响应
-├─ services/          # Service 业务编排层
-├─ repositories/      # Repository 数据访问层
-├─ models/do/         # SQLAlchemy DO，映射数据库表
-├─ schemas/dto/       # 前端请求 DTO
-├─ schemas/vo/        # 返回前端的 VO
-├─ db/                # 数据库连接和 Session
-├─ core/              # 配置、日志、统一响应、异常处理
-├─ storage/           # Azure Blob 等外部对象存储适配器
-├─ security/          # SSO 抽象契约
-├─ dependencies/      # FastAPI 依赖注入入口
-├─ health/            # 运维健康检查
-└─ main.py            # 应用工厂和启动入口
-```
-
-调用方向：`Controller → Service → Repository → DO/Database`。Controller 不直接访问数据库；DO 不作为页面返回对象，接口通过 DTO/VO 隔离数据库结构。
-
-## 首次安装（Windows PowerShell）
+在 `backend` 目录执行（项目目标 Python 3.11）：
 
 ```powershell
-cd D:\work\Develop\shell-forecast\backend
 py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -r requirements-dev.txt
-Copy-Item config/settings.example.toml config/settings.toml
-```
-
-然后编辑 `config/settings.toml`，把 development 和 production 区域内的占位值换成当前环境可以使用的真实配置。该文件可能包含密码，已被 Git 忽略。
-
-## 配置模型
-
-项目只使用一个环境选择文件和一个本地配置文件：
-
-```text
-.env                  # 提交到 Git，默认选择 development
-config/settings.toml  # 同时保存 development、test、production 三套配置
-```
-
-Git 中提交：
-
-```text
- .env                         # 不包含密码，只选择环境
-config/settings.example.toml
-```
-
-`config/settings.toml` 包含真实连接信息，仍然不提交 Git。
-
-Azure Blob 测试上传配置位于各环境区域：
-
-```toml
-azure_blob_test_upload_enabled = true
-azure_blob_account_url = "https://账户名.blob.core.chinacloudapi.cn"
-azure_blob_account_key = "本地填写的存储账户密钥"
-azure_blob_container_name = "容器名"
-azure_blob_max_upload_bytes = 20971520
-```
-
-生产配置默认关闭测试上传接口。存储账户密钥只允许写入被 Git 忽略的
-`config/settings.toml`，不得写入 `.env`、模板、代码或日志。
-
-当前测试上传会把文件直接保存到配置容器的根目录，Blob 名称就是上传时的
-原始文件名；同名文件不会被覆盖，接口会返回 409。
-
-`.env` 支持以下环境名：
-
-```dotenv
-APP_ENV=development
-```
-
-也可以使用简写 `dev`、`test`、`prod`。程序根据 `APP_ENV` 读取 `settings.toml` 中同名区域：
-
-```toml
-[development]
-debug = true
-database_url = "开发数据库连接"
-
-[production]
-debug = false
-database_url = "生产数据库连接"
-```
-
-修改 `.env` 或 `settings.toml` 后必须重启应用。系统环境变量 `APP_ENV` 可以临时覆盖 `.env` 中的环境选择；其他业务配置统一从选中的 TOML 区域读取。
-
-仓库中的 `.env` 默认是 `APP_ENV=development`，因此新成员拉取代码后无需再复制 `.env`。生产服务器可以把该值改成 `production`；修改后的生产 `.env` 不应反向提交到 Git。
-
-## 启动
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-python -m uvicorn app.main:app --app-dir src --reload --host 127.0.0.1 --port 8000
-```
-
-启动后访问：
-
-- Swagger UI: <http://127.0.0.1:8000/docs>
-- ReDoc: <http://127.0.0.1:8000/redoc>
-- 健康检查: <http://127.0.0.1:8000/health>
-- 测试接口: <http://127.0.0.1:8000/api/v1/test/ping>
-- Azure Blob 测试上传: `POST /api/v1/test/blob/upload`（在 Swagger 选择文件）
-
-统一响应示例：
-
-```json
-{
-  "code": 200,
-  "msg": "响应成功",
-  "data": {
-    "message": "pong",
-    "environment": "development",
-    "timestamp": "2026-09-17T00:00:00Z"
-  }
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+# 仅在本地配置尚不存在时复制，避免覆盖已有密钥
+if (!(Test-Path config/settings.toml)) {
+    Copy-Item config/settings.example.toml config/settings.toml
 }
 ```
 
-## PyCharm 配置
+`backend/.env` 仅保存 `APP_ENV=development`，可提交。真实 `config/settings.toml` 被 Git 忽略，配置分为 `[development]`、`[test]`、`[production]`。进程环境变量 `APP_ENV` 可以覆盖环境选择，`APP_SETTINGS_FILE` 可指定配置文件。改动配置后重启应用。
 
-- Module name：`uvicorn`
-- Parameters：`app.main:app --app-dir src --reload --host 127.0.0.1 --port 8000`
-- Working directory：`D:\work\Develop\shell-forecast\backend`
-- Environment variables：留空，让 `.env` 决定当前环境
-- Interpreter：项目约定的 Python 3.11 解释器
+编辑 `[development]`：
 
-## 数据库迁移
-
-新增 DO 后，先在 `src/app/models/do/__init__.py` 中导入模型，再执行：
-
-```powershell
-alembic revision --autogenerate -m "create example table"
-alembic upgrade head
+```toml
+database_url = "postgresql+asyncpg://USER:URL_ENCODED_PASSWORD@HOST:5432/resource_dev?ssl=require"
+serve_frontend = true
+ai_api_key = ""
+ai_base_url = ""
+ai_model = "qwen-plus"
+ai_timeout_seconds = 60
 ```
 
-## 数据准备 DDL 初稿
+填写真实数据库连接，密码中的特殊字符必须 URL 编码。百炼 key 仅填在本地 `ai_api_key`；Base URL 复制控制台的兼容地址，按地域填写业务空间，参见[百炼官方接入文档](https://help.aliyun.com/zh/model-studio/first-api-call-to-qwen)。后端只发送已授权范围内的证据，单次生成六点解释；缺配置、超时或不合规模型响应会保留旧分析，草稿和同步不依赖 AI。
 
-数据准备页的预算、历史表现和预算变更日志初步设计位于：
+## 数据库准备
 
-- [DDL SQL](docs/database/data_preparation_v1.sql)
-- [字段映射与设计假设](docs/database/data_preparation_v1.md)
-
-该 DDL 当前仅供评审，尚未执行到数据库，也尚未转为 Alembic migration。
-
-## 验证与质量检查
+先检查可达性与实际表结构：
 
 ```powershell
-pytest
-ruff check .
-mypy src
+.\.venv\Scripts\python.exe scripts/check_database.py
 ```
 
-## SSO 预留
+该脚本只读，不打印连接密码。本机目前连接 PostgreSQL 5432 超时；尚未验证远端实际结构，也未执行迁移。
 
-- `src/app/security/sso.py` 定义与 SAML/OIDC 厂商无关的用户身份及认证器契约。
-- `src/app/dependencies/auth.py` 是未来受保护接口统一引用的依赖入口。
-- SSO 的开关、Issuer、Client ID 和 Client Secret 存放在各环境 TOML 区域。
+核对通过后，由可达数据库的环境执行 [V1.4 增量 SQL](docs/database/quickwin_v14_increment.sql)。该文件包含本期预算关联、用户权限、其他预算、同步快照、配置、参考数据和 Insight 表，**已包含 AI 表，不要再重复执行独立 Insight 脚本**。脚本使用事务；旧分配记录无法唯一匹配预算时中止，先修正数据再执行。旧 [数据准备 DDL](docs/database/data_preparation_v1.sql) 是历史设计材料，不作为本次部署脚本。
 
-SSO 协议、身份提供商和 Claim/角色映射确定前，不实现伪登录。当前测试和健康接口为公开接口。
+脚本不注入真实用户或示例业务数据。首次使用前，维护 `data.user_permissions` 的 `email`（小写）、`display_name`、`role`、`department`、`sector`、`enabled`。角色为 `owner / lead / management / admin`；Owner 和负责人必须配置部门，Sector 为空表示不额外限定该字段。将既有预算的 `owner_email` 对应到真实启用 Owner。新预算可通过管理员 API 创建，Owner 必须与预算部门和 Sector 匹配。
 
-## Git 说明
+## 启动与同站点部署
 
-Git 仓库根目录位于后端目录的上一层。`.env` 只包含环境选择，可以提交；真实 `config/settings.toml` 不得提交。分支和 Pull Request 流程见根目录 `docs/GITHUB_WORKFLOW.md`。
+先在 `frontend` 运行 `npm ci`、`npm run build`，再在 `backend` 执行：
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir src --host 127.0.0.1 --port 8000
+```
+
+`serve_frontend = true` 且 `frontend/dist/index.html` 存在时，FastAPI 在 `/` 提供编译页面。`frontend_dist_path` 可显式指定部署后的绝对路径。开发时可加 `--reload`；应用主机用已有进程管理和反向代理运行相同服务。无额外队列或服务组件。
+
+- 页面：`http://127.0.0.1:8000/`
+- OpenAPI：`/docs`、`/openapi.json`（由 `docs_enabled` 控制）
+- 存活检查：`/health`，不代表数据库可用
+- 完整联调契约：[接口文档](docs/接口文档.md)
+
+开发环境业务请求必须携带 `X-User-Email`，后台查询权限表后拼接参数化过滤条件。它不是生产登录方案：`APP_ENV=production` 下业务接口直接返回 401，必须先接入可信身份来源。现有 SSO 配置字段尚不代表已接通企业登录。管理员也不自动获得 Owner 草稿修改权限。
+
+Azure Blob 只用于保留的旧模板下载和测试上传；V1.4 Excel 回传由前端解析、预览后提交整项 JSON，不依赖 Blob。公开测试上传受 `azure_blob_test_upload_enabled` 控制，正式环境关闭。
+
+## 验证
+
+必须在 `backend` 目录运行，测试使用自己的配置与本地数据库，不连接开发 PostgreSQL：
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m ruff check src tests scripts
+.\.venv\Scripts\python.exe -m mypy src
+```
+
+本地浏览器合成数据服务可用以下命令启动，仅供验收，不部署：
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn tests.browser_fixture:app --app-dir src --host 127.0.0.1 --port 8014
+```
+
+其 SQLite 文件位于被忽略的 `.cache/`，与远端数据隔离。页面登录可用 `owner-a@example.test`、`owner-b@example.test`、`lead@example.test`、`manager@example.test`、`admin@example.test`，均为合成验收身份。这个本地服务也读取 `config/settings.toml` 的 `[development]` 中三个 AI 字段；填写 key/兼容地址并重启后，可用合成数据验证真实百炼，但数据库始终使用本地 SQLite。完整外部验收仍需 PostgreSQL 网络可达、实际结构核对及真实权限初始化。

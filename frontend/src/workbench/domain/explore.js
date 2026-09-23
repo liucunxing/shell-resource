@@ -305,8 +305,9 @@ function rawData(state, identity, data, tab) {
       resources.forEach(
         (r) => (row["resource_" + r] = (h.resources2025 || {})[r]),
       );
-      const ratio =
-        Number.isFinite(h.c32025) &&
+      const ratio = state.scenario === "api" && Number.isFinite(h.yield2025)
+        ? h.yield2025
+        : Number.isFinite(h.c32025) &&
         Number.isFinite(h.resource2025) &&
         h.resource2025 > 0
           ? h.c32025 / h.resource2025

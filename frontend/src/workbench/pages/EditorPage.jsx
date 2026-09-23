@@ -99,6 +99,10 @@ function EditorContent({
   initiativeId,
   navigate,
   mutate,
+  saveDraft,
+  publish,
+  apiMode,
+  dirtyIds,
   notify,
   openAuxiliary,
 }) {
@@ -464,7 +468,9 @@ function EditorContent({
           <div className="table-footer">
             <span>
               {editable
-                ? "输入金额或比例 · 修改即时保存"
+                ? apiMode
+                  ? "输入金额或比例 · 编辑后请保存草稿"
+                  : "输入金额或比例 · 修改即时保存"
                 : "经销商分配明细 · 只读"}
             </span>
             {editable && (
@@ -651,7 +657,14 @@ function EditorContent({
         )}
         <div className="save-bar">
           <div className="save-label">
-            <strong>有效修改自动保存到本机</strong> · {time(i.savedAt)}
+            <strong>
+              {apiMode
+                ? dirtyIds.has(i.id)
+                  ? "本页修改尚未保存"
+                  : "草稿已保存"
+                : "有效修改自动保存到本机"}
+            </strong>{" "}
+            · {time(i.savedAt)}
             <br />
             最新同步：{time(i.publishedAt)}
           </div>
@@ -659,23 +672,14 @@ function EditorContent({
             <div className="actions">
               <button
                 className="button"
-                onClick={() =>
-                  doGuard(() => notify("草稿已保存到当前浏览器。"))
-                }
+                onClick={() => doGuard(() => saveDraft(i.id))}
               >
-                保存本机草稿
+                保存草稿
               </button>
               <button
                 className="button primary"
                 disabled={errors.length > 0}
-                onClick={() =>
-                  doGuard(() =>
-                    mutate(
-                      (s) => E.publishInitiative(s, i.id, identity, data),
-                      "已同步最新分配，仍可继续修改。",
-                    ),
-                  )
-                }
+                onClick={() => doGuard(() => publish(i.id))}
               >
                 同步最新分配
               </button>
@@ -743,13 +747,12 @@ function EditorContent({
               <button
                 className="button primary"
                 disabled={modal.preview.errors.length > 0}
-                onClick={() => {
-                  if (
-                    mutate(
-                      (s) => X.confirmImport(modal.preview, s, identity, data),
-                      "已完整替换工作稿；再次同步后共享结果更新。",
-                    )
-                  )
+                onClick={async () => {
+                  const values = {
+                    rows: modal.preview.rows,
+                    otherBudgets: modal.preview.otherBudgets,
+                  };
+                  if (await saveDraft(i.id, values, modal.preview.revision))
                     close();
                 }}
               >

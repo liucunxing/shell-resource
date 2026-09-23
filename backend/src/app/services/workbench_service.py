@@ -6,16 +6,17 @@ from zipfile import BadZipFile, ZipFile
 
 from fastapi import HTTPException, UploadFile, status
 from pydantic import ValidationError
-from sqlalchemy.exc import IntegrityError
 
 from app.core.config import Settings
 from app.dependencies.workbench_user import WorkbenchUser
 from app.models.do.budget import BudgetDO
 from app.models.do.budget_distributor import BudgetDistributorDO
 from app.repositories.budget_repository import BudgetDistributorRepository, BudgetRepository
+from app.repositories.workspace_repository import WorkspaceRepository
 from app.schemas.dto.workbench import (
     DistributorAllocationCreateDTO,
     DistributorAllocationUpdateDTO,
+    DraftRowDTO,
 )
 from app.schemas.vo.workbench import (
     CompletionProgressVO,
@@ -27,6 +28,7 @@ from app.schemas.vo.workbench import (
     ResponsibleBudgetVO,
     WorkbenchUserVO,
 )
+from app.services.workspace_service import WorkspaceService
 from app.storage.azure_blob import AzureBlobStorage, BlobNotFoundError, BlobStorageError
 
 WORKBENCH_PLANNING_YEAR = 2027
@@ -54,21 +56,29 @@ class WorkbenchService:
         resource_type_keyword: str | None,
         status_value: int | None,
     ) -> MyWorkbenchVO:
+        if self.user.role not in {"owner", "lead"}:
+            raise HTTPException(status_code=403, detail="当前角色请使用工作台投影接口")
         initiatives = await self.budget_repository.list_for_workbench(
             planning_year=WORKBENCH_PLANNING_YEAR,
             department=self.user.department,
             sector=self.user.sector,
+            owner_email=self.user.email if self.user.role == "owner" else None,
             initiative_keyword=initiative_keyword,
             resource_type_keyword=resource_type_keyword,
             status=status_value,
         )
-        total_count, total_budget, completed_count = (
-            await self.budget_repository.get_dashboard_totals(
-                planning_year=WORKBENCH_PLANNING_YEAR,
-                department=self.user.department,
-                sector=self.user.sector,
-            )
+        all_items = await self.budget_repository.list_for_workbench(
+            planning_year=WORKBENCH_PLANNING_YEAR,
+            department=self.user.department,
+            sector=self.user.sector,
+            owner_email=self.user.email if self.user.role == "owner" else None,
+            initiative_keyword=None,
+            resource_type_keyword=None,
+            status=None,
         )
+        total_count = len(all_items)
+        total_budget = sum((item.plan_budget_amount for item in all_items), Decimal("0"))
+        completed_count = sum(1 for item in all_items if item.status == 1)
         return MyWorkbenchVO(
             current_user=WorkbenchUserVO(
                 user_id=self.user.user_id,
@@ -99,7 +109,7 @@ class WorkbenchService:
 
     async def get_budget_summary(self, budget_id: int) -> InitiativeBudgetSummaryVO:
         budget = await self._get_scoped_budget(budget_id)
-        allocated_amount = await self.distributor_repository.get_total_for_budget(budget)
+        allocated_amount = await self._total(budget)
         return InitiativeBudgetSummaryVO(
             budget_id=budget.id,
             initiative=budget.initiative_name,
@@ -108,88 +118,103 @@ class WorkbenchService:
             unexplained_difference=budget.plan_budget_amount - allocated_amount,
         )
 
+    async def _total(self, budget: BudgetDO) -> Decimal:
+        rows = await WorkspaceRepository(self.budget_repository.session).other_for(budget.id)
+        return await self.distributor_repository.get_total_for_budget(budget) + sum(
+            (row.amount for row in rows), Decimal("0")
+        )
+
+    async def _mark_changed(self, budget: BudgetDO, operation: str) -> None:
+        session = self.budget_repository.session
+        await session.flush()
+        budget.revision += 1
+        budget.status = 0
+        budget.allocate_budget_amount = await self._total(budget)
+        WorkspaceRepository(session).add_log(
+            budget.id, operation, self.user.email, None, {"revision": budget.revision}
+        )
+        await session.flush()
+
+    async def _validate_append(
+        self, budget: BudgetDO, rows: list[DistributorAllocationCreateDTO]
+    ) -> None:
+        existing = await self.distributor_repository.list_for_budget(budget)
+        existing_codes = {item.distributor_code for item in existing}
+        codes = [item.distributor_code for item in rows]
+        if len(set(codes)) != len(codes) or existing_codes.intersection(codes):
+            raise HTTPException(status_code=409, detail="经销商编码已存在，未写入任何数据")
+        await WorkspaceService(self.budget_repository.session, self.user)._validate_rows(
+            [
+                DraftRowDTO(dealerId=row.distributor_code, amount=row.distributor_budget_amount)
+                for row in rows
+            ],
+            [],
+            budget,
+        )
+
     async def create_distributor_allocation(
-        self,
-        *,
-        budget_id: int,
-        payload: DistributorAllocationCreateDTO,
+        self, *, budget_id: int, payload: DistributorAllocationCreateDTO
     ) -> DistributorAllocationVO:
-        try:
-            async with self.budget_repository.session.begin():
-                budget = await self._get_scoped_budget(budget_id)
-                row = await self.distributor_repository.add_for_budget(
-                    budget=budget,
-                    distributor_code=payload.distributor_code,
-                    distributor_budget_amount=payload.distributor_budget_amount,
-                    description=payload.description,
-                )
-        except IntegrityError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="该 Initiative 下的经销商预算已存在",
-            ) from exc
+        session = self.budget_repository.session
+        budget = await self._get_scoped_budget(budget_id, writable=True)
+        await self._validate_append(budget, [payload])
+        async with session.begin_nested():
+            row = await self.distributor_repository.add_for_budget(
+                budget=budget,
+                distributor_code=payload.distributor_code,
+                distributor_budget_amount=payload.distributor_budget_amount,
+                description=payload.description,
+            )
+            await self._mark_changed(budget, "ALLOCATION_CREATE")
+        await session.commit()
         return self._allocation_vo(row, budget.plan_budget_amount)
 
     async def update_distributor_allocation(
-        self,
-        *,
-        budget_id: int,
-        allocation_id: int,
-        payload: DistributorAllocationUpdateDTO,
+        self, *, budget_id: int, allocation_id: int, payload: DistributorAllocationUpdateDTO
     ) -> DistributorAllocationVO:
         updates = payload.model_dump(exclude_unset=True)
         if not updates:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="至少需要提供一个待修改字段",
-            )
-        async with self.budget_repository.session.begin():
-            budget = await self._get_scoped_budget(budget_id)
-            row = await self.distributor_repository.get_for_budget(budget, allocation_id)
-            if row is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="经销商预算记录不存在或不属于当前 Initiative",
-                )
-            for field_name, value in updates.items():
-                setattr(row, field_name, value)
-            await self.budget_repository.session.flush()
+            raise HTTPException(status_code=422, detail="至少需要提供一个待修改字段")
+        session = self.budget_repository.session
+        budget = await self._get_scoped_budget(budget_id, writable=True)
+        row = await self.distributor_repository.get_for_budget(budget, allocation_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="经销商预算记录不存在")
+        async with session.begin_nested():
+            for name, value in updates.items():
+                setattr(row, name, value)
+            await self._mark_changed(budget, "ALLOCATION_UPDATE")
+        await session.commit()
         return self._allocation_vo(row, budget.plan_budget_amount)
 
     async def delete_distributor_allocation(self, *, budget_id: int, allocation_id: int) -> None:
-        async with self.budget_repository.session.begin():
-            budget = await self._get_scoped_budget(budget_id)
-            row = await self.distributor_repository.get_for_budget(budget, allocation_id)
-            if row is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="经销商预算记录不存在或不属于当前 Initiative",
-                )
-            await self.budget_repository.session.delete(row)
+        session = self.budget_repository.session
+        budget = await self._get_scoped_budget(budget_id, writable=True)
+        row = await self.distributor_repository.get_for_budget(budget, allocation_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="经销商预算记录不存在")
+        async with session.begin_nested():
+            await session.delete(row)
+            await self._mark_changed(budget, "ALLOCATION_DELETE")
+        await session.commit()
 
     async def import_distributor_allocations(
-        self,
-        *,
-        budget_id: int,
-        file: UploadFile,
-        max_upload_bytes: int,
+        self, *, budget_id: int, file: UploadFile, max_upload_bytes: int
     ) -> DistributorImportVO:
+        session = self.budget_repository.session
+        budget = await self._get_scoped_budget(budget_id, writable=True)
         rows = await self._parse_import_file(file, max_upload_bytes)
-        try:
-            async with self.budget_repository.session.begin():
-                budget = await self._get_scoped_budget(budget_id)
-                for row in rows:
-                    await self.distributor_repository.add_for_budget(
-                        budget=budget,
-                        distributor_code=row.distributor_code,
-                        distributor_budget_amount=row.distributor_budget_amount,
-                        description=row.description,
-                    )
-        except IntegrityError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="导入失败：存在已录入的经销商编码，未写入任何数据",
-            ) from exc
+        await self._validate_append(budget, rows)
+        async with session.begin_nested():
+            for row in rows:
+                await self.distributor_repository.add_for_budget(
+                    budget=budget,
+                    distributor_code=row.distributor_code,
+                    distributor_budget_amount=row.distributor_budget_amount,
+                    description=row.description,
+                )
+            await self._mark_changed(budget, "ALLOCATION_IMPORT")
+        await session.commit()
         return DistributorImportVO(imported_count=len(rows))
 
     @staticmethod
@@ -218,18 +243,20 @@ class WorkbenchService:
             ) from exc
         return result.blob_name, result.data, result.content_type
 
-    async def _get_scoped_budget(self, budget_id: int) -> BudgetDO:
+    async def _get_scoped_budget(self, budget_id: int, writable: bool = False) -> BudgetDO:
+        allowed = {"owner"} if writable else {"owner", "lead"}
+        if self.user.role not in allowed:
+            raise HTTPException(status_code=403, detail="当前角色无此操作权限")
         budget = await self.budget_repository.get_scoped(
             budget_id=budget_id,
-            planning_year=WORKBENCH_PLANNING_YEAR,
+            planning_year=None,
             department=self.user.department,
             sector=self.user.sector,
+            owner_email=self.user.email if self.user.role == "owner" else None,
+            for_update=writable,
         )
         if budget is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="预算不存在或不属于当前工作台范围",
-            )
+            raise HTTPException(status_code=404, detail="预算不存在或不属于当前工作台范围")
         return budget
 
     @staticmethod
@@ -427,10 +454,7 @@ class WorkbenchService:
         if "xl/sharedStrings.xml" not in names:
             return []
         root = ElementTree.fromstring(archive.read("xl/sharedStrings.xml"))
-        return [
-            "".join(item.itertext())
-            for item in root.findall(f"{SPREADSHEET_NAMESPACE}si")
-        ]
+        return ["".join(item.itertext()) for item in root.findall(f"{SPREADSHEET_NAMESPACE}si")]
 
     @staticmethod
     def _xlsx_cell_value(cell: ElementTree.Element, shared_strings: list[str]) -> object | None:

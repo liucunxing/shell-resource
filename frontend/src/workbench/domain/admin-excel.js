@@ -71,7 +71,9 @@ async function exportWorkbook(state, identity) {
     ],
     [
       "导入规则",
-      "预算非负、最多两位小数，不接受公式；Owner 只能是本部门的 -1 或 -2。固定列与修订号请保留。",
+      identity.apiMode
+        ? "预算非负、最多两位小数，不接受公式；Owner 填写已配置且符合部门和业务范围的邮箱。固定列与修订号请保留。"
+        : "预算非负、最多两位小数，不接受公式；Owner 只能是本部门的 -1 或 -2。固定列与修订号请保留。",
     ],
     [
       "发布规则",
@@ -114,23 +116,24 @@ async function exportWorkbook(state, identity) {
         pattern: "solid",
         fgColor: { argb: "FFEAF1FB" },
       };
-    sheet.getRow(r).getCell(6).dataValidation = {
-      type: "list",
-      allowBlank: false,
-      formulae: [
-        '"' +
-          sheet.getRow(r).getCell(5).value +
-          "-1," +
-          sheet.getRow(r).getCell(5).value +
-          '-2"',
-      ],
-      showErrorMessage: true,
-      error: "请选择同部门 Owner。",
-    };
+    if (!identity.apiMode)
+      sheet.getRow(r).getCell(6).dataValidation = {
+        type: "list",
+        allowBlank: false,
+        formulae: [
+          '"' +
+            sheet.getRow(r).getCell(5).value +
+            "-1," +
+            sheet.getRow(r).getCell(5).value +
+            '-2"',
+        ],
+        showErrorMessage: true,
+        error: "请选择同部门 Owner。",
+      };
   }
   return book.xlsx.writeBuffer();
 }
-async function previewImport(buffer, state, identity) {
+async function previewImport(buffer, state, identity, users = []) {
   const out = {
     errors: [],
     changes: [],
@@ -233,7 +236,19 @@ async function previewImport(buffer, state, identity) {
         add(`第 ${r} 行：${HEADERS[n + 1]}不可修改。`);
     });
     const ownerId = typeof cells[5] === "string" ? cells[5].trim() : "";
-    if (![i.department + "-1", i.department + "-2"].includes(ownerId))
+    if (identity.apiMode) {
+      const owner = users.find(
+        (user) => user.email === ownerId && user.role === "owner",
+      );
+      if (
+        !owner ||
+        owner.department !== i.department ||
+        (owner.sector && owner.sector !== i.sector)
+      )
+        add(
+          `第 ${r} 行：Owner 必须是项目部门及业务范围内已配置的 Owner 邮箱。`,
+        );
+    } else if (![i.department + "-1", i.department + "-2"].includes(ownerId))
       add(`第 ${r} 行：Owner 必须为 ${i.department}-1 或 ${i.department}-2。`);
     const raw = cells[6];
     const budget =
@@ -244,7 +259,7 @@ async function previewImport(buffer, state, identity) {
           : NaN;
     if (!engine.validMoney(budget))
       add(`第 ${r} 行：预算须为非负金额，最多两位小数，不能为空。`);
-    if (!Number.isInteger(cells[7]) || cells[7] < 1)
+    if (!Number.isInteger(cells[7]) || cells[7] < (identity.apiMode ? 0 : 1))
       add(`第 ${r} 行：修订号必须为原模板中的整数。`);
     if (cells[8] !== statusLabel(initial, i))
       add(`第 ${r} 行：状态列不可修改。`);
@@ -274,7 +289,7 @@ async function previewImport(buffer, state, identity) {
     const candidate = clone(initial);
     try {
       if (updates.length)
-        engine.applyAdminConfiguration(candidate, updates, identity);
+        engine.applyAdminConfiguration(candidate, updates, identity, users);
       out.summary.after = engine.totals(candidate.initiatives).budget;
     } catch (e) {
       add(e.message);
@@ -285,6 +300,7 @@ async function previewImport(buffer, state, identity) {
         identity: json(identity),
         scope: initialScope,
         updates,
+        users: clone(users),
       });
   }
   return out;
@@ -301,6 +317,7 @@ function confirmImport(preview, state, identity) {
     state,
     ticket.updates,
     identity,
+    ticket.users,
   );
   tickets.delete(preview);
   return applied;

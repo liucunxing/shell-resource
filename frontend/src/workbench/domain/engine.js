@@ -41,9 +41,11 @@ function identityCheck(identity) {
     fail("部门身份无效。");
   if (
     identity.role === "owner" &&
-    ![identity.department + "-1", identity.department + "-2"].includes(
-      identity.ownerId,
-    )
+    (!hasText(identity.ownerId) ||
+      (!identity.apiMode &&
+        ![identity.department + "-1", identity.department + "-2"].includes(
+          identity.ownerId,
+        )))
   )
     fail("Owner 身份无效。");
 }
@@ -827,7 +829,19 @@ function clearReassignmentCaches(
     if (state.analysisPrompts) delete state.analysisPrompts[scope];
   });
 }
-function validateOwnerAssignment(item, ownerId) {
+function validateOwnerAssignment(item, ownerId, identity, users = []) {
+  if (identity?.apiMode) {
+    const owner = users.find(
+      (user) => user.email === ownerId && user.role === "owner",
+    );
+    if (
+      !owner ||
+      owner.department !== item.department ||
+      (owner.sector && owner.sector !== item.sector)
+    )
+      fail("Owner 必须是项目部门及业务范围内已配置的 Owner 邮箱。");
+    return;
+  }
   if (![item.department + "-1", item.department + "-2"].includes(ownerId))
     fail("Owner 必须属于项目所在部门。");
 }
@@ -899,7 +913,7 @@ function setBudgetReasons(state, reasons, identity) {
   );
   return clone(state.budgetReasons);
 }
-function applyAdminConfiguration(state, updates, identity) {
+function applyAdminConfiguration(state, updates, identity, users = []) {
   migrateState(state);
   role(identity, "admin");
   if (!Array.isArray(updates) || !updates.length)
@@ -921,7 +935,7 @@ function applyAdminConfiguration(state, updates, identity) {
     requireUnlocked(state, i.department);
     if (patch.revision !== i.revision) fail("项目修订已变化，请重新预览配置。");
     if (!validMoney(patch.budget)) fail("预算须为非负有限金额，最多两位小数。");
-    validateOwnerAssignment(i, patch.ownerId);
+    validateOwnerAssignment(i, patch.ownerId, identity, users);
     return { i, patch };
   });
   const replacements = new Map(
