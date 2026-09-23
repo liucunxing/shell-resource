@@ -3,8 +3,6 @@ import {
   ArrowClockwise,
   ArrowSquareOut,
   ArrowUpRight,
-  ArrowsInSimple,
-  ArrowsOutSimple,
   BookOpen,
   ChatCircleDots,
   ChatText,
@@ -55,7 +53,7 @@ export function WorkPanel({ overlay }) {
   }, [auxiliary.open, auxiliary.tab]);
   useEffect(() => {
     if (!auxiliary.open) return;
-    if (overlay || auxiliary.wide) closeButton.current?.focus();
+    if (overlay) closeButton.current?.focus();
     const onKey = (event) => {
       if (document.querySelector("dialog[open]")) return;
       if (event.key === "Escape") {
@@ -87,7 +85,7 @@ export function WorkPanel({ overlay }) {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [auxiliary.open, auxiliary.wide, overlay]);
+  }, [auxiliary.open, overlay]);
   const defaultScope =
     identity.role === "owner"
       ? page === "editor" &&
@@ -138,16 +136,6 @@ export function WorkPanel({ overlay }) {
           </div>
           {auxiliary.open && (
             <div className="work-window-actions">
-              <button
-                className="icon-button"
-                aria-label={auxiliary.wide ? "恢复侧栏宽度" : "展开至导航边缘"}
-                title={auxiliary.wide ? "恢复侧栏宽度" : "展开至导航边缘"}
-                onClick={() =>
-                  setAuxiliary((value) => ({ ...value, wide: !value.wide }))
-                }
-              >
-                {auxiliary.wide ? <ArrowsInSimple /> : <ArrowsOutSimple />}
-              </button>
               <button
                 ref={closeButton}
                 className="icon-button work-close"

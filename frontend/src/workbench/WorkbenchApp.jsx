@@ -61,6 +61,7 @@ export function useNarrow(query) {
     const media = window.matchMedia(query);
     const update = () => setMatches(media.matches);
     media.addEventListener("change", update);
+    update();
     return () => media.removeEventListener("change", update);
   }, [query]);
   return matches;
@@ -90,10 +91,9 @@ export default function WorkbenchApp() {
   const sceneDialog = useRef(null);
   const navRef = useRef(null);
   const navTrigger = useRef(null);
-  const narrow = useNarrow("(max-width: 1199px)");
+  const narrow = useNarrow("(max-width: 1023px)");
   const phone = useNarrow("(max-width: 759px)");
-  const workOverlay = auxiliary.open && (auxiliary.wide ? phone : narrow);
-  const workCoversPage = auxiliary.open && (workOverlay || auxiliary.wide);
+  const workOverlay = auxiliary.open && narrow;
   const nav = [];
   if (identity.role === "owner") nav.push(["home", SquaresFour, "我的工作台"]);
   if (["owner", "lead"].includes(identity.role))
@@ -159,7 +159,7 @@ export default function WorkbenchApp() {
         跳至工作区
       </a>
       <div
-        className={`app-shell ${auxiliary.open ? "work-open" : ""} ${auxiliary.wide && auxiliary.open ? "work-wide" : ""}`}
+        className={`app-shell ${auxiliary.open ? "work-open" : ""}`}
       >
         {mobileNav && (
           <button
@@ -261,7 +261,7 @@ export default function WorkbenchApp() {
             </section>
           </div>
         </aside>
-        <div className="workspace" inert={workCoversPage || mobileNav}>
+        <div className="workspace" inert={workOverlay || mobileNav}>
           <header className="topbar">
             <div className="topbar-left">
               <button

@@ -82,7 +82,6 @@ export function WorkbenchProvider({ children }) {
     tab: "reference",
     dealerId: "",
     scope: "",
-    wide: false,
   });
   const returnFocus = useRef(null);
   const view = useMemo(() => E.selectView(state, identity), [state, identity]);
@@ -145,7 +144,7 @@ export function WorkbenchProvider({ children }) {
     setAuxiliary((value) => ({
       ...value,
       scope: "",
-      open: value.wide || window.innerWidth < 1200 ? false : value.open,
+      open: window.innerWidth < 1024 ? false : value.open,
     }));
     requestAnimationFrame(() =>
       document.getElementById("main")?.focus({ preventScroll: true }),
@@ -167,7 +166,6 @@ export function WorkbenchProvider({ children }) {
       tab: "insight",
       dealerId: "",
       scope: chosen.department || "global",
-      wide: false,
     });
     requestAnimationFrame(() =>
       document.getElementById("main")?.focus({ preventScroll: true }),
@@ -181,7 +179,6 @@ export function WorkbenchProvider({ children }) {
       ...value,
       open: true,
       tab,
-      wide: tab === "chat" ? true : value.wide,
       ...(tab === "reference" && selection
         ? { dealerId: String(selection) }
         : {}),
@@ -216,7 +213,6 @@ export function WorkbenchProvider({ children }) {
       tab: "reference",
       dealerId: "",
       scope: "",
-      wide: false,
     });
     notify("已切换演示场景。");
   };

@@ -4687,25 +4687,29 @@ th {
 }
 :root {
   --work-nav-size: 240px;
+  --work-panel-size: clamp(320px, 26vw, 380px);
 }
 .app-shell {
   grid-template-columns: var(--work-nav-size) minmax(0, 1fr) 54px;
 }
 .app-shell.work-open {
-  grid-template-columns: var(--work-nav-size) minmax(0, 1fr) 430px;
+  grid-template-columns: var(--work-nav-size) minmax(0, 1fr) var(--work-panel-size);
 }
-.app-shell.work-wide {
-  grid-template-columns: var(--work-nav-size) minmax(0, 1fr) 54px;
+.work-open .work-rail {
+  padding-inline: 8px;
+  gap: 4px;
 }
-.app-shell.work-wide .workbench {
-  position: fixed;
-  inset: 0 0 0 var(--work-nav-size);
-  width: auto;
-  height: 100dvh;
-  z-index: 60;
+.work-open .work-tabs {
+  flex: 1;
+  gap: 2px;
 }
-.work-wide .work-content:not(.is-chat) {
-  padding-inline: clamp(20px, 5vw, 80px);
+.work-open .work-tab {
+  flex: 1;
+  min-width: 0;
+  padding: 6px !important;
+  gap: 4px;
+  font-size: 11px;
+  white-space: nowrap;
 }
 .work-window-actions {
   display: flex;
@@ -4715,14 +4719,6 @@ th {
 .work-window-actions button {
   padding: 7px;
   min-width: 30px;
-}
-.work-wide .work-content .history-chart-pair {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
-}
-.work-wide .reference-footnote {
-  margin-block: 18px;
 }
 .nav-mobile-close {
   display: none;
@@ -4849,6 +4845,47 @@ dialog.modal:not([open]) {
   :root {
     --work-nav-size: 220px;
   }
+}
+/* Desktop tools occupy their own column, leaving the work area interactive. */
+@media (min-width: 1024px) {
+  .work-open .workbench {
+    position: sticky;
+    inset: auto;
+    top: 0;
+    width: 100%;
+    z-index: 35;
+    box-shadow: none;
+  }
+}
+@media (min-width: 1024px) and (max-width: 1199px) {
+  .work-open .topbar {
+    flex-wrap: wrap;
+  }
+  .work-open .topbar .demo-mark {
+    display: none;
+  }
+  .work-open .metric-card {
+    padding-inline: 12px;
+  }
+  .work-open .metric-value strong {
+    font-size: 22px;
+  }
+  .work-open .initiative-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .work-open .initiative-panel > .filters {
+    padding: 0 16px 12px;
+    flex-wrap: wrap;
+  }
+  .work-open .management-metrics,
+  .work-open .management-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .work-open .budget-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 1023px) {
   .app-shell,
   .app-shell.work-open {
     grid-template-columns: var(--work-nav-size) minmax(0, 1fr) 54px;
@@ -4859,8 +4896,7 @@ dialog.modal:not([open]) {
     --work-nav-size: 0px;
   }
   .app-shell,
-  .app-shell.work-open,
-  .app-shell.work-wide {
+  .app-shell.work-open {
     grid-template-columns: minmax(0, 1fr) 46px;
   }
   .sidebar {
@@ -4868,17 +4904,6 @@ dialog.modal:not([open]) {
   }
   .nav-mobile-close {
     display: inline-flex;
-  }
-  .app-shell.work-wide .workbench {
-    left: 0;
-    z-index: 75;
-  }
-  .work-wide .work-content:not(.is-chat) {
-    padding-inline: 18px;
-  }
-  .work-wide .work-content .history-chart-pair {
-    grid-template-columns: 1fr;
-    gap: 12px;
   }
   .work-open .work-rail {
     gap: 3px;
