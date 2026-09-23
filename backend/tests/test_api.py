@@ -171,4 +171,12 @@ def test_swagger_and_openapi_are_available() -> None:
     assert "/api/v1/test/ping" in schema.json()["paths"]
     assert "/api/v1/test/database-value" in schema.json()["paths"]
     assert "/api/v1/test/blob/upload" in schema.json()["paths"]
+    assert "/api/v1/workbench/my-initiatives" in schema.json()["paths"]
+    assert "/api/v1/workbench/initiatives/{budget_id}/distributor-allocations" in schema.json()[
+        "paths"
+    ]
+    workbench_import_path = (
+        "/api/v1/workbench/initiatives/{budget_id}/distributor-allocations/import"
+    )
+    assert workbench_import_path in schema.json()["paths"]
 

@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 
-from azure.core.exceptions import AzureError, ResourceExistsError
+from azure.core.exceptions import AzureError, ResourceExistsError, ResourceNotFoundError
 from azure.storage.blob import ContentSettings
 from azure.storage.blob.aio import BlobServiceClient
 
@@ -16,6 +16,10 @@ class BlobAlreadyExistsError(BlobStorageError):
     """Raised when a caller tries to upload a duplicate blob name."""
 
 
+class BlobNotFoundError(BlobStorageError):
+    """Raised when a requested blob does not exist."""
+
+
 @dataclass(frozen=True, slots=True)
 class BlobUploadResult:
     blob_name: str
@@ -23,6 +27,13 @@ class BlobUploadResult:
     size: int
     content_type: str
     etag: str
+
+
+@dataclass(frozen=True, slots=True)
+class BlobDownloadResult:
+    blob_name: str
+    data: bytes
+    content_type: str
 
 
 class AzureBlobStorage:
@@ -70,4 +81,33 @@ class AzureBlobStorage:
             size=len(data),
             content_type=content_type,
             etag=str(properties.get("etag", "")).strip('"'),
+        )
+
+    async def download(self, *, blob_name: str) -> BlobDownloadResult:
+        try:
+            async with BlobServiceClient(
+                account_url=self.account_url,
+                credential=self.account_key,
+            ) as service_client:
+                blob_client = service_client.get_blob_client(
+                    container=self.container_name,
+                    blob=blob_name,
+                )
+                stream = await blob_client.download_blob()
+                properties = await blob_client.get_blob_properties()
+                data = await stream.readall()
+        except ResourceNotFoundError as exc:
+            raise BlobNotFoundError("Azure Blob does not exist") from exc
+        except AzureError as exc:
+            logger.exception(
+                "Azure Blob download failed for container=%s error_type=%s",
+                self.container_name,
+                type(exc).__name__,
+            )
+            raise BlobStorageError("Azure Blob download failed") from exc
+
+        return BlobDownloadResult(
+            blob_name=blob_name,
+            data=data,
+            content_type=properties.content_settings.content_type or "application/octet-stream",
         )

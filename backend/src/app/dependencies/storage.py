@@ -34,3 +34,27 @@ def get_blob_storage(
         account_key=account_key,
         container_name=container_name,
     )
+
+
+def get_workbench_blob_storage(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> AzureBlobStorage:
+    """Build Blob storage for workbench templates in every configured environment."""
+    account_url = (settings.azure_blob_account_url or "").strip()
+    account_key = (
+        settings.azure_blob_account_key.get_secret_value()
+        if settings.azure_blob_account_key
+        else ""
+    )
+    container_name = (settings.azure_blob_container_name or "").strip()
+    if not account_url or not account_key or not container_name:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Azure Blob 存储配置不完整",
+        )
+
+    return AzureBlobStorage(
+        account_url=account_url,
+        account_key=account_key,
+        container_name=container_name,
+    )

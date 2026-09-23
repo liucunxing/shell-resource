@@ -77,6 +77,7 @@ class Settings(BaseModel):
     azure_blob_account_key: SecretStr | None = None
     azure_blob_container_name: str | None = None
     azure_blob_max_upload_bytes: int = Field(default=20 * 1024 * 1024, gt=0)
+    azure_blob_workbench_template_name: str | None = None
 
     sso_enabled: bool = False
     sso_issuer: str | None = None
