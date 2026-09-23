@@ -119,6 +119,7 @@ if local_config.is_file():
     settings.ai_api_key = SecretStr(development.get("ai_api_key") or "")
     settings.ai_base_url = development.get("ai_base_url") or ""
     settings.ai_model = development.get("ai_model") or "qwen-plus"
+    settings.ai_timeout_seconds = float(development.get("ai_timeout_seconds", 60))
 app = create_app()
 app.router.lifespan_context = lifespan
 app.dependency_overrides[get_db_session] = local_session
