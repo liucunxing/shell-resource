@@ -21,6 +21,7 @@ if (!(Test-Path config/settings.toml)) {
 
 ```toml
 database_url = "postgresql+asyncpg://USER:URL_ENCODED_PASSWORD@HOST:5432/resource_dev?ssl=require"
+db_echo = true
 serve_frontend = true
 ai_api_key = ""
 ai_base_url = ""
@@ -28,7 +29,7 @@ ai_model = "qwen-plus"
 ai_timeout_seconds = 60
 ```
 
-填写真实数据库连接，密码中的特殊字符必须 URL 编码。百炼 key 仅填在本地 `ai_api_key`；Base URL 复制控制台的兼容地址，按地域填写业务空间，参见[百炼官方接入文档](https://help.aliyun.com/zh/model-studio/first-api-call-to-qwen)。后端只发送已授权范围内的证据，单次生成六点解释；缺配置、超时或不合规模型响应会保留旧分析，草稿和同步不依赖 AI。
+填写真实数据库连接，密码中的特殊字符必须 URL 编码。开发环境的 `db_echo = true` 会在后端控制台输出经过 SQLAlchemy 引擎执行的 SELECT、INSERT、UPDATE、DELETE、事务操作及绑定参数；改为 `false` 可关闭。生产配置默认关闭，生产环境即使手动开启也会隐藏绑定参数。百炼 key 仅填在本地 `ai_api_key`；Base URL 复制控制台的兼容地址，按地域填写业务空间，参见[百炼官方接入文档](https://help.aliyun.com/zh/model-studio/first-api-call-to-qwen)。后端只发送已授权范围内的证据，单次生成六点解释；缺配置、超时或不合规模型响应会保留旧分析，草稿和同步不依赖 AI。
 
 ## 数据库准备
 
@@ -38,9 +39,9 @@ ai_timeout_seconds = 60
 .\.venv\Scripts\python.exe scripts/check_database.py
 ```
 
-该脚本只读，不打印连接密码。本机目前连接 PostgreSQL 5432 超时；尚未验证远端实际结构，也未执行迁移。
+该脚本只读，不打印连接密码。
 
-核对通过后，由可达数据库的环境执行 [V1.4 增量 SQL](docs/database/quickwin_v14_increment.sql)。该文件包含本期预算关联、用户权限、其他预算、同步快照、配置、参考数据和 Insight 表，**已包含 AI 表，不要再重复执行独立 Insight 脚本**。脚本使用事务；旧分配记录无法唯一匹配预算时中止，先修正数据再执行。旧 [数据准备 DDL](docs/database/data_preparation_v1.sql) 是历史设计材料，不作为本次部署脚本。
+旧表已经删除时，在目标 PostgreSQL 中执行唯一的完整建表脚本 [data_preparation_v1.sql](docs/database/data_preparation_v1.sql)。它一次创建预算、历史表现、用户权限、分配、快照、配置、参考数据和 Insight 表，并初始化工作台配置。脚本使用事务，仅适用于空表结构；若同名表仍存在会报错，应先核对实际表结构，不要用它覆盖或迁移现有数据。建表后可选择执行 [测试数据脚本](docs/database/quickwin_v14_test_seed.sql) 联调；测试数据脚本不能在正式库使用。
 
 脚本不注入真实用户或示例业务数据。首次使用前，维护 `data.user_permissions` 的 `email`（小写）、`display_name`、`role`、`department`、`sector`、`enabled`。角色为 `owner / lead / management / admin`；Owner 和负责人必须配置部门，Sector 为空表示不额外限定该字段。将既有预算的 `owner_email` 对应到真实启用 Owner。新预算可通过管理员 API 创建，Owner 必须与预算部门和 Sector 匹配。
 

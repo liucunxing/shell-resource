@@ -22,7 +22,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     """Application factory used by Uvicorn and tests."""
     settings = get_settings()
-    configure_logging(settings.debug)
+    configure_logging(settings.debug, settings.db_echo)
 
     app = FastAPI(
         title=settings.app_name,

@@ -8,7 +8,7 @@ debug = true
 docs_enabled = true
 api_v1_prefix = "/api/v1"
 database_url = "postgresql+asyncpg://USER:ENCODED_PASSWORD@DEV_HOST:5432/DEV_DATABASE?ssl=require"
-db_echo = false
+db_echo = true
 cors_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
 serve_frontend = true
 # Copy the compatible-mode Base URL from your Bailian console.
