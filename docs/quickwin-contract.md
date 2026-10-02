@@ -10,7 +10,7 @@
 - `GET /initiatives/{id}/draft` → 单项前端 Initiative（id 为 budget_id 的字符串）；`PUT` 同路由，请求 `{expected_revision,rows:[{dealerId,amount,note}],otherBudgets:[{id,reasonId,amount,note}]}` → 更新后单项。整批替换当前项工作稿；允许不平衡；负数/非法编码/非法原因拒绝；旧 revision 返回 409。
 - `POST /initiatives/{id}/publish` 请求 `{expected_revision,note:""}` → publication。校验经销商+其他预算=预算；非零其他预算须说明；事务中追加不可变快照；草稿仍可编辑。
 - `GET /initiatives/{id}/publications` → 当前权限下的历史数组。
-- `PUT /admin/budgets` 请求 `{items:[{id,expected_revision,budget,ownerId}]}` → `{updated_count}`；已有配置批量更新，完整校验后同事务写入。`POST` 同路由用于初始化预算，请求 `{items:[{name,resourceType,sector,department,budget,ownerId}],planning_year}`。通过服务端用户清单验证 Owner 部门。
+- `PUT /admin/budgets` 请求 `{items:[{id,expected_revision,budget,ownerId}]}` → `{updated_count}`；已有配置批量更新，完整校验后同事务写入。`POST` 同路由用于初始化预算，请求 `{items:[{name,resourceType,sector,department,budget,ownerId}],planning_year}`。管理员 Excel 混合导入使用 `POST /admin/budgets/import`，请求 `{planning_year,updates:[...],creates:[...]}`，新增与修改在同一事务内完成。所有入口都通过服务端用户清单验证 Owner 部门。
 - `PUT /admin/config` 请求 `{expected_revision,budgetReasons?,guide?}` → 配置对象；配置包含 `revision,budgetReasons,budgetReasonVersion,guide:{version,text},reference`；保持简单配置记录，不创建配置框架。
 - `POST /admin/reference` 请求 `{expected_revision,batchId,asOf,dealers:[{id,name,history:{vol2024,c32024,vol2025,c32025,vol2026Ytd,c32026Ytd,resources2025:{...}}}]}` → reference。保存规范化历史行，批次整批事务。null 表示缺失，不补零。Owner/Lead 返回许可资源明细及整体同年 Yield 比值，不返回未授权资源总额。
 - `GET /insights?scope=owner:EMAIL&planning_year=2027` → `{record,prompt}`；`PUT /insights/prompt` 请求 `{scope,planning_year,text,expected_version}`；`POST /insights/generate` 请求 `{scope,planning_year}` → 六点 record。Owner 范围为本人集合或本人 initiative:ID；Lead 本部门；management 不可生成；admin 不可生成/读取。规则数字由后端算，AI 只提供解释；失败不覆盖旧记录，依据改变标记 stale。

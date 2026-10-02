@@ -11,7 +11,6 @@ from app.models.do.workspace import (
     UserPermissionDO,
     WorkspaceConfigDO,
     WorkspacePublicationDO,
-    WorkspaceReferenceDO,
 )
 
 
@@ -122,15 +121,6 @@ class WorkspaceRepository:
 
     async def config(self) -> WorkspaceConfigDO | None:
         return await self.session.get(WorkspaceConfigDO, 1)
-
-    async def references(self, year: int) -> list[WorkspaceReferenceDO]:
-        return list(
-            (
-                await self.session.scalars(
-                    select(WorkspaceReferenceDO).where(WorkspaceReferenceDO.planning_year == year)
-                )
-            ).all()
-        )
 
     async def replace_rows(self, budget: BudgetDO, rows: list[dict]) -> None:
         await self.session.execute(

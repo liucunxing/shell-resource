@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.dependencies.workbench_user import WorkbenchUser
 from app.models.do.base import BaseDO
 from app.models.do.budget import BudgetDO
+from app.models.do.distributor_history import distributor_sellin_resource_history
 from app.models.do.workspace import (
     BudgetChangeLogDO,
     UserPermissionDO,
@@ -18,6 +19,7 @@ from app.models.do.workspace import (
 )
 from app.schemas.dto.workbench import (
     AdminBudgetsCreateDTO,
+    AdminBudgetsImportDTO,
     AdminBudgetsUpdateDTO,
     AdminConfigDTO,
     ReferenceImportDTO,
@@ -64,14 +66,6 @@ def test_reference_reimport_replaces_and_scopes_history():
         second = await service.import_reference(reference(first["revision"], "B2", "D2"))
         assert second["batchId"] == "B2" and second["importedAt"]
         assert await session.scalar(select(func.count()).select_from(WorkspaceReferenceDO)) == 1
-        assert await ReferenceService(session).get_dealers(2027, "MKT", ["D1"]) == []
-        dealers = await ReferenceService(session).get_dealers(2027, "MKT", ["D2"])
-        history = dealers[0]["history"]
-        assert history["resources2025"] == {"MRD": 10.0, "SP&A": 10.0}
-        assert history["yield2025"] == 2.0 and history["vol2025"] is None
-        assert "resource2025" not in history
-        assert dealers[0]["name"] is None
-        assert "api_key" not in str(dealers)
         config = await session.get(WorkspaceConfigDO, 1)
         assert config.reference["batchId"] == "B2"
 
@@ -90,8 +84,8 @@ def test_reference_failure_rolls_back_delete_and_metadata():
         with pytest.raises(RuntimeError):
             await service.import_reference(reference(1, "B2", "D2"))
         service.repository.add_log = original
-        dealers = await ReferenceService(session).get_dealers(2027, "MKT")
-        assert [dealer["id"] for dealer in dealers] == ["D1"]
+        legacy = (await session.scalars(select(WorkspaceReferenceDO))).one()
+        assert legacy.dealer_id == "D1"
         config = await session.get(WorkspaceConfigDO, 1)
         assert config.revision == 1 and config.reference["batchId"] == "B1"
         assert await session.scalar(select(func.count()).select_from(BudgetChangeLogDO)) == 1
@@ -290,14 +284,91 @@ def test_config_reason_validation(reasons):
         AdminConfigDTO(expected_revision=0, budgetReasons=reasons)
 
 
-@pytest.mark.parametrize("resources", [{}, {"MRD": 0, "SP&A": 0, "ICE Rebate": 0, "Capex": 0}])
-def test_reference_missing_and_zero_denominator_remain_unknown(resources):
+def test_distributor_history_field_mapping_and_department_scope():
     async def run(session, service):
-        data = reference().model_dump()
-        data["dealers"][0]["history"]["resources2025"] = resources
-        await service.import_reference(ReferenceImportDTO.model_validate(data))
+        await session.execute(
+            distributor_sellin_resource_history.insert().values(
+                distributor_code="D-HISTORY",
+                distributor_name="History Dealer",
+                volume_2024=1,
+                c3_2024=2,
+                volume_2025=3,
+                c3_2025=4,
+                volume_2026=5,
+                c3_2026=6,
+                mrd_2025=7,
+                reb_2025=8,
+                btl_2025=9,
+                capex_2025=10,
+                yield_2025=11,
+            )
+        )
+        await session.commit()
         dealer = (await ReferenceService(session).get_dealers(2027, "MKT"))[0]
-        assert dealer["history"]["yield2025"] is None
-        assert dealer["history"]["c32024"] is None
+        assert dealer == {
+            "id": "D-HISTORY",
+            "name": "History Dealer",
+            "history": {
+                "vol2024": 1.0,
+                "c32024": 2.0,
+                "vol2025": 3.0,
+                "c32025": 4.0,
+                "vol2026Ytd": 5.0,
+                "c32026Ytd": 6.0,
+                "yield2025": 11.0,
+                "resources2025": {"MRD": 7.0, "SP&A": 9.0},
+            },
+        }
+        ice = (await ReferenceService(session).get_dealers(2027, "ICE"))[0]
+        assert ice["history"]["resources2025"] == {"ICE Rebate": 8.0}
+
+    asyncio.run(database_case(run))
+
+
+def test_mixed_admin_import_is_atomic_and_creates_new_initiative():
+    async def run(session, service):
+        await seed_budget(session)
+        update = {
+            "id": 1,
+            "expected_revision": 3,
+            "budget": 200,
+            "ownerId": "owner@example.com",
+        }
+        duplicate = {
+            "name": "Plan",
+            "resourceType": "MRD",
+            "sector": "PCMO",
+            "department": "MKT",
+            "budget": 50,
+            "ownerId": "owner@example.com",
+        }
+        with pytest.raises(HTTPException) as error:
+            await service.import_budgets(
+                AdminBudgetsImportDTO(
+                    planning_year=2027,
+                    updates=[update],
+                    creates=[duplicate],
+                )
+            )
+        assert error.value.status_code == 409
+        original = await session.get(BudgetDO, 1)
+        assert original.revision == 3 and original.plan_budget_amount == 100
+        assert await session.scalar(select(func.count()).select_from(BudgetDO)) == 1
+
+        created = {**duplicate, "name": "New Initiative"}
+        result = await service.import_budgets(
+            AdminBudgetsImportDTO(
+                planning_year=2027,
+                updates=[update],
+                creates=[created],
+            )
+        )
+        assert result == {"updated_count": 1, "created_count": 1}
+        original = await session.get(BudgetDO, 1)
+        assert original.revision == 4 and original.plan_budget_amount == 200
+        initiatives = (await session.scalars(select(BudgetDO).order_by(BudgetDO.id))).all()
+        assert len(initiatives) == 2
+        assert initiatives[1].initiative_name == "New Initiative"
+        assert initiatives[1].revision == 0 and initiatives[1].allocate_budget_amount == 0
 
     asyncio.run(database_case(run))

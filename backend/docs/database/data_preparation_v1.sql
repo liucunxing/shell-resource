@@ -63,8 +63,8 @@ COMMENT ON TABLE data.budgets_distributor IS '按 Distributor 分配的 Initiati
 CREATE INDEX ix_budgets_distributor_budget_id
     ON data.budgets_distributor (budget_id);
 
--- Legacy data-preparation history remains available. V1.4 reference APIs use
--- data.workspace_references and do not convert this history automatically.
+-- Legacy data-preparation history remains available. V1.4 workbench reads
+-- data.distributor_sellin_resource_history, which is loaded outside this script.
 CREATE TABLE data.historical_performance (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     history_year SMALLINT NOT NULL,
@@ -171,6 +171,8 @@ CREATE TABLE data.workspace_publications (
 CREATE INDEX ix_workspace_publications_budget_id
     ON data.workspace_publications (budget_id);
 
+-- Legacy admin-import storage retained for API compatibility. It is not the
+-- V1.4 workbench's active historical-data source.
 CREATE TABLE data.workspace_references (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     planning_year SMALLINT NOT NULL,

@@ -15,6 +15,7 @@ from app.repositories.admin_repository import AdminRepository
 from app.repositories.reference_repository import ReferenceRepository
 from app.schemas.dto.workbench import (
     AdminBudgetsCreateDTO,
+    AdminBudgetsImportDTO,
     AdminBudgetsUpdateDTO,
     AdminConfigDTO,
     ReferenceImportDTO,
@@ -147,6 +148,98 @@ class AdminService(WorkspaceService):
             await self.session.rollback()
             raise
         return {"created_count": len(entities)}
+
+    async def import_budgets(self, payload: AdminBudgetsImportDTO) -> dict:
+        """Validate and apply mixed create/update rows in one transaction."""
+        self._admin()
+        try:
+            # Serialize mixed imports so business-key checks and inserts remain atomic.
+            await self._locked_config()
+            updates = []
+            for item in sorted(payload.updates, key=lambda value: value.id):
+                budget = await self.admin_repository.locked_budget(item.id)
+                if budget is None:
+                    raise HTTPException(status_code=422, detail="预算不存在")
+                if budget.planning_year != payload.planning_year:
+                    raise HTTPException(status_code=422, detail="预算不属于当前规划年度")
+                owner = await self._owner(item.ownerId, budget.department, budget.sector)
+                if budget.revision != item.expected_revision:
+                    raise HTTPException(status_code=409, detail="预算已被修改，请刷新后重试")
+                updates.append((budget, item, owner))
+
+            entities = []
+            keys = set()
+            allowed_resources = {
+                "MKT": {"MRD", "SP&A"},
+                "ICE": {"ICE Rebate"},
+                "CAPEX": {"Capex"},
+            }
+            for item in payload.creates:
+                key = (item.sector, item.department, item.resourceType, item.name)
+                if key in keys or await self.admin_repository.business_key_exists(
+                    payload.planning_year,
+                    item.sector,
+                    item.department,
+                    item.resourceType,
+                    item.name,
+                ):
+                    raise HTTPException(
+                        status_code=409,
+                        detail="同年度、部门、Sector 和资源类型下 Initiative 已存在",
+                    )
+                keys.add(key)
+                if item.resourceType not in allowed_resources.get(item.department, set()):
+                    raise HTTPException(status_code=422, detail="资源类型与部门不匹配")
+                owner = await self._owner(item.ownerId, item.department, item.sector)
+                entities.append(
+                    BudgetDO(
+                        planning_year=payload.planning_year,
+                        sector=item.sector,
+                        department=item.department,
+                        resource_type=item.resourceType,
+                        initiative_name=item.name,
+                        plan_budget_amount=item.budget,
+                        allocate_budget_amount=0,
+                        status=0,
+                        input_source="ADMIN_IMPORT",
+                        owner_email=owner.email,
+                        revision=0,
+                    )
+                )
+
+            updated = 0
+            for budget, item, owner in updates:
+                if budget.plan_budget_amount == item.budget and budget.owner_email == owner.email:
+                    continue
+                before = {"budget": float(budget.plan_budget_amount), "ownerId": budget.owner_email}
+                budget.plan_budget_amount = item.budget
+                budget.owner_email = owner.email
+                budget.revision += 1
+                budget.status = 0
+                updated += 1
+                self.repository.add_log(
+                    budget.id,
+                    "ADMIN_UPDATE",
+                    self.user.email,
+                    before,
+                    {"budget": float(item.budget), "ownerId": owner.email},
+                )
+
+            self.admin_repository.add_budgets(entities)
+            await self.session.flush()
+            for budget in entities:
+                self.repository.add_log(
+                    budget.id,
+                    "ADMIN_CREATE",
+                    self.user.email,
+                    None,
+                    {"budget": float(budget.plan_budget_amount), "ownerId": budget.owner_email},
+                )
+            await self.session.commit()
+        except Exception:
+            await self.session.rollback()
+            raise
+        return {"updated_count": updated, "created_count": len(entities)}
 
     async def update_config(self, payload: AdminConfigDTO) -> dict:
         self._admin()

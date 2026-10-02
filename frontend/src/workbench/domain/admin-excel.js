@@ -1,19 +1,25 @@
 import engine from "./engine.js";
 const excelLibrary = async () => (await import("exceljs")).default;
 ("use strict");
-const FORMAT = "资源投资管理员配置 V1.3";
+const FORMAT = "资源投资管理员配置 V1.4";
 const SHEET = "预算与归属";
 const HEADERS = [
   "Initiative编号",
-  "Initiative名称（只读）",
-  "Sector（只读）",
-  "资源类型（只读）",
-  "部门（只读）",
+  "Initiative名称",
+  "Sector",
+  "资源类型",
+  "部门",
   "Owner编号",
   "预算金额",
-  "修订号（只读）",
-  "状态（只读）",
+  "修订号",
+  "状态",
 ];
+const RESOURCE_DEPARTMENT = {
+  MRD: "MKT",
+  "SP&A": "MKT",
+  "ICE Rebate": "ICE",
+  Capex: "CAPEX",
+};
 const tickets = new WeakMap();
 const json = (value) => JSON.stringify(value);
 const clone = (value) => JSON.parse(json(value));
@@ -64,16 +70,19 @@ async function exportWorkbook(state, identity) {
   info.addRows([
     ["字段", "内容"],
     ["模板版本", FORMAT],
-    ["可编辑列", "预算与归属表的 Owner编号、预算金额；浅蓝色列可编辑。"],
+    [
+      "可编辑列",
+      "已有项目只可修改 Owner编号、预算金额（浅蓝色列）；新增项目请在表尾增加一行并填写 Initiative名称、Sector、资源类型、部门、Owner编号、预算金额。",
+    ],
     [
       "匹配方式",
-      "按 Initiative编号更新已有项目。可仅保留需调整的项目；未列出的项目不变，不新增或删除项目。",
+      "Initiative编号有值时按编号更新已有项目；编号留空时新增项目。可仅保留需调整或新增的行，未列出的已有项目保持不变。",
     ],
     [
       "导入规则",
       identity.apiMode
-        ? "预算非负、最多两位小数，不接受公式；Owner 填写已配置且符合部门和业务范围的邮箱。固定列与修订号请保留。"
-        : "预算非负、最多两位小数，不接受公式；Owner 只能是本部门的 -1 或 -2。固定列与修订号请保留。",
+        ? "预算非负、最多两位小数，不接受公式；Owner 填写已配置且符合部门和业务范围的邮箱。已有项目的名称/Sector/资源类型/部门/修订号/状态不可修改；新增项目的编号/修订号/状态须留空。"
+        : "预算非负、最多两位小数，不接受公式；Owner 只能是本部门的 -1 或 -2。已有项目固定列不可修改；新增项目的编号/修订号/状态须留空。",
     ],
     [
       "发布规则",
@@ -81,7 +90,7 @@ async function exportWorkbook(state, identity) {
     ],
     [
       "写入影响",
-      "预览后确认才整批写入。预算/Owner 变化不移动经销商分配，也不改写既有发布快照。",
+      "预览后确认才将新增与修改整批写入；任一行失败则整批不写入。预算/Owner 变化不移动经销商分配，也不改写既有发布快照。",
     ],
     [
       "适用范围",
@@ -137,6 +146,7 @@ async function previewImport(buffer, state, identity, users = []) {
   const out = {
     errors: [],
     changes: [],
+    creates: [],
     rows: 0,
     unchanged: 0,
     summary: { before: 0, after: 0 },
@@ -181,7 +191,7 @@ async function previewImport(buffer, state, identity, users = []) {
     return out;
   }
   if (sheet.rowCount > 5000) {
-    out.errors.push("模板行数超过限制，请只保留已有项目的配置行。");
+    out.errors.push("模板行数超过限制，请只保留需要修改或新增的配置行。");
     return out;
   }
   const add = (message) => {
@@ -205,8 +215,43 @@ async function previewImport(buffer, state, identity, users = []) {
     if (c > 9 && cell.value != null && cell.value !== "")
       add("表头含模板范围外的列，请保留原模板结构。");
   });
-  const byId = new Map(initial.initiatives.map((i) => [i.id, i])),
-    seen = new Set();
+  const byId = new Map(initial.initiatives.map((i) => [String(i.id), i])),
+    seen = new Set(),
+    businessKeys = new Set(
+      initial.initiatives.map((i) =>
+        json([i.sector, i.department, i.resourceType, i.name]),
+      ),
+    );
+  const text = (value) =>
+    typeof value === "string" || typeof value === "number"
+      ? String(value).trim()
+      : "";
+  const parseBudget = (value) =>
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && /^\d+(\.\d{1,2})?$/.test(value.trim())
+        ? Number(value.trim())
+        : NaN;
+  const validateOwner = (rowNumber, item, ownerId) => {
+    if (identity.apiMode) {
+      const owner = users.find(
+        (user) => user.email === ownerId && user.role === "owner",
+      );
+      if (
+        !owner ||
+        owner.department !== item.department ||
+        (owner.sector && owner.sector !== item.sector)
+      )
+        add(
+          `第 ${rowNumber} 行：Owner 必须是项目部门及业务范围内已配置的 Owner 邮箱。`,
+        );
+    } else if (
+      ![item.department + "-1", item.department + "-2"].includes(ownerId)
+    )
+      add(
+        `第 ${rowNumber} 行：Owner 必须为 ${item.department}-1 或 ${item.department}-2。`,
+      );
+  };
   sheet.eachRow((row, r) => {
     if (r === 1) return;
     const cells = Array.from({ length: 9 }, (_, c) => row.getCell(c + 1).value);
@@ -220,43 +265,60 @@ async function previewImport(buffer, state, identity, users = []) {
       if (c > 9 && cell.value != null && cell.value !== "")
         add(`第 ${r} 行存在多余的第 ${c} 列。`);
     });
-    const id = typeof cells[0] === "string" ? cells[0].trim() : "";
-    if (seen.has(id)) {
+    const id = text(cells[0]);
+    if (id && seen.has(id)) {
       add(`第 ${r} 行：Initiative ${id} 重复。`);
       return;
     }
-    seen.add(id);
+    if (id) seen.add(id);
     const i = byId.get(id);
-    if (!i) {
-      add(`第 ${r} 行：Initiative 编号不存在，不支持新增项目。`);
+    if (id && !i) {
+      add(`第 ${r} 行：Initiative 编号 ${id} 不存在；新增项目请将编号留空。`);
+      return;
+    }
+    const ownerId = text(cells[5]);
+    const budget = parseBudget(cells[6]);
+    if (!id) {
+      const item = {
+        name: text(cells[1]),
+        sector: text(cells[2]),
+        resourceType: text(cells[3]),
+        department: text(cells[4]),
+        ownerId,
+        budget,
+      };
+      if (!item.name || item.name.length > 255)
+        add(`第 ${r} 行：Initiative 名称不能为空且最多 255 个字符。`);
+      if (!item.sector || item.sector.length > 32)
+        add(`第 ${r} 行：Sector 不能为空且最多 32 个字符。`);
+      if (!RESOURCE_DEPARTMENT[item.resourceType])
+        add(`第 ${r} 行：资源类型必须为 MRD、SP&A、ICE Rebate 或 Capex。`);
+      if (RESOURCE_DEPARTMENT[item.resourceType] !== item.department)
+        add(`第 ${r} 行：资源类型与部门不匹配。`);
+      validateOwner(r, item, ownerId);
+      if (!engine.validMoney(budget))
+        add(`第 ${r} 行：预算须为非负金额，最多两位小数，不能为空。`);
+      if (cells[7] != null && cells[7] !== "")
+        add(`第 ${r} 行：新增项目的修订号必须留空。`);
+      if (cells[8] != null && cells[8] !== "")
+        add(`第 ${r} 行：新增项目的状态必须留空。`);
+      const key = json([
+        item.sector,
+        item.department,
+        item.resourceType,
+        item.name,
+      ]);
+      if (businessKeys.has(key))
+        add(`第 ${r} 行：同部门、Sector 和资源类型下 Initiative 名称已存在。`);
+      else businessKeys.add(key);
+      out.creates.push({ ...item, row: r });
       return;
     }
     [i.name, i.sector, i.resourceType, i.department].forEach((expected, n) => {
       if (cells[n + 1] !== expected)
         add(`第 ${r} 行：${HEADERS[n + 1]}不可修改。`);
     });
-    const ownerId = typeof cells[5] === "string" ? cells[5].trim() : "";
-    if (identity.apiMode) {
-      const owner = users.find(
-        (user) => user.email === ownerId && user.role === "owner",
-      );
-      if (
-        !owner ||
-        owner.department !== i.department ||
-        (owner.sector && owner.sector !== i.sector)
-      )
-        add(
-          `第 ${r} 行：Owner 必须是项目部门及业务范围内已配置的 Owner 邮箱。`,
-        );
-    } else if (![i.department + "-1", i.department + "-2"].includes(ownerId))
-      add(`第 ${r} 行：Owner 必须为 ${i.department}-1 或 ${i.department}-2。`);
-    const raw = cells[6];
-    const budget =
-      typeof raw === "number"
-        ? raw
-        : typeof raw === "string" && /^\d+(\.\d{1,2})?$/.test(raw.trim())
-          ? Number(raw.trim())
-          : NaN;
+    validateOwner(r, i, ownerId);
     if (!engine.validMoney(budget))
       add(`第 ${r} 行：预算须为非负金额，最多两位小数，不能为空。`);
     if (!Number.isInteger(cells[7]) || cells[7] < (identity.apiMode ? 0 : 1))
@@ -288,8 +350,14 @@ async function previewImport(buffer, state, identity, users = []) {
     }));
     const candidate = clone(initial);
     try {
-      if (updates.length)
-        engine.applyAdminConfiguration(candidate, updates, identity, users);
+      if (updates.length || out.creates.length)
+        engine.applyAdminConfiguration(
+          candidate,
+          updates,
+          identity,
+          users,
+          out.creates.map(({ row, ...item }) => item),
+        );
       out.summary.after = engine.totals(candidate.initiatives).budget;
     } catch (e) {
       add(e.message);
@@ -300,6 +368,7 @@ async function previewImport(buffer, state, identity, users = []) {
         identity: json(identity),
         scope: initialScope,
         updates,
+        creates: out.creates.map(({ row, ...item }) => item),
         users: clone(users),
       });
   }
@@ -312,12 +381,14 @@ function confirmImport(preview, state, identity) {
     throw Error("预览无效或已被修改，请重新导入。");
   if (ticket.identity !== json(identity) || ticket.scope !== scope(state))
     throw Error("身份、配置或锁定状态已变化，请重新预览。");
-  if (!ticket.updates.length) throw Error("配置没有变化，无需写入。");
+  if (!ticket.updates.length && !ticket.creates.length)
+    throw Error("配置没有变化，无需写入。");
   const applied = engine.applyAdminConfiguration(
     state,
     ticket.updates,
     identity,
     ticket.users,
+    ticket.creates,
   );
   tickets.delete(preview);
   return applied;

@@ -54,17 +54,20 @@ class WorkspaceService:
         budget_ids = [int(item["id"]) for item in initiatives if str(item.get("id", "")).isdigit()]
         dealer_ids = [row["dealerId"] for item in initiatives for row in item.get("rows", [])]
         dealers = []
-        if self.user.role in {"owner", "lead", "management"}:
-            dealers = await ReferenceService(self.session).get_dealers(
+        reference_service = ReferenceService(self.session)
+        if self.user.role in {"admin", "lead"}:
+            dealers = await reference_service.get_dealers(planning_year)
+        elif self.user.role in {"owner", "management"}:
+            dealers = await reference_service.get_dealers(
                 planning_year, self.user.department, dealer_ids
             )
         if self.user.role in {"owner", "lead"}:
             # The picker needs the approved directory even for an empty draft.
             # Names/codes are shared; detailed history remains allocation-scoped.
             visible_ids = {item["id"] for item in dealers}
-            for item in await self.repository.references(planning_year):
-                if item.dealer_id not in visible_ids:
-                    dealers.append({"id": item.dealer_id, "name": item.dealer_name, "history": {}})
+            for item in await reference_service.get_directory():
+                if item["id"] not in visible_ids:
+                    dealers.append(item)
         audit = []
         if self.user.role != "management":
             audit = [
@@ -110,21 +113,7 @@ class WorkspaceService:
         }
 
     async def _reference_metadata(self, planning_year: int) -> dict:
-        rows = await self.repository.references(planning_year)
-        if not rows:
-            return {}
-        result = {
-            "batchId": rows[0].batch_id,
-            "asOf": rows[0].as_of,
-            "planningYear": planning_year,
-            "count": len(rows),
-        }
-        config = await self.repository.config()
-        if config and config.reference.get("planningYear") == planning_year:
-            imported_at = config.reference.get("importedAt")
-            if imported_at:
-                result["importedAt"] = imported_at
-        return result
+        return await ReferenceService(self.session).metadata(planning_year)
 
     async def get_draft(self, budget_id: int) -> dict:
         budget = await self._scoped_budget(budget_id, writable=False)
@@ -346,9 +335,9 @@ class WorkspaceService:
     async def _validate_rows(self, rows: list, other: list, budget: BudgetDO) -> None:
         if len({item.dealerId for item in rows}) != len(rows):
             raise HTTPException(status_code=422, detail="经销商编码不能重复")
-        references = await self.repository.references(budget.planning_year)
+        references = await ReferenceService(self.session).get_directory()
         existing = await self.repository.rows_for(budget.id)
-        dealer_ids = {item.dealer_id for item in references} | {
+        dealer_ids = {item["id"] for item in references} | {
             item.distributor_code for item in existing
         }
         if any(item.dealerId not in dealer_ids for item in rows):

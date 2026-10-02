@@ -13,6 +13,7 @@ from app.dependencies.workbench_user import WorkbenchUser, get_current_workbench
 from app.repositories.budget_repository import BudgetDistributorRepository, BudgetRepository
 from app.schemas.dto.workbench import (
     AdminBudgetsCreateDTO,
+    AdminBudgetsImportDTO,
     AdminBudgetsUpdateDTO,
     AdminConfigDTO,
     DistributorAllocationCreateDTO,
@@ -132,6 +133,19 @@ async def post_admin_budgets(
     user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
 ) -> ApiResponse[dict]:
     return success(await _admin_service(session, user).create_budgets(payload))
+
+
+@router.post(
+    "/admin/budgets/import",
+    response_model=ApiResponse[dict],
+    summary="原子导入新增及修改的预算配置",
+)
+async def post_admin_budget_import(
+    payload: AdminBudgetsImportDTO,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+) -> ApiResponse[dict]:
+    return success(await _admin_service(session, user).import_budgets(payload))
 
 
 @router.put("/admin/config", response_model=ApiResponse[dict], summary="更新原因字典和指引")

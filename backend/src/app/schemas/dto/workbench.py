@@ -1,7 +1,7 @@
 from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class DistributorAllocationCreateDTO(BaseModel):
@@ -110,10 +110,36 @@ class AdminBudgetCreateItemDTO(BaseModel):
     budget: Decimal = Field(ge=0, max_digits=18, decimal_places=2)
     ownerId: str = Field(min_length=3, max_length=255)
 
+    @field_validator("name", "resourceType", "sector", "department", "ownerId", mode="before")
+    @classmethod
+    def normalize_text(cls, value: Any) -> Any:
+        return value.strip() if isinstance(value, str) else value
+
 
 class AdminBudgetsCreateDTO(BaseModel):
     planning_year: int = Field(ge=2020, le=2100)
     items: list[AdminBudgetCreateItemDTO] = Field(min_length=1)
+
+
+class AdminBudgetsImportDTO(BaseModel):
+    planning_year: int = Field(ge=2020, le=2100)
+    updates: list[AdminBudgetItemDTO] = Field(default_factory=list, max_length=5000)
+    creates: list[AdminBudgetCreateItemDTO] = Field(default_factory=list, max_length=5000)
+
+    @field_validator("updates")
+    @classmethod
+    def unique_update_ids(cls, items: list[AdminBudgetItemDTO]) -> list[AdminBudgetItemDTO]:
+        if len({item.id for item in items}) != len(items):
+            raise ValueError("预算 ID 不可重复")
+        return items
+
+    @model_validator(mode="after")
+    def has_changes(self) -> "AdminBudgetsImportDTO":
+        if not self.updates and not self.creates:
+            raise ValueError("导入内容没有新增或修改")
+        if len(self.updates) + len(self.creates) > 5000:
+            raise ValueError("导入配置总行数不能超过 5000")
+        return self
 
 
 class AdminConfigDTO(BaseModel):

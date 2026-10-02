@@ -71,6 +71,7 @@ vitestTest(
       const mine = s.initiatives.find((i) => i.ownerId === "MKT-1");
       mine.rows[0].amount = 123456;
       const ownerRows = X.rawData(s, owner, D, "allocations").rows;
+      assert.ok(ownerRows.every((r) => "dealerCode" in r && "dealerName" in r));
       assert.equal(
         ownerRows.find(
           (r) =>
@@ -117,7 +118,7 @@ vitestTest(
     for (const department of ["MKT", "ICE", "CAPEX"])
       test(
         department +
-          " history resource columns remain scoped with shared Yield",
+          " lead history includes all resources and shared metrics",
         () => {
           const m = X.rawData(
             working,
@@ -126,16 +127,11 @@ vitestTest(
             "history",
           );
           assert.equal(m.rows.length, 60);
-          const allowed =
-            department === "MKT"
-              ? ["MRD", "SP&A"]
-              : department === "ICE"
-                ? ["ICE Rebate"]
-                : ["Capex"];
+          const allowed = ["MRD", "SP&A", "ICE Rebate", "Capex"];
           for (const row of m.rows) {
-            assert.ok(!("resource2025" in row));
+            assert.ok("resource2025" in row);
             assert.ok("yield2025" in row);
-            assert.ok(!("resourcePerLiter2025" in row));
+            assert.ok("resourcePerLiter2025" in row);
             assert.deepEqual(
               Object.keys(row)
                 .filter((k) => k.startsWith("resource_"))
@@ -148,6 +144,7 @@ vitestTest(
       );
     test("overall same-year yield authorized and labeled", () => {
       const m = X.rawData(working, management, D, "history");
+      assert.ok(m.rows.every((r) => "dealerCode" in r && "dealerName" in r));
       assert.ok(m.rows.every((r) => "yield2025" in r));
       assert.ok(
         m.columns
@@ -233,7 +230,7 @@ vitestTest(
           [true, true, false],
         );
         assert.equal(m.periods[2].label, "2026 1–8月");
-        const all = ["management", "admin"].includes(identity.role);
+        const all = ["management", "admin", "lead"].includes(identity.role);
         assert.equal(m.allResources, all);
         const labels = all
           ? ["2025 MRD", "2025 SP&A", "2025 ICE Rebate", "2025 Capex"]

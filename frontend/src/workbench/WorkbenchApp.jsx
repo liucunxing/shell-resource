@@ -1,12 +1,16 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
+  ArrowRight,
   Buildings,
   ChartPieSlice,
+  ChartLineUp,
   ChatCircleDots,
   Clock,
   Database,
+  EnvelopeSimple,
   Info,
   List,
+  LockKey,
   SlidersHorizontal,
   SquaresFour,
   Stack,
@@ -146,7 +150,7 @@ export default function WorkbenchApp() {
         error={storageWarning}
       />
     );
-  if (loading || !identity)
+  if (!identity)
     return (
       <main className="page">
         <div className="empty" role="status">
@@ -437,34 +441,96 @@ export default function WorkbenchApp() {
 function DevelopmentLogin({ email, loading, onSubmit, error }) {
   const [value, setValue] = useState(email);
   return (
-    <main className="page">
-      <section className="panel" style={{ maxWidth: 520, margin: "48px auto" }}>
-        <h1>开发环境登录</h1>
-        {error && (
-          <div className="note-box warn" role="alert">
-            {error}
+    <main className="login-shell">
+      <section className="login-story" aria-label="壳牌资源投资工作台介绍">
+        <div className="login-brand">
+          <span className="login-brandmark" aria-hidden="true">
+            <ChartLineUp size={28} weight="bold" />
+          </span>
+          <span>
+            <strong>壳牌 · 资源投资</strong>
+            <small>RESOURCE INVESTMENT</small>
+          </span>
+        </div>
+
+        <div className="login-story-copy">
+          <span className="login-kicker">2027 RESOURCE PLANNING</span>
+          <h1>
+            让每一笔资源，
+            <br />
+            投向更确定的增长。
+          </h1>
+          <p>
+            连接预算、经销商分配与业务洞察，帮助团队在同一套数据口径下完成年度资源规划。
+          </p>
+        </div>
+
+        <div className="login-capabilities" aria-label="工作台核心能力">
+          <div>
+            <strong>预算统筹</strong>
+            <span>清晰掌握年度资源结构</span>
           </div>
-        )}
-        <p>
-          输入已在服务端配置权限的邮箱。该值只保存在当前浏览器会话，并作为开发请求头发送。
-        </p>
-        <label className="form-field">
-          邮箱
-          <input
-            type="email"
-            autoComplete="email"
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-            placeholder="name@example.com"
-          />
-        </label>
-        <button
-          className="button primary"
-          disabled={loading || !value.trim()}
-          onClick={() => onSubmit(value)}
+          <div>
+            <strong>协同分配</strong>
+            <span>连接项目与经销商投入</span>
+          </div>
+          <div>
+            <strong>数据洞察</strong>
+            <span>用历史表现辅助决策</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="login-entry">
+        <form
+          className="login-card"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!loading && value.trim()) onSubmit(value);
+          }}
         >
-          {loading ? "正在加载…" : "进入工作台"}
-        </button>
+          <div className="login-card-heading">
+            <span className="login-environment">开发环境</span>
+            <h2>登录资源投资工作台</h2>
+            <p>使用已在服务端配置权限的邮箱继续。</p>
+          </div>
+
+          {error && (
+            <div className="login-alert" role="alert">
+              {error}
+            </div>
+          )}
+
+          <label className="login-email-field">
+            <span>邮箱地址</span>
+            <span className="login-input-wrap">
+              <EnvelopeSimple size={20} aria-hidden="true" />
+              <input
+                type="email"
+                autoComplete="email"
+                autoFocus
+                value={value}
+                onChange={(event) => setValue(event.target.value)}
+                placeholder="name@example.com"
+              />
+            </span>
+          </label>
+
+          <button
+            type="submit"
+            className="login-submit"
+            disabled={loading || !value.trim()}
+          >
+            <span>{loading ? "正在加载工作台…" : "进入工作台"}</span>
+            <ArrowRight size={20} weight="bold" aria-hidden="true" />
+          </button>
+
+          <p className="login-session-note">
+            <LockKey size={15} aria-hidden="true" />
+            邮箱仅保存在当前浏览器会话，并作为开发请求头发送。
+          </p>
+        </form>
+        <p className="login-footer">壳牌资源投资规划工作台 · 内部系统</p>
       </section>
     </main>
   );

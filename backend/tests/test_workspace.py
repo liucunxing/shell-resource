@@ -9,7 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from app.dependencies.workbench_user import WorkbenchUser
 from app.models.do.base import BaseDO
 from app.models.do.budget import BudgetDO
-from app.models.do.workspace import UserPermissionDO, WorkspaceConfigDO, WorkspaceReferenceDO
+from app.models.do.distributor_history import distributor_sellin_resource_history
+from app.models.do.workspace import UserPermissionDO, WorkspaceConfigDO
 from app.schemas.dto.workbench import InitiativeDraftUpdateDTO, PublishDTO
 from app.services.workspace_service import WorkspaceService
 
@@ -59,12 +60,6 @@ async def _session() -> AsyncSession:
                 sector="S",
                 enabled=True,
             ),
-            WorkspaceReferenceDO(
-                id=1, planning_year=2027, batch_id="test", as_of="2026", dealer_id="d1"
-            ),
-            WorkspaceReferenceDO(
-                id=2, planning_year=2027, batch_id="test", as_of="2026", dealer_id="d2"
-            ),
             WorkspaceConfigDO(
                 id=1,
                 revision=0,
@@ -74,6 +69,13 @@ async def _session() -> AsyncSession:
                 reference={},
             ),
         ]
+    )
+    await session.execute(
+        distributor_sellin_resource_history.insert(),
+        [
+            {"distributor_code": "d1", "distributor_name": "Dealer 1"},
+            {"distributor_code": "d2", "distributor_name": "Dealer 2"},
+        ],
     )
     await session.commit()
     return session
@@ -124,20 +126,33 @@ async def test_role_read_boundaries() -> None:
 
 
 @pytest.mark.asyncio
-async def test_reference_metadata_is_scoped_to_workspace_and_snapshot_year() -> None:
+async def test_admin_and_global_lead_receive_all_distributor_history() -> None:
     session = await _session()
-    config = await session.get(WorkspaceConfigDO, 1)
-    config.reference = {"batchId": "2028-batch", "planningYear": 2028, "importedAt": "2027-01"}
-    session.add(
-        WorkspaceReferenceDO(
-            planning_year=2028, batch_id="2028-batch", as_of="2027", dealer_id="d1"
+    for role in ("admin", "lead"):
+        service = WorkspaceService(
+            session,
+            WorkbenchUser(f"{role}@example.com", role, "MKT", "S", role.title()),
         )
-    )
-    await session.commit()
+        dealers = (await service.get_workspace(2027))["data"]["dealers"]
+        assert [dealer["id"] for dealer in dealers] == ["d1", "d2"]
+        assert [dealer["name"] for dealer in dealers] == ["Dealer 1", "Dealer 2"]
+        assert set(dealers[0]["history"]["resources2025"]) == {
+            "MRD",
+            "SP&A",
+            "ICE Rebate",
+            "Capex",
+        }
+
+    await session.close()
+
+
+@pytest.mark.asyncio
+async def test_reference_metadata_uses_history_source_for_workspace_and_snapshot() -> None:
+    session = await _session()
     service = WorkspaceService(session, _owner())
     result = await service.get_workspace(2027)
     assert result["state"]["reference"] == {
-        "batchId": "test",
+        "batchId": "data.distributor_sellin_resource_history",
         "asOf": "2026",
         "planningYear": 2027,
         "count": 2,
@@ -148,6 +163,5 @@ async def test_reference_metadata_is_scoped_to_workspace_and_snapshot_year() -> 
     published = await service.publish(1, PublishDTO(expected_revision=1))
     assert published["reference"] == result["state"]["reference"]
     later = await service.get_workspace(2028)
-    assert later["state"]["reference"]["importedAt"] == "2027-01"
-    assert (await service.get_workspace(2029))["state"]["reference"] == {}
+    assert later["state"]["reference"]["planningYear"] == 2028
     await session.close()

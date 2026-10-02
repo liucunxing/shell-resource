@@ -395,6 +395,18 @@ export function WorkbenchProvider({ children }) {
       return false;
     }
   };
+  const importAdminBudgets = async ({ updates, creates }) => {
+    const epoch = sessionEpoch.current;
+    try {
+      await api.importBudgets(api.planningYear, updates, creates);
+      if (epoch !== sessionEpoch.current) return false;
+      return await refresh();
+    } catch (error) {
+      if (epoch !== sessionEpoch.current) return false;
+      notify(error.message || "预算配置导入失败，请重试。", true);
+      return false;
+    }
+  };
   const saveConfig = async (value) => {
     const epoch = sessionEpoch.current;
     try {
@@ -528,6 +540,7 @@ export function WorkbenchProvider({ children }) {
     saveDraft,
     publish,
     saveAdminBudgets,
+    importAdminBudgets,
     saveConfig,
     saveReference,
     notify,

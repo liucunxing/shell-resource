@@ -24,7 +24,8 @@ from app.core.config import get_settings
 from app.db.session import get_db_session
 from app.main import create_app
 from app.models.do import BaseDO, BudgetDO
-from app.models.do.workspace import UserPermissionDO, WorkspaceConfigDO, WorkspaceReferenceDO
+from app.models.do.distributor_history import distributor_sellin_resource_history
+from app.models.do.workspace import UserPermissionDO, WorkspaceConfigDO
 
 CACHE = ROOT / ".cache"
 CACHE.mkdir(exist_ok=True)
@@ -85,23 +86,21 @@ async def lifespan(_):
                         owner_email=f"owner-{owner}@example.test",
                     )
                 )
-            session.add(
-                WorkspaceReferenceDO(
-                    planning_year=2027,
-                    dealer_id="D001",
-                    dealer_name="本地验收经销商",
-                    batch_id="LOCAL-QA",
-                    as_of="2026-08-31",
-                    vol2024=100,
-                    c32024=80,
-                    vol2025=120,
-                    c32025=90,
-                    vol2026_ytd=None,
-                    c32026_ytd=None,
-                    mrd2025=20,
-                    spa2025=10,
-                    ice2025=5,
-                    capex2025=5,
+            await session.execute(
+                distributor_sellin_resource_history.insert().values(
+                    distributor_code="D001",
+                    distributor_name="本地验收经销商",
+                    volume_2024=100,
+                    c3_2024=80,
+                    volume_2025=120,
+                    c3_2025=90,
+                    volume_2026=None,
+                    c3_2026=None,
+                    mrd_2025=20,
+                    btl_2025=10,
+                    reb_2025=5,
+                    capex_2025=5,
+                    yield_2025=2.25,
                 )
             )
             await session.commit()

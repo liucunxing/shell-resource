@@ -913,10 +913,20 @@ function setBudgetReasons(state, reasons, identity) {
   );
   return clone(state.budgetReasons);
 }
-function applyAdminConfiguration(state, updates, identity, users = []) {
+function applyAdminConfiguration(
+  state,
+  updates,
+  identity,
+  users = [],
+  creates = [],
+) {
   migrateState(state);
   role(identity, "admin");
-  if (!Array.isArray(updates) || !updates.length)
+  if (
+    !Array.isArray(updates) ||
+    !Array.isArray(creates) ||
+    (!updates.length && !creates.length)
+  )
     fail("没有需要写入的配置变化。");
   const seen = new Set();
   const pending = updates.map((patch) => {
@@ -938,13 +948,71 @@ function applyAdminConfiguration(state, updates, identity, users = []) {
     validateOwnerAssignment(i, patch.ownerId, identity, users);
     return { i, patch };
   });
+  const businessKeys = new Set(
+    state.initiatives.map((item) =>
+      JSON.stringify([
+        item.sector,
+        item.department,
+        item.resourceType,
+        item.name,
+      ]),
+    ),
+  );
+  const additions = creates.map((item) => {
+    if (
+      !item ||
+      typeof item !== "object" ||
+      Array.isArray(item) ||
+      Object.keys(item).some(
+        (key) =>
+          ![
+            "name",
+            "sector",
+            "resourceType",
+            "department",
+            "budget",
+            "ownerId",
+          ].includes(key),
+      )
+    )
+      fail("新增配置字段无效。");
+    if (!hasText(item.name) || item.name.trim().length > 255)
+      fail("Initiative 名称不能为空且最多 255 个字符。");
+    if (!hasText(item.sector) || item.sector.trim().length > 32)
+      fail("Sector 不能为空且最多 32 个字符。");
+    if (
+      !hasText(item.department) ||
+      RESOURCE_DEPARTMENT[item.resourceType] !== item.department
+    )
+      fail("资源类型与部门不匹配。");
+    if (!validMoney(item.budget)) fail("预算须为非负有限金额，最多两位小数。");
+    const normalized = {
+      name: item.name.trim(),
+      sector: item.sector.trim(),
+      resourceType: item.resourceType,
+      department: item.department,
+      budget: item.budget,
+      ownerId: item.ownerId,
+    };
+    validateOwnerAssignment(normalized, item.ownerId, identity, users);
+    const key = JSON.stringify([
+      normalized.sector,
+      normalized.department,
+      normalized.resourceType,
+      normalized.name,
+    ]);
+    if (businessKeys.has(key))
+      fail("同部门、Sector 和资源类型下 Initiative 名称已存在。");
+    businessKeys.add(key);
+    return normalized;
+  });
   const replacements = new Map(
     pending.map(({ i, patch }) => [i.id, patch.budget]),
   );
   const totalCents = state.initiatives.reduce(
     (sum, i) =>
       sum + cents(replacements.has(i.id) ? replacements.get(i.id) : i.budget),
-    0,
+    additions.reduce((sum, item) => sum + cents(item.budget), 0),
   );
   if (!Number.isSafeInteger(totalCents)) fail("合计预算超出可安全计算范围。");
   // Validate the entire batch before writing any row; allocations and snapshots are untouched.
@@ -977,6 +1045,41 @@ function applyAdminConfiguration(state, updates, identity, users = []) {
         "；保留原分配，需重新复核完成。",
     );
     applied.push(i.id);
+  });
+  additions.forEach((item) => {
+    const id = uid("INIT");
+    const created = {
+      id,
+      name: item.name,
+      sector: item.sector,
+      resourceType: item.resourceType,
+      department: item.department,
+      ownerId: item.ownerId,
+      budget: item.budget,
+      rows: [],
+      otherBudgets: [],
+      reserve: 0,
+      reserveNote: "",
+      nonDealer: 0,
+      nonDealerNote: "",
+      revision: 0,
+      status: "editing",
+      savedAt: now(),
+    };
+    state.initiatives.push(created);
+    state.publications[id] = [];
+    audit(
+      state,
+      identity,
+      "import_admin_configuration",
+      id,
+      "新增 Initiative；预算 " +
+        created.budget +
+        "；Owner " +
+        created.ownerId +
+        "。",
+    );
+    applied.push(id);
   });
   return applied;
 }

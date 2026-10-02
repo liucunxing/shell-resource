@@ -214,9 +214,13 @@ function rawData(state, identity, data, tab) {
     resourceType: i.resourceType,
   });
   if (tab === "allocations") {
+    const dealerNames = new Map(
+      data.dealers.map((dealer) => [String(dealer.id), dealer.name || ""]),
+    );
     model.columns = cols([
       ...common,
-      ["dealerId", "经销商 ID"],
+      ["dealerCode", "经销商编码"],
+      ["dealerName", "经销商名称"],
       ["amount", "分配金额"],
       ["note", "业务说明"],
     ]);
@@ -224,6 +228,8 @@ function rawData(state, identity, data, tab) {
       (i.rows || []).map((r) => ({
         ...base(i),
         dealerId: r.dealerId,
+        dealerCode: r.dealerId,
+        dealerName: dealerNames.get(String(r.dealerId)) || "—",
         amount: r.amount,
         note: r.note || "",
       })),
@@ -270,7 +276,7 @@ function rawData(state, identity, data, tab) {
     );
     model.notes.push("每一行对应一条其他预算安排；同一 Initiative 可有多条。");
   } else {
-    const all = ["management", "admin"].includes(identity.role);
+    const all = ["management", "admin", "lead"].includes(identity.role);
     const resources = all
       ? ["MRD", "SP&A", "ICE Rebate", "Capex"]
       : identity.department === "MKT"
@@ -287,7 +293,8 @@ function rawData(state, identity, data, tab) {
       ["c32026Ytd", "2026 1–8月 C3"],
     ];
     model.columns = cols([
-      ["dealerId", "经销商 ID"],
+      ["dealerCode", "经销商编码"],
+      ["dealerName", "经销商名称"],
       ...history,
       ...resources.map((r) => ["resource_" + r, "2025 " + r]),
       ["yield2025", "2025 C3 / 2025 资源"],
@@ -300,7 +307,7 @@ function rawData(state, identity, data, tab) {
     ]);
     model.rows = data.dealers.map((d) => {
       const h = d.history || {},
-        row = { dealerId: d.id };
+        row = { dealerCode: d.id, dealerName: d.name || "—", dealerId: d.id };
       history.forEach(([k]) => (row[k] = h[k]));
       resources.forEach(
         (r) => (row["resource_" + r] = (h.resources2025 || {})[r]),
@@ -320,7 +327,7 @@ function rawData(state, identity, data, tab) {
       return row;
     });
     model.scopeLabel = `共享经销商 Vol / C3 · ${all ? "全资源" : identity.department + " 授权资源"}`;
-    model.basisLabel = "源历史数据 · 全部 60 家经销商（模拟）";
+    model.basisLabel = `源历史数据 · 共 ${data.dealers.length} 家经销商`;
     model.notes.push(
       "2024、2025 为全年；2026 为 1–8 月累计，不默认同比或年化。",
       "整体 Yield 向所有角色只读开放，按 2025 C3 / 2025 总资源重新计算；分母无效时留空，不代表投入因果回报。",
@@ -362,7 +369,7 @@ function historyReference(state, identity, data, dealerId) {
     resources: model.columns
       .filter((c) => c.key.startsWith("resource_"))
       .map((c) => ({ label: c.label, amount: row[c.key] })),
-    allResources: ["management", "admin"].includes(identity.role),
+    allResources: ["management", "admin", "lead"].includes(identity.role),
   };
 }
 function filterRows(model, search = "") {

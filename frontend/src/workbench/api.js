@@ -79,6 +79,15 @@ export const publications = (id) => request(`/initiatives/${encodeURIComponent(i
 export const updateBudgets = (items) => request("/admin/budgets", {
   method: "PUT", body: JSON.stringify({ items }),
 });
+export const importBudgets = (planningYearValue, updates, creates) =>
+  request("/admin/budgets/import", {
+    method: "POST",
+    body: JSON.stringify({
+      planning_year: planningYearValue,
+      updates,
+      creates,
+    }),
+  });
 export const updateConfig = (value) => request("/admin/config", {
   method: "PUT", body: JSON.stringify(value),
 });

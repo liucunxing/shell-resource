@@ -6,6 +6,28 @@ const fmt = (n) =>
   Number(n || 0).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
 const pct = (n, d) => (d ? ((n / d) * 100).toFixed(2) : "0.00");
 const time = (v) => (v ? new Date(v).toLocaleString("zh-CN") : "尚未同步");
+export function uniqueDealersByCode(dealers) {
+  const unique = new Map();
+  dealers.forEach((dealer) => {
+    const code = String(dealer.id);
+    if (!unique.has(code)) unique.set(code, { ...dealer, id: code });
+  });
+  return [...unique.values()];
+}
+
+export function filterDealers(dealers, codeSearch, nameSearch) {
+  const codeQuery = codeSearch.trim().toLocaleLowerCase();
+  const nameQuery = nameSearch.trim().toLocaleLowerCase();
+  return dealers.filter(
+    (dealer) =>
+      (!codeQuery || String(dealer.id).toLocaleLowerCase().includes(codeQuery)) &&
+      (!nameQuery ||
+        String(dealer.name || "")
+          .toLocaleLowerCase()
+          .includes(nameQuery)),
+  );
+}
+
 function AmountInput({ value, label, save, disabled = false }) {
   const [raw, setRaw] = useState(null);
   const [failed, setFailed] = useState(false);
@@ -108,6 +130,8 @@ function EditorContent({
 }) {
   const [modal, setModal] = useState(null),
     [newDealer, setNewDealer] = useState(""),
+    [dealerCodeSearch, setDealerCodeSearch] = useState(""),
+    [dealerNameSearch, setDealerNameSearch] = useState(""),
     [busy, setBusy] = useState(false);
   const fileRef = useRef(null),
     alive = useRef(true);
@@ -137,8 +161,17 @@ function EditorContent({
   const doGuard = (fn) => {
     if (guard()) fn();
   };
-  const available = data.dealers.filter(
+  const dealers = uniqueDealersByCode(data.dealers);
+  const available = dealers.filter(
     (d) => !i.rows.some((r) => r.dealerId === d.id),
+  );
+  const dealerById = new Map(dealers.map((d) => [String(d.id), d]));
+  const dealerName = (dealerId) =>
+    dealerById.get(String(dealerId))?.name || "—";
+  const searchedDealers = filterDealers(
+    available,
+    dealerCodeSearch,
+    dealerNameSearch,
   );
   const changeRow = (n, amount) =>
     update({
@@ -396,6 +429,7 @@ function EditorContent({
               <thead>
                 <tr>
                   <th>经销商编码</th>
+                  <th>经销商名称</th>
                   <th className="num">
                     分配金额<small>2027 计划</small>
                   </th>
@@ -416,6 +450,7 @@ function EditorContent({
                         {r.dealerId}
                       </button>
                     </td>
+                    <td>{dealerName(r.dealerId)}</td>
                     <td className="num">
                       {editable ? (
                         <AmountInput
@@ -478,7 +513,9 @@ function EditorContent({
                 className="button link"
                 onClick={() =>
                   doGuard(() => {
-                    setNewDealer(available[0]?.id || "");
+                    setNewDealer("");
+                    setDealerCodeSearch("");
+                    setDealerNameSearch("");
                     setModal({ type: "add" });
                   })
                 }
@@ -762,23 +799,72 @@ function EditorContent({
           }
         >
           {modal.type === "add" && (
-            <label className="form-field">
-              经销商
-              <select
-                value={newDealer}
-                onChange={(e) => setNewDealer(e.target.value)}
-              >
-                {available.length ? (
-                  available.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.id}
-                    </option>
-                  ))
-                ) : (
-                  <option value="">已无可添加经销商</option>
-                )}
-              </select>
-            </label>
+            <>
+              <div className="dealer-search-grid">
+                <label className="form-field">
+                  经销商编码
+                  <input
+                    type="search"
+                    autoFocus
+                    value={dealerCodeSearch}
+                    placeholder="模糊搜索经销商编码"
+                    onChange={(e) => {
+                      setDealerCodeSearch(e.target.value);
+                      setNewDealer("");
+                    }}
+                  />
+                </label>
+                <label className="form-field">
+                  经销商名称
+                  <input
+                    type="search"
+                    value={dealerNameSearch}
+                    placeholder="模糊搜索经销商名称"
+                    onChange={(e) => {
+                      setDealerNameSearch(e.target.value);
+                      setNewDealer("");
+                    }}
+                  />
+                </label>
+              </div>
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th aria-label="选择经销商" />
+                      <th>经销商编码</th>
+                      <th>经销商名称</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {searchedDealers.map((dealer) => (
+                      <tr key={dealer.id}>
+                        <td>
+                          <input
+                            type="radio"
+                            name="new-dealer"
+                            aria-label={`选择经销商 ${dealer.id} ${dealer.name || ""}`}
+                            checked={newDealer === dealer.id}
+                            onChange={() => setNewDealer(dealer.id)}
+                          />
+                        </td>
+                        <td>{dealer.id}</td>
+                        <td>{dealer.name || "—"}</td>
+                      </tr>
+                    ))}
+                    {!searchedDealers.length && (
+                      <tr>
+                        <td colSpan={3}>
+                          {available.length
+                            ? "没有匹配的经销商"
+                            : "已无可添加经销商"}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
           {modal.type === "remove" && (
             <p>
