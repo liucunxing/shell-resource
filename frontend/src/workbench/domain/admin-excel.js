@@ -81,8 +81,12 @@ async function exportWorkbook(state, identity) {
     [
       "导入规则",
       identity.apiMode
-        ? "预算非负、最多两位小数，不接受公式；Owner 填写已配置且符合部门和业务范围的邮箱。已有项目的名称/Sector/资源类型/部门/修订号/状态不可修改；新增项目的编号/修订号/状态须留空。"
-        : "预算非负、最多两位小数，不接受公式；Owner 只能是本部门的 -1 或 -2。已有项目固定列不可修改；新增项目的编号/修订号/状态须留空。",
+        ? "预算非负、最多两位小数，不接受公式；Owner 填写已配置且符合部门、Sector 的 Owner 邮箱。新增项目必须满足部门、资源类型和 Owner 部门一致；已有项目的名称/Sector/资源类型/部门/修订号/状态不可修改；新增项目的编号/修订号/状态须留空。"
+        : "预算非负、最多两位小数，不接受公式；Owner 只能是本部门的 -1 或 -2。新增项目必须满足部门、资源类型和 Owner 部门一致；已有项目固定列不可修改；新增项目的编号/修订号/状态须留空。",
+    ],
+    [
+      "部门与资源类型",
+      "新增 Initiative 仅允许：MKT → MRD、SP&A；ICE → ICE Rebate；CAPEX → Capex。任一不匹配组合都会在预览中报错，且整份文件不能导入。",
     ],
     [
       "发布规则",
@@ -99,7 +103,7 @@ async function exportWorkbook(state, identity) {
   ]);
   style(info, [20, 110]);
   info.getColumn(2).alignment = { vertical: "middle", wrapText: true };
-  for (let r = 3; r <= 8; r++) info.getRow(r).height = 40;
+  for (let r = 3; r <= info.rowCount; r++) info.getRow(r).height = 40;
   const sheet = book.addWorksheet(SHEET);
   sheet.addRow(HEADERS);
   state.initiatives.forEach((i) =>

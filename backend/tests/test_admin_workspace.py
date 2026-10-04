@@ -301,6 +301,8 @@ def test_distributor_history_field_mapping_and_department_scope():
                 btl_2025=9,
                 capex_2025=10,
                 yield_2025=11,
+                resource_total=34,
+                resource_uc3=12,
             )
         )
         await session.commit()
@@ -316,6 +318,8 @@ def test_distributor_history_field_mapping_and_department_scope():
                 "vol2026Ytd": 5.0,
                 "c32026Ytd": 6.0,
                 "yield2025": 11.0,
+                "resource2025": 34.0,
+                "resourcePerLiter2025": 12.0,
                 "resources2025": {"MRD": 7.0, "SP&A": 9.0},
             },
         }
@@ -351,6 +355,24 @@ def test_mixed_admin_import_is_atomic_and_creates_new_initiative():
                 )
             )
         assert error.value.status_code == 409
+        original = await session.get(BudgetDO, 1)
+        assert original.revision == 3 and original.plan_budget_amount == 100
+        assert await session.scalar(select(func.count()).select_from(BudgetDO)) == 1
+
+        invalid_resource = {
+            **duplicate,
+            "name": "Invalid resource",
+            "resourceType": "ICE Rebate",
+        }
+        with pytest.raises(HTTPException) as error:
+            await service.import_budgets(
+                AdminBudgetsImportDTO(
+                    planning_year=2027,
+                    updates=[update],
+                    creates=[invalid_resource],
+                )
+            )
+        assert error.value.status_code == 422
         original = await session.get(BudgetDO, 1)
         assert original.revision == 3 and original.plan_budget_amount == 100
         assert await session.scalar(select(func.count()).select_from(BudgetDO)) == 1

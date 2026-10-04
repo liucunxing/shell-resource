@@ -2740,6 +2740,21 @@ tbody tr:hover {
   width: 230px;
   font-size: 12px;
 }
+.raw-history-search,
+.raw-budget-search {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
+}
+.raw-panel > .toolbar .raw-history-search label,
+.raw-panel > .toolbar .raw-budget-search label {
+  margin-left: 0;
+}
+.raw-history-search input,
+.raw-budget-search input {
+  width: 210px;
+  font-size: 12px;
+}
 .raw-panel table {
   font-size: 12px;
   white-space: nowrap;
@@ -3146,6 +3161,10 @@ tbody tr:hover {
   .raw-panel #raw-search {
     width: 210px;
   }
+  .raw-history-search,
+  .raw-budget-search {
+    margin-left: 0;
+  }
   .panel-head {
     flex-wrap: wrap;
   }
@@ -3282,6 +3301,16 @@ tbody tr:hover {
     width: 100%;
   }
   .raw-panel #raw-search {
+    width: 100%;
+  }
+  .raw-history-search,
+  .raw-budget-search {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .raw-history-search input,
+  .raw-budget-search input {
     width: 100%;
   }
   .raw-pagination {
@@ -4543,15 +4572,18 @@ tbody tr:hover {
   padding: 48px clamp(40px, 6vw, 100px);
   background:
     linear-gradient(#eee8dd80 1px, transparent 1px),
-    linear-gradient(90deg, #eee8dd80 1px, transparent 1px),
-    #fffdf8;
+    linear-gradient(90deg, #eee8dd80 1px, transparent 1px), #fffdf8;
   background-size: 38px 38px;
 }
 .login-entry::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 47%, #fffdf8 0 32%, transparent 70%);
+  background: radial-gradient(
+    circle at 50% 47%,
+    #fffdf8 0 32%,
+    transparent 70%
+  );
   pointer-events: none;
 }
 .login-card,
@@ -5118,7 +5150,9 @@ th {
   grid-template-columns: var(--work-nav-size) minmax(0, 1fr) 54px;
 }
 .app-shell.work-open {
-  grid-template-columns: var(--work-nav-size) minmax(0, 1fr) var(--work-panel-size);
+  grid-template-columns: var(--work-nav-size) minmax(0, 1fr) var(
+      --work-panel-size
+    );
 }
 .work-open .work-rail {
   padding-inline: 8px;

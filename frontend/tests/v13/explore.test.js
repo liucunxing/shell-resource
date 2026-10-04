@@ -105,11 +105,40 @@ vitestTest(
       const m = X.rawData(working, admin, D);
       assert.equal(m.tab, "budgets");
       assert.equal(m.rows.length, 75);
+      assert.equal(
+        m.columns.find((column) => column.key === "budget").label,
+        "预算 ($)",
+      );
       assert.ok(
         m.rows.every((r) => !("allocated" in r) && !("otherBudgetTotal" in r)),
       );
       assert.throws(() => X.rawData(working, admin, D, "allocations"));
       assert.throws(() => X.rawData(working, admin, D, "other-budgets"));
+    });
+    test("budget filters initiative, department and Owner with intersection", () => {
+      const state = structuredClone(working);
+      Object.assign(state.initiatives[0], {
+        name: "预算筛选专用 Initiative",
+        department: "筛选部门",
+        ownerId: "budget-search-owner@example.test",
+      });
+      const m = X.rawData(state, admin, D, "budgets");
+      const target = m.rows.find(
+        (row) => row.initiative === "预算筛选专用 Initiative",
+      );
+      assert.ok(target);
+      assert.deepEqual(
+        X.filterRows(m, {
+          initiative: "筛选专用",
+          department: "筛选部门",
+          owner: "search-owner",
+        }),
+        [target],
+      );
+      assert.equal(
+        X.csv(m, { initiative: "预算筛选专用" }).split("\r\n").length,
+        2,
+      );
     });
     test("management raw uses latest published snapshots only", () => {
       assert.equal(X.rawData(working, management, D).rows.length, 0);
@@ -117,8 +146,7 @@ vitestTest(
     });
     for (const department of ["MKT", "ICE", "CAPEX"])
       test(
-        department +
-          " lead history includes all resources and shared metrics",
+        department + " lead history includes all resources and shared metrics",
         () => {
           const m = X.rawData(
             working,
@@ -149,8 +177,16 @@ vitestTest(
       assert.ok(
         m.columns
           .find((c) => c.key === "yield2025")
-          .label.includes("2025 C3 / 2025"),
+          .label.includes("2025 C3 / 2025 资源 (%)"),
       );
+    });
+    test("overall resource metrics use the source values without recalculation", () => {
+      const reference = structuredClone(D);
+      reference.dealers[0].history.resource2025 = 987654.32;
+      reference.dealers[0].history.resourcePerLiter2025 = 12.34;
+      const row = X.rawData(working, management, reference, "history").rows[0];
+      assert.equal(row.resource2025, 987654.32);
+      assert.equal(row.resourcePerLiter2025, 12.34);
     });
     test("CSV BOM escapes Excel formulas and multiline content", () => {
       const m = {
@@ -233,12 +269,17 @@ vitestTest(
         const all = ["management", "admin", "lead"].includes(identity.role);
         assert.equal(m.allResources, all);
         const labels = all
-          ? ["2025 MRD", "2025 SP&A", "2025 ICE Rebate", "2025 Capex"]
+          ? [
+              "2025 MRD ($)",
+              "2025 SP&A ($)",
+              "2025 ICE Rebate ($)",
+              "2025 Capex ($)",
+            ]
           : identity.department === "MKT"
-            ? ["2025 MRD", "2025 SP&A"]
+            ? ["2025 MRD ($)", "2025 SP&A ($)"]
             : identity.department === "ICE"
-              ? ["2025 ICE Rebate"]
-              : ["2025 Capex"];
+              ? ["2025 ICE Rebate ($)"]
+              : ["2025 Capex ($)"];
         assert.deepEqual(
           m.resources.map((r) => r.label),
           labels,
@@ -256,14 +297,41 @@ vitestTest(
     test("owner raw history CSV exposes only authorized detail plus shared Yield", () => {
       const m = X.rawData(working, owner, D, "history");
       const keys = m.columns.map((c) => c.key);
+      const columnLabels = m.columns.map((c) => c.label);
+      assert.ok(columnLabels.includes("2024 Vol (L)"));
+      assert.ok(columnLabels.includes("2024 C3 ($)"));
       assert.ok(keys.includes("yield2025"));
       assert.ok(!keys.includes("resource2025"));
       assert.ok(!keys.includes("resourcePerLiter2025"));
       assert.ok(!keys.includes("resource_ICE Rebate"));
       assert.ok(!keys.includes("resource_Capex"));
       const csv = X.csv(m);
-      assert.ok(csv.includes("2025 C3 / 2025 资源"));
+      assert.ok(csv.includes("2025 C3 / 2025 资源 (%)"));
       assert.ok(!csv.includes("2025 资源总额"));
+    });
+    test("history filters distributor code and name independently with intersection", () => {
+      const reference = structuredClone(D);
+      reference.dealers[0].id = "HISTORY-SEARCH-001";
+      reference.dealers[0].name = "历史筛选专用经销商";
+      const m = X.rawData(working, lead, reference, "history");
+      const target = m.rows[0];
+      const codeOnly = X.filterRows(m, {
+        dealerCode: String(target.dealerCode).slice(0, 2),
+      });
+      const nameOnly = X.filterRows(m, {
+        dealerName: String(target.dealerName).slice(0, 2),
+      });
+      const both = X.filterRows(m, {
+        dealerCode: target.dealerCode,
+        dealerName: target.dealerName,
+      });
+      assert.ok(codeOnly.some((row) => row.dealerCode === target.dealerCode));
+      assert.ok(nameOnly.some((row) => row.dealerCode === target.dealerCode));
+      assert.deepEqual(both, [target]);
+      assert.equal(
+        X.csv(m, { dealerCode: target.dealerCode }).split("\r\n").length,
+        2,
+      );
     });
     test("other budget raw data preserves every row, reason, amount and note", () => {
       let s = structuredClone(working);

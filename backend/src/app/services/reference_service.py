@@ -37,6 +37,8 @@ class ReferenceService:
                 "vol2026Ytd": row["volume_2026"],
                 "c32026Ytd": row["c3_2026"],
                 "yield2025": row["yield_2025"],
+                "resource2025": row["resource_total"],
+                "resourcePerLiter2025": row["resource_uc3"],
             }
             history: dict[str, Any] = {
                 key: float(value) if value is not None else None
