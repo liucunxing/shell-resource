@@ -15,8 +15,8 @@ function fixture() {
     revision: 0,
   });
   const users = [
-    { email: "a@example.test", role: "owner", department: "MKT", sector: null },
-    { email: "b@example.test", role: "owner", department: "MKT", sector: null },
+    { email: "a@example.test", role: "owner", department: "MKT" },
+    { email: "b@example.test", role: "owner", department: "MKT" },
     { email: "other@example.test", role: "owner", department: "ICE" },
   ];
   return { state, users };
@@ -116,6 +116,16 @@ describe("API administrator Excel round trip", () => {
         rows: [],
       }),
     );
+  });
+  it("accepts the same department Owner for another Initiative Sector", async () => {
+    const { state, users } = fixture();
+    const bytes = await appendInitiative(
+      await AX.exportWorkbook(state, admin),
+      { sector: "OTHER", ownerId: "a@example.test" },
+    );
+    const result = await AX.previewImport(bytes, state, admin, users);
+    expect(result.errors).toEqual([]);
+    expect(result.creates[0].sector).toBe("OTHER");
   });
   it("rejects unknown nonblank IDs and duplicate new business keys", async () => {
     const { state, users } = fixture();

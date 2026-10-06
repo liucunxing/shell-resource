@@ -64,7 +64,6 @@ async def lifespan(_):
                         email=email,
                         role=role,
                         department=department,
-                        sector=None,
                         display_name="本地验收 " + email.split("@")[0],
                         enabled=True,
                     )

@@ -4,7 +4,7 @@
 
 ## 共享接口
 
-前缀 `/api/v1/workbench`；沿用 `{code,msg,data}`。开发使用 `X-User-Email`，服务端查 `data.user_permissions` 得到唯一启用身份（email、display_name、role、department、sector 可空）。Owner 按预算 owner_email，Lead 按部门，可选 Sector 限制；management 只读已同步；admin 仅配置。production 不接受未经验证的邮箱头。金额请求允许十进制字符串，输出明确转换为前端可计算的数值，数据库及服务端用 Decimal。
+前缀 `/api/v1/workbench`；沿用 `{code,msg,data}`。开发使用 `X-User-Email`，服务端查 `data.user_permissions` 得到唯一启用身份（email、display_name、role、department；部门可空）。Owner 按预算 owner_email，Lead 按部门；Sector 属于 Initiative，不限制用户；management 只读已同步；admin 仅配置。production 不接受未经验证的邮箱头。金额请求允许十进制字符串，输出明确转换为前端可计算的数值，数据库及服务端用 Decimal。
 
 - `GET /workspace?planning_year=2027` → `{identity,state,data,users}`。这是查询投影，不是整库 JSON 存储。`identity={key,email,role,department,ownerId:email,label}`，`state`/`data` 兼容 frontend engine 的字段形状，数据必须先在 SQL 层按权限过滤。管理员返回预算配置、可选 Owner 名单，不含分配、历史明细、快照、Insight。management 的 initiatives/publications 只来源于最新同步快照。无记录就是空数组，不注入 Mock。
 - `GET /initiatives/{id}/draft` → 单项前端 Initiative（id 为 budget_id 的字符串）；`PUT` 同路由，请求 `{expected_revision,rows:[{dealerId,amount,note}],otherBudgets:[{id,reasonId,amount,note}]}` → 更新后单项。整批替换当前项工作稿；允许不平衡；负数/非法编码/非法原因拒绝；旧 revision 返回 409。

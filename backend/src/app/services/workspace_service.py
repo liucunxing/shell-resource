@@ -231,17 +231,15 @@ class WorkspaceService:
     def _matches(self, budget: BudgetDO) -> bool:
         if self.user.role == "owner":
             return budget.owner_email == self.user.email
-        return budget.department == self.user.department and (
-            not self.user.sector or budget.sector == self.user.sector
-        )
+        return budget.department == self.user.department
 
     def _scope(self) -> tuple[str | None, str | None, str | None]:
         if self.user.role == "owner":
-            return self.user.department, self.user.sector, self.user.email
+            return self.user.department, None, self.user.email
         if self.user.role == "lead":
-            return self.user.department, self.user.sector, None
+            return self.user.department, None, None
         if self.user.role == "management":
-            return self.user.department, self.user.sector, None
+            return self.user.department, None, None
         return None, None, None
 
     def _identity(self) -> dict:
@@ -329,7 +327,6 @@ class WorkspaceService:
             "label": item.display_name,
             "role": item.role,
             "department": item.department,
-            "sector": item.sector,
         }
 
     async def _validate_rows(self, rows: list, other: list, budget: BudgetDO) -> None:

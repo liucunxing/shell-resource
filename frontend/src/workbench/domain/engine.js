@@ -836,10 +836,9 @@ function validateOwnerAssignment(item, ownerId, identity, users = []) {
     );
     if (
       !owner ||
-      owner.department !== item.department ||
-      (owner.sector && owner.sector !== item.sector)
+      owner.department !== item.department
     )
-      fail("Owner 必须是项目部门及业务范围内已配置的 Owner 邮箱。");
+      fail("Owner 必须是项目部门内已配置的 Owner 邮箱。");
     return;
   }
   if (![item.department + "-1", item.department + "-2"].includes(ownerId))

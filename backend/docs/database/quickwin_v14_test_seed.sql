@@ -16,19 +16,18 @@ END $$;
 -- 1. Seed enabled identities first. The backend resolves every request through
 --    data.user_permissions before it enters a workbench service.
 INSERT INTO data.user_permissions
-    (email, display_name, role, department, sector, enabled)
+    (email, display_name, role, department, enabled)
 VALUES
-    ('sf-admin@example.test',      '测试管理员',       'admin',      NULL,  NULL,   TRUE),
-    ('sf-management@example.test', '测试管理层',       'management', NULL,  NULL,   TRUE),
-    ('sf-mkt-lead@example.test',   '测试市场部负责人', 'lead',       'MKT', 'PCMO', TRUE),
-    ('sf-owner-a@example.test',    '测试执行人 A',     'owner',      'MKT', 'PCMO', TRUE),
-    ('sf-owner-b@example.test',    '测试执行人 B',     'owner',      'MKT', 'PCMO', TRUE),
-    ('sf-ice-owner@example.test',  '测试 ICE 执行人',  'owner',      'ICE', 'PCMO', TRUE)
+    ('sf-admin@example.test',      '测试管理员',       'admin',      NULL,  TRUE),
+    ('sf-management@example.test', '测试管理层',       'management', NULL,  TRUE),
+    ('sf-mkt-lead@example.test',   '测试市场部负责人', 'lead',       'MKT', TRUE),
+    ('sf-owner-a@example.test',    '测试执行人 A',     'owner',      'MKT', TRUE),
+    ('sf-owner-b@example.test',    '测试执行人 B',     'owner',      'MKT', TRUE),
+    ('sf-ice-owner@example.test',  '测试 ICE 执行人',  'owner',      'ICE', TRUE)
 ON CONFLICT (email) DO UPDATE
 SET display_name = EXCLUDED.display_name,
     role = EXCLUDED.role,
     department = EXCLUDED.department,
-    sector = EXCLUDED.sector,
     enabled = EXCLUDED.enabled,
     updated_at = CURRENT_TIMESTAMP;
 
@@ -66,7 +65,7 @@ DO NOTHING;
 COMMIT;
 
 -- Verification: expected result is 6 enabled users and 3 test Initiatives.
-SELECT email, display_name, role, department, sector, enabled
+SELECT email, display_name, role, department, enabled
 FROM data.user_permissions
 WHERE email LIKE 'sf-%@example.test'
 ORDER BY role, email;

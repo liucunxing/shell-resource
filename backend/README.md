@@ -43,7 +43,7 @@ ai_timeout_seconds = 60
 
 旧表已经删除时，在目标 PostgreSQL 中执行唯一的完整建表脚本 [data_preparation_v1.sql](docs/database/data_preparation_v1.sql)。它一次创建预算、历史表现、用户权限、分配、快照、配置、参考数据和 Insight 表，并初始化工作台配置。脚本使用事务，仅适用于空表结构；若同名表仍存在会报错，应先核对实际表结构，不要用它覆盖或迁移现有数据。建表后可选择执行 [测试数据脚本](docs/database/quickwin_v14_test_seed.sql) 联调；测试数据脚本不能在正式库使用。
 
-脚本不注入真实用户或示例业务数据。首次使用前，维护 `data.user_permissions` 的 `email`（小写）、`display_name`、`role`、`department`、`sector`、`enabled`。角色为 `owner / lead / management / admin`；Owner 和负责人必须配置部门，Sector 为空表示不额外限定该字段。将既有预算的 `owner_email` 对应到真实启用 Owner。新预算可通过管理员 API 创建，Owner 必须与预算部门和 Sector 匹配。
+脚本不注入真实用户或示例业务数据。首次使用前，维护 `data.user_permissions` 的 `email`（小写）、`display_name`、`role`、`department`、`enabled`。角色为 `owner / lead / management / admin`；Owner 和负责人必须配置部门。Sector 仅属于 Initiative（`data.budgets`），不属于用户。将既有预算的 `owner_email` 对应到真实启用 Owner。新预算可通过管理员 API 创建，Owner 必须与预算部门匹配。
 
 ## 启动与同站点部署
 

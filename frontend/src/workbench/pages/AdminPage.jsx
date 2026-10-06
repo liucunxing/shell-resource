@@ -605,7 +605,7 @@ export function AdminPage() {
           <div className="panel-body">
             <div className="note-box">
               {apiMode
-                ? "按邮箱读取已配置角色及部门、业务范围；以下为当前配置，只读展示。权限由服务端在查询时执行。"
+                ? "按邮箱读取已配置角色及部门；以下为当前配置，只读展示。权限由服务端在查询时执行。"
                 : "部门并非 Excel 原始字段。本原型用资源类型映射部门，并为每个部门配置两位 Owner。此处展示演示权限。"}
             </div>
             {apiMode ? (
@@ -617,7 +617,6 @@ export function AdminPage() {
                       <th>姓名</th>
                       <th>角色</th>
                       <th>部门</th>
-                      <th>业务范围</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -634,7 +633,6 @@ export function AdminPage() {
                           }[user.role] || user.role}
                         </td>
                         <td>{user.department || "全部"}</td>
-                        <td>{user.sector || "全部"}</td>
                       </tr>
                     ))}
                   </tbody>

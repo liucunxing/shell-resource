@@ -113,7 +113,6 @@ CREATE TABLE data.user_permissions (
     display_name VARCHAR(255) NOT NULL,
     role VARCHAR(32) NOT NULL,
     department VARCHAR(32),
-    sector VARCHAR(32),
     enabled BOOLEAN NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

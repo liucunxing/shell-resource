@@ -33,10 +33,10 @@ class AdminService(WorkspaceService):
         if self.user.role != "admin":
             raise HTTPException(status_code=403, detail="仅管理员可维护配置")
 
-    async def _owner(self, email: str, department: str, sector: str) -> UserPermissionDO:
+    async def _owner(self, email: str, department: str) -> UserPermissionDO:
         owners = await self.admin_repository.owners(email.strip().lower(), department)
-        if len(owners) != 1 or (owners[0].sector and owners[0].sector != sector):
-            raise HTTPException(status_code=422, detail="Owner 不存在、未启用或部门/Sector 不匹配")
+        if len(owners) != 1:
+            raise HTTPException(status_code=422, detail="Owner 不存在、未启用或部门不匹配")
         return owners[0]
 
     async def _locked_config(self) -> WorkspaceConfigDO:
@@ -63,7 +63,7 @@ class AdminService(WorkspaceService):
                 budget = await self.admin_repository.locked_budget(item.id)
                 if budget is None:
                     raise HTTPException(status_code=422, detail="预算不存在")
-                owner = await self._owner(item.ownerId, budget.department, budget.sector)
+                owner = await self._owner(item.ownerId, budget.department)
                 if budget.revision != item.expected_revision:
                     raise HTTPException(status_code=409, detail="预算已被修改，请刷新后重试")
                 budgets.append((budget, item, owner))
@@ -117,7 +117,7 @@ class AdminService(WorkspaceService):
                     "CAPEX": {"Capex"},
                 }.get(item.department, set()):
                     raise HTTPException(status_code=422, detail="资源类型与部门不匹配")
-                owner = await self._owner(item.ownerId, item.department, item.sector)
+                owner = await self._owner(item.ownerId, item.department)
                 entities.append(
                     BudgetDO(
                         planning_year=payload.planning_year,
@@ -162,7 +162,7 @@ class AdminService(WorkspaceService):
                     raise HTTPException(status_code=422, detail="预算不存在")
                 if budget.planning_year != payload.planning_year:
                     raise HTTPException(status_code=422, detail="预算不属于当前规划年度")
-                owner = await self._owner(item.ownerId, budget.department, budget.sector)
+                owner = await self._owner(item.ownerId, budget.department)
                 if budget.revision != item.expected_revision:
                     raise HTTPException(status_code=409, detail="预算已被修改，请刷新后重试")
                 updates.append((budget, item, owner))
@@ -190,7 +190,7 @@ class AdminService(WorkspaceService):
                 keys.add(key)
                 if item.resourceType not in allowed_resources.get(item.department, set()):
                     raise HTTPException(status_code=422, detail="资源类型与部门不匹配")
-                owner = await self._owner(item.ownerId, item.department, item.sector)
+                owner = await self._owner(item.ownerId, item.department)
                 entities.append(
                     BudgetDO(
                         planning_year=payload.planning_year,

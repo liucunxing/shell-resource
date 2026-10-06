@@ -57,7 +57,6 @@ async def _session() -> AsyncSession:
                 display_name="A",
                 role="owner",
                 department="MKT",
-                sector="S",
                 enabled=True,
             ),
             WorkspaceConfigDO(
@@ -82,7 +81,7 @@ async def _session() -> AsyncSession:
 
 
 def _owner() -> WorkbenchUser:
-    return WorkbenchUser("a@example.com", "owner", "MKT", "S", "A")
+    return WorkbenchUser("a@example.com", "owner", "MKT", "A")
 
 
 @pytest.mark.asyncio
@@ -111,14 +110,14 @@ async def test_owner_isolated_revision_and_immutable_publish() -> None:
 @pytest.mark.asyncio
 async def test_role_read_boundaries() -> None:
     session = await _session()
-    lead = WorkspaceService(session, WorkbenchUser("lead@example.com", "lead", "MKT", "S", "Lead"))
+    lead = WorkspaceService(session, WorkbenchUser("lead@example.com", "lead", "MKT", "Lead"))
     assert (await lead.get_draft(1))["id"] == "1"
     assert await lead.publications(1) == []
     with pytest.raises(HTTPException) as denied:
         await lead.save_draft(1, InitiativeDraftUpdateDTO(expected_revision=0))
     assert denied.value.status_code == 403
     for role in ("management", "admin"):
-        service = WorkspaceService(session, WorkbenchUser("x@example.com", role, "MKT", "S", "X"))
+        service = WorkspaceService(session, WorkbenchUser("x@example.com", role, "MKT", "X"))
         with pytest.raises(HTTPException) as denied:
             await service.get_draft(1)
         assert denied.value.status_code == 403
@@ -131,7 +130,7 @@ async def test_admin_and_global_lead_receive_all_distributor_history() -> None:
     for role in ("admin", "lead"):
         service = WorkspaceService(
             session,
-            WorkbenchUser(f"{role}@example.com", role, "MKT", "S", role.title()),
+            WorkbenchUser(f"{role}@example.com", role, "MKT", role.title()),
         )
         dealers = (await service.get_workspace(2027))["data"]["dealers"]
         assert [dealer["id"] for dealer in dealers] == ["d1", "d2"]

@@ -4,7 +4,7 @@
 
 ## 已实现
 
-沿用 React + FastAPI + PostgreSQL 及 Controller → Service → Repository → DO。默认页面通过 API 读写；演示模式需显式开启。按邮箱查询权限并在查询中限制部门、Sector、Owner。工作数据使用关系表，快照与 Insight 结果使用 JSON。
+沿用 React + FastAPI + PostgreSQL 及 Controller → Service → Repository → DO。默认页面通过 API 读写；演示模式需显式开启。按邮箱查询权限，并按用户部门与 Initiative Owner 限制数据范围；Sector 属于 Initiative，不属于用户。工作数据使用关系表，快照与 Insight 结果使用 JSON。
 
 草稿整项事务保存、修订冲突、其他预算、反复同步、不可变快照、部门只读、管理层同步视图、管理员预算/Owner/原因/指南/历史批次/日志均已接通。Excel 保留原前端解析和预览；确认后使用草稿或配置 JSON 接口，不调用旧追加上传接口。
 

@@ -36,7 +36,6 @@ class UserPermissionDO(TimestampMixin, BaseDO):
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(32), nullable=False)
     department: Mapped[str | None] = mapped_column(String(32))
-    sector: Mapped[str | None] = mapped_column(String(32))
     enabled: Mapped[bool] = mapped_column(nullable=False, default=True)
 
 

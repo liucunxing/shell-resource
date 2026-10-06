@@ -92,7 +92,7 @@ def service(role="owner"):
     repository = FakeRepository()
     result = InsightService(
         session=FakeSession(),
-        user=SimpleNamespace(email="owner@example.com", role=role, department="MKT", sector="PCMO"),
+        user=SimpleNamespace(email="owner@example.com", role=role, department="MKT"),
         settings=SimpleNamespace(
             ai_api_key=None, ai_base_url="", ai_model="qwen-plus", ai_timeout_seconds=1
         ),
@@ -135,7 +135,7 @@ def test_old_analysis_is_hidden_after_permission_scope_changes() -> None:
     insight, repository = service(role="lead")
     descriptor = insight._scope(workspace(), "MKT")
     repository.records.append(SimpleNamespace(record={"access": insight._access(descriptor)}))
-    insight.user.sector = "another-sector"
+    insight.user.email = "another-lead@example.com"
     result = asyncio.run(insight.get_insight(scope="MKT", planning_year=2027))
     assert result["record"] is None
 
@@ -351,7 +351,7 @@ async def test_latest_analysis_keeps_each_department_leads_record() -> None:
         repository = InsightRepository(session)
         insight = InsightService(
             session=session,
-            user=SimpleNamespace(email="a@example.com", role="lead", department="MKT", sector=None),
+            user=SimpleNamespace(email="a@example.com", role="lead", department="MKT"),
             settings=SimpleNamespace(),
             repository=repository,
         )

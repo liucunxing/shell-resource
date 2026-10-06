@@ -16,7 +16,6 @@ class WorkbenchUser:
     email: str
     role: str
     department: str | None
-    sector: str | None
     display_name: str
 
     @property
@@ -55,6 +54,5 @@ async def get_current_workbench_user(
         email=permission.email,
         role=permission.role,
         department=permission.department,
-        sector=permission.sector,
         display_name=permission.display_name,
     )

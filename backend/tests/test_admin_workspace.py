@@ -35,7 +35,7 @@ async def database_case(callback):
         await connection.run_sync(BaseDO.metadata.create_all)
     try:
         async with async_sessionmaker(engine, expire_on_commit=False)() as session:
-            user = WorkbenchUser("admin@example.com", "admin", None, None, "Admin")
+            user = WorkbenchUser("admin@example.com", "admin", None, "Admin")
             await callback(session, AdminService(session, user))
     finally:
         await engine.dispose()
@@ -128,7 +128,6 @@ async def seed_budget(session):
             display_name="Owner",
             role="owner",
             department="MKT",
-            sector="PCMO",
             enabled=True,
         )
     )
@@ -221,25 +220,45 @@ def test_duplicate_admin_create_rolls_back_whole_batch():
     asyncio.run(database_case(run))
 
 
+def test_owner_can_receive_initiatives_in_multiple_sectors():
+    async def run(session, service):
+        await seed_budget(session)
+        result = await service.create_budgets(
+            AdminBudgetsCreateDTO(
+                planning_year=2027,
+                items=[
+                    {
+                        "name": "Other sector",
+                        "resourceType": "MRD",
+                        "sector": "OTHER",
+                        "department": "MKT",
+                        "budget": 50,
+                        "ownerId": "owner@example.com",
+                    }
+                ],
+            )
+        )
+        assert result["created_count"] == 1
+        budgets = (await session.scalars(select(BudgetDO).order_by(BudgetDO.id))).all()
+        assert {budget.sector for budget in budgets} == {"PCMO", "OTHER"}
+        assert {budget.owner_email for budget in budgets} == {"owner@example.com"}
+
+    asyncio.run(database_case(run))
+
+
 @pytest.mark.parametrize(
-    "role,enabled,department,sector",
+    "role,enabled,department",
     [
-        ("lead", True, "MKT", "PCMO"),
-        ("owner", False, "MKT", "PCMO"),
-        ("owner", True, "ICE", "PCMO"),
-        ("owner", True, "MKT", "OTHER"),
+        ("lead", True, "MKT"),
+        ("owner", False, "MKT"),
+        ("owner", True, "ICE"),
     ],
 )
-def test_admin_rejects_invalid_owner(role, enabled, department, sector):
+def test_admin_rejects_invalid_owner(role, enabled, department):
     async def run(session, service):
         await seed_budget(session)
         owner = await session.scalar(select(UserPermissionDO))
-        owner.role, owner.enabled, owner.department, owner.sector = (
-            role,
-            enabled,
-            department,
-            sector,
-        )
+        owner.role, owner.enabled, owner.department = role, enabled, department
         await session.commit()
         with pytest.raises(HTTPException) as error:
             await service.update_budgets(

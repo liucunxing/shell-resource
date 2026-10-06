@@ -244,7 +244,6 @@ class InsightService:
             "email": self.user.email,
             "role": self.user.role,
             "department": self.user.department,
-            "sector": getattr(self.user, "sector", None),
             "initiativeIds": sorted(str(item["id"]) for item in descriptor["items"]),
         }
 

@@ -81,7 +81,7 @@ async function exportWorkbook(state, identity) {
     [
       "导入规则",
       identity.apiMode
-        ? "预算非负、最多两位小数，不接受公式；Owner 填写已配置且符合部门、Sector 的 Owner 邮箱。新增项目必须满足部门、资源类型和 Owner 部门一致；已有项目的名称/Sector/资源类型/部门/修订号/状态不可修改；新增项目的编号/修订号/状态须留空。"
+        ? "预算非负、最多两位小数，不接受公式；Owner 填写已配置且符合部门的 Owner 邮箱。Sector 属于 Initiative，不限制用户；新增项目必须满足部门、资源类型和 Owner 部门一致；已有项目的名称/Sector/资源类型/部门/修订号/状态不可修改；新增项目的编号/修订号/状态须留空。"
         : "预算非负、最多两位小数，不接受公式；Owner 只能是本部门的 -1 或 -2。新增项目必须满足部门、资源类型和 Owner 部门一致；已有项目固定列不可修改；新增项目的编号/修订号/状态须留空。",
     ],
     [
@@ -243,11 +243,10 @@ async function previewImport(buffer, state, identity, users = []) {
       );
       if (
         !owner ||
-        owner.department !== item.department ||
-        (owner.sector && owner.sector !== item.sector)
+        owner.department !== item.department
       )
         add(
-          `第 ${rowNumber} 行：Owner 必须是项目部门及业务范围内已配置的 Owner 邮箱。`,
+          `第 ${rowNumber} 行：Owner 必须是项目部门内已配置的 Owner 邮箱。`,
         );
     } else if (
       ![item.department + "-1", item.department + "-2"].includes(ownerId)

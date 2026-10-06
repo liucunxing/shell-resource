@@ -7,7 +7,6 @@ class WorkbenchUserVO(BaseModel):
     user_id: str
     user_name: str
     department: str
-    sector: str
 
 
 class MyInitiativeVO(BaseModel):

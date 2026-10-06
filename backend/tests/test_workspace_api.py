@@ -22,14 +22,14 @@ from test_workspace import _session
 async def api():
     seed = await _session()
     engine = seed.bind
-    for index, (email, role, dept, sector) in enumerate(
+    for index, (email, role, dept) in enumerate(
         [
-            ("b@example.com", "owner", "MKT", "S"),
-            ("lead@example.com", "lead", "MKT", "S"),
-            ("management@example.com", "management", None, None),
-            ("admin@example.com", "admin", None, None),
-            ("bad@example.com", "unknown", None, None),
-            ("missing@example.com", "owner", None, None),
+            ("b@example.com", "owner", "MKT"),
+            ("lead@example.com", "lead", "MKT"),
+            ("management@example.com", "management", None),
+            ("admin@example.com", "admin", None),
+            ("bad@example.com", "unknown", None),
+            ("missing@example.com", "owner", None),
         ],
         2,
     ):
@@ -40,7 +40,6 @@ async def api():
                 role=role,
                 display_name=role,
                 department=dept,
-                sector=sector,
                 enabled=True,
             )
         )
@@ -261,11 +260,16 @@ async def test_scope_year_and_unfiltered_summary(api):
         first.planning_year = 2027
         first.sector = "another"
         await session.commit()
-    assert (await client.get("initiatives/1/draft", headers=headers())).status_code == 404
+    assert (await client.get("initiatives/1/draft", headers=headers())).status_code == 200
     state = (await client.get("workspace?planning_year=2027", headers=headers())).json()["data"][
         "state"
     ]
-    assert state["initiatives"] == []
+    assert [item["id"] for item in state["initiatives"]] == ["1"]
+    assert state["initiatives"][0]["sector"] == "another"
+    lead_state = (
+        await client.get("workspace?planning_year=2027", headers=headers("lead@example.com"))
+    ).json()["data"]["state"]
+    assert {item["id"] for item in lead_state["initiatives"]} == {"1", "2"}
     result = (
         await client.get(
             "my-initiatives?initiative_keyword=absent", headers=headers("b@example.com")
