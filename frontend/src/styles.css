@@ -892,6 +892,37 @@ tr:hover td {
   color: var(--teal);
   font-weight: 500;
 }
+.editor-operation-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: #ffffffc7;
+  cursor: wait;
+  backdrop-filter: blur(1.5px);
+}
+.editor-operation-status {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 11;
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  color: #25292c;
+  text-align: center;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+.editor-operation-status strong {
+  margin-top: 4px;
+  font-size: 15px;
+}
+.editor-operation-status > span:last-child {
+  color: var(--muted);
+  font-size: 11px;
+}
 .insight-header {
   display: flex;
   align-items: center;
@@ -1107,6 +1138,45 @@ tr:hover td {
 .form-field small {
   font-size: 11px;
   color: var(--muted);
+}
+.user-list-heading,
+.user-list-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.user-list-heading { margin-bottom: 14px; }
+.user-list-heading p { margin: 0; }
+.user-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(130px, 1fr)) auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 15px;
+}
+.user-filters .form-field { margin: 0; }
+.user-filters input,
+.user-filters select { width: 100%; }
+.user-filter-actions { display: flex; gap: 7px; }
+.user-list-wrap { position: relative; min-height: 90px; }
+.user-list-wrap.is-loading .table-scroll { opacity: 0.42; pointer-events: none; }
+.user-list-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+}
+.user-list-footer { margin-top: 12px; color: var(--muted); }
+.user-dialog { border: 0; padding: 0; }
+.user-enabled-field { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; }
+@media (max-width: 950px) {
+  .user-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .user-filters { grid-template-columns: 1fr; }
 }
 .ai-panel {
   position: fixed;
@@ -2054,6 +2124,7 @@ textarea {
   background: #f2f5f6;
 }
 .page {
+  position: relative;
   padding: 26px;
   max-width: 1600px;
   margin: 0 auto;

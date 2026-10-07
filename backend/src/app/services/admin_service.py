@@ -18,6 +18,7 @@ from app.schemas.dto.workbench import (
     AdminBudgetsImportDTO,
     AdminBudgetsUpdateDTO,
     AdminConfigDTO,
+    AdminUserDTO,
     ReferenceImportDTO,
 )
 from app.services.workspace_service import WorkspaceService
@@ -32,6 +33,120 @@ class AdminService(WorkspaceService):
     def _admin(self) -> None:
         if self.user.role != "admin":
             raise HTTPException(status_code=403, detail="仅管理员可维护配置")
+
+    @staticmethod
+    def _user_record(item: UserPermissionDO, has_initiatives: bool = False) -> dict:
+        return {
+            "id": item.id,
+            "email": item.email,
+            "display_name": item.display_name,
+            "role": item.role,
+            "department": item.department,
+            "enabled": item.enabled,
+            "has_initiatives": has_initiatives,
+        }
+
+    async def list_users(
+        self,
+        *,
+        email: str | None,
+        name: str | None,
+        role: str | None,
+        department: str | None,
+        limit: int,
+        offset: int,
+    ) -> dict:
+        self._admin()
+        rows, total = await self.admin_repository.list_users(
+            email=email,
+            name=name,
+            role=role,
+            department=department.strip().upper() if department else None,
+            limit=limit,
+            offset=offset,
+        )
+        return {
+            "items": [self._user_record(item, has_budget) for item, has_budget in rows],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        }
+
+    async def create_user(self, payload: AdminUserDTO) -> dict:
+        self._admin()
+        try:
+            if await self.admin_repository.user_by_email(payload.email):
+                raise HTTPException(status_code=409, detail="邮箱已存在")
+            user = UserPermissionDO(**payload.model_dump())
+            self.admin_repository.add(user)
+            await self.session.flush()
+            self.repository.add_log(
+                0, "USER_CREATE", self.user.email, None,
+                self._user_record(user), note=f"新增人员：{user.email}",
+            )
+            await self.session.commit()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise HTTPException(status_code=409, detail="邮箱已存在") from exc
+        except Exception:
+            await self.session.rollback()
+            raise
+        return self._user_record(user)
+
+    async def update_user(self, user_id: int, payload: AdminUserDTO) -> dict:
+        self._admin()
+        try:
+            user = await self.admin_repository.locked_user(user_id)
+            if user is None:
+                raise HTTPException(status_code=404, detail="人员不存在")
+            if await self.admin_repository.user_has_budgets(user.email):
+                raise HTTPException(
+                    status_code=409,
+                    detail="该用户当前已有 Initiative 预算事项，不可修改或删除。",
+                )
+            duplicate = await self.admin_repository.user_by_email(payload.email)
+            if duplicate is not None and duplicate.id != user.id:
+                raise HTTPException(status_code=409, detail="邮箱已存在")
+            before = self._user_record(user)
+            for field, value in payload.model_dump().items():
+                setattr(user, field, value)
+            after = self._user_record(user)
+            if before != after:
+                self.repository.add_log(
+                    0, "USER_UPDATE", self.user.email, before, after,
+                    note=f"修改人员：{before['email']}",
+                )
+            await self.session.commit()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise HTTPException(status_code=409, detail="邮箱已存在") from exc
+        except Exception:
+            await self.session.rollback()
+            raise
+        return self._user_record(user)
+
+    async def delete_user(self, user_id: int) -> dict:
+        self._admin()
+        try:
+            user = await self.admin_repository.locked_user(user_id)
+            if user is None:
+                raise HTTPException(status_code=404, detail="人员不存在")
+            if await self.admin_repository.user_has_budgets(user.email):
+                raise HTTPException(
+                    status_code=409,
+                    detail="该用户当前已有 Initiative 预算事项，不可修改或删除。",
+                )
+            before = self._user_record(user)
+            await self.session.delete(user)
+            self.repository.add_log(
+                0, "USER_DELETE", self.user.email, before, None,
+                note=f"删除人员：{before['email']}",
+            )
+            await self.session.commit()
+        except Exception:
+            await self.session.rollback()
+            raise
+        return {"deleted_id": user_id}
 
     async def _owner(self, email: str, department: str) -> UserPermissionDO:
         owners = await self.admin_repository.owners(email.strip().lower(), department)

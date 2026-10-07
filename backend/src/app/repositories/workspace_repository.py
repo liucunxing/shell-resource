@@ -184,7 +184,10 @@ class WorkspaceRepository:
         if admin:
             statement = statement.where(
                 BudgetChangeLogDO.operation_type.in_(
-                    ["ADMIN_UPDATE", "ADMIN_CREATE", "CONFIG_UPDATE", "REFERENCE_IMPORT"]
+                    [
+                        "ADMIN_UPDATE", "ADMIN_CREATE", "CONFIG_UPDATE", "REFERENCE_IMPORT",
+                        "USER_CREATE", "USER_UPDATE", "USER_DELETE",
+                    ]
                 )
             )
         return list(

@@ -375,6 +375,9 @@ class WorkspaceService:
             "ADMIN_CREATE": "set_budget",
             "CONFIG_UPDATE": "set_guide",
             "REFERENCE_IMPORT": "change_reference",
+            "USER_CREATE": "create_user",
+            "USER_UPDATE": "update_user",
+            "USER_DELETE": "delete_user",
         }
         return {
             "id": str(item.id),

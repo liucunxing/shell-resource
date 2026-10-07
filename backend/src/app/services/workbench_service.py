@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import Iterable
 from decimal import ROUND_HALF_UP, Decimal
 from io import BytesIO
@@ -313,6 +314,11 @@ class WorkbenchService:
                 status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                 detail=f"导入文件不能超过 {max_upload_bytes} 字节",
             )
+        return await asyncio.to_thread(WorkbenchService._parse_import_content, content)
+
+    @staticmethod
+    def _parse_import_content(content: bytes) -> list[DistributorAllocationCreateDTO]:
+        """Keep workbook decoding and row validation off the API event loop."""
         try:
             rows = WorkbenchService._read_xlsx_rows(content)
         except (BadZipFile, ElementTree.ParseError, KeyError, OSError, ValueError) as exc:

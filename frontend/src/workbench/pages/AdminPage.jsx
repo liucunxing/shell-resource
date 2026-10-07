@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
 import AX from "../domain/admin-excel.js";
+import { parseReferenceInWorker, previewExcelInWorker } from "../file-import.js";
+import { AdminUsersPanel } from "./AdminUsersPanel.jsx";
 
 const money = (value) =>
   Number.isFinite(value)
@@ -207,12 +209,10 @@ export function AdminPage() {
     try {
       if (file.size > 10 * 1024 * 1024)
         throw Error("配置文件请控制在 10 MB 以内。");
-      const result = await AX.previewImport(
-        await file.arrayBuffer(),
-        before,
-        actor,
-        roles,
-      );
+      const buffer = await file.arrayBuffer();
+      const result = apiMode
+        ? await previewExcelInWorker("admin", buffer, before, actor, roles)
+        : await AX.previewImport(buffer, before, actor, roles);
       if (request !== sequence.current) return;
       if (
         latest.current.state !== before ||
@@ -234,7 +234,7 @@ export function AdminPage() {
     event.target.value = "";
     if (!file) return;
     try {
-      const parsed = JSON.parse(await file.text());
+      const parsed = await parseReferenceInWorker(await file.text());
       if (!parsed.batchId || !parsed.asOf || !Array.isArray(parsed.dealers))
         throw Error("JSON 须包含 batchId、asOf 和 dealers 数组。");
       await saveReference(parsed);
@@ -605,40 +605,10 @@ export function AdminPage() {
           <div className="panel-body">
             <div className="note-box">
               {apiMode
-                ? "按邮箱读取已配置角色及部门；以下为当前配置，只读展示。权限由服务端在查询时执行。"
+                ? "管理员可维护人员账号与权限。已关联 Initiative 的用户不可修改或删除；权限由服务端执行。"
                 : "部门并非 Excel 原始字段。本原型用资源类型映射部门，并为每个部门配置两位 Owner。此处展示演示权限。"}
             </div>
-            {apiMode ? (
-              <div className="table-scroll">
-                <table className="contract-table">
-                  <thead>
-                    <tr>
-                      <th>邮箱</th>
-                      <th>姓名</th>
-                      <th>角色</th>
-                      <th>部门</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {roles.map((user) => (
-                      <tr key={user.email}>
-                        <td>{user.email}</td>
-                        <td>{user.label || "—"}</td>
-                        <td>
-                          {{
-                            owner: "Owner",
-                            lead: "部门负责人",
-                            management: "管理层",
-                            admin: "管理员",
-                          }[user.role] || user.role}
-                        </td>
-                        <td>{user.department || "全部"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
+            {apiMode ? <AdminUsersPanel /> : (
               <>
                 <div className="table-scroll">
                   <table className="contract-table">

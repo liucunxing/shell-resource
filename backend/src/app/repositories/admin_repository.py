@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.do.base import BaseDO
@@ -20,9 +20,69 @@ class AdminRepository:
                     UserPermissionDO.enabled.is_(True),
                     UserPermissionDO.role == "owner",
                     UserPermissionDO.department == department,
-                )
+                ).with_for_update()
             )
         ).all()
+
+    @staticmethod
+    def _budget_for_email(email_column):
+        return (
+            select(BudgetDO.id)
+            .where(func.lower(func.trim(BudgetDO.owner_email)) == func.lower(email_column))
+            .exists()
+        )
+
+    async def list_users(
+        self,
+        *,
+        email: str | None,
+        name: str | None,
+        role: str | None,
+        department: str | None,
+        limit: int,
+        offset: int,
+    ) -> tuple[list[tuple[UserPermissionDO, bool]], int]:
+        conditions = []
+        if email:
+            conditions.append(
+                func.lower(UserPermissionDO.email).contains(email.lower(), autoescape=True)
+            )
+        if name:
+            conditions.append(
+                func.lower(UserPermissionDO.display_name).contains(name.lower(), autoescape=True)
+            )
+        if role:
+            conditions.append(UserPermissionDO.role == role)
+        if department:
+            conditions.append(UserPermissionDO.department == department)
+        total = await self.session.scalar(
+            select(func.count()).select_from(UserPermissionDO).where(*conditions)
+        )
+        statement = (
+            select(UserPermissionDO, self._budget_for_email(UserPermissionDO.email))
+            .where(*conditions)
+            .order_by(UserPermissionDO.email)
+            .limit(limit)
+            .offset(offset)
+        )
+        rows = (await self.session.execute(statement)).all()
+        return [(user, bool(has_budget)) for user, has_budget in rows], int(total or 0)
+
+    async def user_by_email(self, email: str) -> UserPermissionDO | None:
+        return await self.session.scalar(
+            select(UserPermissionDO).where(func.lower(UserPermissionDO.email) == email.lower())
+        )
+
+    async def locked_user(self, user_id: int) -> UserPermissionDO | None:
+        return await self.session.scalar(
+            select(UserPermissionDO)
+            .where(UserPermissionDO.id == user_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+
+    async def user_has_budgets(self, email: str) -> bool:
+        return bool(await self.session.scalar(select(self._budget_for_email(email))))
 
     async def locked_config(self) -> WorkspaceConfigDO | None:
         return (

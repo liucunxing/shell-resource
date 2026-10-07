@@ -88,6 +88,22 @@ export const importBudgets = (planningYearValue, updates, creates) =>
       creates,
     }),
   });
+export const listAdminUsers = (filters = {}, limit = 20, offset = 0) => {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  for (const key of ["email", "name", "role", "department"])
+    if (filters[key]?.trim())
+      params.set(key, key === "department" ? filters[key].trim().toUpperCase() : filters[key].trim());
+  return request(`/admin/users?${params}`);
+};
+export const createAdminUser = (value) => request("/admin/users", {
+  method: "POST", body: JSON.stringify(value),
+});
+export const updateAdminUser = (id, value) => request(`/admin/users/${encodeURIComponent(id)}`, {
+  method: "PUT", body: JSON.stringify(value),
+});
+export const deleteAdminUser = (id) => request(`/admin/users/${encodeURIComponent(id)}`, {
+  method: "DELETE",
+});
 export const updateConfig = (value) => request("/admin/config", {
   method: "PUT", body: JSON.stringify(value),
 });

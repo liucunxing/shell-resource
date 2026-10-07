@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { request, saveThenPublish } from "../src/workbench/api.js";
+import {
+  createAdminUser,
+  deleteAdminUser,
+  listAdminUsers,
+  request,
+  saveThenPublish,
+  updateAdminUser,
+} from "../src/workbench/api.js";
 
 describe("workbench API client", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -32,5 +39,28 @@ describe("workbench API client", () => {
     await saveThenPublish("1", { revision: 7, rows: [], otherBudgets: [] }, 7);
     expect(JSON.parse(fetchMock.mock.calls[0][1].body).expected_revision).toBe(7);
     expect(JSON.parse(fetchMock.mock.calls[1][1].body).expected_revision).toBe(8);
+  });
+
+  it("uses server-side user filters and CRUD routes", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ code: 200, data: { items: [] } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await listAdminUsers({ email: " a+1 ", name: "张", role: "owner", department: "MKT" }, 20, 40);
+    const url = new URL(fetchMock.mock.calls[0][0], "http://local.test");
+    expect(url.pathname).toBe("/api/v1/workbench/admin/users");
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      limit: "20", offset: "40", email: "a+1", name: "张", role: "owner", department: "MKT",
+    });
+    const user = { email: "a@example.test", display_name: "A", role: "owner", department: "MKT", enabled: true };
+    await createAdminUser(user);
+    await updateAdminUser(7, user);
+    await deleteAdminUser(7);
+    expect(fetchMock.mock.calls.slice(1).map(([path, options]) => [path, options.method])).toEqual([
+      ["/api/v1/workbench/admin/users", "POST"],
+      ["/api/v1/workbench/admin/users/7", "PUT"],
+      ["/api/v1/workbench/admin/users/7", "DELETE"],
+    ]);
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual(user);
   });
 });

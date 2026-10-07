@@ -129,6 +129,8 @@ export function WorkbenchProvider({ children }) {
   const [users, setUsers] = useState([]);
   const [serverRevisions, setServerRevisions] = useState({});
   const [dirtyIds, setDirtyIds] = useState(new Set());
+  const [savedForSyncIds, setSavedForSyncIds] = useState(new Set());
+  const [editorOperations, setEditorOperations] = useState({});
   const [devEmail, setDevEmailState] = useState(
     demoMode ? "" : api.getDevelopmentEmail(),
   );
@@ -175,6 +177,8 @@ export function WorkbenchProvider({ children }) {
     setUsers([]);
     setServerRevisions({});
     setDirtyIds(new Set());
+    setSavedForSyncIds(new Set());
+    setEditorOperations({});
     setInitiativeId("");
     setRawRequest(null);
     setAuxiliary({ open: false, tab: "reference", dealerId: "", scope: "" });
@@ -199,6 +203,8 @@ export function WorkbenchProvider({ children }) {
         ),
       );
       setDirtyIds(new Set());
+      setSavedForSyncIds(new Set());
+      setEditorOperations({});
       setPage(homeFor(workspace.identity));
       return true;
     } catch (error) {
@@ -248,6 +254,12 @@ export function WorkbenchProvider({ children }) {
         .map((item) => item.id);
       if (!demoMode && changed.length)
         setDirtyIds((old) => new Set([...old, ...changed]));
+      if (changed.length)
+        setSavedForSyncIds((old) => {
+          const next = new Set(old);
+          changed.forEach((id) => next.delete(id));
+          return next;
+        });
       if (demoMode) localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       if (message) notify(message);
       return true;
@@ -273,6 +285,7 @@ export function WorkbenchProvider({ children }) {
         clean.delete(String(id));
         return clean;
       });
+    return !edited;
   };
 
   const saveDraft = async (id, values, expectedRevision) => {
@@ -283,7 +296,10 @@ export function WorkbenchProvider({ children }) {
     if (!draft || pendingDrafts.current.has(String(id))) return false;
     const epoch = sessionEpoch.current;
     const requested = structuredClone(current);
+    const showEditorOperation = values === undefined;
     pendingDrafts.current.add(String(id));
+    if (showEditorOperation)
+      setEditorOperations((old) => ({ ...old, [id]: "save" }));
     try {
       if (demoMode) {
         E.updateInitiative(
@@ -295,6 +311,7 @@ export function WorkbenchProvider({ children }) {
         );
         localStorage.setItem(STORAGE_KEY, JSON.stringify(stateRef.current));
         replaceState(structuredClone(stateRef.current));
+        setSavedForSyncIds((old) => new Set([...old, String(id)]));
         notify("草稿已保存。");
         return true;
       }
@@ -305,11 +322,18 @@ export function WorkbenchProvider({ children }) {
       );
       if (epoch !== sessionEpoch.current) return false;
       const saved = result.initiative || result;
-      acceptSavedDraft(id, saved, requested);
+      const unchanged = acceptSavedDraft(id, saved, requested);
+      if (unchanged)
+        setSavedForSyncIds((old) => new Set([...old, String(id)]));
       notify("草稿已保存。");
       return true;
     } catch (error) {
       if (epoch !== sessionEpoch.current) return false;
+      setSavedForSyncIds((old) => {
+        const next = new Set(old);
+        next.delete(String(id));
+        return next;
+      });
       notify(
         error.status === 409
           ? "草稿已被其他人更新；当前编辑仍保留，请刷新后处理。"
@@ -318,8 +342,15 @@ export function WorkbenchProvider({ children }) {
       );
       return false;
     } finally {
-      if (epoch === sessionEpoch.current)
+      if (epoch === sessionEpoch.current) {
         pendingDrafts.current.delete(String(id));
+        if (showEditorOperation)
+          setEditorOperations((old) => {
+            const next = { ...old };
+            delete next[id];
+            return next;
+          });
+      }
     }
   };
 
@@ -328,13 +359,16 @@ export function WorkbenchProvider({ children }) {
       (item) => item.id === String(id),
     );
     if (!local || pendingDrafts.current.has(String(id))) return false;
+    if (!savedForSyncIds.has(String(id)) || (!demoMode && dirtyIds.has(String(id)))) {
+      notify("请先保存草稿，再同步最新分配。", true);
+      return false;
+    }
     const epoch = sessionEpoch.current;
     const requested = structuredClone(local);
-    if (!demoMode) pendingDrafts.current.add(String(id));
+    pendingDrafts.current.add(String(id));
+    setEditorOperations((old) => ({ ...old, [id]: "publish" }));
     try {
       if (demoMode) {
-        const draftSaved = await saveDraft(id);
-        if (!draftSaved) return false;
         const publication = E.publishInitiative(
           stateRef.current,
           id,
@@ -343,15 +377,15 @@ export function WorkbenchProvider({ children }) {
         );
         localStorage.setItem(STORAGE_KEY, JSON.stringify(stateRef.current));
         replaceState(structuredClone(stateRef.current));
+        setSavedForSyncIds((old) => {
+          const next = new Set(old);
+          next.delete(String(id));
+          return next;
+        });
         notify("已同步最新分配，仍可继续修改。");
         return publication;
       }
-      const saved = await api.saveDraft(id, requested, serverRevisions[id]);
-      if (epoch !== sessionEpoch.current) return false;
-      const draft = saved.initiative || saved;
-      acceptSavedDraft(id, draft, requested);
-      // Saving is durable even when the following synchronization fails validation.
-      const publication = await api.publish(id, draft);
+      const publication = await api.publish(id, requested);
       if (epoch !== sessionEpoch.current) return false;
       const next = structuredClone(stateRef.current);
       const history = next.publications[id] || [];
@@ -362,10 +396,15 @@ export function WorkbenchProvider({ children }) {
       const current = next.initiatives.find((item) => item.id === String(id));
       if (current) {
         current.publishedRevision =
-          publication.publishedRevision ?? draft.revision;
+          publication.publishedRevision ?? requested.revision;
         current.publishedAt = publication.publishedAt;
       }
       replaceState(next);
+      setSavedForSyncIds((old) => {
+        const next = new Set(old);
+        next.delete(String(id));
+        return next;
+      });
       notify("已同步最新分配，仍可继续修改。");
       return publication;
     } catch (error) {
@@ -378,8 +417,14 @@ export function WorkbenchProvider({ children }) {
       );
       return false;
     } finally {
-      if (epoch === sessionEpoch.current)
+      if (epoch === sessionEpoch.current) {
         pendingDrafts.current.delete(String(id));
+        setEditorOperations((old) => {
+          const next = { ...old };
+          delete next[id];
+          return next;
+        });
+      }
     }
   };
 
@@ -530,6 +575,8 @@ export function WorkbenchProvider({ children }) {
     loading,
     refresh,
     dirtyIds,
+    savedForSyncIds,
+    editorOperations,
     serverRevisions,
     setIdentity,
     view,

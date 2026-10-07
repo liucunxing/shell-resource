@@ -21,6 +21,7 @@ export default defineConfig({
     strictPort: true,
     proxy: { "/api": "http://127.0.0.1:8000" },
   },
+  worker: { format: "es" },
   build: {
     rollupOptions: {
       output: { manualChunks: { fluent: ["@fluentui/react-components"] } },

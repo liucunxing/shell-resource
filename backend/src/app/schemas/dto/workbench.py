@@ -1,7 +1,51 @@
+import re
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+
+class AdminUserDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: str = Field(max_length=255)
+    display_name: str = Field(max_length=255)
+    role: Literal["owner", "lead", "management", "admin"]
+    department: str | None = Field(default=None, max_length=32)
+    enabled: bool = True
+
+    @field_validator("email", "display_name", mode="before")
+    @classmethod
+    def strip_text(cls, value: Any) -> Any:
+        return value.strip() if isinstance(value, str) else value
+
+    @field_validator("email")
+    @classmethod
+    def valid_email(cls, value: str) -> str:
+        normalized = value.lower()
+        if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", normalized):
+            raise ValueError("邮箱格式无效")
+        return normalized
+
+    @field_validator("display_name")
+    @classmethod
+    def valid_name(cls, value: str) -> str:
+        if not value:
+            raise ValueError("姓名不能为空")
+        return value
+
+    @field_validator("department", mode="before")
+    @classmethod
+    def normalize_department(cls, value: Any) -> Any:
+        return value.strip().upper() or None if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def valid_department(self) -> "AdminUserDTO":
+        if self.role in {"owner", "lead"} and not self.department:
+            raise ValueError("Owner 和部门负责人必须填写部门")
+        if self.role in {"management", "admin"} and self.department:
+            raise ValueError("管理层和管理员不填写部门")
+        return self
 
 
 class DistributorAllocationCreateDTO(BaseModel):

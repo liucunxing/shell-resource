@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Query, UploadFile
@@ -16,6 +16,7 @@ from app.schemas.dto.workbench import (
     AdminBudgetsImportDTO,
     AdminBudgetsUpdateDTO,
     AdminConfigDTO,
+    AdminUserDTO,
     DistributorAllocationCreateDTO,
     DistributorAllocationUpdateDTO,
     InitiativeDraftUpdateDTO,
@@ -146,6 +147,57 @@ async def post_admin_budget_import(
     user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
 ) -> ApiResponse[dict]:
     return success(await _admin_service(session, user).import_budgets(payload))
+
+
+@router.get("/admin/users", response_model=ApiResponse[dict], summary="查询人员权限列表")
+async def get_admin_users(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    email: Annotated[str | None, Query(max_length=255)] = None,
+    name: Annotated[str | None, Query(max_length=255)] = None,
+    role: Literal["owner", "lead", "management", "admin"] | None = None,
+    department: Annotated[str | None, Query(max_length=32)] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> ApiResponse[dict]:
+    return success(
+        await _admin_service(session, user).list_users(
+            email=email,
+            name=name,
+            role=role,
+            department=department,
+            limit=limit,
+            offset=offset,
+        )
+    )
+
+
+@router.post("/admin/users", response_model=ApiResponse[dict], summary="新增人员权限")
+async def post_admin_user(
+    payload: AdminUserDTO,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+) -> ApiResponse[dict]:
+    return success(await _admin_service(session, user).create_user(payload))
+
+
+@router.put("/admin/users/{user_id}", response_model=ApiResponse[dict], summary="修改人员权限")
+async def put_admin_user(
+    user_id: int,
+    payload: AdminUserDTO,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+) -> ApiResponse[dict]:
+    return success(await _admin_service(session, user).update_user(user_id, payload))
+
+
+@router.delete("/admin/users/{user_id}", response_model=ApiResponse[dict], summary="删除人员权限")
+async def delete_admin_user(
+    user_id: int,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+) -> ApiResponse[dict]:
+    return success(await _admin_service(session, user).delete_user(user_id))
 
 
 @router.put("/admin/config", response_model=ApiResponse[dict], summary="更新原因字典和指引")

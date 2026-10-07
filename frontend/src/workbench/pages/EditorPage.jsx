@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
 import X from "../domain/excel.js";
+import { previewExcelInWorker } from "../file-import.js";
 const fmt = (n) =>
   Number(n || 0).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
 const pct = (n, d) => (d ? ((n / d) * 100).toFixed(2) : "0.00");
@@ -20,11 +21,23 @@ export function filterDealers(dealers, codeSearch, nameSearch) {
   const nameQuery = nameSearch.trim().toLocaleLowerCase();
   return dealers.filter(
     (dealer) =>
-      (!codeQuery || String(dealer.id).toLocaleLowerCase().includes(codeQuery)) &&
+      (!codeQuery ||
+        String(dealer.id).toLocaleLowerCase().includes(codeQuery)) &&
       (!nameQuery ||
         String(dealer.name || "")
           .toLocaleLowerCase()
           .includes(nameQuery)),
+  );
+}
+
+export function canSynchronizeLatest({
+  savedForSync,
+  hasUnsavedChanges,
+  errorCount,
+  operation,
+}) {
+  return (
+    savedForSync && !hasUnsavedChanges && errorCount === 0 && operation === null
   );
 }
 
@@ -125,6 +138,8 @@ function EditorContent({
   publish,
   apiMode,
   dirtyIds,
+  savedForSyncIds,
+  editorOperations,
   notify,
   openAuxiliary,
 }) {
@@ -142,10 +157,21 @@ function EditorContent({
     };
   }, []);
   const i = view.initiatives.find((item) => item.id === initiativeId);
+  const hasUnsavedChanges = i ? dirtyIds.has(i.id) : false;
   if (!i) return <div className="empty">当前角色无权查看该明细。</div>;
+  const operation = editorOperations[i.id] || null;
+  const savedForSync = savedForSyncIds.has(i.id);
   const editable = E.canEdit(state, i.id, identity),
     totals = E.totals([i]),
     errors = E.completionErrors(i, data, state.budgetReasons);
+  const synchronizedRevision =
+    i.publishedRevision != null && i.publishedRevision === i.revision;
+  const canSynchronize = canSynchronizeLatest({
+    savedForSync,
+    hasUnsavedChanges,
+    errorCount: errors.length,
+    operation,
+  });
   const guard = () => {
     if (document.querySelector('[data-unsaved-invalid="true"]')) {
       notify(
@@ -160,6 +186,14 @@ function EditorContent({
     mutate((s) => E.updateInitiative(s, i.id, patch, identity, data));
   const doGuard = (fn) => {
     if (guard()) fn();
+  };
+  const handleSaveDraft = async () => {
+    if (operation !== null || !guard()) return;
+    await saveDraft(i.id);
+  };
+  const handlePublish = async () => {
+    if (operation !== null || !canSynchronize || !guard()) return;
+    await publish(i.id);
   };
   const dealers = uniqueDealersByCode(data.dealers);
   const available = dealers.filter(
@@ -211,13 +245,10 @@ function EditorContent({
     try {
       if (file.size > 10 * 1024 * 1024)
         throw Error("模板请控制在 10 MB 以内。");
-      const preview = await X.previewImport(
-        await file.arrayBuffer(),
-        state,
-        i.id,
-        identity,
-        data,
-      );
+      const buffer = await file.arrayBuffer();
+      const preview = apiMode
+        ? await previewExcelInWorker("allocation", buffer, state, i.id, identity, data)
+        : await X.previewImport(buffer, state, i.id, identity, data);
       if (alive.current) setModal({ type: "import", preview, name: file.name });
     } catch (e) {
       notify(e.message, true);
@@ -268,6 +299,19 @@ function EditorContent({
   ];
   return (
     <>
+      {operation && (
+        <>
+          <div className="editor-operation-overlay" aria-hidden="true" />
+          <div className="editor-operation-status" role="status" aria-live="assertive">
+            <span className="admin-loading-spinner" aria-hidden="true" />
+            <strong>
+              {operation === "save" ? "正在保存草稿…" : "正在同步最新分配…"}
+            </strong>
+            <span>当前工作页暂不可操作，可切换左侧目录</span>
+          </div>
+        </>
+      )}
+      <div inert={operation !== null} aria-busy={operation !== null}>
       <div className="page-heading">
         <div>
           <h1>{i.name}</h1>
@@ -696,9 +740,13 @@ function EditorContent({
           <div className="save-label">
             <strong>
               {apiMode
-                ? dirtyIds.has(i.id)
+                ? hasUnsavedChanges
                   ? "本页修改尚未保存"
-                  : "草稿已保存"
+                  : savedForSync
+                    ? "草稿已保存，可以同步"
+                    : synchronizedRevision
+                      ? "最新分配已同步"
+                      : "请先保存草稿后再同步"
                 : "有效修改自动保存到本机"}
             </strong>{" "}
             · {time(i.savedAt)}
@@ -709,16 +757,24 @@ function EditorContent({
             <div className="actions">
               <button
                 className="button"
-                onClick={() => doGuard(() => saveDraft(i.id))}
+                disabled={operation !== null}
+                onClick={handleSaveDraft}
               >
-                保存草稿
+                {operation === "save" ? "正在保存…" : "保存草稿"}
               </button>
               <button
                 className="button primary"
-                disabled={errors.length > 0}
-                onClick={() => doGuard(() => publish(i.id))}
+                disabled={!canSynchronize}
+                title={
+                  !savedForSync || hasUnsavedChanges
+                    ? "请先保存草稿，再同步最新分配"
+                    : errors.length > 0
+                      ? "请先修正当前分配问题"
+                      : undefined
+                }
+                onClick={handlePublish}
               >
-                同步最新分配
+                {operation === "publish" ? "正在同步…" : "同步最新分配"}
               </button>
             </div>
           )}
@@ -1029,6 +1085,7 @@ function EditorContent({
           )}
         </EditorDialog>
       )}
+      </div>
     </>
   );
 }
