@@ -5,7 +5,6 @@ import {
   ChartPieSlice,
   ChartLineUp,
   ChatCircleDots,
-  Clock,
   Database,
   EnvelopeSimple,
   Info,
@@ -168,7 +167,6 @@ export default function WorkbenchApp() {
     nav.push(["admin", SlidersHorizontal, "管理后台"]);
   nav.push(
     ["raw", Database, "原始数据"],
-    ["tracking", Clock, "执行追踪", "预留"],
     ["about", Info, "数据口径"],
   );
   const Page = pages[page] || HomePage;
