@@ -282,7 +282,7 @@ function ReferencePanel() {
         >
           {data.dealers.map((dealer) => (
             <option key={dealer.id} value={dealer.id}>
-              {dealer.id}
+              {dealer.id} · {dealer.name || "—"}
             </option>
           ))}
         </select>

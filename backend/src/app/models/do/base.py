@@ -31,4 +31,3 @@ class TimestampMixin:
         onupdate=func.now(),
         nullable=False,
     )
-

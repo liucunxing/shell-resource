@@ -236,7 +236,7 @@ function InitiativeTable({ items, owner = false }) {
   );
 }
 export function HomePage() {
-  const { view, identity, navigate, openAuxiliary } = useWorkbench();
+  const { view, identity, navigate, openAuxiliary, apiMode } = useWorkbench();
   const [search, setSearch] = useState(""),
     [sector, setSector] = useState("all"),
     [status, setStatus] = useState("all");
@@ -346,7 +346,9 @@ export function HomePage() {
         </div>
         <InitiativeTable items={rows} />
         <div className="table-footer">
-          修改即时保存在本机 · 每项可重复同步 · 只更新自己的 Initiative
+          {apiMode
+            ? "修改后请保存草稿 · 每项可重复同步 · 只更新自己的 Initiative"
+            : "修改即时保存在本机 · 每项可重复同步 · 只更新自己的 Initiative"}
         </div>
       </section>
     </>

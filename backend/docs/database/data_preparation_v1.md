@@ -1,36 +1,19 @@
-# 数据准备页 V1：DDL 说明
+# V1.4 数据库建表说明
 
-对应原型的“01 数据准备”页面，本版本只覆盖：
+[data_preparation_v1.sql](data_preparation_v1.sql) 是当前唯一的完整建表脚本，适用于已经删除旧表的空 PostgreSQL 数据库。脚本在一个事务中创建全部 11 张表，并初始化 `data.workspace_config` 的单行配置；不插入用户或业务数据。如果同名表仍存在，脚本会报错，不会把已有结构当作最新结构跳过。
 
-- 预算内容：在线新增、修改、删除，以及 Excel 导入；
-- 历史表现：按年度、全年或季度、Distributor、Sector、Resource Type 保存 Vol、C3、Resource；
-- 预算操作日志：预留用于记录新增、修改、删除；后续由预算 Service 在 CRUD 操作中显式写入。
+预算业务键为 `planning_year + sector + department + resource_type + initiative_name`。`data.budgets.owner_email` 记录 Initiative 执行人，`sector` 属于 Initiative；`data.user_permissions` 仅记录用户角色与部门，不记录用户 Sector。经销商分配记录通过 `budget_id` 关联预算；V1.4 工作台直接读取 `data.distributor_sellin_resource_history` 中的历史表现，`btl_2025` 在接口中映射为 `SP&A`。
 
-可执行 DDL 位于 [data_preparation_v1.sql](data_preparation_v1.sql)。本文件是初步设计稿，尚未生成 Alembic migration，也未执行到任何数据库。
+建表后先维护 `data.user_permissions`，再创建预算并设置 `owner_email`。本地或 UAT 联调可执行 [quickwin_v14_test_seed.sql](quickwin_v14_test_seed.sql)，它插入测试身份和 Initiative。正式业务邮箱和真实项目负责人需单独核对录入。
 
-## 表与原型字段映射
+本脚本不是 Alembic migration，也不负责未来已有数据的结构升级。任何后续有数据的数据库变更，需要单独设计迁移步骤。
 
-| 原型区域 | 数据表 | 关键字段 |
-| --- | --- | --- |
-| STEP 1 预算内容 | `data.budgets` | `sector_code`、`department_code`、`resource_type_code`、`initiative_name`、`plan_budget_amount` |
-| STEP 2 历史表现 | `data.historical_performance` | `history_year`、`period_code`、`sector_code`、`distributor_name`、`resource_type_code`、`volume`、`c3_value`、`resource_amount` |
-| 预算操作日志 | `data.budget_change_logs` | `operation_type`、`before_data`、`after_data`、`changed_at` |
+已有数据库去除用户 Sector：先部署/重启不再读取 `user_permissions.sector` 的后端，再执行以下一次性 DDL。不要重跑完整建表脚本，也不要加 `CASCADE`；如有依赖对象，先检查依赖再处理。
 
-## 当前设计假设
+```sql
+BEGIN;
+ALTER TABLE data.user_permissions DROP COLUMN IF EXISTS sector;
+COMMIT;
+```
 
-1. `planning_year` 是预算数据的必要业务维度。原型的预算编辑表未展示该字段，后续页面可在“规划年度”上下文中统一选择或由接口参数传入。
-2. 原型中的 `Quarter` 同时承载全年与季度，DDL 用 `period_code` 保存该期间标识；原型的 `FY`、`Q1` 至 `Q4` 仅为示例值。
-3. 原型中的 `Resource` 按数值处理，DDL 映射为 `resource_amount NUMERIC(18,2)`；若客户确认其含义不是金额，需要改名和调整精度。
-4. 原型用 `Sector + Department + Initiative` 作为预算项定位键；DDL 加上 `planning_year` 建唯一约束。`Resource Type` 保留为预算属性，但不参与唯一键。
-5. 当前未实施登录，因此日志表中的操作人字段允许为空。SSO 完成后，再由预算 Service 填入操作人、请求标识和操作说明。
-
-`Sector`、`Department`、`Resource Type`、`Initiative`、`Distributor` 和 `period_code` 均不使用枚举或固定值约束。原型中的下拉演示值只作为前端示例，不会限制客户后续导入或维护的数据。
-
-## 后续确认后再做
-
-- 把 DDL 转为 Alembic migration；
-- 创建对应 SQLAlchemy DO、Repository、Service、Controller；
-- 在预算 CRUD Service 中补充日志写入；
-- 确认是否允许同一 Initiative 存在多个 Resource Type；
-- 明确 `Resource`、`C3` 的业务含义和小数精度；
-- 补充预计数据、适用范围、拆分、提交版本和 Tracking 表。
+此操作只删用户表的列，不改变 `data.budgets.sector` 及已有 Initiative 数据。

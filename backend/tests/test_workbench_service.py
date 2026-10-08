@@ -1,4 +1,5 @@
 import asyncio
+import threading
 from decimal import Decimal
 from io import BytesIO
 from zipfile import ZipFile
@@ -60,6 +61,38 @@ def test_import_parser_rejects_duplicate_distributor_codes() -> None:
 
     with pytest.raises(HTTPException, match="经销商编码重复"):
         asyncio.run(WorkbenchService._parse_import_file(upload, 1024 * 1024))
+
+
+def test_import_parser_does_not_block_other_async_requests(monkeypatch: pytest.MonkeyPatch) -> None:
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow_workbook_parse(_content: bytes) -> list[tuple[object, ...]]:
+        started.set()
+        release.wait(timeout=2)
+        return [
+            ("distributor_code", "allocate_amount", "desc"),
+            ("D001", "100", "test"),
+        ]
+
+    monkeypatch.setattr(WorkbenchService, "_read_xlsx_rows", slow_workbook_parse)
+    upload = UploadFile(filename="allocation.xlsx", file=BytesIO(b"xlsx-data"))
+
+    async def run() -> None:
+        task = asyncio.create_task(WorkbenchService._parse_import_file(upload, 1024))
+        try:
+            for _ in range(100):
+                if started.is_set():
+                    break
+                await asyncio.sleep(0.005)
+            assert started.is_set()
+            await asyncio.sleep(0.01)
+            assert not task.done()
+        finally:
+            release.set()
+        assert (await task)[0].distributor_code == "D001"
+
+    asyncio.run(run())
 
 
 def test_allocation_rate_uses_initiative_plan_budget() -> None:

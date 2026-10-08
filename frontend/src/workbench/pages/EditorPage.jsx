@@ -2,10 +2,45 @@ import { useEffect, useRef, useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
 import X from "../domain/excel.js";
+import { previewExcelInWorker } from "../file-import.js";
 const fmt = (n) =>
   Number(n || 0).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
 const pct = (n, d) => (d ? ((n / d) * 100).toFixed(2) : "0.00");
 const time = (v) => (v ? new Date(v).toLocaleString("zh-CN") : "尚未同步");
+export function uniqueDealersByCode(dealers) {
+  const unique = new Map();
+  dealers.forEach((dealer) => {
+    const code = String(dealer.id);
+    if (!unique.has(code)) unique.set(code, { ...dealer, id: code });
+  });
+  return [...unique.values()];
+}
+
+export function filterDealers(dealers, codeSearch, nameSearch) {
+  const codeQuery = codeSearch.trim().toLocaleLowerCase();
+  const nameQuery = nameSearch.trim().toLocaleLowerCase();
+  return dealers.filter(
+    (dealer) =>
+      (!codeQuery ||
+        String(dealer.id).toLocaleLowerCase().includes(codeQuery)) &&
+      (!nameQuery ||
+        String(dealer.name || "")
+          .toLocaleLowerCase()
+          .includes(nameQuery)),
+  );
+}
+
+export function canSynchronizeLatest({
+  savedForSync,
+  hasUnsavedChanges,
+  errorCount,
+  operation,
+}) {
+  return (
+    savedForSync && !hasUnsavedChanges && errorCount === 0 && operation === null
+  );
+}
+
 function AmountInput({ value, label, save, disabled = false }) {
   const [raw, setRaw] = useState(null);
   const [failed, setFailed] = useState(false);
@@ -99,11 +134,19 @@ function EditorContent({
   initiativeId,
   navigate,
   mutate,
+  saveDraft,
+  publish,
+  apiMode,
+  dirtyIds,
+  savedForSyncIds,
+  editorOperations,
   notify,
   openAuxiliary,
 }) {
   const [modal, setModal] = useState(null),
     [newDealer, setNewDealer] = useState(""),
+    [dealerCodeSearch, setDealerCodeSearch] = useState(""),
+    [dealerNameSearch, setDealerNameSearch] = useState(""),
     [busy, setBusy] = useState(false);
   const fileRef = useRef(null),
     alive = useRef(true);
@@ -114,10 +157,21 @@ function EditorContent({
     };
   }, []);
   const i = view.initiatives.find((item) => item.id === initiativeId);
+  const hasUnsavedChanges = i ? dirtyIds.has(i.id) : false;
   if (!i) return <div className="empty">当前角色无权查看该明细。</div>;
+  const operation = editorOperations[i.id] || null;
+  const savedForSync = savedForSyncIds.has(i.id);
   const editable = E.canEdit(state, i.id, identity),
     totals = E.totals([i]),
     errors = E.completionErrors(i, data, state.budgetReasons);
+  const synchronizedRevision =
+    i.publishedRevision != null && i.publishedRevision === i.revision;
+  const canSynchronize = canSynchronizeLatest({
+    savedForSync,
+    hasUnsavedChanges,
+    errorCount: errors.length,
+    operation,
+  });
   const guard = () => {
     if (document.querySelector('[data-unsaved-invalid="true"]')) {
       notify(
@@ -133,8 +187,25 @@ function EditorContent({
   const doGuard = (fn) => {
     if (guard()) fn();
   };
-  const available = data.dealers.filter(
+  const handleSaveDraft = async () => {
+    if (operation !== null || !guard()) return;
+    await saveDraft(i.id);
+  };
+  const handlePublish = async () => {
+    if (operation !== null || !canSynchronize || !guard()) return;
+    await publish(i.id);
+  };
+  const dealers = uniqueDealersByCode(data.dealers);
+  const available = dealers.filter(
     (d) => !i.rows.some((r) => r.dealerId === d.id),
+  );
+  const dealerById = new Map(dealers.map((d) => [String(d.id), d]));
+  const dealerName = (dealerId) =>
+    dealerById.get(String(dealerId))?.name || "—";
+  const searchedDealers = filterDealers(
+    available,
+    dealerCodeSearch,
+    dealerNameSearch,
   );
   const changeRow = (n, amount) =>
     update({
@@ -174,13 +245,10 @@ function EditorContent({
     try {
       if (file.size > 10 * 1024 * 1024)
         throw Error("模板请控制在 10 MB 以内。");
-      const preview = await X.previewImport(
-        await file.arrayBuffer(),
-        state,
-        i.id,
-        identity,
-        data,
-      );
+      const buffer = await file.arrayBuffer();
+      const preview = apiMode
+        ? await previewExcelInWorker("allocation", buffer, state, i.id, identity, data)
+        : await X.previewImport(buffer, state, i.id, identity, data);
       if (alive.current) setModal({ type: "import", preview, name: file.name });
     } catch (e) {
       notify(e.message, true);
@@ -231,6 +299,19 @@ function EditorContent({
   ];
   return (
     <>
+      {operation && (
+        <>
+          <div className="editor-operation-overlay" aria-hidden="true" />
+          <div className="editor-operation-status" role="status" aria-live="assertive">
+            <span className="admin-loading-spinner" aria-hidden="true" />
+            <strong>
+              {operation === "save" ? "正在保存草稿…" : "正在同步最新分配…"}
+            </strong>
+            <span>当前工作页暂不可操作，可切换左侧目录</span>
+          </div>
+        </>
+      )}
+      <div inert={operation !== null} aria-busy={operation !== null}>
       <div className="page-heading">
         <div>
           <h1>{i.name}</h1>
@@ -392,6 +473,7 @@ function EditorContent({
               <thead>
                 <tr>
                   <th>经销商编码</th>
+                  <th>经销商名称</th>
                   <th className="num">
                     分配金额<small>2027 计划</small>
                   </th>
@@ -412,6 +494,7 @@ function EditorContent({
                         {r.dealerId}
                       </button>
                     </td>
+                    <td>{dealerName(r.dealerId)}</td>
                     <td className="num">
                       {editable ? (
                         <AmountInput
@@ -464,7 +547,9 @@ function EditorContent({
           <div className="table-footer">
             <span>
               {editable
-                ? "输入金额或比例 · 修改即时保存"
+                ? apiMode
+                  ? "输入金额或比例 · 编辑后请保存草稿"
+                  : "输入金额或比例 · 修改即时保存"
                 : "经销商分配明细 · 只读"}
             </span>
             {editable && (
@@ -472,7 +557,9 @@ function EditorContent({
                 className="button link"
                 onClick={() =>
                   doGuard(() => {
-                    setNewDealer(available[0]?.id || "");
+                    setNewDealer("");
+                    setDealerCodeSearch("");
+                    setDealerNameSearch("");
                     setModal({ type: "add" });
                   })
                 }
@@ -651,7 +738,18 @@ function EditorContent({
         )}
         <div className="save-bar">
           <div className="save-label">
-            <strong>有效修改自动保存到本机</strong> · {time(i.savedAt)}
+            <strong>
+              {apiMode
+                ? hasUnsavedChanges
+                  ? "本页修改尚未保存"
+                  : savedForSync
+                    ? "草稿已保存，可以同步"
+                    : synchronizedRevision
+                      ? "最新分配已同步"
+                      : "请先保存草稿后再同步"
+                : "有效修改自动保存到本机"}
+            </strong>{" "}
+            · {time(i.savedAt)}
             <br />
             最新同步：{time(i.publishedAt)}
           </div>
@@ -659,25 +757,24 @@ function EditorContent({
             <div className="actions">
               <button
                 className="button"
-                onClick={() =>
-                  doGuard(() => notify("草稿已保存到当前浏览器。"))
-                }
+                disabled={operation !== null}
+                onClick={handleSaveDraft}
               >
-                保存本机草稿
+                {operation === "save" ? "正在保存…" : "保存草稿"}
               </button>
               <button
                 className="button primary"
-                disabled={errors.length > 0}
-                onClick={() =>
-                  doGuard(() =>
-                    mutate(
-                      (s) => E.publishInitiative(s, i.id, identity, data),
-                      "已同步最新分配，仍可继续修改。",
-                    ),
-                  )
+                disabled={!canSynchronize}
+                title={
+                  !savedForSync || hasUnsavedChanges
+                    ? "请先保存草稿，再同步最新分配"
+                    : errors.length > 0
+                      ? "请先修正当前分配问题"
+                      : undefined
                 }
+                onClick={handlePublish}
               >
-                同步最新分配
+                {operation === "publish" ? "正在同步…" : "同步最新分配"}
               </button>
             </div>
           )}
@@ -743,13 +840,12 @@ function EditorContent({
               <button
                 className="button primary"
                 disabled={modal.preview.errors.length > 0}
-                onClick={() => {
-                  if (
-                    mutate(
-                      (s) => X.confirmImport(modal.preview, s, identity, data),
-                      "已完整替换工作稿；再次同步后共享结果更新。",
-                    )
-                  )
+                onClick={async () => {
+                  const values = {
+                    rows: modal.preview.rows,
+                    otherBudgets: modal.preview.otherBudgets,
+                  };
+                  if (await saveDraft(i.id, values, modal.preview.revision))
                     close();
                 }}
               >
@@ -759,23 +855,72 @@ function EditorContent({
           }
         >
           {modal.type === "add" && (
-            <label className="form-field">
-              经销商
-              <select
-                value={newDealer}
-                onChange={(e) => setNewDealer(e.target.value)}
-              >
-                {available.length ? (
-                  available.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.id}
-                    </option>
-                  ))
-                ) : (
-                  <option value="">已无可添加经销商</option>
-                )}
-              </select>
-            </label>
+            <>
+              <div className="dealer-search-grid">
+                <label className="form-field">
+                  经销商编码
+                  <input
+                    type="search"
+                    autoFocus
+                    value={dealerCodeSearch}
+                    placeholder="模糊搜索经销商编码"
+                    onChange={(e) => {
+                      setDealerCodeSearch(e.target.value);
+                      setNewDealer("");
+                    }}
+                  />
+                </label>
+                <label className="form-field">
+                  经销商名称
+                  <input
+                    type="search"
+                    value={dealerNameSearch}
+                    placeholder="模糊搜索经销商名称"
+                    onChange={(e) => {
+                      setDealerNameSearch(e.target.value);
+                      setNewDealer("");
+                    }}
+                  />
+                </label>
+              </div>
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th aria-label="选择经销商" />
+                      <th>经销商编码</th>
+                      <th>经销商名称</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {searchedDealers.map((dealer) => (
+                      <tr key={dealer.id}>
+                        <td>
+                          <input
+                            type="radio"
+                            name="new-dealer"
+                            aria-label={`选择经销商 ${dealer.id} ${dealer.name || ""}`}
+                            checked={newDealer === dealer.id}
+                            onChange={() => setNewDealer(dealer.id)}
+                          />
+                        </td>
+                        <td>{dealer.id}</td>
+                        <td>{dealer.name || "—"}</td>
+                      </tr>
+                    ))}
+                    {!searchedDealers.length && (
+                      <tr>
+                        <td colSpan={3}>
+                          {available.length
+                            ? "没有匹配的经销商"
+                            : "已无可添加经销商"}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
           {modal.type === "remove" && (
             <p>
@@ -940,6 +1085,7 @@ function EditorContent({
           )}
         </EditorDialog>
       )}
+      </div>
     </>
   );
 }

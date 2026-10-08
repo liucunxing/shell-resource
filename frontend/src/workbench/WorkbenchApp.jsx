@@ -1,12 +1,15 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
+  ArrowRight,
   Buildings,
   ChartPieSlice,
+  ChartLineUp,
   ChatCircleDots,
-  Clock,
   Database,
+  EnvelopeSimple,
   Info,
   List,
+  LockKey,
   SlidersHorizontal,
   SquaresFour,
   Stack,
@@ -86,6 +89,11 @@ export default function WorkbenchApp() {
     dismissToast,
     resetScenario,
     scenarioEpoch,
+    apiMode,
+    loading,
+    refresh,
+    devEmail,
+    setDevelopmentEmail,
   } = useWorkbench();
   const [scene, setScene] = useState("");
   const sceneDialog = useRef(null);
@@ -94,20 +102,6 @@ export default function WorkbenchApp() {
   const narrow = useNarrow("(max-width: 1023px)");
   const phone = useNarrow("(max-width: 759px)");
   const workOverlay = auxiliary.open && narrow;
-  const nav = [];
-  if (identity.role === "owner") nav.push(["home", SquaresFour, "我的工作台"]);
-  if (["owner", "lead"].includes(identity.role))
-    nav.push(["department", Buildings, "部门总览"]);
-  if (identity.role === "management")
-    nav.push(["management", Stack, "管理层统览"]);
-  if (identity.role === "admin")
-    nav.push(["admin", SlidersHorizontal, "管理后台"]);
-  nav.push(
-    ["raw", Database, "原始数据"],
-    ["tracking", Clock, "执行追踪", "预留"],
-    ["about", Info, "数据口径"],
-  );
-  const Page = pages[page] || HomePage;
   const closeNav = () => {
     setMobileNav(false);
     requestAnimationFrame(() => navTrigger.current?.focus());
@@ -146,6 +140,36 @@ export default function WorkbenchApp() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [mobileNav]);
+  if (!identity && apiMode)
+    return (
+      <DevelopmentLogin
+        email={devEmail}
+        loading={loading}
+        onSubmit={setDevelopmentEmail}
+        error={storageWarning}
+      />
+    );
+  if (!identity)
+    return (
+      <main className="page">
+        <div className="empty" role="status">
+          正在加载工作台数据…
+        </div>
+      </main>
+    );
+  const nav = [];
+  if (identity.role === "owner") nav.push(["home", SquaresFour, "我的工作台"]);
+  if (["owner", "lead"].includes(identity.role))
+    nav.push(["department", Buildings, "部门总览"]);
+  if (identity.role === "management")
+    nav.push(["management", Stack, "管理层统览"]);
+  if (identity.role === "admin")
+    nav.push(["admin", SlidersHorizontal, "管理后台"]);
+  nav.push(
+    ["raw", Database, "原始数据"],
+    ["about", Info, "数据口径"],
+  );
+  const Page = pages[page] || HomePage;
   return (
     <>
       <a
@@ -158,9 +182,7 @@ export default function WorkbenchApp() {
       >
         跳至工作区
       </a>
-      <div
-        className={`app-shell ${auxiliary.open ? "work-open" : ""}`}
-      >
+      <div className={`app-shell ${auxiliary.open ? "work-open" : ""}`}>
         {mobileNav && (
           <button
             className="mobile-nav-scrim"
@@ -225,9 +247,10 @@ export default function WorkbenchApp() {
                 2027 年度资源规划
               </strong>
               <p>
-                历史参考截至 2026.08
+                历史参考截至{" "}
+                {apiMode ? state.reference?.asOf || "未知" : "2026.08"}
                 <br />
-                2026 累计口径为演示假设
+                {apiMode ? "按当前参考批次口径展示" : "2026 累计口径为演示假设"}
               </p>
             </div>
             <section className="sidebar-profile" aria-label="当前用户">
@@ -243,21 +266,38 @@ export default function WorkbenchApp() {
                 </span>
                 <div>
                   <label htmlFor="role-select">当前用户</label>
-                  <small>演示角色 · 可切换</small>
+                  <small>
+                    {apiMode
+                      ? identity.email || "服务端身份"
+                      : "演示角色 · 可切换"}
+                  </small>
                 </div>
               </div>
-              <select
-                id="role-select"
-                aria-label="切换演示角色"
-                value={identity.key}
-                onChange={(event) => setIdentity(event.target.value)}
-              >
-                {roles.map((role) => (
-                  <option key={role.key} value={role.key}>
-                    {role.label}
-                  </option>
-                ))}
-              </select>
+              {apiMode ? (
+                <div className="profile-api-user">
+                  {identity.label}
+                  <button
+                    className="button subtle small"
+                    title="请先保存草稿；切换会清空未保存的编辑"
+                    onClick={() => setDevelopmentEmail("")}
+                  >
+                    切换开发邮箱
+                  </button>
+                </div>
+              ) : (
+                <select
+                  id="role-select"
+                  aria-label="切换演示角色"
+                  value={identity.key}
+                  onChange={(event) => setIdentity(event.target.value)}
+                >
+                  {roles.map((role) => (
+                    <option key={role.key} value={role.key}>
+                      {role.label}
+                    </option>
+                  ))}
+                </select>
+              )}
             </section>
           </div>
         </aside>
@@ -285,9 +325,11 @@ export default function WorkbenchApp() {
             </div>
             <div className="topbar-right">
               <span className="demo-mark">
-                {state.demoScenario?.id === "unallocated"
-                  ? "Mock · 含未分配预算"
-                  : "交互演示 · V1.3"}
+                {apiMode
+                  ? "API · V1.4"
+                  : state.demoScenario?.id === "unallocated"
+                    ? "Mock · 含未分配预算"
+                    : "交互演示 · V1.4"}
               </span>
               <button
                 className={`button small subtle ${annotation ? "active-toggle" : ""}`}
@@ -296,23 +338,30 @@ export default function WorkbenchApp() {
               >
                 需求标注
               </button>
-              <select
-                id="scene-select"
-                aria-label="演示场景"
-                value=""
-                onChange={(event) => setScene(event.target.value)}
-              >
-                <option value="">切换演示场景</option>
-                <option value="unallocated">含未分配预算示例（Mock）</option>
-                <option value="working">Owner 拆分起点</option>
-                <option value="submitted">管理层查看起点</option>
-              </select>
+              {!apiMode && (
+                <select
+                  id="scene-select"
+                  aria-label="演示场景"
+                  value=""
+                  onChange={(event) => setScene(event.target.value)}
+                >
+                  <option value="">切换演示场景</option>
+                  <option value="unallocated">含未分配预算示例（Mock）</option>
+                  <option value="working">Owner 拆分起点</option>
+                  <option value="submitted">管理层查看起点</option>
+                </select>
+              )}
             </div>
           </header>
           <main id="main" className="page" tabIndex={-1}>
             {storageWarning && (
               <div className="note-box warn" role="alert">
-                {storageWarning}
+                {storageWarning}{" "}
+                {apiMode && (
+                  <button className="button small" onClick={refresh}>
+                    重新加载
+                  </button>
+                )}
               </div>
             )}
             <Suspense
@@ -325,11 +374,16 @@ export default function WorkbenchApp() {
               <Page key={`${identity.key}:${page}:${scenarioEpoch}`} />
             </Suspense>
             <div className="footer-note">
-              本地演示 · 自动保存 · 金额按源表原值展示
+              {apiMode
+                ? "服务端工作稿 · 请明确保存后同步 · 金额按源表原值展示"
+                : "本地演示 · 自动保存 · 金额按源表原值展示"}
             </div>
           </main>
         </div>
-        <WorkPanel key={`${identity.key}:${scenarioEpoch}`} overlay={workOverlay} />
+        <WorkPanel
+          key={`${identity.key}:${scenarioEpoch}`}
+          overlay={workOverlay}
+        />
       </div>
       <dialog
         ref={sceneDialog}
@@ -379,5 +433,103 @@ export default function WorkbenchApp() {
         </div>
       )}
     </>
+  );
+}
+
+function DevelopmentLogin({ email, loading, onSubmit, error }) {
+  const [value, setValue] = useState(email);
+  return (
+    <main className="login-shell">
+      <section className="login-story" aria-label="壳牌资源投资工作台介绍">
+        <div className="login-brand">
+          <span className="login-brandmark" aria-hidden="true">
+            <ChartLineUp size={28} weight="bold" />
+          </span>
+          <span>
+            <strong>壳牌 · 资源投资</strong>
+            <small>RESOURCE INVESTMENT</small>
+          </span>
+        </div>
+
+        <div className="login-story-copy">
+          <span className="login-kicker">2027 RESOURCE PLANNING</span>
+          <h1>
+            让每一笔资源，
+            <br />
+            投向更确定的增长。
+          </h1>
+          <p>
+            连接预算、经销商分配与业务洞察，帮助团队在同一套数据口径下完成年度资源规划。
+          </p>
+        </div>
+
+        <div className="login-capabilities" aria-label="工作台核心能力">
+          <div>
+            <strong>预算统筹</strong>
+            <span>清晰掌握年度资源结构</span>
+          </div>
+          <div>
+            <strong>协同分配</strong>
+            <span>连接项目与经销商投入</span>
+          </div>
+          <div>
+            <strong>数据洞察</strong>
+            <span>用历史表现辅助决策</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="login-entry">
+        <form
+          className="login-card"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!loading && value.trim()) onSubmit(value);
+          }}
+        >
+          <div className="login-card-heading">
+            <span className="login-environment">开发环境</span>
+            <h2>登录资源投资工作台</h2>
+            <p>使用已在服务端配置权限的邮箱继续。</p>
+          </div>
+
+          {error && (
+            <div className="login-alert" role="alert">
+              {error}
+            </div>
+          )}
+
+          <label className="login-email-field">
+            <span>邮箱地址</span>
+            <span className="login-input-wrap">
+              <EnvelopeSimple size={20} aria-hidden="true" />
+              <input
+                type="email"
+                autoComplete="email"
+                autoFocus
+                value={value}
+                onChange={(event) => setValue(event.target.value)}
+                placeholder="name@example.com"
+              />
+            </span>
+          </label>
+
+          <button
+            type="submit"
+            className="login-submit"
+            disabled={loading || !value.trim()}
+          >
+            <span>{loading ? "正在加载工作台…" : "进入工作台"}</span>
+            <ArrowRight size={20} weight="bold" aria-hidden="true" />
+          </button>
+
+          <p className="login-session-note">
+            <LockKey size={15} aria-hidden="true" />
+            邮箱仅保存在当前浏览器会话，并作为开发请求头发送。
+          </p>
+        </form>
+        <p className="login-footer">壳牌资源投资规划工作台 · 内部系统</p>
+      </section>
+    </main>
   );
 }

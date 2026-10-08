@@ -7,7 +7,10 @@ from app.core.config import get_settings
 settings = get_settings()
 engine = create_async_engine(
     settings.database_url.get_secret_value(),
-    echo=settings.db_echo,
+    # SQL statements use the application's console logger to avoid duplicate
+    # lines from SQLAlchemy's built-in echo handler.
+    echo=False,
+    hide_parameters=settings.app_env == "production",
     pool_pre_ping=True,
 )
 AsyncSessionFactory = async_sessionmaker(engine, expire_on_commit=False)

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
 import AX from "../domain/admin-excel.js";
+import { parseReferenceInWorker, previewExcelInWorker } from "../file-import.js";
+import { AdminUsersPanel } from "./AdminUsersPanel.jsx";
 
 const money = (value) =>
   Number.isFinite(value)
@@ -24,7 +26,7 @@ const actionNames = {
   import_admin_configuration: "预算与归属导入",
   change_reference: "参考批次发布",
   set_guide: "分析指南更新",
-  generate_insight: "生成模拟分析",
+  generate_insight: "生成六点分析",
   set_owner: "Owner 映射调整",
   set_analysis_prompt: "分析提示词更新",
   set_budget_reasons: "预算原因更新",
@@ -94,14 +96,30 @@ function AdminDialog({
 }
 
 export function AdminPage() {
-  const { state, view, identity, mutate, notify } = useWorkbench();
+  const {
+    state,
+    view,
+    identity,
+    mutate,
+    notify,
+    apiMode,
+    roles,
+    saveAdminBudgets,
+    importAdminBudgets,
+    saveConfig,
+    saveReference,
+    loading,
+  } = useWorkbench();
   const [tab, setTab] = useState("budgets");
   const [modal, setModal] = useState(null);
   const [value, setValue] = useState("");
   const [guide, setGuide] = useState(state.guide.text);
   const [busy, setBusy] = useState(false);
+  const [savingBudgets, setSavingBudgets] = useState(false);
   const upload = useRef(null);
+  const referenceUpload = useRef(null);
   const sequence = useRef(0);
+  const saveSequence = useRef(0);
   const latest = useRef({ state, identity, tab });
   latest.current = { state, identity, tab };
   useEffect(
@@ -115,8 +133,10 @@ export function AdminPage() {
   }, [state.guide.text]);
   useEffect(() => {
     sequence.current += 1;
+    saveSequence.current += 1;
     setModal(null);
     setBusy(false);
+    setSavingBudgets(false);
   }, [identity]);
   const items = (typeof view === "function" ? view() : view).initiatives;
   const close = () => {
@@ -135,6 +155,29 @@ export function AdminPage() {
     close();
     setTab(next);
   };
+  const budgetPending = busy || savingBudgets || loading;
+
+  async function persistAdminBudgets(items) {
+    const request = ++saveSequence.current;
+    setModal(null);
+    setSavingBudgets(true);
+    try {
+      return await saveAdminBudgets(items);
+    } finally {
+      if (request === saveSequence.current) setSavingBudgets(false);
+    }
+  }
+
+  async function persistAdminImport(payload) {
+    const request = ++saveSequence.current;
+    setModal(null);
+    setSavingBudgets(true);
+    try {
+      return await importAdminBudgets(payload);
+    } finally {
+      if (request === saveSequence.current) setSavingBudgets(false);
+    }
+  }
 
   async function exportConfig() {
     try {
@@ -149,7 +192,7 @@ export function AdminPage() {
       link.download = "管理员配置_预算与归属_2027.xlsx";
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      notify("已导出当前配置，可修改预算与 Owner 列后导入。");
+      notify("已导出当前配置，可修改已有项目或在表尾新增 Initiative 后导入。");
     } catch (error) {
       notify(error.message, true);
     }
@@ -166,11 +209,10 @@ export function AdminPage() {
     try {
       if (file.size > 10 * 1024 * 1024)
         throw Error("配置文件请控制在 10 MB 以内。");
-      const result = await AX.previewImport(
-        await file.arrayBuffer(),
-        before,
-        actor,
-      );
+      const buffer = await file.arrayBuffer();
+      const result = apiMode
+        ? await previewExcelInWorker("admin", buffer, before, actor, roles)
+        : await AX.previewImport(buffer, before, actor, roles);
       if (request !== sequence.current) return;
       if (
         latest.current.state !== before ||
@@ -187,7 +229,50 @@ export function AdminPage() {
       if (request === sequence.current) setBusy(false);
     }
   }
+  async function importReference(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const parsed = await parseReferenceInWorker(await file.text());
+      if (!parsed.batchId || !parsed.asOf || !Array.isArray(parsed.dealers))
+        throw Error("JSON 须包含 batchId、asOf 和 dealers 数组。");
+      await saveReference(parsed);
+    } catch (error) {
+      notify(error.message || "历史参考 JSON 无法读取。", true);
+    }
+  }
   function saveEdit() {
+    if (apiMode && modal.kind === "budget")
+      return persistAdminBudgets([
+        {
+          id: modal.item.id,
+          expected_revision: modal.item.revision,
+          budget: Number(value),
+          ownerId: modal.item.ownerId,
+        },
+      ]);
+    if (apiMode && modal.kind === "owner")
+      return persistAdminBudgets([
+        {
+          id: modal.item.id,
+          expected_revision: modal.item.revision,
+          budget: modal.item.budget,
+          ownerId: value,
+        },
+      ]);
+    if (apiMode && modal.kind === "reason") {
+      const reasons = state.budgetReasons.map((row) =>
+        row.id === modal.item?.id ? { ...row, label: value.trim() } : row,
+      );
+      if (!modal.item)
+        reasons.push({
+          id: `reason-${crypto.randomUUID()}`,
+          label: value.trim(),
+          enabled: true,
+        });
+      return saveConfig({ budgetReasons: reasons }).then((ok) => ok && close());
+    }
     if (modal.kind === "budget")
       change((draft) => {
         if (value.trim() === "") throw Error("预算不能为空。");
@@ -237,7 +322,7 @@ export function AdminPage() {
         ))}
       </div>
       {tab === "budgets" && (
-        <section className="panel">
+        <section className="panel" aria-busy={budgetPending}>
           <div className="panel-header admin-config-header">
             <div>
               <h2>预算与 Owner 映射</h2>
@@ -246,15 +331,19 @@ export function AdminPage() {
               </p>
             </div>
             <div className="actions">
-              <button className="button small" onClick={exportConfig}>
+              <button
+                className="button small"
+                disabled={budgetPending}
+                onClick={exportConfig}
+              >
                 导出配置
               </button>
               <button
                 className="button primary small"
-                disabled={busy}
+                disabled={budgetPending}
                 onClick={() => upload.current.click()}
               >
-                {busy ? "正在读取…" : "导入 Excel"}
+                {budgetPending ? "数据更新中…" : "导入 Excel"}
               </button>
               <input
                 ref={upload}
@@ -267,54 +356,71 @@ export function AdminPage() {
             </div>
           </div>
           <div className="admin-config-hint">
-            导出当前配置后修改预算或
-            Owner，导入时预览差异。可只保留需更新的项目，未列出的项目保持不变。
+            导出当前配置后，可修改已有项目的预算或 Owner，也可在表尾补充新
+            Initiative；导入时统一预览新增与修改。未列出的已有项目保持不变。
           </div>
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Initiative</th>
-                  <th>Sector</th>
-                  <th>资源类型</th>
-                  <th>部门 / Owner</th>
-                  <th className="num">预算</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={item.id}>
-                    <td>
-                      {item.name}
-                      <div className="table-sub">{item.id}</div>
-                    </td>
-                    <td>{item.sector}</td>
-                    <td>{item.resourceType}</td>
-                    <td>
-                      {item.department} / {item.ownerId}
-                    </td>
-                    <td className="num">{money(item.budget)}</td>
-                    <td>
-                      <div className="actions">
-                        <button
-                          className="button small"
-                          onClick={() => edit("budget", item, item.budget)}
-                        >
-                          调整预算
-                        </button>
-                        <button
-                          className="button small"
-                          onClick={() => edit("owner", item, item.ownerId)}
-                        >
-                          分配 Owner
-                        </button>
-                      </div>
-                    </td>
+          <div
+            className={`admin-config-list ${budgetPending ? "is-loading" : ""}`}
+          >
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Initiative</th>
+                    <th>Sector</th>
+                    <th>资源类型</th>
+                    <th>部门 / Owner</th>
+                    <th className="num">预算</th>
+                    <th>操作</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {items.map((item) => (
+                    <tr key={item.id}>
+                      <td>
+                        {item.name}
+                        <div className="table-sub">{item.id}</div>
+                      </td>
+                      <td>{item.sector}</td>
+                      <td>{item.resourceType}</td>
+                      <td>
+                        {item.department} / {item.ownerId}
+                      </td>
+                      <td className="num">{money(item.budget)}</td>
+                      <td>
+                        <div className="actions">
+                          <button
+                            className="button small"
+                            disabled={budgetPending}
+                            onClick={() => edit("budget", item, item.budget)}
+                          >
+                            调整预算
+                          </button>
+                          <button
+                            className="button small"
+                            disabled={budgetPending}
+                            onClick={() => edit("owner", item, item.ownerId)}
+                          >
+                            分配 Owner
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {budgetPending && (
+              <div
+                className="admin-list-loading"
+                role="status"
+                aria-live="polite"
+              >
+                <span className="admin-loading-spinner" aria-hidden="true" />
+                <strong>正在更新预算与 Owner 配置</strong>
+                <span>数据准备完成后即可继续编辑</span>
+              </div>
+            )}
           </div>
           <div className="table-footer">
             预算与归属可持续调整；不会自动重分配。共享结果在 Marketer
@@ -366,19 +472,27 @@ export function AdminPage() {
                       <button
                         className="button small"
                         onClick={() =>
-                          mutate(
-                            (draft) =>
-                              E.setBudgetReasons(
-                                draft,
-                                draft.budgetReasons.map((row) =>
+                          apiMode
+                            ? saveConfig({
+                                budgetReasons: state.budgetReasons.map((row) =>
                                   row.id === reason.id
                                     ? { ...row, enabled: !row.enabled }
                                     : row,
                                 ),
-                                identity,
-                              ),
-                            "预算原因状态已更新，已有记录保留。",
-                          )
+                              })
+                            : mutate(
+                                (draft) =>
+                                  E.setBudgetReasons(
+                                    draft,
+                                    draft.budgetReasons.map((row) =>
+                                      row.id === reason.id
+                                        ? { ...row, enabled: !row.enabled }
+                                        : row,
+                                    ),
+                                    identity,
+                                  ),
+                                "预算原因状态已更新，已有记录保留。",
+                              )
                         }
                       >
                         {reason.enabled ? "停用" : "启用"}
@@ -396,14 +510,20 @@ export function AdminPage() {
           <section className="panel">
             <div className="panel-header">
               <h2>历史参考数据批次</h2>
-              <span className="badge">本地模拟</span>
+              <span className="badge">
+                {apiMode ? "服务端批次" : "本地模拟"}
+              </span>
             </div>
             <div className="panel-body">
               <dl className="definition-grid">
                 <dt>数据截至期</dt>
                 <dd>
                   {state.reference.asOf}{" "}
-                  <span className="muted">（2026 为 1—8 月累计演示假设）</span>
+                  {!apiMode && (
+                    <span className="muted">
+                      （2026 为 1—8 月累计演示假设）
+                    </span>
+                  )}
                 </dd>
                 <dt>导入时间</dt>
                 <dd>{time(state.reference.importedAt)}</dd>
@@ -422,21 +542,43 @@ export function AdminPage() {
                 <span>发布到 PostgreSQL</span>
               </div>
               <div className="note-box">
-                当前仅模拟发布状态与版本变化，沿用同一份历史数值，不补造下个月业绩。真实导入、事务发布与连接尚未接入。
+                {apiMode
+                  ? "上传 JSON 后由服务端核验并整批写入；缺失历史值请使用 null，不补零。"
+                  : "当前仅模拟发布状态与版本变化，沿用同一份历史数值，不补造下个月业绩。"}
               </div>
               <div className="actions">
-                <button
-                  className="button primary"
-                  onClick={() => setModal({ kind: "reference" })}
-                >
-                  校验并模拟发布新批次
-                </button>
-                <button
-                  className="button"
-                  onClick={() => setModal({ kind: "reference-fail" })}
-                >
-                  模拟校验失败
-                </button>
+                {apiMode ? (
+                  <>
+                    <button
+                      className="button primary"
+                      onClick={() => referenceUpload.current?.click()}
+                    >
+                      导入历史 JSON
+                    </button>
+                    <input
+                      ref={referenceUpload}
+                      type="file"
+                      accept="application/json,.json"
+                      hidden
+                      onChange={importReference}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <button
+                      className="button primary"
+                      onClick={() => setModal({ kind: "reference" })}
+                    >
+                      校验并模拟发布新批次
+                    </button>
+                    <button
+                      className="button"
+                      onClick={() => setModal({ kind: "reference-fail" })}
+                    >
+                      模拟校验失败
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </section>
@@ -457,67 +599,71 @@ export function AdminPage() {
       {tab === "permissions" && (
         <section className="panel">
           <div className="panel-header">
-            <h2>演示人员与权限映射</h2>
-            <span className="badge">模拟配置</span>
+            <h2>{apiMode ? "人员与权限映射" : "演示人员与权限映射"}</h2>
+            <span className="badge">{apiMode ? "服务端配置" : "模拟配置"}</span>
           </div>
           <div className="panel-body">
             <div className="note-box">
-              部门并非 Excel
-              原始字段。本原型用资源类型映射部门，并为每个部门配置两位
-              Owner。此处展示权限合同，生产端须由后端执行。
+              {apiMode
+                ? "管理员可维护人员账号与权限。已关联 Initiative 的用户不可修改或删除；权限由服务端执行。"
+                : "部门并非 Excel 原始字段。本原型用资源类型映射部门，并为每个部门配置两位 Owner。此处展示演示权限。"}
             </div>
-            <div className="table-scroll">
-              <table className="contract-table">
-                <thead>
-                  <tr>
-                    <th>角色</th>
-                    <th>分配操作</th>
-                    <th>历史资源范围</th>
-                    <th>协作权限</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {E.DEPARTMENTS.map((department) => (
-                    <tr key={department}>
-                      <td>{department} Marketer 1 / 2</td>
-                      <td>
-                        仅本人 Initiative
-                        <br />
-                        可看部门汇总，不可打开同事明细
-                      </td>
-                      <td>
-                        {department === "MKT"
-                          ? "MRD、SP&A"
-                          : department === "ICE"
-                            ? "ICE Rebate"
-                            : "Capex"}
-                        <br />
-                        Vol / C3 按演示共享授权
-                      </td>
-                      <td>保存、导入、反复同步、本人 Insight</td>
-                    </tr>
-                  ))}
-                  <tr>
-                    <td>部门负责人</td>
-                    <td>本部门明细只读</td>
-                    <td>本部门授权资源</td>
-                    <td>本部门只读汇总、部门 Insight</td>
-                  </tr>
-                  <tr>
-                    <td>管理层</td>
-                    <td>各部门同步快照只读</td>
-                    <td>全局同步结果及授权整体参考</td>
-                    <td>最新同步结果只读、筛选排序、线下沟通</td>
-                  </tr>
-                  <tr>
-                    <td>管理员</td>
-                    <td>维护预算、Owner；不代改分配</td>
-                    <td>维护参考数据与权限配置</td>
-                    <td>变更记录、分析指南维护</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            {apiMode ? <AdminUsersPanel /> : (
+              <>
+                <div className="table-scroll">
+                  <table className="contract-table">
+                    <thead>
+                      <tr>
+                        <th>角色</th>
+                        <th>分配操作</th>
+                        <th>历史资源范围</th>
+                        <th>协作权限</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {E.DEPARTMENTS.map((department) => (
+                        <tr key={department}>
+                          <td>{department} Marketer 1 / 2</td>
+                          <td>
+                            仅本人 Initiative
+                            <br />
+                            可看部门汇总，不可打开同事明细
+                          </td>
+                          <td>
+                            {department === "MKT"
+                              ? "MRD、SP&A"
+                              : department === "ICE"
+                                ? "ICE Rebate"
+                                : "Capex"}
+                            <br />
+                            Vol / C3 按演示共享授权
+                          </td>
+                          <td>保存、导入、反复同步、本人 Insight</td>
+                        </tr>
+                      ))}
+                      <tr>
+                        <td>部门负责人</td>
+                        <td>本部门明细只读</td>
+                        <td>本部门授权资源</td>
+                        <td>本部门只读汇总、部门 Insight</td>
+                      </tr>
+                      <tr>
+                        <td>管理层</td>
+                        <td>各部门同步快照只读</td>
+                        <td>全局同步结果及授权整体参考</td>
+                        <td>最新同步结果只读、筛选排序、线下沟通</td>
+                      </tr>
+                      <tr>
+                        <td>管理员</td>
+                        <td>维护预算、Owner；不代改分配</td>
+                        <td>维护参考数据与权限配置</td>
+                        <td>变更记录、分析指南维护</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </div>
         </section>
       )}
@@ -543,16 +689,20 @@ export function AdminPage() {
             <button
               className="button primary"
               onClick={() =>
-                mutate(
-                  (draft) => E.setGuide(draft, guide, identity),
-                  "指南新版本已保存，已有 Insight 需复核更新。",
-                )
+                apiMode
+                  ? saveConfig({ guide: { ...state.guide, text: guide } })
+                  : mutate(
+                      (draft) => E.setGuide(draft, guide, identity),
+                      "指南新版本已保存，已有 Insight 需复核更新。",
+                    )
               }
             >
               保存为新指南版本
             </button>
             <div className="note-box">
-              本原型只演示指南保存、版本与失效关系。模拟分析为确定性模板，不宣称模型已经理解或执行自定义指南。
+              {apiMode
+                ? "指南由服务端保存并用于后续六点分析；保存后旧分析需更新。"
+                : "本原型只演示指南保存、版本与失效关系。模拟分析为确定性模板。"}
             </div>
           </div>
         </section>
@@ -561,7 +711,9 @@ export function AdminPage() {
         <section className="panel">
           <div className="panel-header">
             <h2>操作与版本记录</h2>
-            <span className="small-text muted">当前浏览器演示记录</span>
+            <span className="small-text muted">
+              {apiMode ? "服务端操作记录" : "当前浏览器演示记录"}
+            </span>
           </div>
           <div className="table-scroll">
             <table className="audit-table">
@@ -582,7 +734,8 @@ export function AdminPage() {
                     <tr key={entry.id || index}>
                       <td>{time(entry.createdAt)}</td>
                       <td>
-                        {entry.actor.ownerId ||
+                        {entry.actor.label ||
+                          entry.actor.ownerId ||
                           entry.actor.department ||
                           entry.actor.role}
                       </td>
@@ -644,9 +797,23 @@ export function AdminPage() {
                   value={value}
                   onChange={(event) => setValue(event.target.value)}
                 >
-                  {[1, 2].map((n) => (
-                    <option key={n} value={`${modal.item.department}-${n}`}>
-                      {modal.item.department}-{n}
+                  {(apiMode
+                    ? roles.filter(
+                        (user) =>
+                          user.role === "owner" &&
+                          user.department === modal.item.department,
+                      )
+                    : [1, 2].map((n) => ({
+                        key: `${modal.item.department}-${n}`,
+                        ownerId: `${modal.item.department}-${n}`,
+                        label: `${modal.item.department}-${n}`,
+                      }))
+                  ).map((owner) => (
+                    <option
+                      key={owner.key || owner.ownerId || owner.email}
+                      value={owner.ownerId || owner.email}
+                    >
+                      {owner.label || owner.display_name || owner.email}
                     </option>
                   ))}
                 </select>
@@ -710,24 +877,35 @@ export function AdminPage() {
           title="管理员配置导入预览"
           onClose={close}
           disabled={
-            !!modal.result.errors.length || !modal.result.changes.length
+            !!modal.result.errors.length ||
+            (!modal.result.changes.length && !modal.result.creates.length)
           }
           confirmLabel={
             modal.result.errors.length
               ? "请修正文件后重试"
-              : `确认更新 ${modal.result.changes.length} 项`
+              : `确认导入 ${modal.result.changes.length + modal.result.creates.length} 项`
           }
           onConfirm={() =>
-            change(
-              (draft) => AX.confirmImport(modal.result, draft, identity),
-              `已更新 ${modal.result.changes.length} 项预算/归属，原分配保留，需由 Owner 复核并重新同步。`,
-            )
+            apiMode
+              ? persistAdminImport({
+                  updates: modal.result.changes.map((row) => ({
+                    id: row.id,
+                    expected_revision: row.revision,
+                    budget: row.after.budget,
+                    ownerId: row.after.ownerId,
+                  })),
+                  creates: modal.result.creates.map(({ row, ...item }) => item),
+                })
+              : change(
+                  (draft) => AX.confirmImport(modal.result, draft, identity),
+                  `已新增 ${modal.result.creates.length} 项、更新 ${modal.result.changes.length} 项；已有项目原分配保留，需由 Owner 复核并重新同步。`,
+                )
           }
         >
           <p className="small-text muted">
             {modal.filename} · {modal.result.rows} 行 ·{" "}
-            {modal.result.changes.length} 项变化 · {modal.result.unchanged}{" "}
-            项不变
+            {modal.result.creates.length} 项新增 · {modal.result.changes.length}{" "}
+            项修改 · {modal.result.unchanged} 项不变
           </p>
           {modal.result.errors.length ? (
             <div className="note-box error">
@@ -740,8 +918,8 @@ export function AdminPage() {
             </div>
           ) : (
             <div className="note-box warn">
-              {modal.result.changes.length
-                ? "确认后只更新下列项目的预算或归属；原经销商分配保留，受影响项目需复核并重新同步。"
+              {modal.result.changes.length || modal.result.creates.length
+                ? "确认后将新增和修改整批写入；任一行失败则全部不写入。已有项目的原经销商分配保留，受影响项目需复核并重新同步。"
                 : "导入配置与当前一致，无需写入。"}
             </div>
           )}
@@ -762,6 +940,7 @@ export function AdminPage() {
             <table>
               <thead>
                 <tr>
+                  <th>类型</th>
                   <th>Initiative / 部门</th>
                   <th>预算变化</th>
                   <th>Owner 变化</th>
@@ -770,6 +949,7 @@ export function AdminPage() {
               <tbody>
                 {modal.result.changes.map((row) => (
                   <tr key={row.id}>
+                    <td>修改</td>
                     <td>
                       <b>{row.name}</b>
                       <div className="table-sub">
@@ -786,18 +966,39 @@ export function AdminPage() {
                     </td>
                   </tr>
                 ))}
-                {!modal.result.changes.length && (
-                  <tr>
-                    <td colSpan={3}>
-                      <div className="empty">没有配置差异</div>
+                {modal.result.creates.map((row) => (
+                  <tr key={`create-${row.row}`}>
+                    <td>
+                      <b>新增</b>
+                    </td>
+                    <td>
+                      <b>{row.name}</b>
+                      <div className="table-sub">
+                        新项目 · {row.department} · {row.resourceType}
+                      </div>
+                    </td>
+                    <td>
+                      — → <b>{money(row.budget)}</b>
+                    </td>
+                    <td>
+                      — → <b>{row.ownerId}</b>
                     </td>
                   </tr>
-                )}
+                ))}
+                {!modal.result.changes.length &&
+                  !modal.result.creates.length && (
+                    <tr>
+                      <td colSpan={4}>
+                        <div className="empty">没有配置差异</div>
+                      </td>
+                    </tr>
+                  )}
               </tbody>
             </table>
           </div>
           <p className="small-text muted">
-            未列出的项目保持不变。确认时再次检查管理员身份、项目修订及原因配置。
+            新增行请将 Initiative
+            编号、修订号和状态留空；未列出的已有项目保持不变。确认时再次检查管理员身份、项目修订及人员配置。
           </p>
         </AdminDialog>
       )}

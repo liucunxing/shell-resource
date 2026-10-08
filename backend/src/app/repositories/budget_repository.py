@@ -19,18 +19,24 @@ class BudgetRepository(BaseRepository[BudgetDO]):
     async def list_for_workbench(
         self,
         *,
-        planning_year: int,
-        department: str,
-        sector: str,
+        planning_year: int | None,
+        department: str | None,
+        sector: str | None,
+        owner_email: str | None = None,
         initiative_keyword: str | None,
         resource_type_keyword: str | None,
         status: int | None,
     ) -> list[BudgetDO]:
         statement: Select[tuple[BudgetDO]] = select(BudgetDO).where(
-            BudgetDO.planning_year == planning_year,
-            BudgetDO.department == department,
-            BudgetDO.sector == sector,
         )
+        if planning_year is not None:
+            statement = statement.where(BudgetDO.planning_year == planning_year)
+        if department:
+            statement = statement.where(BudgetDO.department == department)
+        if sector:
+            statement = statement.where(BudgetDO.sector == sector)
+        if owner_email:
+            statement = statement.where(BudgetDO.owner_email == owner_email)
         if initiative_keyword:
             statement = statement.where(
                 BudgetDO.initiative_name.ilike(f"%{initiative_keyword.strip()}%")
@@ -48,16 +54,25 @@ class BudgetRepository(BaseRepository[BudgetDO]):
         self,
         *,
         budget_id: int,
-        planning_year: int,
-        department: str,
-        sector: str,
+        planning_year: int | None,
+        department: str | None,
+        sector: str | None,
+        owner_email: str | None = None,
+        for_update: bool = False,
     ) -> BudgetDO | None:
         statement = select(BudgetDO).where(
             BudgetDO.id == budget_id,
-            BudgetDO.planning_year == planning_year,
-            BudgetDO.department == department,
-            BudgetDO.sector == sector,
         )
+        if planning_year is not None:
+            statement = statement.where(BudgetDO.planning_year == planning_year)
+        if department:
+            statement = statement.where(BudgetDO.department == department)
+        if sector:
+            statement = statement.where(BudgetDO.sector == sector)
+        if owner_email:
+            statement = statement.where(BudgetDO.owner_email == owner_email)
+        if for_update:
+            statement = statement.with_for_update()
         return cast(BudgetDO | None, await self.session.scalar(statement))
 
     async def get_dashboard_totals(
@@ -91,18 +106,14 @@ class BudgetDistributorRepository(BaseRepository[BudgetDistributorDO]):
 
     @staticmethod
     def _belongs_to_budget(budget: BudgetDO) -> tuple[ColumnElement[bool], ...]:
-        return (
-            BudgetDistributorDO.planning_year == budget.planning_year,
-            BudgetDistributorDO.sector == budget.sector,
-            BudgetDistributorDO.department == budget.department,
-            BudgetDistributorDO.resource_type == budget.resource_type,
-            BudgetDistributorDO.initiative_name == budget.initiative_name,
-        )
+        return (BudgetDistributorDO.budget_id == budget.id,)
 
     async def list_for_budget(self, budget: BudgetDO) -> list[BudgetDistributorDO]:
-        statement = select(BudgetDistributorDO).where(
-            *self._belongs_to_budget(budget)
-        ).order_by(BudgetDistributorDO.distributor_code, BudgetDistributorDO.id)
+        statement = (
+            select(BudgetDistributorDO)
+            .where(*self._belongs_to_budget(budget))
+            .order_by(BudgetDistributorDO.distributor_code, BudgetDistributorDO.id)
+        )
         return list((await self.session.scalars(statement)).all())
 
     async def get_for_budget(
@@ -135,6 +146,7 @@ class BudgetDistributorRepository(BaseRepository[BudgetDistributorDO]):
         description: str | None,
     ) -> BudgetDistributorDO:
         entity = BudgetDistributorDO(
+            budget_id=budget.id,
             planning_year=budget.planning_year,
             sector=budget.sector,
             department=budget.department,

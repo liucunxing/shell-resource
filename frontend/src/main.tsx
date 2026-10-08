@@ -44,7 +44,7 @@ class ErrorBoundary extends Component<
     return this.state.error ? (
       <div className="fatal-error">
         <h1>页面暂时无法显示</h1>
-        <p>已保存的本机数据保留，请刷新后重试。</p>
+        <p>已保存的数据保留，请刷新后重试。</p>
         <button onClick={() => location.reload()}>重新加载</button>
       </div>
     ) : (

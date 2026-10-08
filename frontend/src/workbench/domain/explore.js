@@ -194,7 +194,7 @@ function rawData(state, identity, data, tab) {
     tabs,
     columns: [],
     rows: [],
-    notes: ["只读演示数据；金额单位未在源表标注，按原数值展示。"],
+    notes: ["单位：Vol 为 L；C3 与资源投入为 $；C3 / 资源为 %。"],
     allowExport: true,
   };
   const common = [
@@ -214,9 +214,13 @@ function rawData(state, identity, data, tab) {
     resourceType: i.resourceType,
   });
   if (tab === "allocations") {
+    const dealerNames = new Map(
+      data.dealers.map((dealer) => [String(dealer.id), dealer.name || ""]),
+    );
     model.columns = cols([
       ...common,
-      ["dealerId", "经销商 ID"],
+      ["dealerCode", "经销商编码"],
+      ["dealerName", "经销商名称"],
       ["amount", "分配金额"],
       ["note", "业务说明"],
     ]);
@@ -224,6 +228,8 @@ function rawData(state, identity, data, tab) {
       (i.rows || []).map((r) => ({
         ...base(i),
         dealerId: r.dealerId,
+        dealerCode: r.dealerId,
+        dealerName: dealerNames.get(String(r.dealerId)) || "—",
         amount: r.amount,
         note: r.note || "",
       })),
@@ -232,7 +238,7 @@ function rawData(state, identity, data, tab) {
   } else if (tab === "budgets") {
     model.columns = cols([
       ...common,
-      ["budget", "预算"],
+      ["budget", "预算 ($)"],
       ...(!admin
         ? [
             ["allocated", "已分配到经销商"],
@@ -270,7 +276,7 @@ function rawData(state, identity, data, tab) {
     );
     model.notes.push("每一行对应一条其他预算安排；同一 Initiative 可有多条。");
   } else {
-    const all = ["management", "admin"].includes(identity.role);
+    const all = ["management", "admin", "lead"].includes(identity.role);
     const resources = all
       ? ["MRD", "SP&A", "ICE Rebate", "Capex"]
       : identity.department === "MKT"
@@ -279,38 +285,41 @@ function rawData(state, identity, data, tab) {
           ? ["ICE Rebate"]
           : ["Capex"];
     const history = [
-      ["vol2024", "2024 Vol"],
-      ["c32024", "2024 C3"],
-      ["vol2025", "2025 Vol"],
-      ["c32025", "2025 C3"],
-      ["vol2026Ytd", "2026 1–8月 Vol"],
-      ["c32026Ytd", "2026 1–8月 C3"],
+      ["vol2024", "2024 Vol (L)"],
+      ["c32024", "2024 C3 ($)"],
+      ["vol2025", "2025 Vol (L)"],
+      ["c32025", "2025 C3 ($)"],
+      ["vol2026Ytd", "2026 1–8月 Vol (L)"],
+      ["c32026Ytd", "2026 1–8月 C3 ($)"],
     ];
     model.columns = cols([
-      ["dealerId", "经销商 ID"],
+      ["dealerCode", "经销商编码"],
+      ["dealerName", "经销商名称"],
       ...history,
-      ...resources.map((r) => ["resource_" + r, "2025 " + r]),
-      ["yield2025", "2025 C3 / 2025 资源"],
+      ...resources.map((r) => ["resource_" + r, "2025 " + r + " ($)"]),
+      ["yield2025", "2025 C3 / 2025 资源 (%)"],
       ...(all
         ? [
-            ["resource2025", "2025 资源总额"],
-            ["resourcePerLiter2025", "2025 资源 / 2025 Vol"],
+            ["resource2025", "2025 资源总额 ($)"],
+            ["resourcePerLiter2025", "2025 资源 / 2025 Vol ($/L)"],
           ]
         : []),
     ]);
     model.rows = data.dealers.map((d) => {
       const h = d.history || {},
-        row = { dealerId: d.id };
+        row = { dealerCode: d.id, dealerName: d.name || "—", dealerId: d.id };
       history.forEach(([k]) => (row[k] = h[k]));
       resources.forEach(
         (r) => (row["resource_" + r] = (h.resources2025 || {})[r]),
       );
       const ratio =
-        Number.isFinite(h.c32025) &&
-        Number.isFinite(h.resource2025) &&
-        h.resource2025 > 0
-          ? h.c32025 / h.resource2025
-          : null;
+        state.scenario === "api" && Number.isFinite(h.yield2025)
+          ? h.yield2025
+          : Number.isFinite(h.c32025) &&
+              Number.isFinite(h.resource2025) &&
+              h.resource2025 > 0
+            ? h.c32025 / h.resource2025
+            : null;
       row.yield2025 = Number.isFinite(ratio) ? ratio : null;
       if (all) {
         row.resource2025 = h.resource2025;
@@ -319,10 +328,10 @@ function rawData(state, identity, data, tab) {
       return row;
     });
     model.scopeLabel = `共享经销商 Vol / C3 · ${all ? "全资源" : identity.department + " 授权资源"}`;
-    model.basisLabel = "源历史数据 · 全部 60 家经销商（模拟）";
+    model.basisLabel = `源历史数据 · 共 ${data.dealers.length} 家经销商`;
     model.notes.push(
       "2024、2025 为全年；2026 为 1–8 月累计，不默认同比或年化。",
-      "整体 Yield 向所有角色只读开放，按 2025 C3 / 2025 总资源重新计算；分母无效时留空，不代表投入因果回报。",
+      "整体 Yield 向所有角色只读开放，按 2025 C3 / 2025 总资源重新计算，单位为 %；分母无效时留空，不代表投入因果回报。",
       all
         ? "全资源历史仅供只读参考。"
         : "资源明细仅显示本部门授权范围；整体 Yield 为授权共享指标，不额外展示跨部门资源总额或资源明细。",
@@ -361,10 +370,54 @@ function historyReference(state, identity, data, dealerId) {
     resources: model.columns
       .filter((c) => c.key.startsWith("resource_"))
       .map((c) => ({ label: c.label, amount: row[c.key] })),
-    allResources: ["management", "admin"].includes(identity.role),
+    allResources: ["management", "admin", "lead"].includes(identity.role),
   };
 }
+function filterHistoryRows(rows, { dealerCode = "", dealerName = "" } = {}) {
+  const codeQuery = String(dealerCode).trim().toLocaleLowerCase();
+  const nameQuery = String(dealerName).trim().toLocaleLowerCase();
+  return rows.filter(
+    (row) =>
+      (!codeQuery ||
+        String(row.dealerCode ?? "")
+          .toLocaleLowerCase()
+          .includes(codeQuery)) &&
+      (!nameQuery ||
+        String(row.dealerName ?? "")
+          .toLocaleLowerCase()
+          .includes(nameQuery)),
+  );
+}
+function filterBudgetRows(
+  rows,
+  { initiative = "", department = "", owner = "" } = {},
+) {
+  const initiativeQuery = String(initiative).trim().toLocaleLowerCase();
+  const departmentQuery = String(department).trim().toLocaleLowerCase();
+  const ownerQuery = String(owner).trim().toLocaleLowerCase();
+  return rows.filter(
+    (row) =>
+      (!initiativeQuery ||
+        String(row.initiative ?? "")
+          .toLocaleLowerCase()
+          .includes(initiativeQuery)) &&
+      (!departmentQuery ||
+        String(row.department ?? "")
+          .toLocaleLowerCase()
+          .includes(departmentQuery)) &&
+      (!ownerQuery ||
+        String(row.ownerId ?? "")
+          .toLocaleLowerCase()
+          .includes(ownerQuery)),
+  );
+}
 function filterRows(model, search = "") {
+  if (model.tab === "history" && search && typeof search === "object") {
+    return filterHistoryRows(model.rows, search);
+  }
+  if (model.tab === "budgets" && search && typeof search === "object") {
+    return filterBudgetRows(model.rows, search);
+  }
   const q = String(search).trim().toLocaleLowerCase();
   return q
     ? model.rows.filter((r) =>
@@ -415,6 +468,8 @@ export default {
   rawData,
   historyReference,
   renderRaw,
+  filterHistoryRows,
+  filterBudgetRows,
   filterRows,
   csv,
 };

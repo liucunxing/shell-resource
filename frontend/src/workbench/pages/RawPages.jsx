@@ -7,22 +7,47 @@ export function RawPage() {
   const { state, identity, data, rawRequest, notify } = useWorkbench();
   const [tab, setTab] = useState(""),
     [search, setSearch] = useState(""),
+    [dealerCodeSearch, setDealerCodeSearch] = useState(""),
+    [dealerNameSearch, setDealerNameSearch] = useState(""),
+    [initiativeSearch, setInitiativeSearch] = useState(""),
+    [departmentSearch, setDepartmentSearch] = useState(""),
+    [ownerSearch, setOwnerSearch] = useState(""),
     [page, setPage] = useState(1);
   useEffect(() => {
     if (rawRequest) {
       setTab(rawRequest.tab || "");
-      setSearch(rawRequest.search || "");
+      const specificTab = ["history", "budgets"].includes(rawRequest.tab);
+      setSearch(specificTab ? "" : rawRequest.search || "");
+      setDealerCodeSearch(
+        rawRequest.tab === "history" ? rawRequest.search || "" : "",
+      );
+      setDealerNameSearch("");
+      setInitiativeSearch(
+        rawRequest.tab === "budgets" ? rawRequest.search || "" : "",
+      );
+      setDepartmentSearch("");
+      setOwnerSearch("");
       setPage(1);
     }
   }, [rawRequest]);
   const model = A.rawData(state, identity, data, tab || undefined),
-    rows = A.filterRows(model, search),
+    filters =
+      model.tab === "history"
+        ? { dealerCode: dealerCodeSearch, dealerName: dealerNameSearch }
+        : model.tab === "budgets"
+          ? {
+              initiative: initiativeSearch,
+              department: departmentSearch,
+              owner: ownerSearch,
+            }
+          : search,
+    rows = A.filterRows(model, filters),
     pages = Math.max(1, Math.ceil(rows.length / 15)),
     current = Math.min(page, pages);
   const exportCsv = () => {
     try {
       const url = URL.createObjectURL(
-        new Blob([A.csv(model, search)], { type: "text/csv;charset=utf-8" }),
+        new Blob([A.csv(model, filters)], { type: "text/csv;charset=utf-8" }),
       );
       const link = document.createElement("a");
       link.href = url;
@@ -62,24 +87,98 @@ export function RawPage() {
               aria-pressed={t.id === model.tab}
               onClick={() => {
                 setTab(t.id);
+                setSearch("");
+                setDealerCodeSearch("");
+                setDealerNameSearch("");
+                setInitiativeSearch("");
+                setDepartmentSearch("");
+                setOwnerSearch("");
                 setPage(1);
               }}
             >
               {t.label}
             </button>
           ))}
-          <label>
-            搜索{" "}
-            <input
-              type="search"
-              value={search}
-              placeholder="搜索当前权限内的数据"
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-            />
-          </label>
+          {model.tab === "history" ? (
+            <div className="raw-history-search">
+              <label>
+                经销商编码
+                <input
+                  type="search"
+                  value={dealerCodeSearch}
+                  placeholder="模糊搜索经销商编码"
+                  onChange={(e) => {
+                    setDealerCodeSearch(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </label>
+              <label>
+                经销商名称
+                <input
+                  type="search"
+                  value={dealerNameSearch}
+                  placeholder="模糊搜索经销商名称"
+                  onChange={(e) => {
+                    setDealerNameSearch(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </label>
+            </div>
+          ) : model.tab === "budgets" ? (
+            <div className="raw-budget-search">
+              <label>
+                Initiative
+                <input
+                  type="search"
+                  value={initiativeSearch}
+                  placeholder="模糊搜索 Initiative"
+                  onChange={(e) => {
+                    setInitiativeSearch(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </label>
+              <label>
+                部门
+                <input
+                  type="search"
+                  value={departmentSearch}
+                  placeholder="模糊搜索部门"
+                  onChange={(e) => {
+                    setDepartmentSearch(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </label>
+              <label>
+                Owner
+                <input
+                  type="search"
+                  value={ownerSearch}
+                  placeholder="模糊搜索 Owner"
+                  onChange={(e) => {
+                    setOwnerSearch(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </label>
+            </div>
+          ) : (
+            <label>
+              搜索{" "}
+              <input
+                type="search"
+                value={search}
+                placeholder="搜索当前权限内的数据"
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </label>
+          )}
         </div>
         <div className="table-scroll">
           <table>
@@ -175,7 +274,7 @@ export function AboutPage() {
     ["数据来源", data.metadata.sourceFile],
     ["2027 计划", "75 项 Initiative / 600 条分配 / 总预算 6,402,000"],
     ["金额单位", "源文件未标注；原值保留，不默认解释为元、千元或万元。"],
-    ["经销商", "60 个编码。没有源名称，不补造名称。"],
+    ["经销商", "展示历史参考数据提供的经销商编码及名称；缺失名称不补造。"],
     ["2024 / 2025", "全年历史 Vol 与 C3；2025 资源按四类明细重新核对加总。"],
     ["2026", "1—8 月累计为演示假设；不直接计算全年同比、不年化。"],
     [
@@ -187,10 +286,7 @@ export function AboutPage() {
       "历史去重",
       "经销商历史仅保存一份，不复制到多个 Initiative / Sector 后加总。",
     ],
-    [
-      "未提供的数据",
-      "2027 预计 Vol / C3、实际执行支出、经销商名称均保持未提供。",
-    ],
+    ["未提供的数据", "2027 预计 Vol / C3、实际执行支出均保持未提供。"],
   ];
   return (
     <>
