@@ -84,6 +84,35 @@ class AdminRepository:
             .execution_options(populate_existing=True)
         )
 
+    async def locked_enabled_users_by_department(
+        self, department: str
+    ) -> Sequence[UserPermissionDO]:
+        return (
+            await self.session.scalars(
+                select(UserPermissionDO)
+                .where(
+                    UserPermissionDO.department == department,
+                    UserPermissionDO.enabled.is_(True),
+                )
+                .with_for_update()
+            )
+        ).all()
+
+    async def lead_sectors_by_department(self) -> dict[str, list[str]]:
+        leads = (
+            await self.session.scalars(
+                select(UserPermissionDO).where(
+                    UserPermissionDO.role == "lead",
+                    UserPermissionDO.enabled.is_(True),
+                    UserPermissionDO.department.is_not(None),
+                )
+            )
+        ).all()
+        result: dict[str, set[str]] = {}
+        for lead in leads:
+            result.setdefault(lead.department, set()).update(lead.sector or [])
+        return {department: sorted(sectors) for department, sectors in result.items()}
+
     async def user_has_budgets(self, email: str) -> bool:
         return bool(await self.session.scalar(select(self._budget_for_email(email))))
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   departmentAfterRoleChange,
+  ownerSectorOptions,
   sectorAfterRoleChange,
   toggleSectorSelection,
   userDepartmentOptions,
@@ -29,6 +30,14 @@ describe("管理员人员业务线选择", () => {
     expect(sectorAfterRoleChange("lead", ["PCMO", "CRTO", "B2B", "OEM"])).toEqual([
       "PCMO", "CRTO", "B2B", "OEM",
     ]);
+  });
+
+  it("Owner 仅可选择本部门负责人已覆盖的业务线", () => {
+    expect(ownerSectorOptions("ICE", { ICE: ["PCMO", "CRTO"] })).toEqual([
+      "PCMO",
+      "CRTO",
+    ]);
+    expect(ownerSectorOptions("MKT", { ICE: ["PCMO"] })).toEqual([]);
   });
 
   it("Owner 点击业务线会直接切换为单选，负责人可切换多选", () => {

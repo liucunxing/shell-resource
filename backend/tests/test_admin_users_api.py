@@ -28,6 +28,26 @@ async def api():
             enabled=True,
         )
     )
+    seed.add(
+        UserPermissionDO(
+            email="ice-lead@example.com",
+            display_name="ICE负责人",
+            role="lead",
+            department="ICE",
+            sector=["PCMO", "CRTO"],
+            enabled=True,
+        )
+    )
+    seed.add(
+        UserPermissionDO(
+            email="mkt-lead@example.com",
+            display_name="MKT负责人",
+            role="lead",
+            department="MKT",
+            sector=["PCMO"],
+            enabled=True,
+        )
+    )
     await seed.commit()
     await seed.close()
 
@@ -115,7 +135,7 @@ async def test_create_search_edit_disable_and_delete_user(api):
     assert changed.json()["data"]["enabled"] is False
     assert changed.json()["data"]["sector"] == ["CRTO", "OEM"]
     listed = await client.get("admin/users", headers=headers(), params={"role": "lead"})
-    assert [item["email"] for item in listed.json()["data"]["items"]] == ["new@example.com"]
+    assert "new@example.com" in [item["email"] for item in listed.json()["data"]["items"]]
     sector_query = await client.get("admin/users", headers=headers(), params={"sector": "OEM"})
     assert [item["email"] for item in sector_query.json()["data"]["items"]] == ["new@example.com"]
 
@@ -149,6 +169,36 @@ async def test_email_is_unique_and_user_fields_are_validated(api):
     ):
         response = await client.post("admin/users", headers=headers(), json=bad)
         assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_owner_sector_must_be_covered_by_an_enabled_department_lead(api):
+    client, engine = api
+    rejected = await client.post(
+        "admin/users", headers=headers(), json=payload(sector=["B2B"])
+    )
+    assert rejected.status_code == 422
+    assert "未被任何启用的部门负责人覆盖" in rejected.json()["msg"]
+
+    async with AsyncSession(engine) as session:
+        lead = await session.scalar(
+            select(UserPermissionDO).where(UserPermissionDO.email == "mkt-lead@example.com")
+        )
+        lead_id = lead.id
+    changed = await client.put(
+        f"admin/users/{lead_id}",
+        headers=headers(),
+        json={
+            "email": "mkt-lead@example.com",
+            "display_name": "MKT负责人",
+            "role": "lead",
+            "department": "MKT",
+            "sector": ["CRTO"],
+            "enabled": True,
+        },
+    )
+    assert changed.status_code == 422
+    assert "未被任何启用的部门负责人覆盖" in changed.json()["msg"]
 
 
 @pytest.mark.asyncio

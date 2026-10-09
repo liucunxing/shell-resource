@@ -24,6 +24,8 @@ export const toggleSectorSelection = (role, current, sector) => {
   if (current.includes(sector)) return current.filter((value) => value !== sector);
   return role === "owner" ? [sector] : [...current, sector];
 };
+export const ownerSectorOptions = (department, leadSectorsByDepartment = {}) =>
+  leadSectorsByDepartment[department] || [];
 
 function UserDialog({ title, children, onClose, onConfirm, confirmLabel, saving }) {
   const ref = useRef(null);
@@ -71,6 +73,10 @@ export function AdminUsersPanel() {
   const [form, setForm] = useState(EMPTY_USER);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
+  const ownerAllowedSectors = ownerSectorOptions(
+    form.department,
+    result.lead_sectors_by_department,
+  );
 
   useEffect(() => {
     let active = true;
@@ -117,6 +123,10 @@ export function AdminUsersPanel() {
       }
       if (form.role === "owner" && form.sector.length !== 1) {
         setFormError("Owner 必须选择一条业务线。");
+        return;
+      }
+      if (form.role === "owner" && !ownerAllowedSectors.includes(form.sector[0])) {
+        setFormError("Owner 的业务线必须在本部门负责人的业务线范围内。");
         return;
       }
       if (form.role === "lead" && !(form.sector.length >= 1 && form.sector.length <= 4)) {
@@ -277,7 +287,21 @@ export function AdminUsersPanel() {
           </label>
           {["owner", "lead"].includes(form.role) && <label className="form-field">部门
             <select value={form.department}
-              onChange={(event) => setForm({ ...form, department: event.target.value })}>
+              onChange={(event) => {
+                const department = event.target.value;
+                const allowedSectors = ownerSectorOptions(
+                  department,
+                  result.lead_sectors_by_department,
+                );
+                setForm({
+                  ...form,
+                  department,
+                  sector:
+                    form.role === "owner" && !allowedSectors.includes(form.sector[0])
+                      ? []
+                      : form.sector,
+                });
+              }}>
               {userDepartmentOptions(form.department).map((value) => (
                 <option key={value} value={value}>{value}</option>
               ))}
@@ -290,13 +314,18 @@ export function AdminUsersPanel() {
                 type="button"
                 className={`sector-choice${form.sector.includes(value) ? " is-selected" : ""}`}
                 aria-pressed={form.sector.includes(value)}
+                disabled={form.role === "owner" && !ownerAllowedSectors.includes(value)}
                 onClick={() => setForm({
                   ...form,
                   sector: toggleSectorSelection(form.role, form.sector, value),
                 })}
               >{value}</button>)}
             </div>
-            <small>{form.role === "owner" ? "Owner 仅可选择一条业务线。" : "部门负责人可选择一至四条业务线。"}</small>
+            <small>{form.role === "owner"
+              ? ownerAllowedSectors.length
+                ? `Owner 仅可选择部门负责人已覆盖的业务线：${ownerAllowedSectors.join("、")}。`
+                : "请先为该部门配置启用的部门负责人及其业务线。"
+              : "部门负责人可选择一至四条业务线。"}</small>
           </div>}
           <label className="user-enabled-field">
             <input type="checkbox" checked={form.enabled}
