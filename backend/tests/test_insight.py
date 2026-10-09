@@ -201,7 +201,7 @@ def test_success_uses_authorized_yield_and_marks_changed_basis_stale(monkeypatch
             {
                 "id": "D1",
                 "history": {
-                    "yield2025": 1.25,
+                    "yield": 1.25,
                     "resources2025": {"hidden": 999},
                     "vol2024": 10,
                     "vol2025": 12,

@@ -42,6 +42,7 @@ class AdminService(WorkspaceService):
             "display_name": item.display_name,
             "role": item.role,
             "department": item.department,
+            "sector": list(item.sector or []),
             "enabled": item.enabled,
             "has_initiatives": has_initiatives,
         }
@@ -53,6 +54,7 @@ class AdminService(WorkspaceService):
         name: str | None,
         role: str | None,
         department: str | None,
+        sector: str | None,
         limit: int,
         offset: int,
     ) -> dict:
@@ -62,6 +64,7 @@ class AdminService(WorkspaceService):
             name=name,
             role=role,
             department=department.strip().upper() if department else None,
+            sector=sector,
             limit=limit,
             offset=offset,
         )
@@ -70,6 +73,7 @@ class AdminService(WorkspaceService):
             "total": total,
             "limit": limit,
             "offset": offset,
+            "lead_sectors_by_department": await self.admin_repository.lead_sectors_by_department(),
         }
 
     async def create_user(self, payload: AdminUserDTO) -> dict:
@@ -77,6 +81,7 @@ class AdminService(WorkspaceService):
         try:
             if await self.admin_repository.user_by_email(payload.email):
                 raise HTTPException(status_code=409, detail="邮箱已存在")
+            await self._validate_department_sector_coverage(payload)
             user = UserPermissionDO(**payload.model_dump())
             self.admin_repository.add(user)
             await self.session.flush()
@@ -107,6 +112,9 @@ class AdminService(WorkspaceService):
             duplicate = await self.admin_repository.user_by_email(payload.email)
             if duplicate is not None and duplicate.id != user.id:
                 raise HTTPException(status_code=409, detail="邮箱已存在")
+            await self._validate_department_sector_coverage(
+                payload, replacing_user_id=user.id, previous_department=user.department
+            )
             before = self._user_record(user)
             for field, value in payload.model_dump().items():
                 setattr(user, field, value)
@@ -124,6 +132,48 @@ class AdminService(WorkspaceService):
             await self.session.rollback()
             raise
         return self._user_record(user)
+
+    async def _validate_department_sector_coverage(
+        self,
+        payload: AdminUserDTO,
+        *,
+        replacing_user_id: int | None = None,
+        previous_department: str | None = None,
+    ) -> None:
+        """Ensure every enabled Owner sector is covered by an enabled Lead in that department."""
+        departments = {
+            department
+            for department in (payload.department, previous_department)
+            if department
+        }
+        for department in departments:
+            users = list(await self.admin_repository.locked_enabled_users_by_department(department))
+            if replacing_user_id is not None:
+                users = [user for user in users if user.id != replacing_user_id]
+            if payload.enabled and payload.department == department:
+                users.append(
+                    UserPermissionDO(
+                        email=payload.email,
+                        display_name=payload.display_name,
+                        role=payload.role,
+                        department=payload.department,
+                        sector=payload.sector,
+                        enabled=True,
+                    )
+                )
+            lead_sectors = {
+                sector for user in users if user.role == "lead" for sector in (user.sector or [])
+            }
+            for owner in (user for user in users if user.role == "owner"):
+                uncovered = sorted(set(owner.sector or []) - lead_sectors)
+                if uncovered:
+                    raise HTTPException(
+                        status_code=422,
+                        detail=(
+                            f"部门 {department} 的 Owner 业务线 {', '.join(uncovered)} "
+                            "未被任何启用的部门负责人覆盖"
+                        ),
+                    )
 
     async def delete_user(self, user_id: int) -> dict:
         self._admin()

@@ -4,6 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import (
+    ARRAY,
     JSON,
     BigInteger,
     DateTime,
@@ -36,6 +37,9 @@ class UserPermissionDO(TimestampMixin, BaseDO):
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(32), nullable=False)
     department: Mapped[str | None] = mapped_column(String(32))
+    sector: Mapped[list[str] | None] = mapped_column(
+        ARRAY(String(32)).with_variant(JSON(), "sqlite")
+    )
     enabled: Mapped[bool] = mapped_column(nullable=False, default=True)
 
 

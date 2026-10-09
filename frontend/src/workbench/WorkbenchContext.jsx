@@ -1,4 +1,5 @@
 import {
+  useCallback,
   createContext,
   useContext,
   useEffect,
@@ -101,7 +102,11 @@ function normalizeWorkspace(payload) {
     state,
     identity,
     users: payload.users || [],
-    data: { ...(payload.data || {}), dealers: payload.data?.dealers || [] },
+    data: {
+      ...(payload.data || {}),
+      dealers: payload.data?.dealers || [],
+      distributorDirectory: [],
+    },
   };
 }
 
@@ -124,7 +129,9 @@ const Context = createContext(null);
 
 export function WorkbenchProvider({ children }) {
   const [state, setState] = useState(demoMode ? loadDemo : blankState);
-  const [data, setData] = useState(demoMode ? DATA : { dealers: [] });
+  const [data, setData] = useState(
+    demoMode ? DATA : { dealers: [], distributorDirectory: [] },
+  );
   const [identity, setIdentityState] = useState(demoMode ? roles[0] : null);
   const [users, setUsers] = useState([]);
   const [serverRevisions, setServerRevisions] = useState({});
@@ -153,6 +160,11 @@ export function WorkbenchProvider({ children }) {
   const returnFocus = useRef(null);
   const sessionEpoch = useRef(0);
   const pendingDrafts = useRef(new Set());
+  const directoryLoaded = useRef(demoMode);
+  const directoryRequest = useRef(null);
+  const [directoryStatus, setDirectoryStatus] = useState(
+    demoMode ? "ready" : "idle",
+  );
 
   const replaceState = (next) => {
     stateRef.current = next;
@@ -172,7 +184,10 @@ export function WorkbenchProvider({ children }) {
     sessionEpoch.current += 1;
     pendingDrafts.current.clear();
     replaceState(blankState());
-    setData({ dealers: [] });
+    setData({ dealers: [], distributorDirectory: [] });
+    directoryLoaded.current = demoMode;
+    directoryRequest.current = null;
+    setDirectoryStatus(demoMode ? "ready" : "idle");
     setIdentityState(null);
     setUsers([]);
     setServerRevisions({});
@@ -189,6 +204,9 @@ export function WorkbenchProvider({ children }) {
     const epoch = ++sessionEpoch.current;
     pendingDrafts.current.clear();
     setLoading(true);
+    directoryLoaded.current = demoMode;
+    directoryRequest.current = null;
+    setDirectoryStatus(demoMode ? "ready" : "idle");
     setStorageWarning("");
     try {
       const workspace = normalizeWorkspace(await api.workspace());
@@ -217,6 +235,36 @@ export function WorkbenchProvider({ children }) {
       if (epoch === sessionEpoch.current) setLoading(false);
     }
   };
+
+  const loadDistributorDirectory = useCallback(async ({ force = false } = {}) => {
+    if (demoMode) return true;
+    if (directoryLoaded.current && !force) return true;
+    if (directoryRequest.current && !force) return directoryRequest.current;
+    const epoch = sessionEpoch.current;
+    setDirectoryStatus("loading");
+    const request = (async () => {
+      try {
+        const dealers = await api.distributors();
+        if (epoch !== sessionEpoch.current) return false;
+        setData((current) => ({
+          ...current,
+          distributorDirectory: Array.isArray(dealers) ? dealers : [],
+        }));
+        directoryLoaded.current = true;
+        setDirectoryStatus("ready");
+        return true;
+      } catch (_) {
+        if (epoch !== sessionEpoch.current) return false;
+        directoryLoaded.current = false;
+        setDirectoryStatus("error");
+        return false;
+      } finally {
+        if (directoryRequest.current === request) directoryRequest.current = null;
+      }
+    })();
+    directoryRequest.current = request;
+    return request;
+  }, []);
 
   useEffect(() => {
     refresh();
@@ -573,6 +621,8 @@ export function WorkbenchProvider({ children }) {
     devEmail,
     setDevelopmentEmail,
     loading,
+    directoryStatus,
+    loadDistributorDirectory,
     refresh,
     dirtyIds,
     savedForSyncIds,

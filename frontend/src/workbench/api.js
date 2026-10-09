@@ -55,6 +55,7 @@ export async function request(path, options = {}) {
 }
 
 export const workspace = () => request(`/workspace?planning_year=${planningYear}`);
+export const distributors = () => request("/distributors");
 export const saveDraft = (id, item, expectedRevision = item.revision) =>
   request(`/initiatives/${encodeURIComponent(id)}/draft`, {
     method: "PUT",
@@ -90,7 +91,7 @@ export const importBudgets = (planningYearValue, updates, creates) =>
   });
 export const listAdminUsers = (filters = {}, limit = 20, offset = 0) => {
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-  for (const key of ["email", "name", "role", "department"])
+  for (const key of ["email", "name", "role", "department", "sector"])
     if (filters[key]?.trim())
       params.set(key, key === "department" ? filters[key].trim().toUpperCase() : filters[key].trim());
   return request(`/admin/users?${params}`);

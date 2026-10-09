@@ -12,27 +12,23 @@ class ReferenceRepository:
         self.session = session
 
     async def list_dealers(
-        self, dealer_ids: list[str] | None = None
+        self,
+        dealer_ids: list[str] | None = None,
+        sectors: tuple[str, ...] | None = None,
     ) -> Sequence[RowMapping]:
         statement = select(distributor_sellin_resource_history).distinct()
         if dealer_ids is not None:
             statement = statement.where(
                 distributor_sellin_resource_history.c.distributor_code.in_(dealer_ids)
             )
+        if sectors is not None:
+            if not sectors:
+                return []
+            statement = statement.where(distributor_sellin_resource_history.c.sector.in_(sectors))
         result = await self.session.execute(
             statement.order_by(distributor_sellin_resource_history.c.distributor_code)
         )
         return result.mappings().all()
-
-    async def list_directory(self) -> Sequence[RowMapping]:
-        statement = select(
-            distributor_sellin_resource_history.c.distributor_code,
-            distributor_sellin_resource_history.c.distributor_name,
-        )
-        statement = statement.distinct().order_by(
-            distributor_sellin_resource_history.c.distributor_code
-        )
-        return (await self.session.execute(statement)).mappings().all()
 
     async def count_dealers(self) -> int:
         statement = select(func.count()).select_from(distributor_sellin_resource_history)

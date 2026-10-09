@@ -15,21 +15,31 @@ from app.controllers.workbench_controller import router
 from app.db.session import get_db_session
 from app.models.do.budget import BudgetDO
 from app.models.do.workspace import BudgetChangeLogDO, UserPermissionDO, WorkspaceConfigDO
+from app.repositories.distributor_directory_repository import DatabricksDistributorRepository
 from test_workspace import _session
 
 
 @pytest_asyncio.fixture
-async def api():
+async def api(monkeypatch):
+    async def list_distributors(_self, _sectors):
+        return [
+            {"distributor_code": "d1", "distributor_name": "Dealer 1"},
+            {"distributor_code": "d2", "distributor_name": "Dealer 2"},
+        ]
+
+    monkeypatch.setattr(
+        DatabricksDistributorRepository, "list_distributors", list_distributors
+    )
     seed = await _session()
     engine = seed.bind
-    for index, (email, role, dept) in enumerate(
+    for index, (email, role, dept, sectors) in enumerate(
         [
-            ("b@example.com", "owner", "MKT"),
-            ("lead@example.com", "lead", "MKT"),
-            ("management@example.com", "management", None),
-            ("admin@example.com", "admin", None),
-            ("bad@example.com", "unknown", None),
-            ("missing@example.com", "owner", None),
+            ("b@example.com", "owner", "MKT", ["PCMO"]),
+            ("lead@example.com", "lead", "MKT", ["PCMO"]),
+            ("management@example.com", "management", None, None),
+            ("admin@example.com", "admin", None, None),
+            ("bad@example.com", "unknown", None, None),
+            ("missing@example.com", "owner", None, None),
         ],
         2,
     ):
@@ -40,6 +50,7 @@ async def api():
                 role=role,
                 display_name=role,
                 department=dept,
+                sector=sectors,
                 enabled=True,
             )
         )
@@ -93,13 +104,22 @@ async def test_http_auth_and_role_boundaries(api):
 
 
 @pytest.mark.asyncio
-async def test_empty_draft_can_choose_dealer_without_unscoped_history(api):
+async def test_owner_loads_sector_history_and_distributor_directory_separately(api):
     client, _ = api
     response = await client.get("workspace?planning_year=2027", headers=headers())
     assert response.status_code == 200
     dealers = response.json()["data"]["data"]["dealers"]
-    assert any(item["id"] == "d1" for item in dealers)
-    assert all(item["history"] == {} for item in dealers)
+    assert [dealer["id"] for dealer in dealers] == ["d1", "d2"]
+
+    response = await client.get("distributors", headers=headers())
+    assert response.status_code == 200
+    assert response.json()["data"] == [
+        {"id": "d1", "name": "Dealer 1"},
+        {"id": "d2", "name": "Dealer 2"},
+    ]
+    assert (
+        await client.get("distributors", headers=headers("lead@example.com"))
+    ).status_code == 403
 
 
 @pytest.mark.asyncio

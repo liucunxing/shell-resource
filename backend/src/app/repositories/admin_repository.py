@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.do.base import BaseDO
@@ -39,6 +39,7 @@ class AdminRepository:
         name: str | None,
         role: str | None,
         department: str | None,
+        sector: str | None,
         limit: int,
         offset: int,
     ) -> tuple[list[tuple[UserPermissionDO, bool]], int]:
@@ -55,6 +56,8 @@ class AdminRepository:
             conditions.append(UserPermissionDO.role == role)
         if department:
             conditions.append(UserPermissionDO.department == department)
+        if sector:
+            conditions.append(cast(UserPermissionDO.sector, String).contains(sector))
         total = await self.session.scalar(
             select(func.count()).select_from(UserPermissionDO).where(*conditions)
         )
@@ -80,6 +83,35 @@ class AdminRepository:
             .with_for_update()
             .execution_options(populate_existing=True)
         )
+
+    async def locked_enabled_users_by_department(
+        self, department: str
+    ) -> Sequence[UserPermissionDO]:
+        return (
+            await self.session.scalars(
+                select(UserPermissionDO)
+                .where(
+                    UserPermissionDO.department == department,
+                    UserPermissionDO.enabled.is_(True),
+                )
+                .with_for_update()
+            )
+        ).all()
+
+    async def lead_sectors_by_department(self) -> dict[str, list[str]]:
+        leads = (
+            await self.session.scalars(
+                select(UserPermissionDO).where(
+                    UserPermissionDO.role == "lead",
+                    UserPermissionDO.enabled.is_(True),
+                    UserPermissionDO.department.is_not(None),
+                )
+            )
+        ).all()
+        result: dict[str, set[str]] = {}
+        for lead in leads:
+            result.setdefault(lead.department, set()).update(lead.sector or [])
+        return {department: sorted(sectors) for department, sectors in result.items()}
 
     async def user_has_budgets(self, email: str) -> bool:
         return bool(await self.session.scalar(select(self._budget_for_email(email))))

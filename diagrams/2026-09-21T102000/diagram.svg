@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1040" viewBox="0 0 1600 1040">
+  <defs>
+    <linearGradient id="head" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1F2329"/><stop offset="1" stop-color="#5178C6"/></linearGradient>
+    <linearGradient id="login" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#EAE2FE"/><stop offset="1" stop-color="#F0F4FC"/></linearGradient>
+    <filter id="shadow"><feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#1F2329" flood-opacity="0.12"/></filter>
+  </defs>
+  <rect x="0" y="0" width="1600" height="1040" rx="24" fill="#F8FAFC"/>
+  <path d="M0 0H1600V128H0Z" fill="url(#head)"/>
+  <circle cx="1470" cy="-22" r="112" fill="#FFFFFF" opacity="0.08"/><circle cx="1372" cy="62" r="44" fill="#FFFFFF" opacity="0.1"/>
+  <text x="72" y="62" font-family="Noto Sans SC, sans-serif" font-size="32" font-weight="700" fill="#FFFFFF">Shell Forecast · 登录与权限方案 V1</text>
+  <text x="72" y="96" font-family="Noto Sans SC, sans-serif" font-size="16" fill="#DCE6F7">角色决定“能做什么” · 部门与项目归属决定“能操作哪些数据” · 状态决定“当前能不能改”</text>
+
+  <rect x="72" y="160" width="1456" height="108" rx="18" fill="url(#login)" stroke="#8569CB" stroke-width="2" filter="url(#shadow)"/>
+  <circle cx="122" cy="214" r="28" fill="#8569CB"/><text x="122" y="222" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="27" font-weight="700" fill="#FFFFFF">✓</text>
+  <text x="170" y="205" font-family="Noto Sans SC, sans-serif" font-size="21" font-weight="700" fill="#1F2329">第一版登录：预登记邮箱直接进入</text>
+  <text x="170" y="236" font-family="Noto Sans SC, sans-serif" font-size="15" fill="#646A73">不设密码 / 不接 SSO；后端按邮箱加载用户、角色、部门与项目归属</text>
+  <polygon points="1240,180 1270,180 1286,208 1270,236 1240,236 1224,208" fill="#FEF1CE" stroke="#D4B45B" stroke-width="2"/>
+  <text x="1308" y="204" font-family="Noto Sans SC, sans-serif" font-size="16" font-weight="700" fill="#1F2329">已知限制</text>
+  <text x="1308" y="224" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#646A73">邮箱可被冒用；日志仅记录</text>
+  <text x="1308" y="244" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#646A73">登录账号</text>
+
+  <text x="72" y="320" font-family="Noto Sans SC, sans-serif" font-size="22" font-weight="700" fill="#1F2329">角色与数据范围</text>
+  <text x="72" y="347" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#646A73">一个人可按需要兼任角色；“角色编号”用于配置，不以数字大小判断权限。</text>
+
+  <path d="M210 384H1390" fill="none" stroke="#BBBFC4" stroke-width="3"/>
+  <circle cx="210" cy="384" r="8" fill="#5178C6"/><circle cx="605" cy="384" r="8" fill="#8569CB"/><circle cx="995" cy="384" r="8" fill="#509863"/><circle cx="1390" cy="384" r="8" fill="#D25D5A"/>
+
+  <g filter="url(#shadow)">
+    <rect x="72" y="410" width="276" height="238" rx="18" fill="#F0F4FC" stroke="#5178C6" stroke-width="2"/>
+    <circle cx="112" cy="452" r="22" fill="#5178C6"/><text x="112" y="459" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="17" font-weight="700" fill="#FFFFFF">0</text>
+    <text x="148" y="458" font-family="Noto Sans SC, sans-serif" font-size="20" font-weight="700" fill="#1F2329">管理员 ADMIN</text>
+    <path d="M98 485H322" stroke="#5178C6" stroke-width="2" opacity="0.35"/>
+    <text x="98" y="518" font-family="Noto Sans SC, sans-serif" font-size="15" fill="#1F2329">全局范围 · 系统配置</text>
+    <text x="98" y="552" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#646A73">• 管理账号、角色、部门与权限</text><text x="98" y="579" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#646A73">• 配置 Initiative 负责人</text><text x="98" y="606" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#646A73">• 全量查看；代操作须留痕</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="405" y="410" width="276" height="238" rx="18" fill="#EAE2FE" stroke="#8569CB" stroke-width="2"/>
+    <circle cx="445" cy="452" r="22" fill="#8569CB"/><text x="445" y="459" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="17" font-weight="700" fill="#FFFFFF">1</text>
+    <text x="481" y="458" font-family="Noto Sans SC, sans-serif" font-size="20" font-weight="700" fill="#1F2329">大老板 FINAL APPROVER</text>
+    <path d="M431 485H655" stroke="#8569CB" stroke-width="2" opacity="0.35"/>
+    <text x="431" y="518" font-family="Noto Sans SC, sans-serif" font-size="15" fill="#1F2329">全公司审批范围</text>
+    <text x="431" y="552" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#646A73">• 查看各部门已提交方案</text><text x="431" y="579" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#646A73">• 退回部门补充或调整</text><text x="431" y="606" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#646A73">• 最终审批并定稿</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="738" y="410" width="276" height="238" rx="18" fill="#DFF5E5" stroke="#509863" stroke-width="2"/>
+    <circle cx="778" cy="452" r="22" fill="#509863"/><text x="778" y="459" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="17" font-weight="700" fill="#FFFFFF">2</text>
+    <text x="814" y="458" font-family="Noto Sans SC, sans-serif" font-size="20" font-weight="700" fill="#1F2329">部门负责人 DEPT LEAD</text>
+    <path d="M764 485H988" stroke="#509863" stroke-width="2" opacity="0.35"/>
+    <text x="764" y="518" font-family="Noto Sans SC, sans-serif" font-size="15" fill="#1F2329">本部门范围</text>
+    <text x="764" y="552" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#646A73">• 查看部门 Initiative 与历史</text><text x="764" y="579" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#646A73">• 复核、退回填报内容</text><text x="764" y="606" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#646A73">• 提交本部门方案</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="1071" y="410" width="385" height="238" rx="18" fill="#FEE3E2" stroke="#D25D5A" stroke-width="2"/>
+    <circle cx="1111" cy="452" r="22" fill="#D25D5A"/><text x="1111" y="459" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="17" font-weight="700" fill="#FFFFFF">3</text>
+    <text x="1147" y="458" font-family="Noto Sans SC, sans-serif" font-size="20" font-weight="700" fill="#1F2329">执行人 EXECUTOR</text>
+    <path d="M1097 485H1430" stroke="#D25D5A" stroke-width="2" opacity="0.35"/>
+    <text x="1097" y="518" font-family="Noto Sans SC, sans-serif" font-size="15" fill="#1F2329">仅本人负责的 Initiative</text>
+    <text x="1097" y="552" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#646A73">• 只查看、填写、提交分配给自己的项目</text><text x="1097" y="579" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#646A73">• 可查看本人历史数据</text><text x="1097" y="606" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#D25D5A">× 不可修改同部门其他人的项目</text>
+  </g>
+
+  <text x="72" y="706" font-family="Noto Sans SC, sans-serif" font-size="22" font-weight="700" fill="#1F2329">权限配置表（建议采用权限编码，而不是数字大小）</text>
+  <rect x="72" y="730" width="900" height="206" rx="16" fill="#FFFFFF" stroke="#5178C6" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="72" y="730" width="900" height="40" rx="16" fill="#1F2329"/><path d="M72 754H972V770H72Z" fill="#1F2329"/>
+  <text x="100" y="756" font-family="Noto Sans SC, sans-serif" font-size="15" font-weight="700" fill="#FFFFFF">配置与查看</text><text x="410" y="756" font-family="Noto Sans SC, sans-serif" font-size="15" font-weight="700" fill="#FFFFFF">填报与提交</text><text x="700" y="756" font-family="Noto Sans SC, sans-serif" font-size="15" font-weight="700" fill="#FFFFFF">审批与定稿</text>
+  <text x="100" y="802" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#1F2329">1  管理邮箱账号</text><text x="100" y="830" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#1F2329">2  查看本人项目</text><text x="100" y="858" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#1F2329">4  查看部门项目</text><text x="100" y="886" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#1F2329">6 / 7 / 8  查看全量 / 本人 / 部门历史</text>
+  <text x="410" y="802" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#1F2329">3  提交本人 Initiative</text><text x="410" y="830" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#1F2329">5  提交部门 Initiative</text><text x="410" y="858" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#646A73">项目负责人由管理员配置</text>
+  <text x="700" y="802" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#1F2329">11  最终审批 / 定稿</text><text x="700" y="830" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#646A73">退回后才能重新编辑提交</text>
+
+  <rect x="1004" y="730" width="524" height="206" rx="16" fill="#FEF1CE" stroke="#D4B45B" stroke-width="2" filter="url(#shadow)"/>
+  <text x="1032" y="768" font-family="Noto Sans SC, sans-serif" font-size="18" font-weight="700" fill="#1F2329">后端每次请求都要校验</text>
+  <path d="M1040 802H1490" stroke="#D4B45B" stroke-width="2" opacity="0.55"/>
+  <circle cx="1048" cy="834" r="7" fill="#D4B45B"/><text x="1068" y="840" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#1F2329">会话身份：邮箱是否为已登记账号</text>
+  <circle cx="1048" cy="868" r="7" fill="#D4B45B"/><text x="1068" y="874" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#1F2329">操作权限：角色是否拥有相应权限编码</text>
+  <circle cx="1048" cy="902" r="7" fill="#D4B45B"/><text x="1068" y="908" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#1F2329">数据范围与状态：部门 / Owner / 提交或定稿状态</text>
+
+  <path d="M72 980H1528" stroke="#BBBFC4" stroke-width="2"/>
+  <text x="72" y="1015" font-family="Noto Sans SC, sans-serif" font-size="15" fill="#646A73">审批主线：执行人完成填报 → 部门负责人复核并提交 → 大老板退回或最终定稿。提交后冻结，退回后再编辑。</text>
+</svg>

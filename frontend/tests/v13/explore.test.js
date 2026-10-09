@@ -146,7 +146,7 @@ vitestTest(
     });
     for (const department of ["MKT", "ICE", "CAPEX"])
       test(
-        department + " lead history includes all resources and shared metrics",
+        department + " lead history includes all resources and shared Yield",
         () => {
           const m = X.rawData(
             working,
@@ -157,9 +157,9 @@ vitestTest(
           assert.equal(m.rows.length, 60);
           const allowed = ["MRD", "SP&A", "ICE Rebate", "Capex"];
           for (const row of m.rows) {
-            assert.ok("resource2025" in row);
-            assert.ok("yield2025" in row);
-            assert.ok("resourcePerLiter2025" in row);
+            assert.ok("yield" in row);
+            assert.ok(!("resource2025" in row));
+            assert.ok(!("resourcePerLiter2025" in row));
             assert.deepEqual(
               Object.keys(row)
                 .filter((k) => k.startsWith("resource_"))
@@ -173,20 +173,18 @@ vitestTest(
     test("overall same-year yield authorized and labeled", () => {
       const m = X.rawData(working, management, D, "history");
       assert.ok(m.rows.every((r) => "dealerCode" in r && "dealerName" in r));
-      assert.ok(m.rows.every((r) => "yield2025" in r));
+      assert.ok(m.rows.every((r) => "yield" in r));
       assert.ok(
         m.columns
-          .find((c) => c.key === "yield2025")
-          .label.includes("2025 C3 / 2025 资源 (%)"),
+          .find((c) => c.key === "yield")
+          .label === "Yield",
       );
     });
-    test("overall resource metrics use the source values without recalculation", () => {
+    test("Yield uses the source value without recalculation", () => {
       const reference = structuredClone(D);
-      reference.dealers[0].history.resource2025 = 987654.32;
-      reference.dealers[0].history.resourcePerLiter2025 = 12.34;
+      reference.dealers[0].history.yield = 12.34;
       const row = X.rawData(working, management, reference, "history").rows[0];
-      assert.equal(row.resource2025, 987654.32);
-      assert.equal(row.resourcePerLiter2025, 12.34);
+      assert.equal(row.yield, 12.34);
     });
     test("CSV BOM escapes Excel formulas and multiline content", () => {
       const m = {
@@ -215,39 +213,49 @@ vitestTest(
       assert.ok(html.includes("不一定合计 100%"));
       assert.ok(html.includes("全部排行"));
     });
-    test("all roles receive recomputed same-year Yield despite stale cached value", () => {
+    test("all roles receive the source Yield value", () => {
       const d = structuredClone(D);
-      d.dealers[0].history.c32025 = 900;
-      d.dealers[0].history.resource2025 = 300;
-      d.dealers[0].history.yield2025 = 999;
+      d.dealers[0].history.yield = 999;
       for (const identity of [owner, lead, management, admin]) {
         const m = X.rawData(working, identity, d, "history");
-        assert.equal(m.rows[0].yield2025, 3);
-        assert.ok(m.columns.some((c) => c.key === "yield2025"));
+        assert.equal(m.rows[0].yield, 999);
+        assert.ok(m.columns.some((c) => c.key === "yield"));
         assert.equal(
-          X.historyReference(working, identity, d, d.dealers[0].id).yield2025,
-          3,
+          X.historyReference(working, identity, d, d.dealers[0].id).yield,
+          999,
         );
       }
     });
-    test("Yield missing or invalid denominator remains null", () => {
-      for (const denominator of [0, undefined, null, Infinity, NaN, -1]) {
+    test("history display converts L and dollars to KL and K dollars", () => {
+      const source = D.dealers[0].history;
+      const row = X.rawData(working, owner, D, "history").rows[0];
+      assert.equal(row.vol2024, source.vol2024 / 1000);
+      assert.equal(row.c32024, source.c32024 / 1000);
+      assert.equal(row.resource_MRD, source.resources2025.MRD / 1000);
+      assert.equal(row.yield, source.yield);
+    });
+    test("owner history notes state the sector scope", () => {
+      const model = X.rawData(working, { ...owner, sectors: ["PCMO"] }, D, "history");
+      assert.ok(model.notes.includes("只展示当前用户所在业务线的经销商数据。"));
+    });
+    test("Yield missing or non-finite source value remains null", () => {
+      for (const value of [undefined, null, Infinity, NaN]) {
         const d = structuredClone(D);
-        d.dealers[0].history.resource2025 = denominator;
+        d.dealers[0].history.yield = value;
         assert.equal(
-          X.rawData(working, owner, d, "history").rows[0].yield2025,
+          X.rawData(working, owner, d, "history").rows[0].yield,
           null,
         );
       }
       const d = structuredClone(D);
-      delete d.dealers[0].history.c32025;
+      delete d.dealers[0].history.yield;
       assert.equal(
-        X.rawData(working, owner, d, "history").rows[0].yield2025,
+        X.rawData(working, owner, d, "history").rows[0].yield,
         null,
       );
-      d.dealers[0].history.c32025 = 0;
+      d.dealers[0].history.yield = 0;
       assert.equal(
-        X.rawData(working, owner, d, "history").rows[0].yield2025,
+        X.rawData(working, owner, d, "history").rows[0].yield,
         0,
       );
     });
@@ -270,16 +278,16 @@ vitestTest(
         assert.equal(m.allResources, all);
         const labels = all
           ? [
-              "2025 MRD ($)",
-              "2025 SP&A ($)",
-              "2025 ICE Rebate ($)",
-              "2025 Capex ($)",
+              "2025 MRD (K$)",
+              "2025 SP&A (K$)",
+              "2025 ICE Rebate (K$)",
+              "2025 Capex (K$)",
             ]
           : identity.department === "MKT"
-            ? ["2025 MRD ($)", "2025 SP&A ($)"]
+            ? ["2025 MRD (K$)", "2025 SP&A (K$)"]
             : identity.department === "ICE"
-              ? ["2025 ICE Rebate ($)"]
-              : ["2025 Capex ($)"];
+              ? ["2025 ICE Rebate (K$)"]
+              : ["2025 Capex (K$)"];
         assert.deepEqual(
           m.resources.map((r) => r.label),
           labels,
@@ -298,15 +306,15 @@ vitestTest(
       const m = X.rawData(working, owner, D, "history");
       const keys = m.columns.map((c) => c.key);
       const columnLabels = m.columns.map((c) => c.label);
-      assert.ok(columnLabels.includes("2024 Vol (L)"));
-      assert.ok(columnLabels.includes("2024 C3 ($)"));
-      assert.ok(keys.includes("yield2025"));
+      assert.ok(columnLabels.includes("2024 Vol (KL)"));
+      assert.ok(columnLabels.includes("2024 C3 (K$)"));
+      assert.ok(keys.includes("yield"));
       assert.ok(!keys.includes("resource2025"));
       assert.ok(!keys.includes("resourcePerLiter2025"));
       assert.ok(!keys.includes("resource_ICE Rebate"));
       assert.ok(!keys.includes("resource_Capex"));
       const csv = X.csv(m);
-      assert.ok(csv.includes("2025 C3 / 2025 资源 (%)"));
+      assert.ok(csv.includes("Yield"));
       assert.ok(!csv.includes("2025 资源总额"));
     });
     test("history filters distributor code and name independently with intersection", () => {

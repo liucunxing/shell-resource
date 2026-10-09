@@ -1151,7 +1151,13 @@ tr:hover td {
 .user-list-heading p { margin: 0; }
 .user-filters {
   display: grid;
-  grid-template-columns: repeat(4, minmax(130px, 1fr)) auto;
+  grid-template-columns:
+    minmax(190px, 1.25fr)
+    minmax(190px, 1.25fr)
+    minmax(140px, .8fr)
+    minmax(150px, .9fr)
+    minmax(140px, .75fr)
+    auto;
   gap: 10px;
   align-items: end;
   margin-bottom: 15px;
@@ -1172,6 +1178,23 @@ tr:hover td {
 .user-list-footer { margin-top: 12px; color: var(--muted); }
 .user-dialog { border: 0; padding: 0; }
 .user-enabled-field { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; }
+.sector-choice-group { display: flex; flex-wrap: wrap; gap: 8px; }
+.sector-choice {
+  display: inline-flex;
+  align-items: center;
+  min-width: 76px;
+  padding: 7px 12px;
+  color: var(--text);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  cursor: pointer;
+  font: inherit;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+.sector-choice:hover { border-color: var(--primary); color: var(--primary); }
+.sector-choice.is-selected { border-color: var(--primary); color: var(--primary); background: #f2fafa; }
+.sector-choice:focus-visible { outline: 2px solid #61c6cf; outline-offset: 2px; }
 @media (max-width: 950px) {
   .user-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

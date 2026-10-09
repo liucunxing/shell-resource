@@ -2,7 +2,11 @@ import { useEffect, useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import A from "../domain/explore.js";
 import { PageHead } from "./OverviewPages.jsx";
-const fmt = (n) => n.toLocaleString("zh-CN", { maximumFractionDigits: 2 });
+const fmt = (n) =>
+  (Math.abs(n) < 0.005 ? 0 : n).toLocaleString("zh-CN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 export function RawPage() {
   const { state, identity, data, rawRequest, notify } = useWorkbench();
   const [tab, setTab] = useState(""),
@@ -278,10 +282,9 @@ export function AboutPage() {
     ["2024 / 2025", "全年历史 Vol 与 C3；2025 资源按四类明细重新核对加总。"],
     ["2026", "1—8 月累计为演示假设；不直接计算全年同比、不年化。"],
     [
-      "2025 C3 Yield",
-      "2025 C3 ÷ 2025 总资源，分母为 0 则留空。整体 Yield 向所有角色共享只读；跨部门资源明细仍按部门隔离。",
+      "Yield",
+      "源表提供的 2025 C3 ÷ 资源原始比值，不转换为百分比。所有角色均可只读查看本权限范围内的 Yield；资源明细仍按部门隔离。",
     ],
-    ["2025 单升资源", "2025 总资源 ÷ 2025 Vol，分母为 0 则留空。"],
     [
       "历史去重",
       "经销商历史仅保存一份，不复制到多个 Initiative / Sector 后加总。",

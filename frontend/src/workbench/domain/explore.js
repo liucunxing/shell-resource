@@ -14,6 +14,8 @@ const esc = (v) =>
   );
 const num = (v) =>
   Number(v || 0).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
+const toDisplayUnit = (value) =>
+  Number.isFinite(value) ? value / 1000 : value;
 const sum = (items) =>
   items.reduce(
     (n, i) => n + (i.rows || []).reduce((a, r) => a + E.cents(r.amount), 0),
@@ -194,7 +196,7 @@ function rawData(state, identity, data, tab) {
     tabs,
     columns: [],
     rows: [],
-    notes: ["单位：Vol 为 L；C3 与资源投入为 $；C3 / 资源为 %。"],
+    notes: ["单位：Vol 为 KL；C3 与资源为 K$；Yield 为 2025 C3 / 资源的原始比值。"],
     allowExport: true,
   };
   const common = [
@@ -285,53 +287,43 @@ function rawData(state, identity, data, tab) {
           ? ["ICE Rebate"]
           : ["Capex"];
     const history = [
-      ["vol2024", "2024 Vol (L)"],
-      ["c32024", "2024 C3 ($)"],
-      ["vol2025", "2025 Vol (L)"],
-      ["c32025", "2025 C3 ($)"],
-      ["vol2026Ytd", "2026 1–8月 Vol (L)"],
-      ["c32026Ytd", "2026 1–8月 C3 ($)"],
+      ["vol2024", "2024 Vol (KL)"],
+      ["c32024", "2024 C3 (K$)"],
+      ["vol2025", "2025 Vol (KL)"],
+      ["c32025", "2025 C3 (K$)"],
+      ["vol2026Ytd", "2026 1–8月 Vol (KL)"],
+      ["c32026Ytd", "2026 1–8月 C3 (K$)"],
     ];
     model.columns = cols([
       ["dealerCode", "经销商编码"],
       ["dealerName", "经销商名称"],
       ...history,
-      ...resources.map((r) => ["resource_" + r, "2025 " + r + " ($)"]),
-      ["yield2025", "2025 C3 / 2025 资源 (%)"],
-      ...(all
-        ? [
-            ["resource2025", "2025 资源总额 ($)"],
-            ["resourcePerLiter2025", "2025 资源 / 2025 Vol ($/L)"],
-          ]
-        : []),
+      ...resources.map((r) => ["resource_" + r, "2025 " + r + " (K$)"]),
+      ["yield", "Yield"],
     ]);
     model.rows = data.dealers.map((d) => {
       const h = d.history || {},
         row = { dealerCode: d.id, dealerName: d.name || "—", dealerId: d.id };
-      history.forEach(([k]) => (row[k] = h[k]));
+      history.forEach(([k]) => (row[k] = toDisplayUnit(h[k])));
       resources.forEach(
-        (r) => (row["resource_" + r] = (h.resources2025 || {})[r]),
+        (r) =>
+          (row["resource_" + r] = toDisplayUnit((h.resources2025 || {})[r])),
       );
-      const ratio =
-        state.scenario === "api" && Number.isFinite(h.yield2025)
-          ? h.yield2025
-          : Number.isFinite(h.c32025) &&
-              Number.isFinite(h.resource2025) &&
-              h.resource2025 > 0
-            ? h.c32025 / h.resource2025
-            : null;
-      row.yield2025 = Number.isFinite(ratio) ? ratio : null;
-      if (all) {
-        row.resource2025 = h.resource2025;
-        row.resourcePerLiter2025 = h.resourcePerLiter2025;
-      }
+      row.yield = Number.isFinite(h.yield) ? h.yield : null;
       return row;
     });
-    model.scopeLabel = `共享经销商 Vol / C3 · ${all ? "全资源" : identity.department + " 授权资源"}`;
+    const ownerSectors = (identity.sectors || []).join(" / ");
+    model.scopeLabel =
+      identity.role === "owner"
+        ? `业务线 ${ownerSectors || "未配置"} · 全部经销商历史`
+        : `共享经销商 Vol / C3 · ${all ? "全业务线" : identity.department + " 授权资源"}`;
     model.basisLabel = `源历史数据 · 共 ${data.dealers.length} 家经销商`;
     model.notes.push(
       "2024、2025 为全年；2026 为 1–8 月累计，不默认同比或年化。",
-      "整体 Yield 向所有角色只读开放，按 2025 C3 / 2025 总资源重新计算，单位为 %；分母无效时留空，不代表投入因果回报。",
+      "Yield 向所有角色只读开放，取源数据中的 2025 C3 / 资源原始比值，不转换为百分比。",
+      identity.role === "owner"
+        ? "只展示当前用户所在业务线的经销商数据。"
+        : "Lead 与管理员展示全部业务线的经销商数据。",
       all
         ? "全资源历史仅供只读参考。"
         : "资源明细仅显示本部门授权范围；整体 Yield 为授权共享指标，不额外展示跨部门资源总额或资源明细。",
@@ -346,7 +338,7 @@ function historyReference(state, identity, data, dealerId) {
   return {
     dealerId: row.dealerId,
     scopeLabel: model.scopeLabel,
-    yield2025: row.yield2025,
+    yield: row.yield,
     periods: [
       {
         label: "2024 全年",

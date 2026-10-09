@@ -192,12 +192,16 @@ function validateInitiative(i, data, reasons) {
         errors.push(prefix + "原因说明必须是文字。");
     });
   }
-  const ids = new Set(((data && data.dealers) || []).map((d) => d.id));
+  const directoryDealers =
+    data && Object.hasOwn(data, "distributorDirectory")
+      ? data.distributorDirectory
+      : data?.dealers;
+  const ids = new Set((directoryDealers || []).map((dealer) => String(dealer.id)));
   const seen = new Set();
   if (!Array.isArray(i.rows)) errors.push("分配明细必须是数组。");
   else
     i.rows.forEach((r, index) => {
-      if (!r || !ids.has(r.dealerId))
+      if (!r || !ids.has(String(r.dealerId)))
         errors.push("第 " + (index + 1) + " 行经销商不存在。");
       if (r && seen.has(r.dealerId))
         errors.push("第 " + (index + 1) + " 行经销商重复。");
@@ -1360,14 +1364,6 @@ function generateInsight(state, scope, identity, options) {
   const history = (id) => (rawDealers.get(id) || {}).history || {};
   const numeric = (value) =>
     typeof value === "number" && Number.isFinite(value);
-  const historicalResource = (h) => {
-    if (descriptor.kind === "global")
-      return numeric(h.resource2025) ? h.resource2025 : null;
-    const values = Object.keys(RESOURCE_DEPARTMENT)
-      .filter((k) => RESOURCE_DEPARTMENT[k] === descriptor.department)
-      .map((k) => (h.resources2025 || {})[k]);
-    return values.every(numeric) ? values.reduce((a, b) => a + b, 0) : null;
-  };
   const make = (key, finding, object, evidence, review, status) => ({
     key,
     finding,
@@ -1384,10 +1380,7 @@ function generateInsight(state, scope, identity, options) {
   const yieldRows = ranked
     .map((d) => {
       const h = history(d.id);
-      const value =
-        numeric(h.c32025) && numeric(h.resource2025) && h.resource2025 > 0
-          ? h.c32025 / h.resource2025
-          : null;
+      const value = h.yield;
       return numeric(value) ? { ...d, yield: value } : null;
     })
     .filter(Boolean)
@@ -1405,7 +1398,7 @@ function generateInsight(state, scope, identity, options) {
         key,
         finding,
         top ? top.id : scope,
-        "缺少有效的同年 C3 或正数整体资源，暂不能计算历史 Yield。" + topFact,
+        "缺少源数据提供的 Yield，暂不能进行历史 Yield 对比。" + topFact,
         "请补齐同年历史依据后结合未来业务计划复核，不能仅凭投入金额认定投入过高或不足。",
         "limited",
       );
@@ -1419,13 +1412,7 @@ function generateInsight(state, scope, identity, options) {
         (high ? "最高" : "最低") +
         "，为 " +
         format(candidate.yield) +
-        (descriptor.kind === "global"
-          ? "（2025 C3 " +
-            format(h.c32025) +
-            " ÷ 同年整体资源 " +
-            format(h.resource2025) +
-            "）"
-          : "（公式：同年 C3 ÷ 同年整体资源；整体 Yield 为已授权只读参考）") +
+        "（源数据 Yield 原始比值）" +
         "；本范围 2027 分配 " +
         format(money(candidate.amount)) +
         "。",
@@ -1508,8 +1495,7 @@ function generateInsight(state, scope, identity, options) {
     );
   });
   if (trendDealer) {
-    const h = history(trendDealer.id),
-      resource = historicalResource(h);
+    const h = history(trendDealer.id);
     const pct = (a, b) => ((a / b - 1) * 100).toFixed(2) + "%";
     results.push(
       make(
@@ -1521,16 +1507,9 @@ function generateInsight(state, scope, identity, options) {
           pct(h.vol2025, h.vol2024) +
           "，C3 同比 " +
           pct(h.c32025, h.c32024) +
-          "。" +
-          (resource !== null && resource > 0
-            ? "2027 本范围计划分配 " +
-              format(money(trendDealer.amount)) +
-              " 对 2025 本范围历史资源 " +
-              format(resource) +
-              " 变化 " +
-              pct(money(trendDealer.amount), resource) +
-              "，为跨两年比较，非同比。"
-            : "缺少本范围可比历史资源，不能比较投入变化。"),
+          "；2027 本范围计划分配 " +
+          format(money(trendDealer.amount)) +
+          "。",
         "尚无 2027 Vol/C3 预测，需业务说明投入变化与目标是否匹配；2026 年 1–8 月累计不与全年同比、不默认年化。",
         "review",
       ),

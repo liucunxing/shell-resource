@@ -18,22 +18,14 @@ def history_row(name: str) -> dict:
         "btl_2025": 9,
         "capex_2025": 10,
         "yield_2025": 11,
-        "resource_total": 34,
-        "resource_uc3": 12,
+        "sector": "PCMO",
     }
 
 
 class DuplicateReferenceRepository:
-    async def list_dealers(self, dealer_ids=None):
-        del dealer_ids
+    async def list_dealers(self, dealer_ids=None, sectors=None):
+        del dealer_ids, sectors
         return [history_row("Duplicate Dealer"), history_row("Duplicate Dealer Alias")]
-
-    async def list_directory(self):
-        return [
-            history_row("Duplicate Dealer"),
-            history_row("Duplicate Dealer Alias"),
-        ]
-
 
 def test_reference_results_are_unique_by_distributor_code():
     async def run():
@@ -41,9 +33,6 @@ def test_reference_results_are_unique_by_distributor_code():
         service.repository = DuplicateReferenceRepository()
 
         dealers = await service.get_dealers(2027)
-        directory = await service.get_directory()
-
         assert [item["id"] for item in dealers] == ["D-DUPLICATE"]
-        assert [item["id"] for item in directory] == ["D-DUPLICATE"]
 
     asyncio.run(run())

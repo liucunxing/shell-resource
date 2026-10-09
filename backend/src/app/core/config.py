@@ -87,6 +87,13 @@ class Settings(BaseModel):
     azure_blob_max_upload_bytes: int = Field(default=20 * 1024 * 1024, gt=0)
     azure_blob_workbench_template_name: str | None = None
 
+    databricks_server_hostname: str = ""
+    databricks_http_path: str = ""
+    databricks_client_id: str = ""
+    databricks_client_secret: SecretStr | None = None
+    databricks_view_name: str = "semantic_poc.test_poc.dim_distributor"
+    databricks_timeout_seconds: float = Field(default=60, gt=0, le=120)
+
     sso_enabled: bool = False
     sso_issuer: str | None = None
     sso_client_id: str | None = None
@@ -97,4 +104,17 @@ class Settings(BaseModel):
 def get_settings() -> Settings:
     environment = _selected_environment()
     profile = _load_profile(environment)
-    return Settings.model_validate({**profile, "app_env": environment})
+    environment_overrides = {
+        "databricks_server_hostname": os.getenv("DATABRICKS_SERVER_HOSTNAME")
+        or os.getenv("DATABRICKS_HOST"),
+        "databricks_http_path": os.getenv("DATABRICKS_HTTP_PATH"),
+        "databricks_client_id": os.getenv("DATABRICKS_CLIENT_ID"),
+        "databricks_client_secret": os.getenv("DATABRICKS_CLIENT_SECRET"),
+        "databricks_view_name": os.getenv("DATABRICKS_VIEW_NAME"),
+    }
+    configured_overrides = {
+        key: value for key, value in environment_overrides.items() if value is not None
+    }
+    return Settings.model_validate(
+        {**profile, **configured_overrides, "app_env": environment}
+    )

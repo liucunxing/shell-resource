@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createAdminUser,
   deleteAdminUser,
+  distributors,
   listAdminUsers,
   request,
   saveThenPublish,
@@ -26,6 +27,17 @@ describe("workbench API client", () => {
     await expect(request("/initiatives/1/draft")).resolves.toEqual({ revision: 3 });
   });
 
+  it("loads the Databricks-backed distributor directory from its own route", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ code: 200, data: [{ id: "D1", name: "Dealer 1" }] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(distributors()).resolves.toEqual([{ id: "D1", name: "Dealer 1" }]);
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/workbench/distributors");
+  });
+
   it("surfaces backend validation errors", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 422, json: async () => ({ code: 422, msg: "金额不合法" }) }));
     await expect(request("/initiatives/1/draft", { method: "PUT" })).rejects.toEqual(expect.objectContaining({ status: 422, message: "金额不合法" }));
@@ -46,13 +58,19 @@ describe("workbench API client", () => {
       ok: true, status: 200, json: async () => ({ code: 200, data: { items: [] } }),
     });
     vi.stubGlobal("fetch", fetchMock);
-    await listAdminUsers({ email: " a+1 ", name: "张", role: "owner", department: "MKT" }, 20, 40);
+    await listAdminUsers({
+      email: " a+1 ", name: "张", role: "owner", department: "MKT", sector: "PCMO",
+    }, 20, 40);
     const url = new URL(fetchMock.mock.calls[0][0], "http://local.test");
     expect(url.pathname).toBe("/api/v1/workbench/admin/users");
     expect(Object.fromEntries(url.searchParams)).toEqual({
       limit: "20", offset: "40", email: "a+1", name: "张", role: "owner", department: "MKT",
+      sector: "PCMO",
     });
-    const user = { email: "a@example.test", display_name: "A", role: "owner", department: "MKT", enabled: true };
+    const user = {
+      email: "a@example.test", display_name: "A", role: "owner", department: "MKT",
+      sector: ["PCMO"], enabled: true,
+    };
     await createAdminUser(user);
     await updateAdminUser(7, user);
     await deleteAdminUser(7);
