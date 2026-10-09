@@ -30,6 +30,12 @@ export function filterDealers(dealers, codeSearch, nameSearch) {
   );
 }
 
+export function toggleDealerSelection(selectedDealers, dealerId) {
+  return selectedDealers.includes(dealerId)
+    ? selectedDealers.filter((id) => id !== dealerId)
+    : [...selectedDealers, dealerId];
+}
+
 export function canSynchronizeLatest({
   savedForSync,
   hasUnsavedChanges,
@@ -140,11 +146,13 @@ function EditorContent({
   dirtyIds,
   savedForSyncIds,
   editorOperations,
+  directoryStatus,
+  loadDistributorDirectory,
   notify,
   openAuxiliary,
 }) {
   const [modal, setModal] = useState(null),
-    [newDealer, setNewDealer] = useState(""),
+    [newDealers, setNewDealers] = useState([]),
     [dealerCodeSearch, setDealerCodeSearch] = useState(""),
     [dealerNameSearch, setDealerNameSearch] = useState(""),
     [busy, setBusy] = useState(false);
@@ -156,6 +164,9 @@ function EditorContent({
       alive.current = false;
     };
   }, []);
+  useEffect(() => {
+    if (apiMode) void loadDistributorDirectory();
+  }, [apiMode, loadDistributorDirectory]);
   const i = view.initiatives.find((item) => item.id === initiativeId);
   const hasUnsavedChanges = i ? dirtyIds.has(i.id) : false;
   if (!i) return <div className="empty">当前角色无权查看该明细。</div>;
@@ -195,11 +206,19 @@ function EditorContent({
     if (operation !== null || !canSynchronize || !guard()) return;
     await publish(i.id);
   };
-  const dealers = uniqueDealersByCode(data.dealers);
+  const directoryDealers = apiMode
+    ? data.distributorDirectory || []
+    : data.dealers;
+  const dealers = uniqueDealersByCode(directoryDealers);
   const available = dealers.filter(
     (d) => !i.rows.some((r) => r.dealerId === d.id),
   );
-  const dealerById = new Map(dealers.map((d) => [String(d.id), d]));
+  const dealerById = new Map(
+    uniqueDealersByCode([...dealers, ...data.dealers]).map((d) => [
+      String(d.id),
+      d,
+    ]),
+  );
   const dealerName = (dealerId) =>
     dealerById.get(String(dealerId))?.name || "—";
   const searchedDealers = filterDealers(
@@ -557,7 +576,7 @@ function EditorContent({
                 className="button link"
                 onClick={() =>
                   doGuard(() => {
-                    setNewDealer("");
+                    setNewDealers([]);
                     setDealerCodeSearch("");
                     setDealerNameSearch("");
                     setModal({ type: "add" });
@@ -796,13 +815,17 @@ function EditorContent({
             modal.type === "add" ? (
               <button
                 className="button primary"
-                disabled={!newDealer}
+                disabled={!newDealers.length}
                 onClick={() => {
                   if (
                     update({
                       rows: [
                         ...i.rows,
-                        { dealerId: newDealer, amount: 0, note: "" },
+                        ...newDealers.map((dealerId) => ({
+                          dealerId,
+                          amount: 0,
+                          note: "",
+                        })),
                       ],
                     })
                   )
@@ -864,10 +887,7 @@ function EditorContent({
                     autoFocus
                     value={dealerCodeSearch}
                     placeholder="模糊搜索经销商编码"
-                    onChange={(e) => {
-                      setDealerCodeSearch(e.target.value);
-                      setNewDealer("");
-                    }}
+                    onChange={(e) => setDealerCodeSearch(e.target.value)}
                   />
                 </label>
                 <label className="form-field">
@@ -876,10 +896,7 @@ function EditorContent({
                     type="search"
                     value={dealerNameSearch}
                     placeholder="模糊搜索经销商名称"
-                    onChange={(e) => {
-                      setDealerNameSearch(e.target.value);
-                      setNewDealer("");
-                    }}
+                    onChange={(e) => setDealerNameSearch(e.target.value)}
                   />
                 </label>
               </div>
@@ -897,11 +914,12 @@ function EditorContent({
                       <tr key={dealer.id}>
                         <td>
                           <input
-                            type="radio"
-                            name="new-dealer"
+                            type="checkbox"
                             aria-label={`选择经销商 ${dealer.id} ${dealer.name || ""}`}
-                            checked={newDealer === dealer.id}
-                            onChange={() => setNewDealer(dealer.id)}
+                            checked={newDealers.includes(dealer.id)}
+                            onChange={() => setNewDealers((current) =>
+                              toggleDealerSelection(current, dealer.id)
+                            )}
                           />
                         </td>
                         <td>{dealer.id}</td>
@@ -911,9 +929,25 @@ function EditorContent({
                     {!searchedDealers.length && (
                       <tr>
                         <td colSpan={3}>
-                          {available.length
-                            ? "没有匹配的经销商"
-                            : "已无可添加经销商"}
+                          {directoryStatus === "loading"
+                            ? "正在加载 Databricks 经销商目录…"
+                            : directoryStatus === "error"
+                              ? (
+                                  <>
+                                    经销商目录加载失败，请稍后重试。
+                                    <button
+                                      className="button subtle small"
+                                      onClick={() =>
+                                        loadDistributorDirectory({ force: true })
+                                      }
+                                    >
+                                      重新加载
+                                    </button>
+                                  </>
+                                )
+                              : available.length
+                                ? "没有匹配的经销商"
+                                : "已无可添加经销商"}
                         </td>
                       </tr>
                     )}

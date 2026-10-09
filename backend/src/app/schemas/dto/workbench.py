@@ -1,6 +1,6 @@
 import re
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -8,10 +8,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 class AdminUserDTO(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    sector_options: ClassVar[frozenset[str]] = frozenset({"PCMO", "CRTO", "B2B", "OEM"})
+
     email: str = Field(max_length=255)
     display_name: str = Field(max_length=255)
     role: Literal["owner", "lead", "management", "admin"]
     department: str | None = Field(default=None, max_length=32)
+    sector: list[str] = Field(default_factory=list, max_length=4)
     enabled: bool = True
 
     @field_validator("email", "display_name", mode="before")
@@ -39,12 +42,34 @@ class AdminUserDTO(BaseModel):
     def normalize_department(cls, value: Any) -> Any:
         return value.strip().upper() or None if isinstance(value, str) else value
 
+    @field_validator("sector", mode="before")
+    @classmethod
+    def normalize_sector(cls, value: Any) -> Any:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise ValueError("业务线必须为列表")
+        if any(not isinstance(item, str) for item in value):
+            raise ValueError("业务线必须为字符串")
+        normalized = [item.strip().upper() for item in value]
+        if len(normalized) != len(set(normalized)):
+            raise ValueError("业务线不可重复")
+        if any(item not in cls.sector_options for item in normalized):
+            raise ValueError("业务线仅支持 PCMO、CRTO、B2B、OEM")
+        return normalized
+
     @model_validator(mode="after")
     def valid_department(self) -> "AdminUserDTO":
         if self.role in {"owner", "lead"} and not self.department:
             raise ValueError("Owner 和部门负责人必须填写部门")
         if self.role in {"management", "admin"} and self.department:
             raise ValueError("管理层和管理员不填写部门")
+        if self.role == "owner" and len(self.sector) != 1:
+            raise ValueError("Owner 必须配置一条业务线")
+        if self.role == "lead" and not 1 <= len(self.sector) <= 4:
+            raise ValueError("部门负责人必须配置一至四条业务线")
+        if self.role in {"management", "admin"} and self.sector:
+            raise ValueError("管理层和管理员不配置业务线")
         return self
 
 

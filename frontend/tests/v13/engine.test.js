@@ -592,7 +592,7 @@ vitestTest(
           vol2025: 80,
           c32024: 200,
           c32025: 220,
-          resource2025: 100,
+          yield: 2.2,
           resources2025: { MRD: 20, "SP&A": 30, "ICE Rebate": 25, Capex: 25 },
           vol2026Ytd: 999999,
           c32026Ytd: 888888,
@@ -605,7 +605,7 @@ vitestTest(
           vol2025: 130,
           c32024: 200,
           c32025: 300,
-          resource2025: 50,
+          yield: 6,
           resources2025: { MRD: 10, "SP&A": 10, "ICE Rebate": 20, Capex: 10 },
         },
       },
@@ -634,35 +634,24 @@ vitestTest(
         assert.equal(record.items[1].object, "D2");
         assert.match(record.items[0].text, /为 2.2/);
         assert.match(record.items[1].text, /为 6/);
-        assert.match(record.items[0].text, /已授权只读参考/);
-        assert(!JSON.stringify(record).includes("缺少整体资源授权"));
+        assert.match(record.items[0].text, /源数据 Yield 原始比值/);
         assert.match(record.items[4].text, /Vol 同比 -20.00%/);
         assert.match(record.items[4].text, /C3 同比 10.00%/);
-        assert.match(record.items[4].text, /历史资源 50/);
-        assert.match(record.items[4].text, /跨两年比较，非同比/);
         assert(!JSON.stringify(record).includes("999999"));
         assert(!JSON.stringify(record).includes("888888"));
       },
     );
     check("部门 Yield 只输出授权比值，不携带总资源或范围外经销商", () => {
       const fixture = copy(historicalData);
-      fixture.dealers[0].history.resource2025 = 123456.78;
-      fixture.dealers[1].history.resource2025 = 234567.89;
       fixture.dealers.push({
         id: "PRIVATE-OTHER-DEALER",
-        history: { c32025: 9000000, resource2025: 1 },
+        history: { yield: 9000000 },
       });
       const s = E.createState(data);
       const record = E.generateInsight(s, "MKT", lead, { data: fixture });
       const serialized = JSON.stringify(record);
       for (const secret of [
-        "123456.78",
-        "123,456.78",
-        "234567.89",
-        "234,567.89",
         "PRIVATE-OTHER-DEALER",
-        '"resource2025"',
-        '"resources2025"',
       ])
         assert(!serialized.includes(secret), secret);
       assert(record.items.slice(0, 2).every((i) => i.status === "review"));
@@ -672,19 +661,11 @@ vitestTest(
       );
       assert.deepEqual(E.selectView(s, owner).insights, {});
     });
-    check("Yield 零值、缺失、非有限分母及运算溢出不能伪造可比值", () => {
-      for (const resource of [
-        0,
-        -1,
-        null,
-        undefined,
-        NaN,
-        Infinity,
-        -Infinity,
-      ]) {
+    check("Yield 缺失或非有限时不能伪造可比值", () => {
+      for (const yieldValue of [null, undefined, NaN, Infinity, -Infinity]) {
         const fixture = copy(historicalData);
         fixture.dealers.forEach((d) => {
-          d.history.resource2025 = resource;
+          d.history.yield = yieldValue;
         });
         const record = E.generateInsight(E.createState(data), "MKT", lead, {
           data: fixture,
@@ -695,8 +676,7 @@ vitestTest(
       }
       const fixture = copy(historicalData);
       fixture.dealers.forEach((d) => {
-        d.history.c32025 = Number.MAX_VALUE;
-        d.history.resource2025 = Number.MIN_VALUE;
+        d.history.yield = Infinity;
       });
       assert(
         E.generateInsight(E.createState(data), "MKT", lead, { data: fixture })
@@ -704,8 +684,7 @@ vitestTest(
           .every((i) => i.status === "limited"),
       );
       fixture.dealers.forEach((d) => {
-        d.history.c32025 = 0;
-        d.history.resource2025 = 100;
+        d.history.yield = 0;
       });
       const zero = E.generateInsight(E.createState(data), "MKT", lead, {
         data: fixture,

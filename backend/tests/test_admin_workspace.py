@@ -320,8 +320,7 @@ def test_distributor_history_field_mapping_and_department_scope():
                 btl_2025=9,
                 capex_2025=10,
                 yield_2025=11,
-                resource_total=34,
-                resource_uc3=12,
+                sector="PCMO",
             )
         )
         await session.commit()
@@ -336,9 +335,7 @@ def test_distributor_history_field_mapping_and_department_scope():
                 "c32025": 4.0,
                 "vol2026Ytd": 5.0,
                 "c32026Ytd": 6.0,
-                "yield2025": 11.0,
-                "resource2025": 34.0,
-                "resourcePerLiter2025": 12.0,
+                "yield": 11.0,
                 "resources2025": {"MRD": 7.0, "SP&A": 9.0},
             },
         }

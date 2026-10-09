@@ -20,7 +20,6 @@ distributor_sellin_resource_history = Table(
     Column("btl_2025", Numeric(10, 2)),
     Column("capex_2025", Numeric(10, 2)),
     Column("yield_2025", Numeric(10, 2)),
-    Column("resource_total", Numeric(10, 2)),
-    Column("resource_uc3", Numeric(10, 2)),
+    Column("sector", String(100)),
     schema="data",
 )

@@ -63,8 +63,28 @@ COMMENT ON TABLE data.budgets_distributor IS '按 Distributor 分配的 Initiati
 CREATE INDEX ix_budgets_distributor_budget_id
     ON data.budgets_distributor (budget_id);
 
--- Legacy data-preparation history remains available. V1.4 workbench reads
--- data.distributor_sellin_resource_history, which is loaded outside this script.
+-- Historical source loaded by the data team and read directly by the V1.4 workbench.
+CREATE TABLE data.distributor_sellin_resource_history (
+    distributor_code VARCHAR(255),
+    distributor_name VARCHAR(255),
+    volume_2024 NUMERIC(10, 2),
+    c3_2024 NUMERIC(10, 2),
+    volume_2025 NUMERIC(10, 2),
+    c3_2025 NUMERIC(10, 2),
+    volume_2026 NUMERIC(10, 2),
+    c3_2026 NUMERIC(10, 2),
+    mrd_2025 NUMERIC(10, 2),
+    reb_2025 NUMERIC(10, 2),
+    btl_2025 NUMERIC(10, 2),
+    capex_2025 NUMERIC(10, 2),
+    yield_2025 NUMERIC(10, 2),
+    sector VARCHAR(100)
+);
+
+COMMENT ON TABLE data.distributor_sellin_resource_history IS
+    '经销商历史 Vol、C3、资源和 Yield 数据；Yield 为原始比值，不是百分比';
+
+-- Legacy data-preparation history remains available for compatibility.
 CREATE TABLE data.historical_performance (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     history_year SMALLINT NOT NULL,
@@ -113,10 +133,23 @@ CREATE TABLE data.user_permissions (
     display_name VARCHAR(255) NOT NULL,
     role VARCHAR(32) NOT NULL,
     department VARCHAR(32),
+    sector VARCHAR(32)[],
     enabled BOOLEAN NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_user_permissions_email UNIQUE (email)
+    CONSTRAINT uq_user_permissions_email UNIQUE (email),
+    CONSTRAINT ck_user_permissions_role_sector_count CHECK (
+        COALESCE(
+            CASE role
+                WHEN 'owner' THEN cardinality(sector) = 1
+                WHEN 'lead' THEN cardinality(sector) BETWEEN 1 AND 4
+                WHEN 'management' THEN COALESCE(cardinality(sector), 0) = 0
+                WHEN 'admin' THEN COALESCE(cardinality(sector), 0) = 0
+                ELSE FALSE
+            END,
+            FALSE
+        )
+    )
 );
 
 -- Rows not attributed to a Distributor.

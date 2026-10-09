@@ -57,6 +57,7 @@ def payload(**overrides):
         "display_name": "  新执行人  ",
         "role": "owner",
         "department": "ice",
+        "sector": ["pcmo"],
         "enabled": True,
         **overrides,
     }
@@ -81,15 +82,18 @@ async def test_create_search_edit_disable_and_delete_user(api):
     created = await client.post("admin/users", headers=headers(), json=payload())
     assert created.status_code == 200, created.text
     user = created.json()["data"]
-    assert (user["email"], user["display_name"], user["department"]) == (
-        "new@example.com", "新执行人", "ICE"
+    assert (user["email"], user["display_name"], user["department"], user["sector"]) == (
+        "new@example.com", "新执行人", "ICE", ["PCMO"]
     )
     user_id = user["id"]
 
     query = await client.get(
         "admin/users",
         headers=headers(),
-        params={"email": "NEW", "name": "执行", "role": "owner", "department": "ICE"},
+        params={
+            "email": "NEW", "name": "执行", "role": "owner", "department": "ICE",
+            "sector": "PCMO",
+        },
     )
     assert query.status_code == 200
     assert query.json()["data"]["total"] == 1
@@ -99,12 +103,21 @@ async def test_create_search_edit_disable_and_delete_user(api):
     changed = await client.put(
         f"admin/users/{user_id}",
         headers=headers(),
-        json=payload(email="new@example.com", display_name="新负责人", role="lead", enabled=False),
+        json=payload(
+            email="new@example.com",
+            display_name="新负责人",
+            role="lead",
+            sector=["CRTO", "OEM"],
+            enabled=False,
+        ),
     )
     assert changed.status_code == 200, changed.text
     assert changed.json()["data"]["enabled"] is False
+    assert changed.json()["data"]["sector"] == ["CRTO", "OEM"]
     listed = await client.get("admin/users", headers=headers(), params={"role": "lead"})
     assert [item["email"] for item in listed.json()["data"]["items"]] == ["new@example.com"]
+    sector_query = await client.get("admin/users", headers=headers(), params={"sector": "OEM"})
+    assert [item["email"] for item in sector_query.json()["data"]["items"]] == ["new@example.com"]
 
     removed = await client.delete(f"admin/users/{user_id}", headers=headers())
     assert removed.status_code == 200
@@ -127,6 +140,12 @@ async def test_email_is_unique_and_user_fields_are_validated(api):
         payload(role="admin", department="MKT"),
         payload(role="invalid"),
         {**payload(), "sector": "PCMO"},
+        {**payload(), "sector": []},
+        {**payload(), "sector": ["PCMO", "CRTO"]},
+        {**payload(role="lead"), "sector": []},
+        {**payload(role="lead"), "sector": ["PCMO", "CRTO", "B2B", "OEM", "EXTRA"]},
+        {**payload(), "sector": ["INVALID"]},
+        {**payload(role="admin", department=None), "sector": ["PCMO"]},
     ):
         response = await client.post("admin/users", headers=headers(), json=bad)
         assert response.status_code == 422

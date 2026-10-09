@@ -10,10 +10,14 @@ class ReferenceService:
         self.repository = ReferenceRepository(session)
 
     async def get_dealers(
-        self, planning_year: int, department: str | None = None, dealer_ids: list[str] | None = None
+        self,
+        planning_year: int,
+        department: str | None = None,
+        dealer_ids: list[str] | None = None,
+        sectors: tuple[str, ...] | None = None,
     ) -> list[dict]:
         del planning_year  # The source table contains fixed historical years, not planning years.
-        rows = await self.repository.list_dealers(dealer_ids)
+        rows = await self.repository.list_dealers(dealer_ids, sectors)
         result = []
         seen_codes: set[str] = set()
         allowed = {"MKT": {"MRD", "SP&A"}, "ICE": {"ICE Rebate"}, "CAPEX": {"Capex"}}
@@ -36,9 +40,7 @@ class ReferenceService:
                 "c32025": row["c3_2025"],
                 "vol2026Ytd": row["volume_2026"],
                 "c32026Ytd": row["c3_2026"],
-                "yield2025": row["yield_2025"],
-                "resource2025": row["resource_total"],
-                "resourcePerLiter2025": row["resource_uc3"],
+                "yield": row["yield_2025"],
             }
             history: dict[str, Any] = {
                 key: float(value) if value is not None else None
@@ -56,18 +58,6 @@ class ReferenceService:
                     "history": history,
                 }
             )
-        return result
-
-    async def get_directory(self) -> list[dict]:
-        rows = await self.repository.list_directory()
-        result = []
-        seen_codes: set[str] = set()
-        for row in rows:
-            code = str(row["distributor_code"])
-            if code in seen_codes:
-                continue
-            seen_codes.add(code)
-            result.append({"id": code, "name": row["distributor_name"], "history": {}})
         return result
 
     async def metadata(self, planning_year: int) -> dict:

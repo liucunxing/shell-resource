@@ -57,6 +57,7 @@ async def _session() -> AsyncSession:
                 display_name="A",
                 role="owner",
                 department="MKT",
+                sector=["PCMO"],
                 enabled=True,
             ),
             WorkspaceConfigDO(
@@ -72,8 +73,9 @@ async def _session() -> AsyncSession:
     await session.execute(
         distributor_sellin_resource_history.insert(),
         [
-            {"distributor_code": "d1", "distributor_name": "Dealer 1"},
-            {"distributor_code": "d2", "distributor_name": "Dealer 2"},
+            {"distributor_code": "d1", "distributor_name": "Dealer 1", "sector": "PCMO"},
+            {"distributor_code": "d2", "distributor_name": "Dealer 2", "sector": "PCMO"},
+            {"distributor_code": "d3", "distributor_name": "Dealer 3", "sector": "CRTO"},
         ],
     )
     await session.commit()
@@ -81,13 +83,22 @@ async def _session() -> AsyncSession:
 
 
 def _owner() -> WorkbenchUser:
-    return WorkbenchUser("a@example.com", "owner", "MKT", "A")
+    return WorkbenchUser("a@example.com", "owner", "MKT", "A", ("PCMO",))
+
+
+class StubDirectoryService:
+    async def distributor_codes(self, _sectors: tuple[str, ...]) -> set[str]:
+        return {"d1", "d2"}
+
+
+def _workspace_service(session: AsyncSession, user: WorkbenchUser) -> WorkspaceService:
+    return WorkspaceService(session, user, StubDirectoryService())
 
 
 @pytest.mark.asyncio
 async def test_owner_isolated_revision_and_immutable_publish() -> None:
     session = await _session()
-    service = WorkspaceService(session, _owner())
+    service = _workspace_service(session, _owner())
     payload = InitiativeDraftUpdateDTO(
         expected_revision=0, rows=[{"dealerId": "d1", "amount": "100", "note": "x"}]
     )
@@ -110,14 +121,18 @@ async def test_owner_isolated_revision_and_immutable_publish() -> None:
 @pytest.mark.asyncio
 async def test_role_read_boundaries() -> None:
     session = await _session()
-    lead = WorkspaceService(session, WorkbenchUser("lead@example.com", "lead", "MKT", "Lead"))
+    lead = _workspace_service(
+        session, WorkbenchUser("lead@example.com", "lead", "MKT", "Lead")
+    )
     assert (await lead.get_draft(1))["id"] == "1"
     assert await lead.publications(1) == []
     with pytest.raises(HTTPException) as denied:
         await lead.save_draft(1, InitiativeDraftUpdateDTO(expected_revision=0))
     assert denied.value.status_code == 403
     for role in ("management", "admin"):
-        service = WorkspaceService(session, WorkbenchUser("x@example.com", role, "MKT", "X"))
+        service = _workspace_service(
+            session, WorkbenchUser("x@example.com", role, "MKT", "X")
+        )
         with pytest.raises(HTTPException) as denied:
             await service.get_draft(1)
         assert denied.value.status_code == 403
@@ -128,13 +143,13 @@ async def test_role_read_boundaries() -> None:
 async def test_admin_and_global_lead_receive_all_distributor_history() -> None:
     session = await _session()
     for role in ("admin", "lead"):
-        service = WorkspaceService(
+        service = _workspace_service(
             session,
             WorkbenchUser(f"{role}@example.com", role, "MKT", role.title()),
         )
         dealers = (await service.get_workspace(2027))["data"]["dealers"]
-        assert [dealer["id"] for dealer in dealers] == ["d1", "d2"]
-        assert [dealer["name"] for dealer in dealers] == ["Dealer 1", "Dealer 2"]
+        assert [dealer["id"] for dealer in dealers] == ["d1", "d2", "d3"]
+        assert [dealer["name"] for dealer in dealers] == ["Dealer 1", "Dealer 2", "Dealer 3"]
         assert set(dealers[0]["history"]["resources2025"]) == {
             "MRD",
             "SP&A",
@@ -146,15 +161,23 @@ async def test_admin_and_global_lead_receive_all_distributor_history() -> None:
 
 
 @pytest.mark.asyncio
+async def test_owner_receives_all_history_within_assigned_sector() -> None:
+    session = await _session()
+    dealers = (await _workspace_service(session, _owner()).get_workspace(2027))["data"]["dealers"]
+    assert [dealer["id"] for dealer in dealers] == ["d1", "d2"]
+    await session.close()
+
+
+@pytest.mark.asyncio
 async def test_reference_metadata_uses_history_source_for_workspace_and_snapshot() -> None:
     session = await _session()
-    service = WorkspaceService(session, _owner())
+    service = _workspace_service(session, _owner())
     result = await service.get_workspace(2027)
     assert result["state"]["reference"] == {
         "batchId": "data.distributor_sellin_resource_history",
         "asOf": "2026",
         "planningYear": 2027,
-        "count": 2,
+        "count": 3,
     }
     await service.save_draft(
         1, InitiativeDraftUpdateDTO(expected_revision=0, rows=[{"dealerId": "d1", "amount": "100"}])

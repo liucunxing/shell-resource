@@ -22,7 +22,10 @@ import { parseYiwenUrl } from "../config/yiwen";
 const config = parseYiwenUrl(import.meta.env.VITE_YIWEN_IFRAME_URL);
 const fmt = (value) =>
   Number.isFinite(value)
-    ? value.toLocaleString("zh-CN", { maximumFractionDigits: 2 })
+    ? (Math.abs(value) < 0.005 ? 0 : value).toLocaleString("zh-CN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
     : "—";
 const when = (value) =>
   value ? new Date(value).toLocaleString("zh-CN", { hour12: false }) : "—";
@@ -289,14 +292,12 @@ function ReferencePanel() {
       </label>
       <section className="yield-card" aria-label="2025全年整体Yield">
         <div>
-          <span>2025 全年 · 整体 C3 Yield</span>
-          <strong>{fmt(model.yield2025)}</strong>
+          <span>2025 全年 · Yield</span>
+          <strong>{fmt(model.yield)}</strong>
         </div>
-        <p>2025 C3 ÷ 2025 总资源</p>
+        <p>2025 C3 ÷ 资源</p>
         <small>
-          {model.yield2025 == null
-            ? "缺少有效 C3 或正数资源，暂无法计算"
-            : "同年历史比值 · 只读参考"}
+          {model.yield == null ? "源数据暂未提供 Yield" : "源数据原始比值 · 只读参考"}
         </small>
       </section>
       <div className="history-chart-pair">
@@ -320,7 +321,7 @@ function ReferencePanel() {
               aria-label={`${field === "vol" ? "Vol" : "C3"}全年对比`}
             >
               <div className="history-chart-title">
-                <h4>{field === "vol" ? "Vol" : "C3"}</h4>
+                <h4>{field === "vol" ? "Vol (KL)" : "C3 (K$)"}</h4>
                 <span>
                   {delta == null
                     ? "2024 / 2025 全年"
@@ -353,11 +354,11 @@ function ReferencePanel() {
           </span>
           <div>
             <b>{fmt(ytd.vol)}</b>
-            <small>Vol</small>
+            <small>Vol (KL)</small>
           </div>
           <div>
             <b>{fmt(ytd.c3)}</b>
-            <small>C3</small>
+            <small>C3 (K$)</small>
           </div>
         </div>
       )}
@@ -374,7 +375,7 @@ function ReferencePanel() {
           <div className="resource-bar-row" key={resource.label}>
             <div>
               <span>{resource.label.replace("2025 ", "")}</span>
-              <b>{fmt(resource.amount)}</b>
+              <b>{fmt(resource.amount)} K$</b>
             </div>
             <div className="history-bar-track">
               <i
@@ -391,7 +392,7 @@ function ReferencePanel() {
         </p>
       </section>
       <p className="reference-footnote">
-        Vol、C3 各用独立刻度。整体 Yield
+        Vol 的单位为 KL，C3 与资源的单位为 K$。Yield
         向各角色共享，资源明细按权限展示；历史比值不随 2027 分配变化。
       </p>
       <button
@@ -554,7 +555,7 @@ function LocalChat() {
             : "最新同步";
     if (/同比|2026|历史|yield/i.test(question))
       return {
-        text: "2024、2025 为全年历史；2026 为 1–8 月累计演示口径，没有去年同期数据，不能直接做同比或默认年化。整体 Yield 根据 2025 同年 C3 ÷ 总资源计算，资源明细仅在授权范围展示。",
+        text: "2024、2025 为全年历史；2026 为 1–8 月累计演示口径，没有去年同期数据，不能直接做同比或默认年化。Yield 为源数据提供的 2025 C3 ÷ 资源原始比值，资源明细仅在授权范围展示。",
         callback: { label: "打开历史原始数据", target: "history" },
       };
     if (/占比|分布|sector|部门|initiative/i.test(question)) {

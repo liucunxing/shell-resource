@@ -17,6 +17,7 @@ class WorkbenchUser:
     role: str
     department: str | None
     display_name: str
+    sectors: tuple[str, ...] = ()
 
     @property
     def owner_id(self) -> str:
@@ -55,4 +56,5 @@ async def get_current_workbench_user(
         role=permission.role,
         department=permission.department,
         display_name=permission.display_name,
+        sectors=tuple(permission.sector or ()),
     )

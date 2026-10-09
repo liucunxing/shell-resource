@@ -42,6 +42,7 @@ class AdminService(WorkspaceService):
             "display_name": item.display_name,
             "role": item.role,
             "department": item.department,
+            "sector": list(item.sector or []),
             "enabled": item.enabled,
             "has_initiatives": has_initiatives,
         }
@@ -53,6 +54,7 @@ class AdminService(WorkspaceService):
         name: str | None,
         role: str | None,
         department: str | None,
+        sector: str | None,
         limit: int,
         offset: int,
     ) -> dict:
@@ -62,6 +64,7 @@ class AdminService(WorkspaceService):
             name=name,
             role=role,
             department=department.strip().upper() if department else None,
+            sector=sector,
             limit=limit,
             offset=offset,
         )

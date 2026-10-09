@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.do.base import BaseDO
@@ -39,6 +39,7 @@ class AdminRepository:
         name: str | None,
         role: str | None,
         department: str | None,
+        sector: str | None,
         limit: int,
         offset: int,
     ) -> tuple[list[tuple[UserPermissionDO, bool]], int]:
@@ -55,6 +56,8 @@ class AdminRepository:
             conditions.append(UserPermissionDO.role == role)
         if department:
             conditions.append(UserPermissionDO.department == department)
+        if sector:
+            conditions.append(cast(UserPermissionDO.sector, String).contains(sector))
         total = await self.session.scalar(
             select(func.count()).select_from(UserPermissionDO).where(*conditions)
         )

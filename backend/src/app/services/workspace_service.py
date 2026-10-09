@@ -1,8 +1,10 @@
 from decimal import Decimal
+from typing import Protocol
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.dependencies.workbench_user import WorkbenchUser
 from app.models.do.budget import BudgetDO
 from app.models.do.workspace import (
@@ -13,16 +15,27 @@ from app.models.do.workspace import (
 )
 from app.repositories.workspace_repository import WorkspaceRepository
 from app.schemas.dto.workbench import InitiativeDraftUpdateDTO, PublishDTO
+from app.services.distributor_directory_service import DistributorDirectoryService
 from app.services.reference_service import ReferenceService
+
+
+class DistributorDirectory(Protocol):
+    async def distributor_codes(self, sectors: tuple[str, ...]) -> set[str]: ...
 
 
 class WorkspaceService:
     """V1.4 draft and publication operations. Values are Decimal until projection."""
 
-    def __init__(self, session: AsyncSession, user: WorkbenchUser) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        user: WorkbenchUser,
+        directory_service: DistributorDirectory | None = None,
+    ) -> None:
         self.session = session
         self.user = user
         self.repository = WorkspaceRepository(session)
+        self.directory_service = directory_service or DistributorDirectoryService(get_settings())
 
     async def get_workspace(self, planning_year: int) -> dict:
         department, sector, owner = self._scope()
@@ -56,18 +69,17 @@ class WorkspaceService:
         dealers = []
         reference_service = ReferenceService(self.session)
         if self.user.role in {"admin", "lead"}:
+            # Leads and administrators receive all business lines' historical records.
             dealers = await reference_service.get_dealers(planning_year)
-        elif self.user.role in {"owner", "management"}:
+        elif self.user.role == "owner":
+            # An Owner can review every dealer in the single business line assigned to them.
+            dealers = await reference_service.get_dealers(
+                planning_year, self.user.department, sectors=self.user.sectors
+            )
+        elif self.user.role == "management":
             dealers = await reference_service.get_dealers(
                 planning_year, self.user.department, dealer_ids
             )
-        if self.user.role in {"owner", "lead"}:
-            # The picker needs the approved directory even for an empty draft.
-            # Names/codes are shared; detailed history remains allocation-scoped.
-            visible_ids = {item["id"] for item in dealers}
-            for item in await reference_service.get_directory():
-                if item["id"] not in visible_ids:
-                    dealers.append(item)
         audit = []
         if self.user.role != "management":
             audit = [
@@ -248,6 +260,7 @@ class WorkspaceService:
             "email": self.user.email,
             "role": self.user.role,
             "department": self.user.department,
+            "sectors": list(self.user.sectors),
             "ownerId": self.user.email,
             "label": self.user.display_name,
         }
@@ -332,12 +345,14 @@ class WorkspaceService:
     async def _validate_rows(self, rows: list, other: list, budget: BudgetDO) -> None:
         if len({item.dealerId for item in rows}) != len(rows):
             raise HTTPException(status_code=422, detail="经销商编码不能重复")
-        references = await ReferenceService(self.session).get_directory()
         existing = await self.repository.rows_for(budget.id)
-        dealer_ids = {item["id"] for item in references} | {
-            item.distributor_code for item in existing
-        }
-        if any(item.dealerId not in dealer_ids for item in rows):
+        existing_ids = {item.distributor_code for item in existing}
+        requested_ids = {item.dealerId for item in rows}
+        new_ids = requested_ids - existing_ids
+        directory_ids = (
+            await self.directory_service.distributor_codes(self.user.sectors) if new_ids else set()
+        )
+        if not new_ids.issubset(directory_ids):
             raise HTTPException(status_code=422, detail="经销商编码不存在")
         config = await self.repository.config()
         allowed = {

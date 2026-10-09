@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   filterDealers,
+  toggleDealerSelection,
   uniqueDealersByCode,
 } from "../src/workbench/pages/EditorPage.jsx";
+import E from "../src/workbench/domain/engine.js";
 
 const dealers = [
   { id: "10208074", name: "中海壳牌石油化工有限公司" },
@@ -31,5 +33,26 @@ describe("dealer picker search", () => {
   it("combines code and name filters with AND semantics", () => {
     const result = filterDealers(uniqueDealersByCode(dealers), "1020", "中海");
     expect(result.map((dealer) => dealer.id)).toEqual(["10208074"]);
+  });
+
+  it("supports selecting and deselecting multiple dealers", () => {
+    expect(toggleDealerSelection(["10208074"], "12301298")).toEqual([
+      "10208074", "12301298",
+    ]);
+    expect(toggleDealerSelection(["10208074", "12301298"], "10208074")).toEqual([
+      "12301298",
+    ]);
+  });
+
+  it("accepts a new Databricks directory dealer before it has history data", () => {
+    const errors = E.validateInitiative(
+      {
+        budget: 0,
+        rows: [{ dealerId: "D-NEW", amount: 0, note: "" }],
+        otherBudgets: [],
+      },
+      { dealers: [], distributorDirectory: [{ id: "D-NEW", name: "New Dealer" }] },
+    );
+    expect(errors).toEqual([]);
   });
 });

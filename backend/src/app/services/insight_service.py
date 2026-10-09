@@ -295,7 +295,7 @@ class InsightService:
         yields: list[tuple[str, Decimal, dict[str, Any]]] = []
         for dealer_id in dealers:
             history = histories.get(dealer_id, {})
-            yield_value = self._numeric(history.get("yield2025"))
+            yield_value = self._numeric(history.get("yield"))
             if yield_value is not None:
                 yields.append((dealer_id, yield_value, history))
         yields.sort(key=lambda row: row[1])

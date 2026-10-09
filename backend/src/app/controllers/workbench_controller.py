@@ -1,7 +1,7 @@
 from typing import Annotated, Literal
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,6 +30,7 @@ from app.schemas.vo.workbench import (
     MyWorkbenchVO,
 )
 from app.services.admin_service import AdminService
+from app.services.distributor_directory_service import DistributorDirectoryService
 from app.services.workbench_service import WorkbenchService
 from app.services.workspace_service import WorkspaceService
 from app.storage.azure_blob import AzureBlobStorage
@@ -60,6 +61,20 @@ async def get_workspace(
     user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
 ) -> ApiResponse[dict]:
     return success(await _workspace_service(session, user).get_workspace(planning_year))
+
+
+@router.get(
+    "/distributors",
+    response_model=ApiResponse[list[dict]],
+    summary="获取 Databricks 经销商目录",
+)
+async def get_distributors(
+    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> ApiResponse[list[dict]]:
+    if user.role != "owner":
+        raise HTTPException(status_code=403, detail="当前角色不能添加经销商")
+    return success(await DistributorDirectoryService(settings).list_distributors(user.sectors))
 
 
 @router.get(
@@ -157,6 +172,7 @@ async def get_admin_users(
     name: Annotated[str | None, Query(max_length=255)] = None,
     role: Literal["owner", "lead", "management", "admin"] | None = None,
     department: Annotated[str | None, Query(max_length=32)] = None,
+    sector: Literal["PCMO", "CRTO", "B2B", "OEM"] | None = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> ApiResponse[dict]:
@@ -166,6 +182,7 @@ async def get_admin_users(
             name=name,
             role=role,
             department=department,
+            sector=sector,
             limit=limit,
             offset=offset,
         )
