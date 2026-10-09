@@ -1854,8 +1854,42 @@ body.modal-open {
   margin: 9px 0;
   background: #e9e9e9;
 }
+.management-card .management-allocation-progress {
+  display: flex;
+}
 .management-card .metric-progress span {
   background: #da291c;
+}
+.management-card .metric-progress .management-progress-dealer {
+  background: #da291c;
+  flex-shrink: 0;
+}
+.management-card .metric-progress .management-progress-other {
+  background: #0066b3;
+  flex-shrink: 0;
+}
+.management-progress-legend {
+  display: flex;
+  gap: 10px;
+  margin: -4px 0 7px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.management-progress-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.management-progress-legend i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.management-progress-legend .management-progress-dealer {
+  background: #da291c;
+}
+.management-progress-legend .management-progress-other {
+  background: #0066b3;
 }
 .management-filters {
   display: grid;
@@ -2264,6 +2298,9 @@ select:focus {
   width: 100%;
   margin: 0 0 22px;
 }
+.metric-grid.owner-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
 .metric-card {
   --metric-color: #da291c;
   display: flex;
@@ -2357,6 +2394,9 @@ select:focus {
   .metric-grid {
     gap: 12px;
   }
+  .metric-grid.owner-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .metric-card {
     padding: 16px 14px 14px;
   }
@@ -2368,6 +2408,9 @@ select:focus {
   .metric-grid {
     grid-template-columns: minmax(0, 1fr);
     gap: 12px;
+  }
+  .metric-grid.owner-metrics {
+    grid-template-columns: minmax(0, 1fr);
   }
   .metric-card {
     min-height: 135px;
@@ -3774,6 +3817,13 @@ tbody tr:hover {
   font-size: 21px;
   line-height: 1.35;
 }
+.page-heading h1 .page-sync-time {
+  margin-left: 10px;
+  font-size: 11px;
+  font-weight: 400;
+  color: #6b6b6b;
+  vertical-align: middle;
+}
 .page-heading p {
   margin-top: 3px;
   font-size: 11px;
@@ -5137,6 +5187,9 @@ tbody tr:hover {
 }
 .metric-card.metric-warn {
   --metric-color: #b17b24;
+}
+.metric-card.metric-other {
+  --metric-color: #0066b3;
 }
 .metric-progress {
   background: #e9e9e9;

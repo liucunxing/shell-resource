@@ -33,9 +33,9 @@ export function PageHead({ title, description, children }) {
     </div>
   );
 }
-function Metrics({ entries }) {
+function Metrics({ entries, className = "" }) {
   return (
-    <section className="metric-grid" aria-label="关键指标">
+    <section className={`metric-grid ${className}`.trim()} aria-label="关键指标">
       {entries.map(([label, value, note, progress, tone]) => (
         <article
           key={label}
@@ -267,6 +267,7 @@ export function HomePage() {
         </button>
       </PageHead>
       <Metrics
+        className="owner-metrics"
         entries={[
           [
             "负责预算",
@@ -278,6 +279,13 @@ export function HomePage() {
             fmt(t.allocated),
             `占负责预算 ${pct(t.allocated, t.budget)}%`,
             t.budget ? (t.allocated / t.budget) * 100 : 0,
+          ],
+          [
+            "其他非经销商预算",
+            fmt(t.otherBudget),
+            `占负责预算 ${pct(t.otherBudget, t.budget)}%`,
+            t.budget ? (t.otherBudget / t.budget) * 100 : 0,
+            "other",
           ],
           [
             "未解释差额",
@@ -364,11 +372,14 @@ export function DepartmentPage() {
   return (
     <>
       <PageHead
-        title={`${dep} · 部门总览`}
+        title={<>
+          {dep} · 部门总览
+          {!own && <small className="page-sync-time">最新同步：{time(latest(items))}</small>}
+        </>}
         description={
           own
             ? "查看本部门预算汇总；下方仅展示你负责的 Initiative。"
-            : "查看本部门最新工作稿与同步时间，Marketer 可自行持续更新。"
+            : "查看本部门最新工作稿；Marketer 可自行持续更新。"
         }
       />
       <Metrics
@@ -384,6 +395,7 @@ export function DepartmentPage() {
             own
               ? "本部门当前工作稿"
               : `占部门预算 ${pct(t.allocated, t.budget)}%`,
+            !own && t.budget ? (t.allocated / t.budget) * 100 : undefined,
           ],
           own
             ? [
@@ -393,9 +405,11 @@ export function DepartmentPage() {
                 t.budget ? (t.allocated / t.budget) * 100 : 0,
               ]
             : [
-                "最新同步",
-                time(latest(items)),
-                "各项由负责的 Marketer 独立同步",
+                "其他非经销商预算",
+                fmt(t.otherBudget),
+                `占部门预算 ${pct(t.otherBudget, t.budget)}%`,
+                t.budget ? (t.otherBudget / t.budget) * 100 : 0,
+                "other",
               ],
         ]}
       />
@@ -514,19 +528,33 @@ export function ManagementPage() {
             <label>已同步预算</label>
             <strong>{fmt(c.total.budget)}</strong>
             <div className="management-card-detail">
-              <span>分配到经销商</span>
+              <span>分配到经销商 · {pct(c.total.allocated, c.total.budget)}%</span>
               <b>{fmt(c.total.allocated)}</b>
             </div>
             <div className="management-card-detail">
-              <span>经销商分配率</span>
-              <b>{pct(c.total.allocated, c.total.budget)}%</b>
+              <span>其他非经销商预算 · {pct(c.total.otherBudget, c.total.budget)}%</span>
+              <b>{fmt(c.total.otherBudget)}</b>
             </div>
-            <div className="metric-progress">
+            <div
+              className="metric-progress management-allocation-progress"
+              aria-label={`经销商分配 ${fmt(c.total.allocated)}，其他非经销商预算 ${fmt(c.total.otherBudget)}`}
+            >
               <span
+                className="management-progress-dealer"
                 style={{
                   width: `${Math.min(100, (c.total.allocated / (c.total.budget || 1)) * 100)}%`,
                 }}
               />
+              <span
+                className="management-progress-other"
+                style={{
+                  width: `${Math.min(100, (c.total.otherBudget / (c.total.budget || 1)) * 100)}%`,
+                }}
+              />
+            </div>
+            <div className="management-progress-legend" aria-hidden="true">
+              <span><i className="management-progress-dealer" />经销商</span>
+              <span><i className="management-progress-other" />其他预算</span>
             </div>
             <small>
               已同步 {c.items.length} / {c.count} 项 · {time(latest(c.items))}
