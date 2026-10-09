@@ -186,6 +186,19 @@ class AdminService(WorkspaceService):
                     status_code=409,
                     detail="该用户当前已有 Initiative 预算事项，不可修改或删除。",
                 )
+            if user.role == "lead" and user.enabled and user.department:
+                await self._validate_department_sector_coverage(
+                    AdminUserDTO(
+                        email=user.email,
+                        display_name=user.display_name,
+                        role=user.role,
+                        department=user.department,
+                        sector=list(user.sector or []),
+                        enabled=False,
+                    ),
+                    replacing_user_id=user.id,
+                    previous_department=user.department,
+                )
             before = self._user_record(user)
             await self.session.delete(user)
             self.repository.add_log(

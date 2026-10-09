@@ -162,6 +162,7 @@ export function WorkbenchProvider({ children }) {
   const pendingDrafts = useRef(new Set());
   const directoryLoaded = useRef(demoMode);
   const directoryRequest = useRef(null);
+  const directoryRows = useRef(demoMode ? DATA.dealers : []);
   const [directoryStatus, setDirectoryStatus] = useState(
     demoMode ? "ready" : "idle",
   );
@@ -185,6 +186,7 @@ export function WorkbenchProvider({ children }) {
     pendingDrafts.current.clear();
     replaceState(blankState());
     setData({ dealers: [], distributorDirectory: [] });
+    directoryRows.current = [];
     directoryLoaded.current = demoMode;
     directoryRequest.current = null;
     setDirectoryStatus(demoMode ? "ready" : "idle");
@@ -213,6 +215,7 @@ export function WorkbenchProvider({ children }) {
       if (epoch !== sessionEpoch.current) return false;
       replaceState(workspace.state);
       setData(workspace.data);
+      directoryRows.current = [];
       setIdentityState(workspace.identity);
       setUsers(workspace.users);
       setServerRevisions(
@@ -237,8 +240,8 @@ export function WorkbenchProvider({ children }) {
   };
 
   const loadDistributorDirectory = useCallback(async ({ force = false } = {}) => {
-    if (demoMode) return true;
-    if (directoryLoaded.current && !force) return true;
+    if (demoMode) return directoryRows.current;
+    if (directoryLoaded.current && !force) return directoryRows.current;
     if (directoryRequest.current && !force) return directoryRequest.current;
     const epoch = sessionEpoch.current;
     setDirectoryStatus("loading");
@@ -246,13 +249,15 @@ export function WorkbenchProvider({ children }) {
       try {
         const dealers = await api.distributors();
         if (epoch !== sessionEpoch.current) return false;
+        const directory = Array.isArray(dealers) ? dealers : [];
         setData((current) => ({
           ...current,
-          distributorDirectory: Array.isArray(dealers) ? dealers : [],
+          distributorDirectory: directory,
         }));
+        directoryRows.current = directory;
         directoryLoaded.current = true;
         setDirectoryStatus("ready");
-        return true;
+        return directory;
       } catch (_) {
         if (epoch !== sessionEpoch.current) return false;
         directoryLoaded.current = false;

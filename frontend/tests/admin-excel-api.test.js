@@ -25,8 +25,8 @@ async function modify(bytes, owner, budget) {
   const book = new ExcelJS.Workbook();
   await book.xlsx.load(bytes);
   const sheet = book.getWorksheet("预算与归属");
-  sheet.getCell("F2").value = owner;
-  sheet.getCell("G2").value = budget;
+  sheet.getCell("E2").value = owner;
+  sheet.getCell("F2").value = budget;
   return book.xlsx.writeBuffer();
 }
 async function appendInitiative(bytes, values = {}) {
@@ -34,15 +34,12 @@ async function appendInitiative(bytes, values = {}) {
   await book.xlsx.load(bytes);
   const sheet = book.getWorksheet("预算与归属");
   sheet.addRow([
-    values.id ?? "",
     values.name ?? "New Initiative",
     values.sector ?? "PCMO",
     values.resourceType ?? "MRD",
     values.department ?? "MKT",
     values.ownerId ?? "a@example.test",
     values.budget ?? 250,
-    values.revision ?? "",
-    values.status ?? "",
   ]);
   return book.xlsx.writeBuffer();
 }
@@ -52,7 +49,7 @@ describe("API administrator Excel round trip", () => {
     const bytes = await AX.exportWorkbook(state, admin);
     const book = new ExcelJS.Workbook();
     await book.xlsx.load(bytes);
-    expect(book.getWorksheet("模板说明").getCell("B6").value).toContain(
+    expect(book.getWorksheet("模板说明").getCell("B2").value).toContain(
       "MKT → MRD、SP&A；ICE → ICE Rebate；CAPEX → Capex",
     );
     const result = await AX.previewImport(bytes, state, admin, users);
@@ -89,7 +86,7 @@ describe("API administrator Excel round trip", () => {
       expect(state.initiatives[0].ownerId).toBe("a@example.test");
     }
   });
-  it("previews and applies a new Initiative from a blank-ID row", async () => {
+  it("previews and applies a new Initiative from a new business-key row", async () => {
     const { state, users } = fixture();
     const beforeTotal = E.totals(state.initiatives).budget;
     const bytes = await appendInitiative(await AX.exportWorkbook(state, admin));
@@ -127,15 +124,8 @@ describe("API administrator Excel round trip", () => {
     expect(result.errors).toEqual([]);
     expect(result.creates[0].sector).toBe("OTHER");
   });
-  it("rejects unknown nonblank IDs and duplicate new business keys", async () => {
+  it("rejects duplicate business keys", async () => {
     const { state, users } = fixture();
-    const unknown = await appendInitiative(
-      await AX.exportWorkbook(state, admin),
-      { id: "missing-id" },
-    );
-    const unknownResult = await AX.previewImport(unknown, state, admin, users);
-    expect(unknownResult.errors.join(" ")).toContain("新增项目请将编号留空");
-
     const first = await appendInitiative(await AX.exportWorkbook(state, admin));
     const duplicate = await appendInitiative(first);
     const duplicateResult = await AX.previewImport(
@@ -144,7 +134,7 @@ describe("API administrator Excel round trip", () => {
       admin,
       users,
     );
-    expect(duplicateResult.errors.join(" ")).toContain("Initiative 名称已存在");
+    expect(duplicateResult.errors.join(" ")).toContain("Initiative 名称重复");
     expect(state.initiatives).toHaveLength(1);
   });
   it("rejects a new Initiative whose resource type and department do not match", async () => {

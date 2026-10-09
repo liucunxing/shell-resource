@@ -241,7 +241,15 @@ function EditorContent({
     if (!guard()) return;
     setBusy(true);
     try {
-      const bytes = await X.exportWorkbook(state, i.id, identity);
+      const directory = apiMode
+        ? await loadDistributorDirectory()
+        : data.dealers;
+      if (!Array.isArray(directory))
+        throw Error("经销商目录加载失败，暂不能生成导入模板。");
+      const bytes = await X.exportWorkbook(state, i.id, identity, {
+        ...data,
+        distributorDirectory: directory,
+      });
       const url = URL.createObjectURL(
         new Blob([bytes], {
           type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

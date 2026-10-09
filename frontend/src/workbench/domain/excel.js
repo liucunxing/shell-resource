@@ -1,11 +1,9 @@
 import engine from "./engine.js";
 const excelLibrary = async () => (await import("exceljs")).default;
 ("use strict");
-const FORMAT = "资源投资分配模板 V1.3",
-  LEGACY_FORMAT = "资源投资分配模板 V1.2";
+const LEGACY_FORMAT = "资源投资分配模板 V1.3",
+  LEGACY_POOL_FORMAT = "资源投资分配模板 V1.2";
 const META = [
-  "模板版本",
-  "Initiative编号",
   "Initiative名称",
   "资源类型",
   "Sector",
@@ -14,8 +12,15 @@ const META = [
   "预算（只读）",
   "草稿修订号",
 ];
-const HEAD = ["行业务键", "经销商编码", "分配金额", "说明"],
-  OTHER_HEAD = ["预算项编号（留空表示新增）", "原因", "金额", "填写原因"],
+const LEGACY_META = [
+  "模板版本",
+  "Initiative编号",
+  ...META,
+];
+const HEAD = ["经销商编码", "分配金额", "说明"],
+  LEGACY_HEAD = ["行业务键", "经销商编码", "分配金额", "说明"],
+  OTHER_HEAD = ["原因类型", "分配金额", "说明"],
+  LEGACY_OTHER_HEAD = ["预算项编号（留空表示新增）", "原因", "金额", "填写原因"],
   LEGACY_POOL = ["预算池类型", "金额", "说明"];
 const DEFAULT_REASONS = [
   { id: "reserve", label: "新增经销商预留", enabled: true },
@@ -63,8 +68,6 @@ const total = (i) =>
       currentOther(i).reduce((s, r) => s + Number(r.amount || 0), 0),
   );
 const fields = (i) => [
-  FORMAT,
-  i.id,
   i.name,
   i.resourceType,
   i.sector,
@@ -141,21 +144,15 @@ function checkWidth(out, s, max) {
     }),
   );
 }
-function addValidation(sheet, state) {
-  const labels = reasons(state)
-    .map((r) => r.label.replace(/"/g, ""))
-    .join(",");
-  const lastRow = Math.max(sheet.rowCount + 20, 30);
-  for (let row = 2; row <= lastRow; row++)
-    sheet.getRow(row).getCell(2).dataValidation = {
-      type: "list",
-      allowBlank: false,
-      formulae: ['"' + labels + '"'],
-      showErrorMessage: true,
-      error: "请选择管理员配置的预算安排原因。",
-    };
+function dealerDirectory(data = {}) {
+  const rows = Array.isArray(data.distributorDirectory) && data.distributorDirectory.length
+    ? data.distributorDirectory
+    : Array.isArray(data.dealers)
+      ? data.dealers
+      : [];
+  return [...new Map(rows.map((dealer) => [String(dealer.id), dealer])).values()];
 }
-async function exportWorkbook(state, id, identity) {
+async function exportWorkbook(state, id, identity, data = {}) {
   const i = editable(state, id, identity),
     book = new (await excelLibrary()).Workbook();
   book.creator = "资源投资工作台（本地演示）";
@@ -164,35 +161,34 @@ async function exportWorkbook(state, id, identity) {
   fields(i).forEach((v, ix) => meta.addRow([META[ix], v]));
   meta.addRow([
     "填写说明",
-    "仅编辑经销商分配与其他预算安排。其他预算安排可新增多行：选择原因、填写金额和填写原因；预算项编号留空即新增。删除明细行将删除当前分配。金额最多2位小数，不得填写公式。导入前预览，确认后写入。",
+    "仅编辑经销商分配与其他预算安排；删除明细行将删除当前分配。金额最多2位小数，不得填写公式。经销商分配：经销商编码请参考「经销商列表」Sheet 中的编码填写。其他预算分配：原因类型请参考「原因类型参考」Sheet 中的选项填写。导入前预览，确认后写入。",
   ]);
   style(meta, [26, 110]);
-  meta.getRow(11).getCell(2).alignment = { wrapText: true };
-  meta.getRow(11).height = 56;
+  meta.getRow(9).getCell(2).alignment = { wrapText: true };
+  meta.getRow(9).height = 56;
   const rows = book.addWorksheet("经销商分配");
   rows.addRow(HEAD);
   (i.rows || []).forEach((r) =>
-    rows.addRow([i.id + "::" + r.dealerId, r.dealerId, r.amount, r.note || ""]),
+    rows.addRow([r.dealerId, r.amount, r.note || ""]),
   );
-  style(rows, [46, 24, 20, 65]);
-  rows.getColumn(3).numFmt = "#,##0.00";
+  style(rows, [24, 20, 65]);
+  rows.getColumn(2).numFmt = "#,##0.00";
   const other = book.addWorksheet("其他预算安排");
   other.addRow(OTHER_HEAD);
   currentOther(i).forEach((r) => {
     const reason = configuredReasons(state).find((x) => x.id === r.reasonId);
     other.addRow([
-      r.id || "",
       reason ? reason.label : r.reasonId,
       r.amount,
       r.note || "",
     ]);
   });
-  style(other, [28, 26, 20, 70]);
-  other.getColumn(3).numFmt = "#,##0.00";
+  style(other, [26, 20, 70]);
+  other.getColumn(2).numFmt = "#,##0.00";
   // Validation is intentionally applied only to populated rows. Some older ExcelJS
   // builds expand a worksheet indefinitely when data validation is set on blank rows.
   for (let row = 2; row <= other.rowCount; row++)
-    other.getRow(row).getCell(2).dataValidation = {
+    other.getRow(row).getCell(1).dataValidation = {
       type: "list",
       allowBlank: false,
       formulae: [
@@ -205,35 +201,39 @@ async function exportWorkbook(state, id, identity) {
       showErrorMessage: true,
       error: "请选择管理员配置的预算安排原因。",
     };
+  const directory = book.addWorksheet("经销商列表");
+  directory.addRow(["经销商编码", "经销商名称"]);
+  dealerDirectory(data).forEach((dealer) =>
+    directory.addRow([String(dealer.id), String(dealer.name || "")]),
+  );
+  style(directory, [24, 48]);
+  const reasonReference = book.addWorksheet("原因类型参考");
+  reasonReference.addRow(["原因类型"]);
+  reasons(state).forEach((reason) => reasonReference.addRow([reason.label]));
+  style(reasonReference, [32]);
   return book.xlsx.writeBuffer();
 }
-function parseOtherV13(sheet, state, out, read) {
+function parseOtherV14(sheet, state, out, read) {
   checkHeaders(read, out, sheet, OTHER_HEAD);
-  checkWidth(out, sheet, 4);
+  checkWidth(out, sheet, 3);
   const byLabel = new Map(configuredReasons(state).map((r) => [r.label, r])),
     ids = new Set();
-  let generated = 0;
   for (let n = 2; n <= sheet.rowCount; n++) {
-    const [rawId, label, rawAmount, note] = [1, 2, 3, 4].map((c) =>
+    const [label, rawAmount, note] = [1, 2, 3].map((c) =>
       read(sheet, n, c),
     );
-    if ([rawId, label, rawAmount, note].every((v) => v === "")) continue;
-    if (rawId !== "" && typeof rawId !== "string")
-      out.errors.push(`其他预算安排 第${n}行预算项编号必须为文本或留空。`);
-    const id =
-      rawId === "" ? `import-other-${++generated}` : String(rawId).trim();
-    if (!id) out.errors.push(`其他预算安排 第${n}行预算项编号无效。`);
-    if (ids.has(id)) out.errors.push(`其他预算安排 第${n}行预算项编号重复。`);
+    if ([label, rawAmount, note].every((v) => v === "")) continue;
+    const id = `import-other-${n}`;
+    if (ids.has(id)) out.errors.push(`其他预算安排 第${n}行重复。`);
     ids.add(id);
     const reason = typeof label === "string" ? byLabel.get(label.trim()) : null;
     if (!reason)
       out.errors.push(
         `其他预算安排 第${n}行原因必须来自管理员配置的下拉选项。`,
       );
-    else if (rawId === "" && reason.enabled === false)
+    else if (reason.enabled === false)
       out.errors.push(`其他预算安排 第${n}行不能新增已停用的原因。`);
-    if (typeof note !== "string")
-      out.errors.push(`其他预算安排 第${n}行填写原因必须为文本。`);
+    if (typeof note !== "string") out.errors.push(`其他预算安排 第${n}行说明必须为文本。`);
     const amount = money(rawAmount, out, `其他预算安排 第${n}行金额`);
     if (amount > 0 && !safeText(note).trim())
       out.errors.push(`其他预算安排 第${n}行金额大于0时必须填写原因。`);
@@ -243,6 +243,28 @@ function parseOtherV13(sheet, state, out, read) {
       amount,
       note: safeText(note),
     });
+  }
+}
+function parseOtherV13(sheet, state, out, read) {
+  checkHeaders(read, out, sheet, LEGACY_OTHER_HEAD);
+  checkWidth(out, sheet, 4);
+  const byLabel = new Map(configuredReasons(state).map((r) => [r.label, r])),
+    ids = new Set();
+  let generated = 0;
+  for (let n = 2; n <= sheet.rowCount; n++) {
+    const [rawId, label, rawAmount, note] = [1, 2, 3, 4].map((c) => read(sheet, n, c));
+    if ([rawId, label, rawAmount, note].every((v) => v === "")) continue;
+    const id = rawId === "" ? `import-other-${++generated}` : String(rawId).trim();
+    if (!id || ids.has(id)) out.errors.push(`其他预算安排 第${n}行预算项编号无效或重复。`);
+    ids.add(id);
+    const reason = typeof label === "string" ? byLabel.get(label.trim()) : null;
+    if (!reason) out.errors.push(`其他预算安排 第${n}行原因必须来自管理员配置的下拉选项。`);
+    else if (rawId === "" && reason.enabled === false)
+      out.errors.push(`其他预算安排 第${n}行不能新增已停用的原因。`);
+    if (typeof note !== "string") out.errors.push(`其他预算安排 第${n}行填写原因必须为文本。`);
+    const amount = money(rawAmount, out, `其他预算安排 第${n}行金额`);
+    if (amount > 0 && !safeText(note).trim()) out.errors.push(`其他预算安排 第${n}行金额大于0时必须填写原因。`);
+    out.otherBudgets.push({ id, reasonId: reason ? reason.id : "", amount, note: safeText(note) });
   }
 }
 function parseLegacyPool(sheet, out, read) {
@@ -305,17 +327,26 @@ async function previewImport(buffer, state, id, identity, data) {
   const read = readFactory(out),
     meta = book.getWorksheet("模板信息"),
     ds = book.getWorksheet("经销商分配"),
-    isLegacy = meta && read(meta, 2, 2) === LEGACY_FORMAT,
-    other = book.getWorksheet(isLegacy ? "预算池" : "其他预算安排"),
-    expected = ["模板信息", "经销商分配", isLegacy ? "预算池" : "其他预算安排"];
+    isV14 =
+      book.worksheets.length === 5 &&
+      ["模板信息", "经销商分配", "其他预算安排", "经销商列表", "原因类型参考"].every(
+        (name) => book.getWorksheet(name),
+      ),
+    templateFormat = isV14 ? "" : meta && read(meta, 2, 2),
+    isLegacyPool = templateFormat === LEGACY_POOL_FORMAT,
+    isLegacy = templateFormat === LEGACY_FORMAT || isLegacyPool,
+    other = book.getWorksheet(isLegacyPool ? "预算池" : "其他预算安排"),
+    expected = isV14
+      ? ["模板信息", "经销商分配", "其他预算安排", "经销商列表", "原因类型参考"]
+      : ["模板信息", "经销商分配", isLegacyPool ? "预算池" : "其他预算安排"];
   if (
-    book.worksheets.length !== 3 ||
+    book.worksheets.length !== expected.length ||
     expected.some((n) => !book.getWorksheet(n))
   ) {
-    out.errors.push("模板必须且只能包含：模板信息、经销商分配、其他预算安排。");
+    out.errors.push(`模板必须且只能包含：${expected.join("、")}。`);
     return out;
   }
-  book.worksheets.forEach((s) =>
+  [meta, ds, other].forEach((s) =>
     s.eachRow((row, n) =>
       row.eachCell((cell, c) => {
         const v = cell.value;
@@ -332,32 +363,47 @@ async function previewImport(buffer, state, id, identity, data) {
   );
   checkHeaders(read, out, meta, ["字段", "值（固定属性请勿修改）"]);
   checkWidth(out, meta, 2);
-  const metaFields = fields(i);
-  metaFields[0] = isLegacy ? LEGACY_FORMAT : FORMAT;
+  const metaFields = isLegacy
+    ? [
+        templateFormat,
+        i.id,
+        i.name,
+        i.resourceType,
+        i.sector,
+        i.department,
+        i.ownerId,
+        i.budget,
+        i.revision,
+      ]
+    : fields(i);
+  const metaLabels = isLegacy ? LEGACY_META : META;
   metaFields.forEach((v, ix) => {
     const label = read(meta, ix + 2, 1),
       value = read(meta, ix + 2, 2);
-    out.fileScope[META[ix]] = value;
-    if (label !== META[ix] || value !== v)
+    out.fileScope[metaLabels[ix]] = value;
+    if (label !== metaLabels[ix] || value !== v)
       out.errors.push(
-        `模板信息「${META[ix]}」与当前方案不一致，请重新下载当前模板。`,
+        `模板信息「${metaLabels[ix]}」与当前方案不一致，请重新下载当前模板。`,
       );
   });
-  if (meta.rowCount > 11) out.errors.push("模板信息含额外行，请使用原始模板。");
-  checkHeaders(read, out, ds, HEAD);
-  checkWidth(out, ds, 4);
-  const dealers = new Set(data.dealers.map((d) => String(d.id))),
+  if (meta.rowCount > (isV14 ? 9 : 11))
+    out.errors.push("模板信息含额外行，请使用原始模板。");
+  checkHeaders(read, out, ds, isV14 ? HEAD : LEGACY_HEAD);
+  checkWidth(out, ds, isV14 ? 3 : 4);
+  const dealers = new Set(dealerDirectory(data).map((d) => String(d.id))),
     keys = new Set(),
     ids = new Set();
   for (let n = 2; n <= ds.rowCount; n++) {
-    const row = [1, 2, 3, 4].map((c) => read(ds, n, c));
+    const row = Array.from({ length: isV14 ? 3 : 4 }, (_, c) => read(ds, n, c + 1));
     if (row.every((v) => v === "")) continue;
-    const [key, dealer, amount, note] = row;
+    const [key, dealer, amount, note] = isV14
+      ? [null, row[0], row[1], row[2]]
+      : row;
     if (typeof dealer !== "string" || !dealers.has(dealer))
       out.errors.push(`经销商分配 第${n}行经销商编码不存在或格式不正确。`);
-    if (key !== i.id + "::" + dealer)
+    if (!isV14 && key !== i.id + "::" + dealer)
       out.errors.push(`经销商分配 第${n}行行业务键应为 ${i.id}::${dealer}。`);
-    if (keys.has(key) || ids.has(dealer))
+    if ((!isV14 && keys.has(key)) || ids.has(dealer))
       out.errors.push(`经销商分配 第${n}行行业务键或经销商重复。`);
     if (typeof note !== "string")
       out.errors.push(`经销商分配 第${n}行说明必须为文本。`);
@@ -369,8 +415,18 @@ async function previewImport(buffer, state, id, identity, data) {
       note: safeText(note),
     });
   }
-  if (isLegacy) parseLegacyPool(other, out, read);
+  if (isLegacyPool) parseLegacyPool(other, out, read);
+  else if (isV14) parseOtherV14(other, state, out, read);
   else parseOtherV13(other, state, out, read);
+  if (isV14) {
+    const existing = currentOther(i);
+    out.otherBudgets = out.otherBudgets.map((row, index) => {
+      const previous = existing[index];
+      return previous && previous.reasonId === row.reasonId
+        ? { ...row, id: previous.id }
+        : row;
+    });
+  }
   if (
     !out.rows.length &&
     !out.otherBudgets.some((r) => r.amount > 0 && r.note.trim())

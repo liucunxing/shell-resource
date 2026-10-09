@@ -200,6 +200,10 @@ async def test_owner_sector_must_be_covered_by_an_enabled_department_lead(api):
     assert changed.status_code == 422
     assert "未被任何启用的部门负责人覆盖" in changed.json()["msg"]
 
+    deleted = await client.delete(f"admin/users/{lead_id}", headers=headers())
+    assert deleted.status_code == 422
+    assert "未被任何启用的部门负责人覆盖" in deleted.json()["msg"]
+
 
 @pytest.mark.asyncio
 async def test_budget_owner_cannot_be_edited_or_deleted_even_if_case_differs(api):

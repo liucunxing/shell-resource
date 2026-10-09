@@ -4,7 +4,7 @@ import X from "../../src/workbench/domain/excel.js";
 import ExcelJS from "exceljs";
 
 vitestTest(
-  "V1.3 excel original regression contract",
+  "V1.4 simplified allocation template regression contract",
   async () => {
     const identity = { role: "owner", department: "MKT", ownerId: "MKT-1" };
     const data = { dealers: [{ id: "D001" }, { id: "D002" }, { id: "D003" }] };
@@ -49,16 +49,26 @@ vitestTest(
     }
     async function main() {
       const state = base(),
-        bytes = await X.exportWorkbook(state, "I001", identity);
+        bytes = await X.exportWorkbook(state, "I001", identity, data);
       const book = new ExcelJS.Workbook();
       await book.xlsx.load(bytes);
       assert.deepEqual(
         book.worksheets.map((s) => s.name),
-        ["模板信息", "经销商分配", "其他预算安排"],
+        ["模板信息", "经销商分配", "其他预算安排", "经销商列表", "原因类型参考"],
       );
+      assert.deepEqual(
+        book.getWorksheet("经销商分配").getRow(1).values.slice(1),
+        ["经销商编码", "分配金额", "说明"],
+      );
+      assert.deepEqual(
+        book.getWorksheet("其他预算安排").getRow(1).values.slice(1),
+        ["原因类型", "分配金额", "说明"],
+      );
+      assert.equal(book.getWorksheet("经销商列表").getCell("A2").value, "D001");
+      assert.equal(book.getWorksheet("原因类型参考").getCell("A2").value, "新增经销商预留");
       assert.equal(book.getWorksheet("其他预算安排").rowCount, 4);
       assert.equal(
-        book.getWorksheet("其他预算安排").getCell("B2").dataValidation.type,
+        book.getWorksheet("其他预算安排").getCell("A2").dataValidation.type,
         "list",
       );
       const unchanged = await X.previewImport(
@@ -87,8 +97,8 @@ vitestTest(
 
       const edited = await alter(bytes, (b) => {
         const other = b.getWorksheet("其他预算安排");
-        other.getCell("C3").value = 6;
-        other.addRow(["", "无法分配到经销商", 5, "无法匹配经销商"]);
+        other.getCell("B3").value = 6;
+        other.addRow(["无法分配到经销商", 5, "无法匹配经销商"]);
       });
       const target = base(),
         preview = await X.previewImport(edited, target, "I001", identity, data);
@@ -108,25 +118,25 @@ vitestTest(
       for (const [name, edit] of [
         [
           "未知原因",
-          (b) =>
-            (b.getWorksheet("其他预算安排").getCell("B2").value = "不存在"),
+            (b) =>
+            (b.getWorksheet("其他预算安排").getCell("A2").value = "不存在"),
         ],
         [
           "空原因",
-          (b) => (b.getWorksheet("其他预算安排").getCell("D2").value = ""),
+          (b) => (b.getWorksheet("其他预算安排").getCell("C2").value = ""),
         ],
         [
           "负金额",
-          (b) => (b.getWorksheet("其他预算安排").getCell("C2").value = -1),
+          (b) => (b.getWorksheet("其他预算安排").getCell("B2").value = -1),
         ],
         [
-          "重复预算项编号",
-          (b) => (b.getWorksheet("其他预算安排").getCell("A3").value = "OB-1"),
+          "额外字段",
+          (b) => (b.getWorksheet("其他预算安排").getCell("D3").value = "extra"),
         ],
         [
           "公式",
-          (b) =>
-            (b.getWorksheet("其他预算安排").getCell("C2").value = {
+            (b) =>
+            (b.getWorksheet("其他预算安排").getCell("B2").value = {
               formula: "1+1",
               result: 2,
             }),

@@ -6,7 +6,7 @@ import ExcelJS from "exceljs";
 import data from "../../src/workbench/domain/demo-data.json";
 
 vitestTest(
-  "V1.3 admin-excel original regression contract",
+  "V1.5 admin-excel simplified template regression contract",
   async () => {
     const admin = { role: "admin" },
       owner = { role: "owner", department: "MKT", ownerId: "MKT-1" };
@@ -29,8 +29,8 @@ vitestTest(
         bytes = await X.exportWorkbook(base, admin);
       const first = base.initiatives[0];
       const changedBytes = await alter(bytes, (s) => {
-        s.getCell("G2").value = first.budget + 100;
-        s.getCell("F2").value = first.department + "-2";
+        s.getCell("F2").value = first.budget + 100;
+        s.getCell("E2").value = first.department + "-2";
       });
       await check(
         "export workbook is configuration only and no-op import does not reset completion",
@@ -89,37 +89,29 @@ vitestTest(
         },
       );
       const invalid = [
-        ["negative budget", (sh) => (sh.getCell("G2").value = -1)],
-        ["blank budget", (sh) => (sh.getCell("G2").value = null)],
-        ["fraction precision", (sh) => (sh.getCell("G2").value = 1.001)],
+        ["negative budget", (sh) => (sh.getCell("F2").value = -1)],
+        ["blank budget", (sh) => (sh.getCell("F2").value = null)],
+        ["fraction precision", (sh) => (sh.getCell("F2").value = 1.001)],
         [
           "formula",
-          (sh) => (sh.getCell("G2").value = { formula: "1+1", result: 2 }),
+          (sh) => (sh.getCell("F2").value = { formula: "1+1", result: 2 }),
         ],
         [
           "cross-department owner",
           (sh) =>
-            (sh.getCell("F2").value =
+            (sh.getCell("E2").value =
               (first.department === "ICE" ? "MKT" : "ICE") + "-1"),
         ],
         [
           "invalid fixed column",
           (sh) => (sh.getCell("C2").value = "different"),
         ],
-        ["unknown id", (sh) => (sh.getCell("A2").value = "new-initiative")],
-        ["duplicate id", (sh) => sh.addRow(sh.getRow(2).values.slice(1))],
-        ["missing header", (sh) => (sh.getCell("G1").value = "other")],
-        ["extra column", (sh) => (sh.getCell("J1").value = "extra")],
+        ["duplicate business key", (sh) => sh.addRow(sh.getRow(2).values.slice(1))],
+        ["missing header", (sh) => (sh.getCell("F1").value = "other")],
+        ["extra column", (sh) => (sh.getCell("G1").value = "extra")],
         [
-          "stale revision",
-          (sh) => {
-            sh.getCell("H2").value = 999;
-            sh.getCell("G2").value = first.budget + 10;
-          },
-        ],
-        [
-          "wrong template version",
-          (_, b) => (b.getWorksheet("模板说明").getCell("B2").value = "other"),
+          "wrong template rule",
+          (_, b) => (b.getWorksheet("模板说明").getCell("A2").value = "other"),
         ],
         [
           "empty rows",
@@ -181,7 +173,7 @@ vitestTest(
             exported = await X.exportWorkbook(s, admin),
             changed = await alter(
               exported,
-              (sh) => (sh.getCell("G2").value = first.budget + 1),
+              (sh) => (sh.getCell("F2").value = first.budget + 1),
             ),
             p = await X.previewImport(changed, s, admin);
           assert.deepEqual(p.errors, []);
@@ -192,7 +184,7 @@ vitestTest(
           s.final = { id: "FINAL-test" };
           const finalChanged = await alter(
             finalExport,
-            (sh) => (sh.getCell("G2").value = first.budget + 2),
+            (sh) => (sh.getCell("F2").value = first.budget + 2),
           );
           const finalPreview = await X.previewImport(finalChanged, s, admin);
           assert.deepEqual(finalPreview.errors, []);
