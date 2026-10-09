@@ -1,0 +1,89 @@
+{
+  "schema_version": "1.0",
+  "preset_id": "quadrant",
+  "headline": "用相对位置圈定复核对象",
+  "summary": "同一可比队列中观察历史Yield与计划投入；象限位置不直接生成增投或减投建议。",
+  "blocks": [
+    {
+      "id": "quadrant-view",
+      "kind": "visual",
+      "title": "历史整体 Yield × 计划投入",
+      "body": "按上游分组查看历史与计划相对位置；中位数不代表业务阈值。",
+      "status": "observed",
+      "dimension_ids": [
+        "low_yield",
+        "high_yield"
+      ],
+      "fact_ids": [
+        "cohort",
+        "target"
+      ],
+      "dataset_id": "yield-plan"
+    }
+  ],
+  "checks": [
+    {
+      "dimension_id": "low_yield",
+      "status": "observed",
+      "summary": "1100 历史Yield为6.29，计划投入51,000。",
+      "fact_ids": [
+        "low-yield",
+        "low-plan",
+        "target"
+      ]
+    },
+    {
+      "dimension_id": "high_yield",
+      "status": "observed",
+      "summary": "800 历史Yield为25.67，计划投入53,000。",
+      "fact_ids": [
+        "high-yield",
+        "high-plan",
+        "target"
+      ]
+    },
+    {
+      "dimension_id": "concentration",
+      "status": "observed",
+      "summary": "900 占经销商分配4.77%；未提供异常阈值。",
+      "fact_ids": [
+        "top-share",
+        "rules"
+      ]
+    },
+    {
+      "dimension_id": "overlap",
+      "status": "observed",
+      "summary": "57家涉及多项安排；叠加本身不代表重复投入。",
+      "fact_ids": [
+        "overlap",
+        "top-overlap"
+      ]
+    },
+    {
+      "dimension_id": "trend",
+      "status": "review",
+      "summary": "900 的计划增幅与历史表现需要结合业务目标解释。",
+      "fact_ids": [
+        "top-growth",
+        "vol",
+        "c3",
+        "target"
+      ]
+    },
+    {
+      "dimension_id": "completeness",
+      "status": "clear",
+      "summary": "金额已平衡；其他安排35,036仍需落实用途。",
+      "fact_ids": [
+        "budget",
+        "allocated",
+        "other",
+        "gap"
+      ]
+    }
+  ],
+  "limitations": [
+    "仅使用本次授权证据；没有2027经营预测，不推断未来收益或因果。"
+  ]
+}

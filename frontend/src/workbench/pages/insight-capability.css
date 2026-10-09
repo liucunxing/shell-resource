@@ -1,0 +1,145 @@
+.ic-result {
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: #222;
+}
+.ic-result h3 {
+  font-size: 18px;
+  margin: 12px 0 8px;
+  overflow-wrap: anywhere;
+}
+.ic-result p {
+  margin: 6px 0;
+  overflow-wrap: anywhere;
+}
+.ic-checks {
+  list-style: none;
+  margin: 14px 0 20px;
+  padding: 0;
+  border-top: 1px solid #e3e3e3;
+}
+.ic-checks li {
+  padding: 9px 0;
+  border-bottom: 1px solid #e3e3e3;
+}
+.ic-checks li > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  justify-content: space-between;
+}
+.ic-checks p {
+  margin: 3px 0 0;
+  color: #555;
+}
+.ic-status {
+  font-size: 12px;
+  padding: 1px 5px;
+  background: #f0f0f0;
+  color: #444;
+}
+.ic-status.review {
+  border-left: 3px solid #d5aa00;
+  background: #fff8df;
+}
+.ic-status.limited {
+  color: #666;
+  background: #f5f5f5;
+}
+.ic-block {
+  padding: 16px 0;
+  border-top: 1px solid #e3e3e3;
+}
+.ic-body {
+  white-space: pre-wrap;
+}
+.ic-chart {
+  margin: 12px 0;
+  padding: 12px;
+  background: #fafafa;
+  border: 1px solid #e3e3e3;
+  min-width: 0;
+}
+.ic-chart figcaption {
+  font-weight: 600;
+}
+.ic-chart p,
+.ic-caption,
+.ic-facts {
+  font-size: 12px;
+  color: #555;
+}
+.ic-bar-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3px;
+  margin: 12px 0;
+  overflow-wrap: anywhere;
+}
+.ic-bar-row strong {
+  font-size: 16px;
+}
+.ic-bar-track {
+  height: 8px;
+  background: #ececec;
+}
+.ic-bar-track i {
+  display: block;
+  height: 8px;
+  background: #ffcd00;
+}
+.ic-bar-track i.negative {
+  background: #da291c;
+}
+.ic-quadrant {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  display: block;
+}
+.ic-quadrant text {
+  font-size: 12px;
+  fill: #555;
+}
+.ic-quadrant circle:focus {
+  outline: 3px solid #222;
+}
+.ic-evidence-rows dl {
+  margin: 8px 0;
+  padding: 8px 0;
+  border-bottom: 1px solid #ddd;
+}
+.ic-evidence-rows dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.ic-evidence-rows dt {
+  color: #666;
+  font-size: 12px;
+}
+.ic-evidence-rows dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.ic-limitations {
+  border-top: 1px solid #ddd;
+  color: #555;
+  font-size: 12px;
+  padding-top: 10px;
+}
+.ic-result summary {
+  cursor: pointer;
+}
+.insight-preset select {
+  width: 100%;
+  max-width: 100%;
+  white-space: normal;
+}
+
+.ic-bar-track i.historical {
+  background: #888;
+}

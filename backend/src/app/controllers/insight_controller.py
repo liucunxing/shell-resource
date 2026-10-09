@@ -18,16 +18,17 @@ def _service(session: AsyncSession, user: WorkbenchUser, settings: Settings) -> 
     return InsightService(session=session, user=user, settings=settings)
 
 
-@router.get("/insights", response_model=ApiResponse[InsightReadVO], summary="读取六点 Insight")
+@router.get("/insights", response_model=ApiResponse[InsightReadVO], summary="读取 Insight")
 async def get_insight(
     session: Annotated[AsyncSession, Depends(get_db_session)],
     user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
     settings: Annotated[Settings, Depends(get_settings)],
     scope: Annotated[str, Query(min_length=1, max_length=300)],
     planning_year: Annotated[int, Query(ge=2000, le=2100)],
+    preset_id: str = "comprehensive",
 ) -> ApiResponse[InsightReadVO]:
     data = await _service(session, user, settings).get_insight(
-        scope=scope, planning_year=planning_year
+        scope=scope, planning_year=planning_year, preset_id=preset_id
     )
     return success(InsightReadVO.model_validate(data))
 
@@ -50,7 +51,7 @@ async def update_insight_prompt(
     return success(InsightPromptVO.model_validate(data), msg="分析提示词已保存")
 
 
-@router.post("/insights/generate", response_model=ApiResponse[dict], summary="生成六点 Insight")
+@router.post("/insights/generate", response_model=ApiResponse[dict], summary="生成 Insight")
 async def generate_insight(
     payload: InsightGenerateDTO,
     session: Annotated[AsyncSession, Depends(get_db_session)],
@@ -59,7 +60,7 @@ async def generate_insight(
 ) -> ApiResponse[dict]:
     return success(
         await _service(session, user, settings).generate(
-            scope=payload.scope, planning_year=payload.planning_year
+            scope=payload.scope, planning_year=payload.planning_year, preset_id=payload.preset_id
         ),
-        msg="六点 Insight 已生成",
+        msg="Insight 已生成",
     )

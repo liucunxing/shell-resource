@@ -1,0 +1,44 @@
+{
+  "examples": [
+    {
+      "id": "baseline",
+      "label": "关注案例 · 合成",
+      "evidence": "baseline.evidence.json",
+      "results": {
+        "comprehensive": "baseline.comprehensive.json",
+        "quadrant": "baseline.quadrant.json",
+        "structure": "baseline.structure.json"
+      }
+    },
+    {
+      "id": "healthy",
+      "label": "无突出事项 · 合成",
+      "evidence": "healthy.evidence.json",
+      "results": {
+        "comprehensive": "healthy.comprehensive.json",
+        "quadrant": "healthy.quadrant.json",
+        "structure": "healthy.structure.json"
+      }
+    },
+    {
+      "id": "missing",
+      "label": "待补充信息 · 合成",
+      "evidence": "missing.evidence.json",
+      "results": {
+        "comprehensive": "missing.comprehensive.json",
+        "quadrant": "missing.quadrant.json",
+        "structure": "missing.structure.json"
+      }
+    },
+    {
+      "id": "overspend",
+      "label": "预算超额 · 合成",
+      "evidence": "overspend.evidence.json",
+      "results": {
+        "comprehensive": "overspend.comprehensive.json",
+        "quadrant": "overspend.quadrant.json",
+        "structure": "overspend.structure.json"
+      }
+    }
+  ]
+}

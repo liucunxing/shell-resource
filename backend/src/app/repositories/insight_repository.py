@@ -1,4 +1,4 @@
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.do.insight import InsightPromptDO, InsightRecordDO
@@ -35,7 +35,11 @@ class InsightRepository(BaseRepository[InsightRecordDO]):
         return prompt
 
     async def latest_record(
-        self, planning_year: int, scope: str, created_by_email: str | None = None
+        self,
+        planning_year: int,
+        scope: str,
+        created_by_email: str | None = None,
+        preset_id: str | None = None,
     ) -> InsightRecordDO | None:
         statement = (
             select(InsightRecordDO)
@@ -45,6 +49,11 @@ class InsightRepository(BaseRepository[InsightRecordDO]):
         )
         if created_by_email is not None:
             statement = statement.where(InsightRecordDO.created_by_email == created_by_email)
+        if preset_id is not None:
+            statement = statement.where(
+                func.coalesce(InsightRecordDO.record["presetId"].as_string(), "comprehensive")
+                == preset_id
+            )
         return (await self.session.scalars(statement)).one_or_none()
 
     async def add_record(self, record: InsightRecordDO) -> InsightRecordDO:

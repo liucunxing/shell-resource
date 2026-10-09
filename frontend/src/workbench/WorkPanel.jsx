@@ -155,7 +155,7 @@ export function WorkPanel({ overlay }) {
             {auxiliary.tab === "chat"
               ? "小One问数Agent"
               : auxiliary.tab === "insight"
-                ? "六点 Insight"
+                ? "Insight 分析"
                 : auxiliary.tab === "feedback"
                   ? "协作反馈"
                   : "历史参考"}
@@ -186,12 +186,12 @@ export function WorkPanel({ overlay }) {
           id="work-insight"
           className="work-content"
           role="tabpanel"
-          aria-label="六点Insight"
+          aria-label="Insight 分析"
           hidden={!auxiliary.open || auxiliary.tab !== "insight"}
         >
           {identity.role === "admin" && (
             <label className="form-field">
-              提示词范围
+              分析范围
               <select
                 value={scope}
                 onChange={(event) =>
@@ -602,7 +602,7 @@ function LocalChat() {
     if (/insight|分析|建议|集中/i.test(question))
       return {
         text: "可查看低 Yield 与高投入、高 Yield 与投入不足、投入集中度、多项资源叠加、历史趋势匹配和预算完整性六点。分析仅使用当前角色授权范围数据，属于本地固定模板。",
-        callback: { label: "打开六点 Insight", target: "insight" },
+        callback: { label: "打开Insight 分析", target: "insight" },
       };
     return {
       text: "当前是本地场景模拟。可以输入“预算多少”“分配占比”“2026 同比”或“分析建议”，查看权限范围内的演示回答。",

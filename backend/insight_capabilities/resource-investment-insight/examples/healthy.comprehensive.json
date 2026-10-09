@@ -1,0 +1,78 @@
+{
+  "schema_version": "1.0",
+  "preset_id": "comprehensive",
+  "headline": "本轮没有需要优先展开的事项",
+  "summary": "在本例已提供的目标与规则下，六维检查没有识别出突出事项。",
+  "blocks": [],
+  "checks": [
+    {
+      "dimension_id": "low_yield",
+      "status": "clear",
+      "summary": "按已提供的合成目标与规则检查通过。",
+      "fact_ids": [
+        "rules",
+        "target",
+        "budget",
+        "gap"
+      ]
+    },
+    {
+      "dimension_id": "high_yield",
+      "status": "clear",
+      "summary": "按已提供的合成目标与规则检查通过。",
+      "fact_ids": [
+        "rules",
+        "target",
+        "budget",
+        "gap"
+      ]
+    },
+    {
+      "dimension_id": "concentration",
+      "status": "clear",
+      "summary": "按已提供的合成目标与规则检查通过。",
+      "fact_ids": [
+        "rules",
+        "target",
+        "budget",
+        "gap"
+      ]
+    },
+    {
+      "dimension_id": "overlap",
+      "status": "clear",
+      "summary": "按已提供的合成目标与规则检查通过。",
+      "fact_ids": [
+        "rules",
+        "target",
+        "budget",
+        "gap"
+      ]
+    },
+    {
+      "dimension_id": "trend",
+      "status": "clear",
+      "summary": "按已提供的合成目标与规则检查通过。",
+      "fact_ids": [
+        "rules",
+        "target",
+        "budget",
+        "gap"
+      ]
+    },
+    {
+      "dimension_id": "completeness",
+      "status": "clear",
+      "summary": "按已提供的合成目标与规则检查通过。",
+      "fact_ids": [
+        "rules",
+        "target",
+        "budget",
+        "gap"
+      ]
+    }
+  ],
+  "limitations": [
+    "合成验收场景，不代表客户真实规则或模型实测。"
+  ]
+}

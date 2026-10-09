@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.0",
+  "preset_id": "comprehensive",
+  "headline": "目前只能确认预算金额已平衡",
+  "summary": "预算去向与叠加事实可核对；历史比较待补充具体经营字段。",
+  "blocks": [
+    {
+      "id": "missing-note",
+      "kind": "note",
+      "title": "历史比较待补充信息",
+      "body": "补充2025 Yield与2024、2025全年 Vol或C3后，可比较历史相对位置及经营变化。",
+      "status": "limited",
+      "dimension_ids": [
+        "low_yield",
+        "high_yield",
+        "trend"
+      ],
+      "fact_ids": [
+        "cohort"
+      ],
+      "dataset_id": null
+    }
+  ],
+  "checks": [
+    {
+      "dimension_id": "low_yield",
+      "status": "limited",
+      "summary": "补充2025 Yield及2024/2025全年 Vol或C3后可做历史比较。",
+      "fact_ids": [
+        "cohort"
+      ]
+    },
+    {
+      "dimension_id": "high_yield",
+      "status": "limited",
+      "summary": "补充2025 Yield及2024/2025全年 Vol或C3后可做历史比较。",
+      "fact_ids": [
+        "cohort"
+      ]
+    },
+    {
+      "dimension_id": "concentration",
+      "status": "observed",
+      "summary": "900 占经销商分配4.77%；未提供异常阈值。",
+      "fact_ids": [
+        "top-share",
+        "rules"
+      ]
+    },
+    {
+      "dimension_id": "overlap",
+      "status": "observed",
+      "summary": "57家涉及多项安排；叠加本身不代表重复投入。",
+      "fact_ids": [
+        "overlap",
+        "top-overlap"
+      ]
+    },
+    {
+      "dimension_id": "trend",
+      "status": "limited",
+      "summary": "补充2025 Yield及2024/2025全年 Vol或C3后可做历史比较。",
+      "fact_ids": [
+        "cohort"
+      ]
+    },
+    {
+      "dimension_id": "completeness",
+      "status": "clear",
+      "summary": "金额已平衡；其他安排35,036仍需落实用途。",
+      "fact_ids": [
+        "budget",
+        "allocated",
+        "other",
+        "gap"
+      ]
+    }
+  ],
+  "limitations": [
+    "缺失值不视为零；不绘制无证据的四象限。"
+  ]
+}

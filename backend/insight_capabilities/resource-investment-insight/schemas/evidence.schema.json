@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Authorized chart-ready evidence 1.0",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "scope", "planning_year", "data_version", "provenance", "facts", "datasets", "check_constraints"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "scope": {
+      "type": "object", "additionalProperties": false, "required": ["id", "label", "role"],
+      "properties": {"id": {"type": "string", "minLength": 1}, "label": {"type": "string", "minLength": 1}, "role": {"enum": ["owner", "lead", "management", "admin"]}}
+    },
+    "planning_year": {"type": "integer", "minimum": 2000, "maximum": 2200},
+    "data_version": {"type": "string", "minLength": 1},
+    "provenance": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "description"],
+      "properties": {"kind": {"enum": ["synthetic", "source"]}, "description": {"type": "string", "minLength": 1}}
+    },
+    "facts": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "label", "value", "unit", "period", "source", "note"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1}, "label": {"type": "string", "minLength": 1},
+          "value": {"type": ["number", "string", "null"]},
+          "unit": {"type": "string"}, "period": {"type": "string", "minLength": 1},
+          "source": {"type": "string", "minLength": 1}, "note": {"type": "string"}
+        }
+      }
+    },
+    "datasets": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "kind", "title", "scope_id", "unit", "period", "note", "fact_ids", "rows"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "kind": {"enum": ["comparison", "composition", "ranked_bar", "quadrant", "table"]},
+          "title": {"type": "string", "minLength": 1}, "scope_id": {"type": "string", "minLength": 1},
+          "unit": {"type": "string"}, "period": {"type": "string", "minLength": 1}, "note": {"type": "string"},
+          "fact_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+          "denominator": {"type": "number", "exclusiveMinimum": 0},
+          "rows": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["id"], "properties": {"id": {"type": "string", "minLength": 1}}, "additionalProperties": {"type": ["string", "number", "null"]}}},
+          "x": {"$ref": "#/$defs/axis"}, "y": {"$ref": "#/$defs/axis"},
+          "population_count": {"type": "integer", "minimum": 1}, "excluded_count": {"type": "integer", "minimum": 0},
+          "cohort_label": {"type": "string", "minLength": 1}, "cutoff_note": {"type": "string", "minLength": 1},
+          "columns": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["key", "label", "unit"], "properties": {"key": {"type": "string", "minLength": 1}, "label": {"type": "string", "minLength": 1}, "unit": {"type": "string"}}}}
+        },
+        "allOf": [
+          {"if": {"properties": {"kind": {"const": "composition"}}}, "then": {"required": ["denominator"]}},
+          {"if": {"properties": {"kind": {"const": "quadrant"}}}, "then": {"required": ["x", "y", "population_count", "excluded_count", "cohort_label", "cutoff_note"], "properties": {"rows": {"minItems": 4}}}},
+          {"if": {"properties": {"kind": {"const": "table"}}}, "then": {"required": ["columns"]}}
+        ]
+      }
+    },
+    "check_constraints": {
+      "type": "array", "minItems": 6, "maxItems": 6,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["dimension_id", "allowed_statuses", "reason"],
+        "properties": {
+          "dimension_id": {"enum": ["low_yield", "high_yield", "concentration", "overlap", "trend", "completeness"]},
+          "allowed_statuses": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["review", "clear", "observed", "limited"]}},
+          "reason": {"type": "string", "minLength": 1}, "required_focus": {"type": "boolean"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "axis": {"type": "object", "additionalProperties": false, "required": ["label", "unit", "period", "cutoff", "cutoff_method"], "properties": {"label": {"type": "string", "minLength": 1}, "unit": {"type": "string", "minLength": 1}, "period": {"type": "string", "minLength": 1}, "cutoff": {"type": "number"}, "cutoff_method": {"enum": ["business", "median"]}}}
+  }
+}

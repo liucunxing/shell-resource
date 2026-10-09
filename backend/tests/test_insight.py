@@ -103,6 +103,11 @@ def service(role="owner"):
         return workspace()
 
     result._workspace = get_workspace
+
+    async def refresh_user():
+        return None
+
+    result._refresh_user = refresh_user
     return result, repository
 
 
@@ -110,7 +115,7 @@ def test_owner_scope_is_limited_to_current_email() -> None:
     insight, _ = service()
     result = asyncio.run(insight.get_insight(scope="owner:owner@example.com", planning_year=2027))
     assert result["record"] is None
-    assert result["prompt"]["editable"] is True
+    assert result["prompt"]["editable"] is False
     with pytest.raises(HTTPException, match="只能查看本人"):
         asyncio.run(insight.get_insight(scope="owner:other@example.com", planning_year=2027))
 
@@ -220,24 +225,25 @@ def test_success_uses_authorized_yield_and_marks_changed_basis_stale(monkeypatch
             return initial if calls == 1 else changed
 
         insight._workspace = get_workspace
-        reviews = [
-            {"key": key, "review": "请结合已给事实复核。"}
-            for key in (
-                "low_yield",
-                "high_yield",
-                "concentration",
-                "overlap",
-                "trend",
-                "completeness",
-            )
-        ]
         captured = {}
 
         def handler(request):
             captured.update(json.loads(request.content))
             return httpx.Response(
                 200,
-                json={"choices": [{"message": {"content": json.dumps({"items": reviews})}}]},
+                json={
+                    "choices": [
+                        {
+                            "message": {
+                                "content": json.dumps(
+                                    valid_result(
+                                        json.loads(captured["messages"][1]["content"])["evidence"]
+                                    )
+                                )
+                            }
+                        }
+                    ]
+                },
             )
 
         original_client = httpx.AsyncClient
@@ -252,7 +258,9 @@ def test_success_uses_authorized_yield_and_marks_changed_basis_stale(monkeypatch
         request_text = captured["messages"][1]["content"]
         assert "resources2025" not in request_text
         assert "整体资源" not in request_text
-        assert record["items"][0]["status"] == "review"
+        assert record["result"]["checks"][0]["status"] == "observed"
+        assert record["evidence"]["facts"]
+        assert captured["enable_thinking"] is False
 
     asyncio.run(run())
 
@@ -329,11 +337,12 @@ def test_prompt_update_uses_a_real_sqlalchemy_transaction() -> None:
                 return workspace()
 
             insight._workspace = get_workspace
-            updated = await insight.update_prompt(
-                scope="initiative:1", planning_year=2027, text="new", expected_version=1
-            )
-            assert updated["version"] == 2
-            assert (await repository.get_prompt(2027, "initiative:1")).text == "new"
+            with pytest.raises(HTTPException) as error:
+                await insight.update_prompt(
+                    scope="initiative:1", planning_year=2027, text="new", expected_version=1
+                )
+            assert error.value.status_code == 403
+            assert (await repository.get_prompt(2027, "initiative:1")).text == "old"
         await engine.dispose()
 
     asyncio.run(run())
@@ -381,3 +390,299 @@ async def test_latest_analysis_keeps_each_department_leads_record() -> None:
         result = await insight.get_insight(scope="MKT", planning_year=2027)
         assert result["record"]["id"] == "a-record"
     await engine.dispose()
+
+
+def valid_result(evidence, preset="comprehensive"):
+    checks = [
+        dict(
+            dimension_id=c["dimension_id"],
+            status=c["allowed_statuses"][0],
+            summary="Authorized fact.",
+            fact_ids=["budget"],
+        )
+        for c in evidence["check_constraints"]
+    ]
+    blocks = (
+        [
+            dict(
+                id="gap",
+                kind="finding",
+                title="Budget gap",
+                body="Review gap.",
+                status="review",
+                dimension_ids=["completeness"],
+                fact_ids=["gap"],
+                dataset_id=None,
+            )
+        ]
+        if any(c.get("required_focus") for c in evidence["check_constraints"])
+        else []
+    )
+    return dict(
+        schema_version="1.0",
+        preset_id=preset,
+        headline="Analysis",
+        summary="Authorized facts.",
+        blocks=blocks,
+        checks=checks,
+        limitations=[],
+    )
+
+
+def test_full_cohort_distinct_overlap_and_missing_history():
+    from app.services.insight_pack_adapter import PACK_ROOT, InsightPack, build_evidence
+
+    data = workspace()
+    item = data["state"]["initiatives"][0]
+    item["rows"] = [dict(dealerId=f"D{i}", amount=i * 10) for i in range(1, 7)] + [
+        dict(dealerId="D1", amount=1)
+    ]
+    data["data"]["dealers"] = [
+        dict(id=f"D{i}", history=dict(yield_value=i, **{"yield": i})) for i in range(1, 6)
+    ]
+    insight, _ = service()
+    evidence = build_evidence(data, insight._scope(data, "initiative:1"), "owner", 2027)
+    facts = {f["id"]: f for f in evidence["facts"]}
+    datasets = {d["id"]: d for d in evidence["datasets"]}
+    assert facts["overlap"]["value"] == 0
+    assert datasets["yield-plan"]["population_count"] == 6
+    assert datasets["yield-plan"]["excluded_count"] == 1
+    assert datasets["yield-plan"]["x"]["cutoff"] == 3
+    assert len(datasets["yield-table"]["rows"]) == 6
+    assert datasets["yield-table"]["rows"][-1]["yield_value"] is None
+    assert facts["business-guide"]["value"] == "guide"
+    assert "3" in facts["business-guide"]["note"]
+    pack = InsightPack(PACK_ROOT)
+    body, _ = pack.compile(evidence)
+    assert "uniqueItems" not in json.dumps(body["response_format"])
+    bad = valid_result(evidence)
+    bad["checks"][0]["fact_ids"] = ["budget", "budget"]
+    with pytest.raises(ValueError):
+        pack.validate_result(bad, evidence)
+
+
+def test_permission_changes_during_generation_do_not_persist():
+    async def run():
+        from app.services.insight_pack_adapter import build_evidence
+
+        insight, repository = service()
+        data = workspace()
+
+        async def model(_):
+            evidence = build_evidence(data, insight._scope(data, "initiative:1"), "owner", 2027)
+            insight.user.role = "management"
+            return valid_result(evidence), {}
+
+        insight._call_model = model
+        with pytest.raises(HTTPException) as error:
+            await insight.generate(scope="initiative:1", planning_year=2027)
+        assert error.value.status_code == 403
+        assert repository.records == []
+
+    asyncio.run(run())
+
+
+@pytest.mark.asyncio
+async def test_repository_preset_filter_isolates_saved_results():
+    engine = create_async_engine("sqlite+aiosqlite://")
+    async with engine.begin() as connection:
+        await connection.execute(text("ATTACH DATABASE ':memory:' AS data"))
+        await connection.run_sync(InsightRecordDO.__table__.create)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory() as session:
+        repo = InsightRepository(session)
+        for i, preset in enumerate([None, "quadrant", "structure"]):
+            record = {} if preset is None else {"presetId": preset}
+            await repo.add_record(
+                InsightRecordDO(
+                    id=i + 1,
+                    planning_year=2027,
+                    scope="MKT",
+                    signature="x",
+                    prompt_version=0,
+                    guide_version=0,
+                    created_by_email="a",
+                    record=record,
+                )
+            )
+        await session.commit()
+        for preset, expected in [("comprehensive", 1), ("quadrant", 2), ("structure", 3)]:
+            assert (await repo.latest_record(2027, "MKT", "a", preset)).id == expected
+    await engine.dispose()
+
+
+def test_request_schema_binds_authorized_references_and_states():
+    from jsonschema import Draft202012Validator
+
+    from app.services.insight_pack_adapter import PACK_ROOT, InsightPack, build_evidence
+
+    insight, _ = service()
+    data = workspace()
+    evidence = build_evidence(data, insight._scope(data, "initiative:1"), "owner", 2027)
+    body, _ = InsightPack(PACK_ROOT).compile(evidence)
+    schema = body["response_format"]["json_schema"]["schema"]
+    validator = Draft202012Validator(schema)
+    valid = valid_result(evidence)
+    validator.validate(valid)
+    valid["checks"][0]["status"] = "review"
+    assert list(validator.iter_errors(valid))
+    valid = valid_result(evidence)
+    valid["checks"][0]["fact_ids"] = ["fabricated"]
+    assert list(validator.iter_errors(valid))
+    valid = valid_result(evidence)
+    valid["blocks"] = [
+        dict(
+            id="x",
+            kind="visual",
+            title="x",
+            body="x",
+            status="observed",
+            dimension_ids=["concentration"],
+            fact_ids=["budget"],
+            dataset_id="not-authorized",
+        )
+    ]
+    assert list(validator.iter_errors(valid))
+
+
+@pytest.mark.parametrize("change", ["disabled", "role", "sector"])
+def test_refreshed_permissions_reject_changed_access(change):
+    async def run():
+        from app.services.insight_pack_adapter import build_evidence
+
+        insight, repository = service()
+        data = workspace()
+
+        async def model(_):
+            return valid_result(
+                build_evidence(data, insight._scope(data, "initiative:1"), "owner", 2027)
+            ), {}
+
+        async def refresh():
+            if change == "disabled":
+                raise HTTPException(status_code=403, detail="permission disabled")
+            if change == "role":
+                insight.user.role = "management"
+            if change == "sector":
+                insight.user.sectors = ("new-sector",)
+
+        insight._call_model = model
+        insight._refresh_user = refresh
+        with pytest.raises(HTTPException) as error:
+            await insight.generate(scope="initiative:1", planning_year=2027)
+        assert error.value.status_code in {403, 409}
+        assert not repository.records
+
+    asyncio.run(run())
+
+
+def test_normalization_only_removes_duplicate_set_members():
+    from copy import deepcopy
+
+    from app.services.insight_pack_adapter import normalize_result
+
+    candidate = dict(
+        checks=[dict(dimension_id="trend", fact_ids=["x", "x"], status="review") for _ in range(2)],
+        blocks=[
+            dict(
+                id="same",
+                dimension_ids=["trend", "trend"],
+                fact_ids=["x", "y", "x"],
+                body="12 is unchanged",
+                value=12,
+            )
+        ],
+    )
+    original = deepcopy(candidate)
+    result, changes = normalize_result(candidate)
+    assert candidate == original
+    assert len(result["checks"]) == 2
+    assert result["checks"][0]["status"] == "review"
+    assert result["blocks"][0]["dimension_ids"] == ["trend"]
+    assert result["blocks"][0]["fact_ids"] == ["x", "y"]
+    assert result["blocks"][0]["body"] == "12 is unchanged"
+    assert result["blocks"][0]["value"] == 12
+    assert len(changes) == 4
+
+
+def test_available_history_is_observed_without_future_targets():
+    from app.services.insight_pack_adapter import build_evidence
+
+    insight, _ = service()
+    data = workspace()
+    data["data"]["dealers"] = [dict(id="D1", history={"yield": 1.5, "vol2024": 10, "vol2025": 11})]
+    evidence = build_evidence(data, insight._scope(data, "initiative:1"), "owner", 2027)
+    constraints = {row["dimension_id"]: row for row in evidence["check_constraints"]}
+    for dimension in ["low_yield", "high_yield", "trend"]:
+        assert constraints[dimension]["allowed_statuses"] == ["observed"]
+    data["data"]["dealers"][0]["history"] = {"vol2025": 11}
+    evidence = build_evidence(data, insight._scope(data, "initiative:1"), "owner", 2027)
+    constraints = {row["dimension_id"]: row for row in evidence["check_constraints"]}
+    for dimension in ["low_yield", "high_yield", "trend"]:
+        assert constraints[dimension]["allowed_statuses"] == ["limited"]
+    assert constraints["concentration"]["allowed_statuses"] == ["observed"]
+
+
+def test_chart_requires_shared_fact_reference():
+    from app.services.insight_pack_adapter import PACK_ROOT, InsightPack, build_evidence
+
+    insight, _ = service()
+    data = workspace()
+    evidence = build_evidence(data, insight._scope(data, "initiative:1"), "owner", 2027)
+    result = valid_result(evidence)
+    result["blocks"] = [
+        dict(
+            id="mismatch",
+            kind="visual",
+            title="x",
+            body="x",
+            status="observed",
+            dimension_ids=["concentration"],
+            fact_ids=["cohort"],
+            dataset_id="budget-mix",
+        )
+    ]
+    with pytest.raises(ValueError, match="共享"):
+        InsightPack(PACK_ROOT).validate_result(result, evidence)
+
+
+def test_api_visual_schema_binds_dataset_title_and_facts():
+    from copy import deepcopy
+
+    from jsonschema import Draft202012Validator
+
+    from app.services.insight_pack_adapter import PACK_ROOT, InsightPack, build_evidence
+
+    insight, _ = service()
+    data = workspace()
+    evidence = build_evidence(data, insight._scope(data, "initiative:1"), "owner", 2027)
+    body, _ = InsightPack(PACK_ROOT).compile(evidence)
+    validator = Draft202012Validator(body["response_format"]["json_schema"]["schema"])
+    dataset = next(row for row in evidence["datasets"] if row["id"] == "budget-mix")
+    candidate = valid_result(evidence)
+    candidate["blocks"] = [
+        dict(
+            id="budget-view",
+            kind="visual",
+            title=dataset["title"],
+            body="Budget allocation.",
+            status="observed",
+            dimension_ids=["completeness"],
+            fact_ids=[dataset["fact_ids"][0]],
+            dataset_id=dataset["id"],
+        )
+    ]
+    validator.validate(candidate)
+    for field, value in [
+        ("title", "Unrelated yield title"),
+        ("fact_ids", ["cohort"]),
+        ("fact_ids", []),
+        ("kind", "finding"),
+    ]:
+        invalid = deepcopy(candidate)
+        invalid["blocks"][0][field] = value
+        assert list(validator.iter_errors(invalid)), field
+    candidate["blocks"][0].update(
+        kind="finding", dataset_id=None, title="Custom finding", fact_ids=["cohort"]
+    )
+    validator.validate(candidate)

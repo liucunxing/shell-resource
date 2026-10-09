@@ -23,8 +23,8 @@ vi.mock("../src/workbench/WorkbenchContext.jsx", () => ({
 describe("API insight initial render", () => {
   it("renders safely before the remote record arrives", () => {
     const html = renderToString(<InsightPanel />);
-    expect(html).toContain("百炼六点分析");
+    expect(html).toContain("百炼 Insight");
     expect(html).not.toContain("模拟分析");
-    expect(html).toContain("生成六点分析");
+    expect(html).toContain("生成分析");
   });
 });

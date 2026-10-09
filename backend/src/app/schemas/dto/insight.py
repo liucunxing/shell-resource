@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -9,5 +11,6 @@ class InsightPromptUpdateDTO(BaseModel):
 
 
 class InsightGenerateDTO(BaseModel):
+    preset_id: Literal["comprehensive", "quadrant", "structure"] = "comprehensive"
     scope: str = Field(min_length=1, max_length=300)
     planning_year: int = Field(ge=2000, le=2100)

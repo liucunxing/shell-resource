@@ -13,3 +13,5 @@ class InsightPromptVO(BaseModel):
 class InsightReadVO(BaseModel):
     record: dict[str, Any] | None
     prompt: InsightPromptVO
+    presets: list[dict[str, Any]] = []
+    presetId: str = "comprehensive"

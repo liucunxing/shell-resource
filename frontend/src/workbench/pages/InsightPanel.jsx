@@ -2,11 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
 import * as api from "../api.js";
+import { InsightCapabilityResult } from "./InsightCapabilityResult";
+const defaultPresets = [
+  { id: "comprehensive", label: "综合体检" },
+  { id: "quadrant", label: "历史 Yield × 计划投入四象限" },
+  { id: "structure", label: "分配结构分析" },
+];
 const titles = [
-  "低 Yield 与高投入",
-  "高 Yield 与投入不足",
+  "低 Yield 投入复核",
+  "高 Yield 投入复核",
   "投入集中度",
-  "跨部门 / 多 Initiative 叠加",
+  "本范围多项安排",
   "投入与业绩趋势匹配",
   "预算完整性",
 ];
@@ -17,7 +23,7 @@ export function InsightPanel({ scope }) {
   const busyRef = useRef(false);
   const [busy, setBusy] = useState(false);
   const [selection, setSelection] = useState(null);
-  const [drafts, setDrafts] = useState({});
+  const [preset, setPreset] = useState("comprehensive");
   const [remote, setRemote] = useState({
     record: null,
     prompt: null,
@@ -35,9 +41,8 @@ export function InsightPanel({ scope }) {
     : selection?.source === incoming && selection?.identity === identity.key
       ? selection.value
       : incoming;
-  let record, prompt, failure;
+  let record, failure;
   try {
-    prompt = E.getAnalysisPrompt(state, effective, identity);
     record = readOnly
       ? E.previewInsight(state, "global", identity, { data })
       : identity.role === "admin"
@@ -61,11 +66,12 @@ export function InsightPanel({ scope }) {
     setBusy(false);
     setRemote({ record: null, prompt: null, loading: true, failure: "" });
     api
-      .getInsights(readOnly ? "global" : effective)
+      .getInsights(readOnly ? "global" : effective, preset)
       .then((value) => {
         if (active)
           setRemote({
             record: value.record || null,
+            presets: value.presets || defaultPresets,
             prompt: value.prompt || null,
             failure: "",
             loading: false,
@@ -84,16 +90,14 @@ export function InsightPanel({ scope }) {
       active = false;
       requestEpoch.current += 1;
     };
-  }, [apiMode, identityKey, effective, readOnly]);
+  }, [apiMode, identityKey, effective, readOnly, preset]);
   if (apiMode) {
     record = remote.record && {
       ...remote.record,
       stale: remote.record.stale || remote.basis !== basis,
     };
-    prompt = remote.prompt;
     failure = remote.failure;
   }
-  const key = JSON.stringify([identity, effective, prompt?.version]);
   const scopeLabel = effective.startsWith("initiative:")
     ? view.initiatives.find((i) => "initiative:" + i.id === effective)?.name ||
       "本人 Initiative"
@@ -128,18 +132,42 @@ export function InsightPanel({ scope }) {
           </select>
         </label>
       )}
+      {apiMode && identity.role !== "admin" && (
+        <label className="form-field insight-preset">
+          分析方案
+          <select
+            value={preset}
+            disabled={busy}
+            onChange={(event) => {
+              requestEpoch.current += 1;
+              setRemote((current) => ({
+                ...current,
+                record: null,
+                loading: true,
+              }));
+              setPreset(event.target.value);
+            }}
+          >
+            {(remote.presets || defaultPresets).map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <div className="insight-toolbar">
         <div>
           <span className="badge">
             {apiMode
               ? readOnly
-                ? "同步结果六点预览"
-                : "百炼六点分析"
+                ? "同步结果只读预览"
+                : "百炼 Insight"
               : "模拟分析"}
           </span>
           {record && (
             <span className={"badge " + (record.stale ? "amber" : "teal")}>
-              {record.stale ? "待更新" : readOnly ? "只读预览" : "依据有效"}
+              {record.stale ? "待更新" : readOnly ? "只读预览" : "当前版本"}
             </span>
           )}
         </div>
@@ -158,7 +186,7 @@ export function InsightPanel({ scope }) {
               setBusy(true);
               const epoch = requestEpoch.current;
               try {
-                const value = await api.generateInsights(effective);
+                const value = await api.generateInsights(effective, preset);
                 if (epoch !== requestEpoch.current) return;
                 setRemote((current) => ({
                   ...current,
@@ -166,7 +194,7 @@ export function InsightPanel({ scope }) {
                   failure: "",
                   basis,
                 }));
-                notify("六点 Insight 已更新。");
+                notify("Insight 已更新。");
               } catch (error) {
                 if (epoch === requestEpoch.current)
                   notify(
@@ -181,83 +209,14 @@ export function InsightPanel({ scope }) {
               }
             }}
           >
-            {busy ? "正在处理…" : record ? "更新分析" : "生成六点分析"}
+            {busy ? "正在处理…" : record ? "更新分析" : "生成分析"}
           </button>
         )}
       </div>
       <p className="work-caption">
         {scopeLabel}
-        {record && " · " + record.basisLabel}
+        {record?.basisLabel && " · " + record.basisLabel}
       </p>
-      {!readOnly && prompt && (
-        <details className="prompt-details">
-          <summary>
-            {prompt.editable ? "编辑" : "查看"}分析提示词{" "}
-            <span>v{prompt.version}</span>
-          </summary>
-          <label className="form-field">
-            六点分析要求
-            <textarea
-              rows={10}
-              maxLength={12000}
-              readOnly={!prompt.editable}
-              value={drafts[key] ?? prompt.text}
-              onChange={(e) => setDrafts({ ...drafts, [key]: e.target.value })}
-            />
-          </label>
-          <p className="prompt-help">
-            保存后本范围分析标为待更新。
-            {apiMode
-              ? "提示词由服务端保存。"
-              : "当前为固定模板演示，不执行任意自然语言指令。"}
-          </p>
-          {prompt.editable && (
-            <button
-              className="button small"
-              disabled={busy || remote.loading}
-              onClick={async () => {
-                const text = drafts[key] ?? prompt.text;
-                if (!apiMode)
-                  return mutate(
-                    (s) => E.setAnalysisPrompt(s, effective, text, identity),
-                    "提示词已保存，分析待更新。",
-                  );
-                if (busyRef.current) return;
-                busyRef.current = true;
-                setBusy(true);
-                const epoch = requestEpoch.current;
-                try {
-                  const value = await api.saveInsightPrompt(
-                    effective,
-                    text,
-                    prompt.version,
-                  );
-                  if (epoch !== requestEpoch.current) return;
-                  setRemote((current) => ({
-                    ...current,
-                    prompt: value.prompt || value,
-                    record: current.record
-                      ? { ...current.record, stale: true }
-                      : null,
-                    failure: "",
-                  }));
-                  notify("提示词已保存，分析待更新。");
-                } catch (error) {
-                  if (epoch === requestEpoch.current)
-                    notify(error.message || "提示词保存失败，请重试。", true);
-                } finally {
-                  if (epoch === requestEpoch.current) {
-                    busyRef.current = false;
-                    setBusy(false);
-                  }
-                }
-              }}
-            >
-              保存提示词
-            </button>
-          )}
-        </details>
-      )}
       {failure && (
         <div className="note-box" role="status">
           {failure}
@@ -268,46 +227,59 @@ export function InsightPanel({ scope }) {
           正在加载 Insight…
         </div>
       )}
+      {busy && record && (
+        <div className="note-box" role="status">
+          正在生成，以下保留上次分析（
+          {new Date(record.createdAt).toLocaleString("zh-CN")}）。
+        </div>
+      )}
       {record?.stale && (
         <div className="note-box warn">
           分配或分析依据已变化，请更新后查看最新结论。
         </div>
       )}
       {record ? (
-        record.items.map((item, n) => (
-          <article className="insight-item" key={n}>
-            <div className="row-title">
-              <span className="item-number">
-                {String(n + 1).padStart(2, "0")}
-              </span>
-              <span className="insight-status">
-                {item.status === "limited"
-                  ? "依据待补充"
-                  : item.status === "review"
-                    ? "建议关注"
-                    : "已核对事实"}
-              </span>
-            </div>
-            <h3>{titles[n]}</h3>
-            <p className="insight-copy">
-              {item.text || item.evidence + " " + item.review}
-            </p>
-          </article>
-        ))
+        record.result && record.evidence ? (
+          <InsightCapabilityResult
+            result={record.result}
+            evidence={record.evidence}
+          />
+        ) : (
+          (record.items || []).map((item, n) => (
+            <article className="insight-item" key={n}>
+              <div className="row-title">
+                <span className="item-number">
+                  {String(n + 1).padStart(2, "0")}
+                </span>
+                <span className="insight-status">
+                  {item.status === "limited"
+                    ? "待补充信息"
+                    : item.status === "review"
+                      ? "建议关注"
+                      : "已核对事实"}
+                </span>
+              </div>
+              <h3>{titles[n]}</h3>
+              <p className="insight-copy">
+                {item.text || item.evidence + " " + item.review}
+              </p>
+            </article>
+          ))
+        )
       ) : (
         <>
           <div className="empty">
             <strong>
               {identity.role === "admin"
-                ? "维护分析要求"
+                ? "分析方案由能力包维护"
                 : "围绕六个问题查看资源分配"}
             </strong>
             <p>
               {own
                 ? "仅使用本人配置的 Initiative 与授权历史参考。"
                 : readOnly
-                  ? "有已同步数据后自动展示分析。"
-                  : "每点展示事实依据和关注方向。"}
+                  ? "根据最新同步数据展示只读分析。"
+                  : "选择分析方案，查看事实依据和复核建议。"}
             </p>
           </div>
           {identity.role !== "admin" && (
@@ -325,7 +297,7 @@ export function InsightPanel({ scope }) {
           <p>
             范围：{scopeLabel}
             <br />
-            参考批次：{record.reference.batchId}
+            参考批次：{record.reference?.batchId || "—"}
             <br />
             指南 v{record.guideVersion} · 提示词 v{record.promptVersion || 1}
             <br />
@@ -334,11 +306,23 @@ export function InsightPanel({ scope }) {
               : new Date(record.createdAt).toLocaleString("zh-CN")}
           </p>
           <p>{record.disclaimer}</p>
-          <details>
-            <summary>生成时使用的提示词与指南</summary>
-            <p style={{ whiteSpace: "pre-wrap" }}>{record.promptText}</p>
-            <p style={{ whiteSpace: "pre-wrap" }}>{record.guideText}</p>
-          </details>
+          {record.metadata && (
+            <p>
+              方案：
+              {(remote.presets || defaultPresets).find(
+                (item) =>
+                  item.id === (record.presetId || record.result?.preset_id),
+              )?.label || "综合体检"}
+              <br />
+              方案版本：{record.metadata.preset_version || "—"}
+            </p>
+          )}
+          {record.guideText && (
+            <details>
+              <summary>生成时使用的指南</summary>
+              <p style={{ whiteSpace: "pre-wrap" }}>{record.guideText}</p>
+            </details>
+          )}
         </details>
       )}
     </div>

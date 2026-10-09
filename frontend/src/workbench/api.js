@@ -111,9 +111,9 @@ export const updateConfig = (value) => request("/admin/config", {
 export const uploadReference = (value) => request("/admin/reference", {
   method: "POST", body: JSON.stringify(value),
 });
-export const getInsights = (scope) => request(`/insights?scope=${encodeURIComponent(scope)}&planning_year=${planningYear}`);
-export const generateInsights = (scope) => request("/insights/generate", {
-  method: "POST", body: JSON.stringify({ scope, planning_year: planningYear }),
+export const getInsights = (scope, presetId = "comprehensive") => request(`/insights?scope=${encodeURIComponent(scope)}&planning_year=${planningYear}&preset_id=${encodeURIComponent(presetId)}`);
+export const generateInsights = (scope, presetId = "comprehensive") => request("/insights/generate", {
+  method: "POST", body: JSON.stringify({ scope, planning_year: planningYear, preset_id: presetId }),
 });
 export const saveInsightPrompt = (scope, text, expectedVersion) => request("/insights/prompt", {
   method: "PUT", body: JSON.stringify({ scope, planning_year: planningYear, text, expected_version: expectedVersion }),

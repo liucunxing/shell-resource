@@ -1,0 +1,125 @@
+{
+  "schema_version": "1.0",
+  "preset_id": "comprehensive",
+  "headline": "已安排超出预算 55,000",
+  "summary": "总安排占预算102.80%；优先核对超额，再查看其他分析。",
+  "blocks": [
+    {
+      "id": "required-budget",
+      "kind": "finding",
+      "title": "预算超额需要优先核对",
+      "body": "负责预算1,962,000，已安排2,017,000，未解释差额为−55,000。",
+      "status": "review",
+      "dimension_ids": [
+        "completeness"
+      ],
+      "fact_ids": [
+        "budget",
+        "arranged",
+        "gap",
+        "arranged-ratio"
+      ],
+      "dataset_id": "budget-over"
+    },
+    {
+      "id": "focus-900",
+      "kind": "finding",
+      "title": "900：计划投入明显高于历史参考",
+      "body": "2027计划92,000，相比2025实际30,000增加206.67%；同期口径的历史Vol与C3同比均下降。建议补充2027目标和投放用途，再判断投入是否匹配。",
+      "status": "review",
+      "dimension_ids": [
+        "trend"
+      ],
+      "fact_ids": [
+        "top-plan",
+        "top-history",
+        "top-growth",
+        "vol",
+        "c3"
+      ],
+      "dataset_id": "900-compare"
+    },
+    {
+      "id": "yield-context",
+      "kind": "note",
+      "title": "Yield 保留为观察线索",
+      "body": "现有高低排名不足以证明投入过多或不足。",
+      "status": "observed",
+      "dimension_ids": [
+        "low_yield",
+        "high_yield"
+      ],
+      "fact_ids": [
+        "low-yield",
+        "high-yield",
+        "target"
+      ],
+      "dataset_id": null
+    }
+  ],
+  "checks": [
+    {
+      "dimension_id": "low_yield",
+      "status": "observed",
+      "summary": "1100 历史Yield为6.29，计划投入51,000。",
+      "fact_ids": [
+        "low-yield",
+        "low-plan",
+        "target"
+      ]
+    },
+    {
+      "dimension_id": "high_yield",
+      "status": "observed",
+      "summary": "800 历史Yield为25.67，计划投入53,000。",
+      "fact_ids": [
+        "high-yield",
+        "high-plan",
+        "target"
+      ]
+    },
+    {
+      "dimension_id": "concentration",
+      "status": "observed",
+      "summary": "头部占比仅作事实参考，未提供异常阈值。",
+      "fact_ids": [
+        "top-share",
+        "rules"
+      ]
+    },
+    {
+      "dimension_id": "overlap",
+      "status": "observed",
+      "summary": "57家涉及多项安排；叠加本身不代表重复投入。",
+      "fact_ids": [
+        "overlap",
+        "top-overlap"
+      ]
+    },
+    {
+      "dimension_id": "trend",
+      "status": "review",
+      "summary": "900 的计划增幅与历史表现需要结合业务目标解释。",
+      "fact_ids": [
+        "top-growth",
+        "vol",
+        "c3",
+        "target"
+      ]
+    },
+    {
+      "dimension_id": "completeness",
+      "status": "review",
+      "summary": "超额55,000；安排占预算102.80%。",
+      "fact_ids": [
+        "budget",
+        "arranged",
+        "gap",
+        "arranged-ratio"
+      ]
+    }
+  ],
+  "limitations": [
+    "仅使用本次授权证据；没有2027经营预测，不推断未来收益或因果。"
+  ]
+}

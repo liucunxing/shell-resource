@@ -1,0 +1,4 @@
+interface:
+  display_name: "资源投资 Insight"
+  short_description: "基于授权证据生成资源投资洞察，支持六维检查、四象限与分配结构分析"
+  default_prompt: "使用 $resource-investment-insight，根据提供的授权证据和选定分析方案生成可视化 Insight，并保留六维检查摘要。"

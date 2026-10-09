@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Resource investment Insight result 1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "preset_id", "headline", "summary", "blocks", "checks", "limitations"],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["1.0"]},
+    "preset_id": {"type": "string", "enum": ["comprehensive", "quadrant", "structure"]},
+    "headline": {"type": "string", "minLength": 1, "maxLength": 256},
+    "summary": {"type": "string", "maxLength": 4000},
+    "blocks": {
+      "type": "array", "maxItems": 32,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "kind", "title", "body", "status", "dimension_ids", "fact_ids", "dataset_id"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1, "maxLength": 80},
+          "kind": {"type": "string", "enum": ["finding", "visual", "note"]},
+          "title": {"type": "string", "maxLength": 256},
+          "body": {"type": "string", "maxLength": 4000},
+          "status": {"type": "string", "enum": ["review", "clear", "observed", "limited"]},
+          "dimension_ids": {"type": "array", "minItems": 1, "maxItems": 6, "uniqueItems": true, "items": {"type": "string", "enum": ["low_yield", "high_yield", "concentration", "overlap", "trend", "completeness"]}},
+          "fact_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+          "dataset_id": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "checks": {
+      "type": "array", "minItems": 6, "maxItems": 6,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["dimension_id", "status", "summary", "fact_ids"],
+        "properties": {
+          "dimension_id": {"type": "string", "enum": ["low_yield", "high_yield", "concentration", "overlap", "trend", "completeness"]},
+          "status": {"type": "string", "enum": ["review", "clear", "observed", "limited"]},
+          "summary": {"type": "string", "minLength": 1, "maxLength": 1000},
+          "fact_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+        }
+      }
+    },
+    "limitations": {"type": "array", "maxItems": 24, "items": {"type": "string", "minLength": 1, "maxLength": 1000}}
+  }
+}

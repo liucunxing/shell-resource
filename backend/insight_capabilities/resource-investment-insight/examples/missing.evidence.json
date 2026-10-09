@@ -1,0 +1,340 @@
+{
+  "schema_version": "1.0",
+  "scope": {
+    "id": "demo-owner-mkt",
+    "label": "MKT · 本人全部 Initiative",
+    "role": "owner"
+  },
+  "planning_year": 2027,
+  "data_version": "synthetic-missing-v2",
+  "provenance": {
+    "kind": "synthetic",
+    "description": "人工构造的能力包验收样例；部分数值沿用讨论截图，四象限队列与规则为合成数据。不能作为客户数据分析或模型实测。"
+  },
+  "facts": [
+    {
+      "id": "budget",
+      "label": "负责预算",
+      "value": 1962000,
+      "unit": "CNY",
+      "period": "2027计划",
+      "source": "合成验收样例，非生产数据",
+      "note": ""
+    },
+    {
+      "id": "allocated",
+      "label": "经销商分配",
+      "value": 1926964,
+      "unit": "CNY",
+      "period": "2027计划",
+      "source": "合成验收样例，非生产数据",
+      "note": ""
+    },
+    {
+      "id": "other",
+      "label": "其他预算安排",
+      "value": 35036,
+      "unit": "CNY",
+      "period": "2027计划",
+      "source": "合成验收样例，非生产数据",
+      "note": "无法分配到经销商，后续用途尚待落实"
+    },
+    {
+      "id": "gap",
+      "label": "未解释差额",
+      "value": 0,
+      "unit": "CNY",
+      "period": "2027计划",
+      "source": "合成验收样例，非生产数据",
+      "note": ""
+    },
+    {
+      "id": "low-yield",
+      "label": "1100 历史整体 Yield",
+      "value": null,
+      "unit": "multiple",
+      "period": "2025全年",
+      "source": "合成验收样例，非生产数据",
+      "note": "缺少可比历史，不填零"
+    },
+    {
+      "id": "low-plan",
+      "label": "1100 本范围计划投入",
+      "value": 51000,
+      "unit": "CNY",
+      "period": "2027计划",
+      "source": "合成验收样例，非生产数据",
+      "note": ""
+    },
+    {
+      "id": "high-yield",
+      "label": "800 历史整体 Yield",
+      "value": null,
+      "unit": "multiple",
+      "period": "2025全年",
+      "source": "合成验收样例，非生产数据",
+      "note": "缺少可比历史，不填零"
+    },
+    {
+      "id": "high-plan",
+      "label": "800 本范围计划投入",
+      "value": 53000,
+      "unit": "CNY",
+      "period": "2027计划",
+      "source": "合成验收样例，非生产数据",
+      "note": ""
+    },
+    {
+      "id": "top-plan",
+      "label": "900 本范围计划投入",
+      "value": 92000,
+      "unit": "CNY",
+      "period": "2027计划",
+      "source": "合成验收样例，非生产数据",
+      "note": ""
+    },
+    {
+      "id": "top-share",
+      "label": "900 占经销商分配",
+      "value": 0.047743497024334655,
+      "unit": "ratio",
+      "period": "2027计划",
+      "source": "合成验收样例，非生产数据",
+      "note": ""
+    },
+    {
+      "id": "top-history",
+      "label": "900 本范围历史资源",
+      "value": null,
+      "unit": "CNY",
+      "period": "2025全年",
+      "source": "合成验收样例，非生产数据",
+      "note": "缺少可比历史，不填零"
+    },
+    {
+      "id": "top-growth",
+      "label": "900 计划较历史增加",
+      "value": null,
+      "unit": "ratio",
+      "period": "2027计划 / 2025实际",
+      "source": "合成验收样例，非生产数据",
+      "note": "缺少可比历史，不填零"
+    },
+    {
+      "id": "vol",
+      "label": "900 Vol 同比",
+      "value": null,
+      "unit": "ratio",
+      "period": "2025全年 / 2024全年",
+      "source": "合成验收样例，非生产数据",
+      "note": "缺少可比历史，不填零"
+    },
+    {
+      "id": "c3",
+      "label": "900 C3 同比",
+      "value": null,
+      "unit": "ratio",
+      "period": "2025全年 / 2024全年",
+      "source": "合成验收样例，非生产数据",
+      "note": "缺少可比历史，不填零"
+    },
+    {
+      "id": "overlap",
+      "label": "多项安排经销商数",
+      "value": 57,
+      "unit": "count",
+      "period": "2027计划",
+      "source": "合成验收样例，非生产数据",
+      "note": "57为当前全部授权范围的叠加对象数，统计范围大于10家四象限子队列，不作子队列计数。"
+    },
+    {
+      "id": "top-overlap",
+      "label": "900 涉及 Initiative 数",
+      "value": 3,
+      "unit": "count",
+      "period": "2027计划",
+      "source": "合成验收样例，非生产数据",
+      "note": ""
+    },
+    {
+      "id": "target",
+      "label": "2027 业务目标",
+      "value": null,
+      "unit": "",
+      "period": "2027计划",
+      "source": "合成验收样例，非生产数据",
+      "note": "未提供未来销量和 C3 目标"
+    },
+    {
+      "id": "cohort",
+      "label": "四象限可比队列",
+      "value": "历史资料未提供，不能绘制四象限",
+      "unit": "",
+      "period": "2025历史 / 2027计划",
+      "source": "合成验收样例，非生产数据",
+      "note": ""
+    },
+    {
+      "id": "rules",
+      "label": "业务判断标准",
+      "value": null,
+      "unit": "",
+      "period": "2027计划",
+      "source": "合成验收样例，非生产数据",
+      "note": "未提供集中度或投入合理性阈值"
+    }
+  ],
+  "datasets": [
+    {
+      "id": "budget-mix",
+      "kind": "composition",
+      "title": "预算去向",
+      "scope_id": "demo-owner-mkt",
+      "unit": "CNY",
+      "period": "2027计划",
+      "note": "分母为负责预算；其他安排35,036全部属于无法分配到经销商，不视为已到经销商。",
+      "fact_ids": [
+        "budget",
+        "allocated",
+        "other"
+      ],
+      "rows": [
+        {
+          "id": "dealers",
+          "label": "经销商分配",
+          "value": 1926964
+        },
+        {
+          "id": "other",
+          "label": "其他预算安排",
+          "value": 35036
+        }
+      ],
+      "denominator": 1962000
+    },
+    {
+      "id": "top-dealers",
+      "kind": "ranked_bar",
+      "title": "部分集中对象（验收示例）",
+      "scope_id": "demo-owner-mkt",
+      "unit": "CNY",
+      "period": "2027计划",
+      "note": "本例仅列三个讨论对象，非完整Top3排名；占比分母为全部经销商分配，未提供异常阈值。",
+      "fact_ids": [
+        "top-plan",
+        "high-plan",
+        "low-plan",
+        "allocated"
+      ],
+      "rows": [
+        {
+          "id": "900",
+          "label": "900",
+          "value": 92000
+        },
+        {
+          "id": "800",
+          "label": "800",
+          "value": 53000
+        },
+        {
+          "id": "1100",
+          "label": "1100",
+          "value": 51000
+        }
+      ],
+      "denominator": 1926964
+    },
+    {
+      "id": "yield-table",
+      "kind": "table",
+      "title": "历史与计划参考明细",
+      "scope_id": "demo-owner-mkt",
+      "unit": "CNY",
+      "period": "2025历史 / 2027计划",
+      "note": "历史整体Yield与本范围计划金额的口径不同；数据不足时显示缺失而非零。",
+      "fact_ids": [
+        "low-yield",
+        "low-plan",
+        "high-yield",
+        "high-plan"
+      ],
+      "rows": [
+        {
+          "id": "1100",
+          "dealer": "1100",
+          "yield": null,
+          "plan": 51000
+        },
+        {
+          "id": "800",
+          "dealer": "800",
+          "yield": null,
+          "plan": 53000
+        }
+      ],
+      "columns": [
+        {
+          "key": "dealer",
+          "label": "经销商",
+          "unit": ""
+        },
+        {
+          "key": "yield",
+          "label": "2025整体Yield",
+          "unit": "multiple"
+        },
+        {
+          "key": "plan",
+          "label": "2027本范围计划",
+          "unit": "CNY"
+        }
+      ]
+    }
+  ],
+  "check_constraints": [
+    {
+      "dimension_id": "low_yield",
+      "allowed_statuses": [
+        "limited"
+      ],
+      "reason": "待补充2025 Yield以及2024/2025 Vol或C3完整年度对，补充后可分析历史相对位置和经营变化"
+    },
+    {
+      "dimension_id": "high_yield",
+      "allowed_statuses": [
+        "limited"
+      ],
+      "reason": "待补充2025 Yield以及2024/2025 Vol或C3完整年度对，补充后可分析历史相对位置和经营变化"
+    },
+    {
+      "dimension_id": "concentration",
+      "allowed_statuses": [
+        "observed"
+      ],
+      "reason": "能确认头部占比，无阈值仅作事实分析"
+    },
+    {
+      "dimension_id": "overlap",
+      "allowed_statuses": [
+        "observed"
+      ],
+      "reason": "叠加事实存在，不能直接认定重复投入"
+    },
+    {
+      "dimension_id": "trend",
+      "allowed_statuses": [
+        "limited"
+      ],
+      "reason": "待补充2025 Yield以及2024/2025 Vol或C3完整年度对，补充后可分析历史相对位置和经营变化"
+    },
+    {
+      "dimension_id": "completeness",
+      "allowed_statuses": [
+        "clear",
+        "observed"
+      ],
+      "reason": "仅金额已平衡，其他安排不等于到经销商"
+    }
+  ]
+}
