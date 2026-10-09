@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120">
+  <defs>
+    <linearGradient id="header" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#132B4F"/>
+      <stop offset="100%" stop-color="#215B87"/>
+    </linearGradient>
+    <linearGradient id="admin" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#415BD6"/>
+      <stop offset="100%" stop-color="#6F75E8"/>
+    </linearGradient>
+    <linearGradient id="flow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#087E8B"/>
+      <stop offset="100%" stop-color="#31A7A4"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1600" height="1120" fill="#F4F7FB"/>
+  <rect x="0" y="0" width="1600" height="170" rx="0" fill="url(#header)"/>
+  <circle cx="1460" cy="38" r="130" fill="#2C739B" opacity="0.42"/>
+  <circle cx="1538" cy="116" r="82" fill="#54B6B2" opacity="0.22"/>
+  <text x="74" y="70" fill="#BFE5EE" font-size="20" font-family="Noto Sans SC, sans-serif" letter-spacing="2">资源投资规划工作台 · V1</text>
+  <text x="74" y="125" fill="#FFFFFF" font-size="40" font-weight="700" font-family="Noto Sans SC, sans-serif">登录、权限与审批方案总览</text>
+  <text x="76" y="150" fill="#D4E7F3" font-size="16" font-family="Noto Sans SC, sans-serif">可在画板上直接补充角色、权限编码与业务规则</text>
+
+  <rect x="74" y="204" width="1452" height="178" rx="20" fill="#FFFFFF" stroke="#D8E2EF" stroke-width="2"/>
+  <text x="110" y="247" fill="#183B5A" font-size="23" font-weight="700" font-family="Noto Sans SC, sans-serif">一期登录：预登记邮箱直接登录</text>
+  <text x="110" y="279" fill="#587087" font-size="17" font-family="Noto Sans SC, sans-serif">管理员先登记邮箱、姓名、启用状态、角色及部门范围；用户输入已登记邮箱后建立会话。</text>
+  <rect x="110" y="306" width="560" height="48" rx="12" fill="#E9F5F4"/>
+  <circle cx="137" cy="330" r="10" fill="#138C89"/>
+  <text x="160" y="337" fill="#236262" font-size="16" font-weight="600" font-family="Noto Sans SC, sans-serif">不接 SSO · 不设密码 · 不发验证码</text>
+  <rect x="704" y="306" width="782" height="48" rx="12" fill="#FFF2E8"/>
+  <polygon points="734,317 746,340 722,340" fill="#E87832"/>
+  <text x="763" y="337" fill="#9A4C1C" font-size="16" font-weight="600" font-family="Noto Sans SC, sans-serif">已知限制：知道他人邮箱即可冒用，审批日志只证明登录账号，不证明自然人身份</text>
+
+  <text x="74" y="429" fill="#183B5A" font-size="25" font-weight="700" font-family="Noto Sans SC, sans-serif">后端每次请求的四层判断</text>
+  <text x="74" y="458" fill="#6C8296" font-size="16" font-family="Noto Sans SC, sans-serif">页面和按钮只改善体验；数据读取、写入、导出、AI 问数都由后端同时检查</text>
+
+  <g font-family="Noto Sans SC, sans-serif">
+    <circle cx="208" cy="545" r="68" fill="#E7F1FF" stroke="#5C92D7" stroke-width="3"/>
+    <text x="208" y="535" text-anchor="middle" fill="#235F9D" font-size="20" font-weight="700">① 有效会话</text>
+    <text x="208" y="563" text-anchor="middle" fill="#44719B" font-size="15">启用账号</text>
+    <polyline points="278,545 326,545 326,545 362,545" fill="none" stroke="#88A0B6" stroke-width="4"/>
+    <polygon points="362,536 382,545 362,554" fill="#88A0B6"/>
+    <circle cx="514" cy="545" r="68" fill="#F0EBFF" stroke="#8569D6" stroke-width="3"/>
+    <text x="514" y="535" text-anchor="middle" fill="#6046A7" font-size="20" font-weight="700">② 操作权限</text>
+    <text x="514" y="563" text-anchor="middle" fill="#705F99" font-size="15">角色可做什么</text>
+    <polyline points="584,545 632,545 632,545 668,545" fill="none" stroke="#88A0B6" stroke-width="4"/>
+    <polygon points="668,536 688,545 668,554" fill="#88A0B6"/>
+    <circle cx="820" cy="545" r="68" fill="#E7F8F5" stroke="#3B9F92" stroke-width="3"/>
+    <text x="820" y="535" text-anchor="middle" fill="#147368" font-size="20" font-weight="700">③ 数据范围</text>
+    <text x="820" y="563" text-anchor="middle" fill="#43877E" font-size="15">部门 / 本人项目</text>
+    <polyline points="890,545 938,545 938,545 974,545" fill="none" stroke="#88A0B6" stroke-width="4"/>
+    <polygon points="974,536 994,545 974,554" fill="#88A0B6"/>
+    <circle cx="1126" cy="545" r="68" fill="#FFF5E3" stroke="#D79B3F" stroke-width="3"/>
+    <text x="1126" y="535" text-anchor="middle" fill="#A16A1A" font-size="20" font-weight="700">④ 状态与版本</text>
+    <text x="1126" y="563" text-anchor="middle" fill="#957249" font-size="15">是否允许当前操作</text>
+    <polyline points="1196,545 1244,545 1244,545 1280,545" fill="none" stroke="#88A0B6" stroke-width="4"/>
+    <polygon points="1280,536 1300,545 1280,554" fill="#88A0B6"/>
+    <rect x="1320" y="500" width="175" height="90" rx="18" fill="url(#flow)"/>
+    <text x="1407" y="538" text-anchor="middle" fill="#FFFFFF" font-size="20" font-weight="700">执行并审计</text>
+    <text x="1407" y="565" text-anchor="middle" fill="#E1FFFC" font-size="14">记录当前登录账号</text>
+  </g>
+
+  <text x="74" y="662" fill="#183B5A" font-size="25" font-weight="700" font-family="Noto Sans SC, sans-serif">角色、数据范围与主要动作</text>
+  <g font-family="Noto Sans SC, sans-serif">
+    <rect x="74" y="696" width="337" height="202" rx="18" fill="url(#admin)"/>
+    <circle cx="115" cy="738" r="20" fill="#FFFFFF" opacity="0.2"/>
+    <text x="145" y="746" fill="#FFFFFF" font-size="23" font-weight="700">管理员</text>
+    <text x="106" y="788" fill="#EFF1FF" font-size="16">全局范围 · 拥有全部业务权限</text>
+    <text x="106" y="824" fill="#FFFFFF" font-size="16">• 维护人员、角色、部门与 Owner</text>
+    <text x="106" y="853" fill="#FFFFFF" font-size="16">• 可代填 / 代提交 / 代审批</text>
+    <text x="106" y="882" fill="#EFF1FF" font-size="14">仍须遵守锁定、版本及金额校验</text>
+
+    <rect x="439" y="696" width="337" height="202" rx="18" fill="#FFFFFF" stroke="#6B9DD5" stroke-width="3"/>
+    <circle cx="480" cy="738" r="20" fill="#E7F1FF"/>
+    <text x="510" y="746" fill="#245F99" font-size="23" font-weight="700">部门负责人</text>
+    <text x="470" y="788" fill="#56718B" font-size="16">本部门范围</text>
+    <text x="470" y="824" fill="#244B6D" font-size="16">• 查看与复核本部门全部项目</text>
+    <text x="470" y="853" fill="#244B6D" font-size="16">• 退回项目给执行人</text>
+    <text x="470" y="882" fill="#244B6D" font-size="16">• 提交部门方案与部门 Insight</text>
+
+    <rect x="804" y="696" width="337" height="202" rx="18" fill="#FFFFFF" stroke="#3F9D91" stroke-width="3"/>
+    <circle cx="845" cy="738" r="20" fill="#E5F8F3"/>
+    <text x="875" y="746" fill="#18756B" font-size="23" font-weight="700">部门执行人</text>
+    <text x="835" y="788" fill="#4F817C" font-size="16">本人 Owner 项目范围</text>
+    <text x="835" y="824" fill="#235C59" font-size="16">• 填写分配、说明、预算池</text>
+    <text x="835" y="853" fill="#235C59" font-size="16">• 导入、修改、标记完成</text>
+    <text x="835" y="882" fill="#235C59" font-size="16">• 不能查看或改同事明细</text>
+
+    <rect x="1169" y="696" width="357" height="202" rx="18" fill="#FFFFFF" stroke="#D79B3F" stroke-width="3"/>
+    <circle cx="1210" cy="738" r="20" fill="#FFF2D8"/>
+    <text x="1240" y="746" fill="#9C681B" font-size="23" font-weight="700">最终审批人（大老板）</text>
+    <text x="1200" y="788" fill="#8B744F" font-size="16">全公司有效提交版本</text>
+    <text x="1200" y="824" fill="#6A552F" font-size="16">• 查看各部门已提交快照</text>
+    <text x="1200" y="853" fill="#6A552F" font-size="16">• 定向退回部门方案</text>
+    <text x="1200" y="882" fill="#6A552F" font-size="16">• 全部满足条件后最终定稿</text>
+  </g>
+
+  <rect x="74" y="938" width="1452" height="136" rx="20" fill="#FFFFFF" stroke="#D8E2EF" stroke-width="2"/>
+  <text x="108" y="976" fill="#183B5A" font-size="22" font-weight="700" font-family="Noto Sans SC, sans-serif">一期审批链路：快照不可覆盖，退回后产生新版本</text>
+  <g font-family="Noto Sans SC, sans-serif" font-size="16" font-weight="600">
+    <rect x="110" y="1000" width="207" height="44" rx="22" fill="#E7F8F5"/>
+    <text x="214" y="1028" text-anchor="middle" fill="#18756B">执行人填报并完成</text>
+    <polyline points="327,1022 357,1022" fill="none" stroke="#8296A8" stroke-width="3"/><polygon points="357,1015 372,1022 357,1029" fill="#8296A8"/>
+    <rect x="382" y="1000" width="221" height="44" rx="22" fill="#E7F1FF"/>
+    <text x="492" y="1028" text-anchor="middle" fill="#245F99">负责人复核并提交</text>
+    <polyline points="613,1022 643,1022" fill="none" stroke="#8296A8" stroke-width="3"/><polygon points="643,1015 658,1022 643,1029" fill="#8296A8"/>
+    <rect x="668" y="1000" width="216" height="44" rx="22" fill="#F0EBFF"/>
+    <text x="776" y="1028" text-anchor="middle" fill="#6046A7">冻结部门提交快照</text>
+    <polyline points="894,1022 924,1022" fill="none" stroke="#8296A8" stroke-width="3"/><polygon points="924,1015 939,1022 924,1029" fill="#8296A8"/>
+    <rect x="949" y="1000" width="194" height="44" rx="22" fill="#FFF2D8"/>
+    <text x="1046" y="1028" text-anchor="middle" fill="#9C681B">大老板复核</text>
+    <polyline points="1153,1022 1183,1022" fill="none" stroke="#8296A8" stroke-width="3"/><polygon points="1183,1015 1198,1022 1183,1029" fill="#8296A8"/>
+    <rect x="1208" y="1000" width="276" height="44" rx="22" fill="#213F64"/>
+    <text x="1346" y="1028" text-anchor="middle" fill="#FFFFFF">定稿；或退回后重提新版本</text>
+  </g>
+</svg>

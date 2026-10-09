@@ -1,0 +1,949 @@
+{
+  "metadata": {
+    "started_at": "2026-09-30T16:42:37.949779+00:00",
+    "finished_at": "2026-09-30T16:43:36.456092+00:00",
+    "base_url": "http://127.0.0.1:8000",
+    "planning_year": 2027,
+    "target_budget_id": 9,
+    "target_owner_role": "owner_a",
+    "created_test_budget_name": "[RBAC-TEST] API-管理员新增-20260930164310",
+    "note": "Frontend acceptance had already changed seed ownership/revisions before this run."
+  },
+  "summary": {
+    "total": 93,
+    "passed": 93,
+    "failed": 0
+  },
+  "results": [
+    {
+      "case": "SYS-01",
+      "purpose": "证明后端健康检查可用",
+      "role": "anonymous",
+      "method": "GET",
+      "path": "/health",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "SYS-02",
+      "purpose": "证明 Swagger 页面可访问",
+      "role": "anonymous",
+      "method": "GET",
+      "path": "/docs",
+      "expected": "200",
+      "actual": "HTTP 200; b'\\n    <!DOCTYPE html>\\n    <html>\\n    <head>\\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\\n    <link type=\"text/css\" rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css\">\\n    <link rel=\"shortcut icon\" href=\"https://fastapi.tiangolo.com/img/favicon.png\">\\n    <title>Shell Forecast Backend - Swagger UI</title>\\n    </head>\\n    <bod",
+      "result": "PASS"
+    },
+    {
+      "case": "SYS-03",
+      "purpose": "证明 OpenAPI 契约可读取",
+      "role": "anonymous",
+      "method": "GET",
+      "path": "/openapi.json",
+      "expected": "200",
+      "actual": "HTTP 200; None",
+      "result": "PASS"
+    },
+    {
+      "case": "SYS-04",
+      "purpose": "确认工作台端点已注册",
+      "role": "system",
+      "method": "ASSERT",
+      "path": "/openapi.json",
+      "expected": "至少 15 个端点",
+      "actual": "21",
+      "result": "PASS"
+    },
+    {
+      "case": "AUTH-01",
+      "purpose": "证明缺少开发身份头不能访问业务接口",
+      "role": "anonymous",
+      "method": "GET",
+      "path": "/api/v1/workbench/workspace?planning_year=2027",
+      "expected": "401",
+      "actual": "HTTP 401; 缺少 X-User-Email",
+      "result": "PASS"
+    },
+    {
+      "case": "AUTH-02",
+      "purpose": "证明未知邮箱不能伪造有效身份",
+      "role": "missing-rbac-user@example.test",
+      "method": "GET",
+      "path": "/api/v1/workbench/workspace?planning_year=2027",
+      "expected": "403",
+      "actual": "HTTP 403; 当前邮箱没有工作台权限",
+      "result": "PASS"
+    },
+    {
+      "case": "WS-OWNER_A",
+      "purpose": "读取 owner_a 的服务端工作台投影",
+      "role": "owner_a",
+      "method": "GET",
+      "path": "/api/v1/workbench/workspace?planning_year=2027",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "WS-OWNER_B",
+      "purpose": "读取 owner_b 的服务端工作台投影",
+      "role": "owner_b",
+      "method": "GET",
+      "path": "/api/v1/workbench/workspace?planning_year=2027",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "WS-ICE_OWNER",
+      "purpose": "读取 ice_owner 的服务端工作台投影",
+      "role": "ice_owner",
+      "method": "GET",
+      "path": "/api/v1/workbench/workspace?planning_year=2027",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "WS-LEAD",
+      "purpose": "读取 lead 的服务端工作台投影",
+      "role": "lead",
+      "method": "GET",
+      "path": "/api/v1/workbench/workspace?planning_year=2027",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "WS-MANAGEMENT",
+      "purpose": "读取 management 的服务端工作台投影",
+      "role": "management",
+      "method": "GET",
+      "path": "/api/v1/workbench/workspace?planning_year=2027",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "WS-ADMIN",
+      "purpose": "读取 admin 的服务端工作台投影",
+      "role": "admin",
+      "method": "GET",
+      "path": "/api/v1/workbench/workspace?planning_year=2027",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "SCOPE-OWNER_A",
+      "purpose": "证明 Owner 只能看到当前归属给自己的 Initiative",
+      "role": "owner_a",
+      "method": "ASSERT",
+      "path": "/api/v1/workbench/workspace",
+      "expected": "所有 ownerId 均为 sf-owner-a@example.test",
+      "actual": "[('9', 'sf-owner-a@example.test', '[RBAC-TEST] A-发布后已修改'), ('12', 'sf-owner-a@example.test', '[RBAC-TEST] API-管理员新增-20260930124647')]",
+      "result": "PASS"
+    },
+    {
+      "case": "REF-OWNER_A",
+      "purpose": "证明 Owner 的详细历史仅覆盖本人项目涉及经销商；目录项可以无历史值",
+      "role": "owner_a",
+      "method": "ASSERT",
+      "path": "/api/v1/workbench/workspace",
+      "expected": "有历史值的经销商集合不超出本人分配集合",
+      "actual": "{'detailed': 2, 'allocated': 2, 'extra': []}",
+      "result": "PASS"
+    },
+    {
+      "case": "SCOPE-OWNER_B",
+      "purpose": "证明 Owner 只能看到当前归属给自己的 Initiative",
+      "role": "owner_b",
+      "method": "ASSERT",
+      "path": "/api/v1/workbench/workspace",
+      "expected": "所有 ownerId 均为 sf-owner-b@example.test",
+      "actual": "[('8', 'sf-owner-b@example.test', '[RBAC-TEST] A-未配平草稿'), ('10', 'sf-owner-b@example.test', '[RBAC-TEST] B-已发布')]",
+      "result": "PASS"
+    },
+    {
+      "case": "REF-OWNER_B",
+      "purpose": "证明 Owner 的详细历史仅覆盖本人项目涉及经销商；目录项可以无历史值",
+      "role": "owner_b",
+      "method": "ASSERT",
+      "path": "/api/v1/workbench/workspace",
+      "expected": "有历史值的经销商集合不超出本人分配集合",
+      "actual": "{'detailed': 4, 'allocated': 4, 'extra': []}",
+      "result": "PASS"
+    },
+    {
+      "case": "SCOPE-ICE_OWNER",
+      "purpose": "证明 Owner 只能看到当前归属给自己的 Initiative",
+      "role": "ice_owner",
+      "method": "ASSERT",
+      "path": "/api/v1/workbench/workspace",
+      "expected": "所有 ownerId 均为 sf-ice-owner@example.test",
+      "actual": "[('11', 'sf-ice-owner@example.test', '[RBAC-TEST] ICE-已发布')]",
+      "result": "PASS"
+    },
+    {
+      "case": "REF-ICE_OWNER",
+      "purpose": "证明 Owner 的详细历史仅覆盖本人项目涉及经销商；目录项可以无历史值",
+      "role": "ice_owner",
+      "method": "ASSERT",
+      "path": "/api/v1/workbench/workspace",
+      "expected": "有历史值的经销商集合不超出本人分配集合",
+      "actual": "{'detailed': 2, 'allocated': 2, 'extra': []}",
+      "result": "PASS"
+    },
+    {
+      "case": "SCOPE-LEAD",
+      "purpose": "证明部门负责人只能读取 MKT/PCMO 部门工作稿",
+      "role": "lead",
+      "method": "ASSERT",
+      "path": "/api/v1/workbench/workspace",
+      "expected": "所有项目均为 MKT/PCMO",
+      "actual": "[('8', 'MKT', 'PCMO', 'sf-owner-b@example.test'), ('9', 'MKT', 'PCMO', 'sf-owner-a@example.test'), ('10', 'MKT', 'PCMO', 'sf-owner-b@example.test'), ('12', 'MKT', 'PCMO', 'sf-owner-a@example.test')]",
+      "result": "PASS"
+    },
+    {
+      "case": "REF-LEAD",
+      "purpose": "证明 Lead 的详细历史限制在本部门项目涉及的经销商",
+      "role": "lead",
+      "method": "ASSERT",
+      "path": "/api/v1/workbench/workspace",
+      "expected": "有历史值的经销商集合不超出 MKT 项目分配集合",
+      "actual": "{'detailed': 6, 'allocated': 6, 'extra_count': 0}",
+      "result": "PASS"
+    },
+    {
+      "case": "SCOPE-MANAGEMENT",
+      "purpose": "证明管理层工作台只包含已同步快照",
+      "role": "management",
+      "method": "ASSERT",
+      "path": "/api/v1/workbench/workspace",
+      "expected": "所有项目均有 publishedAt/publishedRevision",
+      "actual": "[('10', '[RBAC-TEST] B-已发布', 1, '2026-09-30T09:51:38.993028+00:00'), ('11', '[RBAC-TEST] ICE-已发布', 1, '2026-09-30T09:51:38.993028+00:00'), ('8', '[RBAC-TEST] A-未配平草稿', 8, '2026-09-30T10:38:06.901740+00:00'), ('9', '[RBAC-TEST] A-发布后已修改', 4, '2026-09-30T12:46:38.743581+00:00')]",
+      "result": "PASS"
+    },
+    {
+      "case": "LOG-MANAGEMENT",
+      "purpose": "证明管理层当前不返回操作日志",
+      "role": "management",
+      "method": "ASSERT",
+      "path": "/api/v1/workbench/workspace",
+      "expected": "audit=[]",
+      "actual": "[]",
+      "result": "PASS"
+    },
+    {
+      "case": "SCOPE-ADMIN",
+      "purpose": "证明管理员能看全部配置但看不到业务分配明细",
+      "role": "admin",
+      "method": "ASSERT",
+      "path": "/api/v1/workbench/workspace",
+      "expected": "四个以上配置项目且 rows/otherBudgets 全为空",
+      "actual": "[('8', '[RBAC-TEST] A-未配平草稿', 0, 0), ('9', '[RBAC-TEST] A-发布后已修改', 0, 0), ('10', '[RBAC-TEST] B-已发布', 0, 0), ('11', '[RBAC-TEST] ICE-已发布', 0, 0), ('12', '[RBAC-TEST] API-管理员新增-20260930124647', 0, 0)]",
+      "result": "PASS"
+    },
+    {
+      "case": "USERS-ADMIN",
+      "purpose": "证明仅管理员工作台下发人员权限配置",
+      "role": "admin",
+      "method": "ASSERT",
+      "path": "/api/v1/workbench/workspace",
+      "expected": "管理员有 users，其他角色 users 为空",
+      "actual": "{'owner_a': 0, 'owner_b': 0, 'ice_owner': 0, 'lead': 0, 'management': 0, 'admin': 6}",
+      "result": "PASS"
+    },
+    {
+      "case": "DRAFT-OWNER-READ",
+      "purpose": "证明 Owner 可读取本人项目草稿",
+      "role": "owner_a",
+      "method": "GET",
+      "path": "/api/v1/workbench/initiatives/9/draft",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "DRAFT-READ-OWNER_B",
+      "purpose": "验证 owner_b 对目标草稿的读取边界",
+      "role": "owner_b",
+      "method": "GET",
+      "path": "/api/v1/workbench/initiatives/9/draft",
+      "expected": "404",
+      "actual": "HTTP 404; Initiative 不存在或不在当前权限范围",
+      "result": "PASS"
+    },
+    {
+      "case": "DRAFT-READ-LEAD",
+      "purpose": "验证 lead 对目标草稿的读取边界",
+      "role": "lead",
+      "method": "GET",
+      "path": "/api/v1/workbench/initiatives/9/draft",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "DRAFT-READ-MANAGEMENT",
+      "purpose": "验证 management 对目标草稿的读取边界",
+      "role": "management",
+      "method": "GET",
+      "path": "/api/v1/workbench/initiatives/9/draft",
+      "expected": "403",
+      "actual": "HTTP 403; 当前角色不能访问此数据",
+      "result": "PASS"
+    },
+    {
+      "case": "DRAFT-READ-ADMIN",
+      "purpose": "验证 admin 对目标草稿的读取边界",
+      "role": "admin",
+      "method": "GET",
+      "path": "/api/v1/workbench/initiatives/9/draft",
+      "expected": "403",
+      "actual": "HTTP 403; 当前角色不能访问此数据",
+      "result": "PASS"
+    },
+    {
+      "case": "DRAFT-WRITE-OWNER_B",
+      "purpose": "证明 owner_b 不能代替 Owner 保存目标草稿",
+      "role": "owner_b",
+      "method": "PUT",
+      "path": "/api/v1/workbench/initiatives/9/draft",
+      "expected": "404",
+      "actual": "HTTP 404; Initiative 不存在或不在当前权限范围",
+      "result": "PASS"
+    },
+    {
+      "case": "DRAFT-WRITE-LEAD",
+      "purpose": "证明 lead 不能代替 Owner 保存目标草稿",
+      "role": "lead",
+      "method": "PUT",
+      "path": "/api/v1/workbench/initiatives/9/draft",
+      "expected": "403",
+      "actual": "HTTP 403; 当前角色不能访问此数据",
+      "result": "PASS"
+    },
+    {
+      "case": "DRAFT-WRITE-MANAGEMENT",
+      "purpose": "证明 management 不能代替 Owner 保存目标草稿",
+      "role": "management",
+      "method": "PUT",
+      "path": "/api/v1/workbench/initiatives/9/draft",
+      "expected": "403",
+      "actual": "HTTP 403; 当前角色不能访问此数据",
+      "result": "PASS"
+    },
+    {
+      "case": "DRAFT-WRITE-ADMIN",
+      "purpose": "证明 admin 不能代替 Owner 保存目标草稿",
+      "role": "admin",
+      "method": "PUT",
+      "path": "/api/v1/workbench/initiatives/9/draft",
+      "expected": "403",
+      "actual": "HTTP 403; 当前角色不能访问此数据",
+      "result": "PASS"
+    },
+    {
+      "case": "DRAFT-OWNER-WRITE",
+      "purpose": "证明 Owner 可整项保存本人草稿",
+      "role": "owner_a",
+      "method": "PUT",
+      "path": "/api/v1/workbench/initiatives/9/draft",
+      "expected": "200",
+      "actual": "HTTP 200; 草稿已保存",
+      "result": "PASS"
+    },
+    {
+      "case": "DRAFT-REVISION",
+      "purpose": "证明成功保存后 revision 递增",
+      "role": "owner_a",
+      "method": "ASSERT",
+      "path": "/api/v1/workbench/initiatives/9/draft",
+      "expected": "> 9",
+      "actual": "10",
+      "result": "PASS"
+    },
+    {
+      "case": "DRAFT-STALE",
+      "purpose": "证明旧 revision 不能覆盖新草稿",
+      "role": "owner_a",
+      "method": "PUT",
+      "path": "/api/v1/workbench/initiatives/9/draft",
+      "expected": "409",
+      "actual": "HTTP 409; 草稿已被其他用户修改，请刷新后重试",
+      "result": "PASS"
+    },
+    {
+      "case": "DRAFT-DUPLICATE-DEALER",
+      "purpose": "证明重复经销商编码导致整项拒绝",
+      "role": "owner_a",
+      "method": "PUT",
+      "path": "/api/v1/workbench/initiatives/9/draft",
+      "expected": "422",
+      "actual": "HTTP 422; 经销商编码不能重复",
+      "result": "PASS"
+    },
+    {
+      "case": "DRAFT-UNKNOWN-DEALER",
+      "purpose": "证明未知经销商编码导致整项拒绝",
+      "role": "owner_a",
+      "method": "PUT",
+      "path": "/api/v1/workbench/initiatives/9/draft",
+      "expected": "422",
+      "actual": "HTTP 422; 经销商编码不存在",
+      "result": "PASS"
+    },
+    {
+      "case": "PUBLISH-OWNER",
+      "purpose": "证明 Owner 可同步已配平的本人项目",
+      "role": "owner_a",
+      "method": "POST",
+      "path": "/api/v1/workbench/initiatives/9/publish",
+      "expected": "200",
+      "actual": "HTTP 200; 同步成功",
+      "result": "PASS"
+    },
+    {
+      "case": "PUBLISH-SNAPSHOT",
+      "purpose": "证明同步结果绑定当前 revision 并生成版本号",
+      "role": "owner_a",
+      "method": "ASSERT",
+      "path": "/api/v1/workbench/initiatives/9/publish",
+      "expected": "publishedRevision=10",
+      "actual": "{'number': 3, 'publishedRevision': 10}",
+      "result": "PASS"
+    },
+    {
+      "case": "PUBLICATIONS-OWNER_A",
+      "purpose": "验证 owner_a 对同步历史的访问边界",
+      "role": "owner_a",
+      "method": "GET",
+      "path": "/api/v1/workbench/initiatives/9/publications",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "PUBLICATIONS-LEAD",
+      "purpose": "验证 lead 对同步历史的访问边界",
+      "role": "lead",
+      "method": "GET",
+      "path": "/api/v1/workbench/initiatives/9/publications",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "PUBLICATIONS-MANAGEMENT",
+      "purpose": "验证 management 对同步历史的访问边界",
+      "role": "management",
+      "method": "GET",
+      "path": "/api/v1/workbench/initiatives/9/publications",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "PUBLICATIONS-ADMIN",
+      "purpose": "验证 admin 对同步历史的访问边界",
+      "role": "admin",
+      "method": "GET",
+      "path": "/api/v1/workbench/initiatives/9/publications",
+      "expected": "403",
+      "actual": "HTTP 403; 当前角色不能访问此数据",
+      "result": "PASS"
+    },
+    {
+      "case": "PUBLICATIONS-OWNER_B",
+      "purpose": "验证 owner_b 对同步历史的访问边界",
+      "role": "owner_b",
+      "method": "GET",
+      "path": "/api/v1/workbench/initiatives/9/publications",
+      "expected": "404",
+      "actual": "HTTP 404; Initiative 不存在或不在当前权限范围",
+      "result": "PASS"
+    },
+    {
+      "case": "OWNER-REFRESH",
+      "purpose": "刷新 Owner 工作台以选择未使用经销商",
+      "role": "owner_a",
+      "method": "GET",
+      "path": "/api/v1/workbench/workspace?planning_year=2027",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "ALLOC-CREATE",
+      "purpose": "证明 Owner 可新增本人项目经销商分配",
+      "role": "owner_a",
+      "method": "POST",
+      "path": "/api/v1/workbench/initiatives/9/distributor-allocations",
+      "expected": "200",
+      "actual": "HTTP 200; 新增成功",
+      "result": "PASS"
+    },
+    {
+      "case": "ALLOC-UPDATE",
+      "purpose": "证明 Owner 可修改本人项目经销商分配说明",
+      "role": "owner_a",
+      "method": "PATCH",
+      "path": "/api/v1/workbench/initiatives/9/distributor-allocations/35",
+      "expected": "200",
+      "actual": "HTTP 200; 修改成功",
+      "result": "PASS"
+    },
+    {
+      "case": "ALLOC-DELETE",
+      "purpose": "证明 Owner 可删除本人项目经销商分配并恢复测试数据",
+      "role": "owner_a",
+      "method": "DELETE",
+      "path": "/api/v1/workbench/initiatives/9/distributor-allocations/35",
+      "expected": "200",
+      "actual": "HTTP 200; 删除成功",
+      "result": "PASS"
+    },
+    {
+      "case": "ALLOC-CREATE-LEAD",
+      "purpose": "证明 lead 不能新增业务分配",
+      "role": "lead",
+      "method": "POST",
+      "path": "/api/v1/workbench/initiatives/9/distributor-allocations",
+      "expected": "403",
+      "actual": "HTTP 403; 当前角色无此操作权限",
+      "result": "PASS"
+    },
+    {
+      "case": "ALLOC-CREATE-MANAGEMENT",
+      "purpose": "证明 management 不能新增业务分配",
+      "role": "management",
+      "method": "POST",
+      "path": "/api/v1/workbench/initiatives/9/distributor-allocations",
+      "expected": "403",
+      "actual": "HTTP 403; 当前角色无此操作权限",
+      "result": "PASS"
+    },
+    {
+      "case": "ALLOC-CREATE-ADMIN",
+      "purpose": "证明 admin 不能新增业务分配",
+      "role": "admin",
+      "method": "POST",
+      "path": "/api/v1/workbench/initiatives/9/distributor-allocations",
+      "expected": "403",
+      "actual": "HTTP 403; 当前角色无此操作权限",
+      "result": "PASS"
+    },
+    {
+      "case": "XLS-BAD-TYPE",
+      "purpose": "证明 Owner 上传非 xlsx 文件被拒绝",
+      "role": "owner_a",
+      "method": "POST",
+      "path": "/api/v1/workbench/initiatives/9/distributor-allocations/import",
+      "expected": "400",
+      "actual": "HTTP 400; 仅支持 .xlsx 格式的经销商分配模板",
+      "result": "PASS"
+    },
+    {
+      "case": "XLS-DENY-LEAD",
+      "purpose": "证明 lead 不能向目标项目回传 Excel",
+      "role": "lead",
+      "method": "POST",
+      "path": "/api/v1/workbench/initiatives/9/distributor-allocations/import",
+      "expected": "403",
+      "actual": "HTTP 403; 当前角色无此操作权限",
+      "result": "PASS"
+    },
+    {
+      "case": "XLS-DENY-MANAGEMENT",
+      "purpose": "证明 management 不能向目标项目回传 Excel",
+      "role": "management",
+      "method": "POST",
+      "path": "/api/v1/workbench/initiatives/9/distributor-allocations/import",
+      "expected": "403",
+      "actual": "HTTP 403; 当前角色无此操作权限",
+      "result": "PASS"
+    },
+    {
+      "case": "XLS-DENY-ADMIN",
+      "purpose": "证明 admin 不能向目标项目回传 Excel",
+      "role": "admin",
+      "method": "POST",
+      "path": "/api/v1/workbench/initiatives/9/distributor-allocations/import",
+      "expected": "403",
+      "actual": "HTTP 403; 当前角色无此操作权限",
+      "result": "PASS"
+    },
+    {
+      "case": "XLS-DENY-OWNER_B",
+      "purpose": "证明 owner_b 不能向目标项目回传 Excel",
+      "role": "owner_b",
+      "method": "POST",
+      "path": "/api/v1/workbench/initiatives/9/distributor-allocations/import",
+      "expected": "404",
+      "actual": "HTTP 404; 预算不存在或不属于当前工作台范围",
+      "result": "PASS"
+    },
+    {
+      "case": "XLS-OWNER-IMPORT",
+      "purpose": "证明 Owner 可向本人项目回传合法 Excel",
+      "role": "owner_a",
+      "method": "POST",
+      "path": "/api/v1/workbench/initiatives/9/distributor-allocations/import",
+      "expected": "200",
+      "actual": "HTTP 200; 全部导入完成",
+      "result": "PASS"
+    },
+    {
+      "case": "XLS-VERIFY",
+      "purpose": "确认 Excel 数据只写入目标项目",
+      "role": "owner_a",
+      "method": "GET",
+      "path": "/api/v1/workbench/initiatives/9/distributor-allocations",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "XLS-VERIFY-ROW",
+      "purpose": "证明合法 Excel 写入指定经销商",
+      "role": "owner_a",
+      "method": "ASSERT",
+      "path": "/api/v1/workbench/workspace",
+      "expected": "存在 10208074",
+      "actual": "{'id': 36, 'distributor_code': '10208074', 'allocate_amount': '0.00', 'rate': '0.0000', 'desc': 'RBAC Excel API test'}",
+      "result": "PASS"
+    },
+    {
+      "case": "XLS-CLEANUP",
+      "purpose": "删除本次 Excel 导入的零金额测试行",
+      "role": "owner_a",
+      "method": "DELETE",
+      "path": "/api/v1/workbench/initiatives/9/distributor-allocations/36",
+      "expected": "200",
+      "actual": "HTTP 200; 删除成功",
+      "result": "PASS"
+    },
+    {
+      "case": "ADMIN-REFRESH",
+      "purpose": "刷新管理员配置",
+      "role": "admin",
+      "method": "GET",
+      "path": "/api/v1/workbench/workspace?planning_year=2027",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "ADMIN-BUDGET-NOOP",
+      "purpose": "证明管理员可维护预算/Owner；使用相同值避免改变业务数据",
+      "role": "admin",
+      "method": "PUT",
+      "path": "/api/v1/workbench/admin/budgets",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "ADMIN-BUDGET-STALE",
+      "purpose": "证明管理员旧 revision 不能覆盖预算配置",
+      "role": "admin",
+      "method": "PUT",
+      "path": "/api/v1/workbench/admin/budgets",
+      "expected": "409",
+      "actual": "HTTP 409; 预算已被修改，请刷新后重试",
+      "result": "PASS"
+    },
+    {
+      "case": "ADMIN-BUDGET-OWNER-DENY",
+      "purpose": "证明 Owner 不能维护预算/Owner",
+      "role": "owner_a",
+      "method": "PUT",
+      "path": "/api/v1/workbench/admin/budgets",
+      "expected": "403",
+      "actual": "HTTP 403; 仅管理员可维护配置",
+      "result": "PASS"
+    },
+    {
+      "case": "ADMIN-BUDGET-CREATE",
+      "purpose": "证明管理员可新增预算并分配合法 Owner",
+      "role": "admin",
+      "method": "POST",
+      "path": "/api/v1/workbench/admin/budgets",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "ADMIN-BUDGET-DUPLICATE",
+      "purpose": "证明重复业务键不能再次创建",
+      "role": "admin",
+      "method": "POST",
+      "path": "/api/v1/workbench/admin/budgets",
+      "expected": "409",
+      "actual": "HTTP 409; 同年度、部门、Sector 和资源类型下 Initiative 已存在",
+      "result": "PASS"
+    },
+    {
+      "case": "ADMIN-BUDGET-INVALID-OWNER",
+      "purpose": "证明管理员不能把 MKT 项目分配给 ICE Owner",
+      "role": "admin",
+      "method": "POST",
+      "path": "/api/v1/workbench/admin/budgets",
+      "expected": "422",
+      "actual": "HTTP 422; Owner 不存在、未启用或部门/Sector 不匹配",
+      "result": "PASS"
+    },
+    {
+      "case": "ADMIN-CONFIG-OWNER-DENY",
+      "purpose": "证明非管理员不能维护全局业务指引",
+      "role": "owner_a",
+      "method": "PUT",
+      "path": "/api/v1/workbench/admin/config",
+      "expected": "403",
+      "actual": "HTTP 403; 仅管理员可维护配置",
+      "result": "PASS"
+    },
+    {
+      "case": "ADMIN-CONFIG-WRITE",
+      "purpose": "证明管理员可保存全局业务指引并推进配置 revision",
+      "role": "admin",
+      "method": "PUT",
+      "path": "/api/v1/workbench/admin/config",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "ADMIN-CONFIG-STALE",
+      "purpose": "证明旧配置 revision 不能覆盖新配置",
+      "role": "admin",
+      "method": "PUT",
+      "path": "/api/v1/workbench/admin/config",
+      "expected": "409",
+      "actual": "HTTP 409; 配置已被修改，请刷新后重试",
+      "result": "PASS"
+    },
+    {
+      "case": "REFERENCE-OWNER-DENY",
+      "purpose": "证明非管理员不能导入历史参考批次",
+      "role": "owner_a",
+      "method": "POST",
+      "path": "/api/v1/workbench/admin/reference",
+      "expected": "403",
+      "actual": "HTTP 403; 仅管理员可维护配置",
+      "result": "PASS"
+    },
+    {
+      "case": "REFERENCE-STALE",
+      "purpose": "证明旧配置 revision 不能替换参考批次",
+      "role": "admin",
+      "method": "POST",
+      "path": "/api/v1/workbench/admin/reference",
+      "expected": "409",
+      "actual": "HTTP 409; 配置已被修改，请刷新后重试",
+      "result": "PASS"
+    },
+    {
+      "case": "INSIGHT-OWNER-READ",
+      "purpose": "验证 owner_a 对 Insight scope=owner:sf-owner-a@example.test 的读取权限",
+      "role": "owner_a",
+      "method": "GET",
+      "path": "/api/v1/workbench/insights?scope=owner%3Asf-owner-a%40example.test&planning_year=2027",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "INSIGHT-OWNER-OTHER",
+      "purpose": "验证 owner_b 对 Insight scope=owner:sf-owner-a@example.test 的读取权限",
+      "role": "owner_b",
+      "method": "GET",
+      "path": "/api/v1/workbench/insights?scope=owner%3Asf-owner-a%40example.test&planning_year=2027",
+      "expected": "403",
+      "actual": "HTTP 403; 只能查看本人的 Insight",
+      "result": "PASS"
+    },
+    {
+      "case": "INSIGHT-LEAD-READ",
+      "purpose": "验证 lead 对 Insight scope=MKT 的读取权限",
+      "role": "lead",
+      "method": "GET",
+      "path": "/api/v1/workbench/insights?scope=MKT&planning_year=2027",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "INSIGHT-LEAD-ICE",
+      "purpose": "验证 lead 对 Insight scope=ICE 的读取权限",
+      "role": "lead",
+      "method": "GET",
+      "path": "/api/v1/workbench/insights?scope=ICE&planning_year=2027",
+      "expected": "403",
+      "actual": "HTTP 403; 无权访问此 Insight 范围",
+      "result": "PASS"
+    },
+    {
+      "case": "INSIGHT-MANAGEMENT-READ",
+      "purpose": "验证 management 对 Insight scope=global 的读取权限",
+      "role": "management",
+      "method": "GET",
+      "path": "/api/v1/workbench/insights?scope=global&planning_year=2027",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "INSIGHT-ADMIN-DENY",
+      "purpose": "验证 admin 对 Insight scope=global 的读取权限",
+      "role": "admin",
+      "method": "GET",
+      "path": "/api/v1/workbench/insights?scope=global&planning_year=2027",
+      "expected": "403",
+      "actual": "HTTP 403; 无权读取此 Insight",
+      "result": "PASS"
+    },
+    {
+      "case": "INSIGHT-MANAGEMENT-PREVIEW",
+      "purpose": "证明管理层拿到同步数据的只读预览",
+      "role": "management",
+      "method": "ASSERT",
+      "path": "/api/v1/workbench/insights",
+      "expected": "status=preview 且 prompt.editable=false",
+      "actual": "{'status': 'preview', 'editable': False}",
+      "result": "PASS"
+    },
+    {
+      "case": "INSIGHT-GENERATE-MANAGEMENT",
+      "purpose": "证明 management 不能调用百炼生成 Insight",
+      "role": "management",
+      "method": "POST",
+      "path": "/api/v1/workbench/insights/generate",
+      "expected": "403",
+      "actual": "HTTP 403; 当前角色无权生成 Insight",
+      "result": "PASS"
+    },
+    {
+      "case": "INSIGHT-GENERATE-ADMIN",
+      "purpose": "证明 admin 不能调用百炼生成 Insight",
+      "role": "admin",
+      "method": "POST",
+      "path": "/api/v1/workbench/insights/generate",
+      "expected": "403",
+      "actual": "HTTP 403; 无权读取此 Insight",
+      "result": "PASS"
+    },
+    {
+      "case": "INSIGHT-GENERATE-OWNER_A",
+      "purpose": "证明 owner_a 的生成请求能通过 RBAC；502/503 单独表示百炼环境未配置或下游不可用",
+      "role": "owner_a",
+      "method": "POST",
+      "path": "/api/v1/workbench/insights/generate",
+      "expected": "200/502/503",
+      "actual": "HTTP 503; 百炼 AI 尚未配置，原 Insight 记录已保留",
+      "result": "PASS"
+    },
+    {
+      "case": "INSIGHT-GENERATE-LEAD",
+      "purpose": "证明 lead 的生成请求能通过 RBAC；502/503 单独表示百炼环境未配置或下游不可用",
+      "role": "lead",
+      "method": "POST",
+      "path": "/api/v1/workbench/insights/generate",
+      "expected": "200/502/503",
+      "actual": "HTTP 503; 百炼 AI 尚未配置，原 Insight 记录已保留",
+      "result": "PASS"
+    },
+    {
+      "case": "PROMPT-OWNER_A-WRITE",
+      "purpose": "证明 owner_a 可维护本人/本部门分析提示词",
+      "role": "owner_a",
+      "method": "PUT",
+      "path": "/api/v1/workbench/insights/prompt",
+      "expected": "200",
+      "actual": "HTTP 200; 分析提示词已保存",
+      "result": "PASS"
+    },
+    {
+      "case": "PROMPT-OWNER_A-STALE",
+      "purpose": "证明 owner_a 的旧提示词版本不能覆盖新版本",
+      "role": "owner_a",
+      "method": "PUT",
+      "path": "/api/v1/workbench/insights/prompt",
+      "expected": "409",
+      "actual": "HTTP 409; 分析提示词已被其他用户更新，请刷新后重试",
+      "result": "PASS"
+    },
+    {
+      "case": "PROMPT-LEAD-WRITE",
+      "purpose": "证明 lead 可维护本人/本部门分析提示词",
+      "role": "lead",
+      "method": "PUT",
+      "path": "/api/v1/workbench/insights/prompt",
+      "expected": "200",
+      "actual": "HTTP 200; 分析提示词已保存",
+      "result": "PASS"
+    },
+    {
+      "case": "PROMPT-LEAD-STALE",
+      "purpose": "证明 lead 的旧提示词版本不能覆盖新版本",
+      "role": "lead",
+      "method": "PUT",
+      "path": "/api/v1/workbench/insights/prompt",
+      "expected": "409",
+      "actual": "HTTP 409; 分析提示词已被其他用户更新，请刷新后重试",
+      "result": "PASS"
+    },
+    {
+      "case": "PROMPT-MANAGEMENT-DENY",
+      "purpose": "证明 management 不能修改分析提示词",
+      "role": "management",
+      "method": "PUT",
+      "path": "/api/v1/workbench/insights/prompt",
+      "expected": "403",
+      "actual": "HTTP 403; 当前角色无权编辑此范围的分析提示词",
+      "result": "PASS"
+    },
+    {
+      "case": "PROMPT-ADMIN-DENY",
+      "purpose": "证明 admin 不能修改分析提示词",
+      "role": "admin",
+      "method": "PUT",
+      "path": "/api/v1/workbench/insights/prompt",
+      "expected": "403",
+      "actual": "HTTP 403; 当前角色无权编辑此范围的分析提示词",
+      "result": "PASS"
+    },
+    {
+      "case": "FINAL-OWNER",
+      "purpose": "读取最终 Owner 状态",
+      "role": "owner_a",
+      "method": "GET",
+      "path": "/api/v1/workbench/initiatives/9/draft",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "FINAL-MANAGEMENT",
+      "purpose": "读取最终管理层工作台",
+      "role": "management",
+      "method": "GET",
+      "path": "/api/v1/workbench/workspace?planning_year=2027",
+      "expected": "200",
+      "actual": "HTTP 200; 响应成功",
+      "result": "PASS"
+    },
+    {
+      "case": "SNAPSHOT-ISOLATION",
+      "purpose": "证明管理层读取的是最新同步快照而不是 Owner 后续未同步 revision",
+      "role": "management",
+      "method": "ASSERT",
+      "path": "/api/v1/workbench/workspace",
+      "expected": "管理层 publishedRevision <= Owner 当前 revision，且快照存在",
+      "actual": "{'owner_revision': 15, 'management_published_revision': 10}",
+      "result": "PASS"
+    }
+  ]
+}
