@@ -7,7 +7,7 @@ const HEADERS = [
   "Sector",
   "资源类型",
   "部门",
-  "Owner编号",
+  "邮箱",
   "预算金额",
 ];
 const RESOURCE_DEPARTMENT = {

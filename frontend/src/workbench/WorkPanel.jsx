@@ -5,7 +5,6 @@ import {
   ArrowUpRight,
   BookOpen,
   ChatCircleDots,
-  ChatText,
   FileText,
   List,
   PaperPlaneTilt,
@@ -27,11 +26,8 @@ const fmt = (value) =>
         maximumFractionDigits: 2,
       })
     : "—";
-const when = (value) =>
-  value ? new Date(value).toLocaleString("zh-CN", { hour12: false }) : "—";
 const tabs = [
   ["reference", BookOpen, "参考"],
-  ["feedback", ChatText, "反馈"],
   ["insight", Sparkle, "Insight"],
   ["chat", ChatCircleDots, "问数"],
 ];
@@ -156,9 +152,7 @@ export function WorkPanel({ overlay }) {
               ? "小One问数Agent"
               : auxiliary.tab === "insight"
                 ? "Insight 分析"
-                : auxiliary.tab === "feedback"
-                  ? "协作反馈"
-                  : "历史参考"}
+                : "历史参考"}
           </h2>
           <span className="small-text muted">
             {identity.department || "全局"}
@@ -172,15 +166,6 @@ export function WorkPanel({ overlay }) {
           hidden={!auxiliary.open || auxiliary.tab !== "reference"}
         >
           <ReferencePanel />
-        </div>
-        <div
-          id="work-feedback"
-          className="work-content"
-          role="tabpanel"
-          aria-label="协作反馈"
-          hidden={!auxiliary.open || auxiliary.tab !== "feedback"}
-        >
-          <FeedbackPanel />
         </div>
         <div
           id="work-insight"
@@ -402,64 +387,6 @@ function ReferencePanel() {
         查看历史原始数据
       </button>
     </>
-  );
-}
-function FeedbackPanel() {
-  const { state, identity, view, page, initiativeId, navigate } =
-    useWorkbench();
-  if (["management", "admin"].includes(identity.role)) {
-    const audit = state.audit
-      .filter((entry) => entry.action === "publish_initiative")
-      .slice(-12)
-      .reverse();
-    return audit.length ? (
-      audit.map((entry) => (
-        <div className="timeline-item" key={entry.id}>
-          <b>同步最新分配 · {entry.object}</b>
-          <p>{entry.detail}</p>
-          <small>{when(entry.createdAt)}</small>
-        </div>
-      ))
-    ) : (
-      <div className="work-empty">
-        <h3>暂无协作记录</h3>
-        <p>各项同步记录将显示在这里。</p>
-      </div>
-    );
-  }
-  const comments = (view.departments[identity.department]?.comments || [])
-    .filter(
-      (comment) =>
-        page !== "editor" ||
-        !comment.initiativeId ||
-        comment.initiativeId === initiativeId,
-    )
-    .slice()
-    .reverse();
-  return comments.length ? (
-    comments.map((comment, index) => (
-      <div className="timeline-item" key={comment.id || index}>
-        <b>
-          {comment.author === "management" ? "管理层" : "部门负责人"} ·{" "}
-          {when(comment.createdAt)}
-        </b>
-        <p>{comment.text}</p>
-        {comment.initiativeId &&
-          view.initiatives.some((item) => item.id === comment.initiativeId) && (
-            <button
-              className="button link"
-              onClick={() => navigate("editor", comment.initiativeId)}
-            >
-              打开相关 Initiative
-            </button>
-          )}
-      </div>
-    ))
-  ) : (
-    <div className="work-empty">
-      <h3>暂无待处理意见</h3>
-      <p>当前权限内的历史沟通记录会集中显示在这里。如需调整可线下联系。</p>
-    </div>
   );
 }
 function EmbeddedAsk({ loaded }) {

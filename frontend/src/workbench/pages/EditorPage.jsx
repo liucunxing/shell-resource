@@ -155,6 +155,7 @@ function EditorContent({
     [newDealers, setNewDealers] = useState([]),
     [dealerCodeSearch, setDealerCodeSearch] = useState(""),
     [dealerNameSearch, setDealerNameSearch] = useState(""),
+    [historyMetric, setHistoryMetric] = useState("c3"),
     [busy, setBusy] = useState(false);
   const fileRef = useRef(null),
     alive = useRef(true);
@@ -283,19 +284,36 @@ function EditorContent({
       if (alive.current) setBusy(false);
     }
   };
-  const historyFill = () =>
+  const historyFill = (metric) =>
     doGuard(() => {
       try {
         const available = E.cents(i.budget - totals.otherBudget);
         if (available < 0)
           throw Error("其他预算安排超过总预算，无法辅助填充。");
-        const weights = i.rows.map(
-          (r) =>
-            data.dealers.find((d) => d.id === r.dealerId)?.history.vol2025 || 0,
-        );
+        const field = metric === "vol" ? "vol2025" : "c32025";
+        const label = metric === "vol" ? "2025 Vol" : "2025 C3";
+        const weightedDealers = i.rows.map((row) => {
+          const dealer = (data.dealers || []).find(
+            (item) => String(item.id) === String(row.dealerId),
+          );
+          const value = Number(dealer?.history?.[field]);
+          return {
+            row,
+            name: dealer?.name || String(row.dealerId),
+            value,
+            valid: Number.isFinite(value) && value > 0 && value / 1000 >= 0.005,
+          };
+        });
+        const unavailable = weightedDealers.filter((dealer) => !dealer.valid);
+        if (unavailable.length) {
+          throw Error(
+            `无法按 ${label} 比例分配：${unavailable.map((dealer) => `「${dealer.name}」`).join("、")} 缺少有效的 2025 Sell-in 数据（无记录、非正数或展示值为 0.00）。请移除相关经销商、补充历史数据，或选择另一项指标。`,
+          );
+        }
+        const weights = weightedDealers.map((dealer) => dealer.value);
         const sum = weights.reduce((s, w) => s + w, 0);
         if (!weights.length || !sum)
-          throw Error("当前范围没有有效的 2025 Vol 占比，不能自动填充。");
+          throw Error(`当前范围没有有效的 ${label} 占比，不能自动填充。`);
         const exact = weights.map((w) => (available * w) / sum),
           cents = exact.map(Math.floor);
         let left = available - cents.reduce((s, n) => s + n, 0);
@@ -306,6 +324,7 @@ function EditorContent({
         setModal({
           type: "fill",
           revision: i.revision,
+          metricLabel: label,
           rows: i.rows.map((r, n) => ({ ...r, amount: cents[n] / 100 })),
         });
       } catch (e) {
@@ -489,8 +508,19 @@ function EditorContent({
                     importFile(file);
                   }}
                 />
-                <button className="button small" onClick={historyFill}>
-                  按历史占比填充
+                <label className="history-fill-control">
+                  <span>拆分依据</span>
+                  <select
+                    value={historyMetric}
+                    onChange={(event) => setHistoryMetric(event.target.value)}
+                    aria-label="按比例分配依据"
+                  >
+                    <option value="c3">2025 C3</option>
+                    <option value="vol">2025 Vol</option>
+                  </select>
+                </label>
+                <button className="button small" onClick={() => historyFill(historyMetric)}>
+                  按比例分配
                 </button>
               </div>
             )}
@@ -973,7 +1003,7 @@ function EditorContent({
           {modal.type === "fill" && (
             <>
               <p>
-                以当前经销商范围的 2025 全年 Vol
+                以当前经销商范围的 {modal.metricLabel}
                 占比拆分预算，保留其他预算安排。此操作不代表投资推荐。
               </p>
               <div className="table-scroll">

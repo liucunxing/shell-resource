@@ -1891,6 +1891,18 @@ body.modal-open {
 .management-progress-legend .management-progress-other {
   background: #0066b3;
 }
+.history-fill-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.history-fill-control select {
+  min-height: 30px;
+  padding: 4px 26px 4px 8px;
+  font-size: 12px;
+}
 .management-filters {
   display: grid;
   grid-template-columns: 1fr 1fr 1.2fr 1.7fr;
