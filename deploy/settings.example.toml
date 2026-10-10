@@ -1,0 +1,77 @@
+# Copy to deploy/settings.toml on the server, chmod 600, and replace placeholders.
+# This file is a template only. Never commit the populated settings.toml.
+
+[development]
+app_name = "资源投资工作台 UAT"
+app_version = "1.4.0"
+debug = false
+docs_enabled = true
+api_v1_prefix = "/api/v1"
+database_url = "postgresql+asyncpg://USER:URL_ENCODED_PASSWORD@POSTGRES_HOST:5432/DATABASE?ssl=require"
+db_echo = false
+cors_origins = []
+serve_frontend = true
+frontend_dist_path = "/app/frontend/dist"
+
+ai_base_url = ""
+ai_model = "qwen-plus"
+ai_api_key = ""
+ai_timeout_seconds = 60
+
+azure_blob_test_upload_enabled = false
+azure_blob_account_url = ""
+azure_blob_account_key = ""
+azure_blob_container_name = ""
+azure_blob_max_upload_bytes = 20971520
+azure_blob_workbench_template_name = ""
+
+databricks_server_hostname = ""
+databricks_http_path = ""
+databricks_client_id = ""
+databricks_client_secret = ""
+databricks_view_name = "semantic_poc.test_poc.dim_distributor"
+databricks_timeout_seconds = 60
+
+sso_enabled = false
+sso_issuer = ""
+sso_client_id = ""
+sso_client_secret = ""
+
+
+# The application currently rejects workbench requests in this profile until
+# a trusted SSO authenticator is implemented. Keep it ready for the later cutover.
+[production]
+app_name = "资源投资工作台"
+app_version = "1.4.0"
+debug = false
+docs_enabled = false
+api_v1_prefix = "/api/v1"
+database_url = "postgresql+asyncpg://USER:URL_ENCODED_PASSWORD@POSTGRES_HOST:5432/DATABASE?ssl=require"
+db_echo = false
+cors_origins = []
+serve_frontend = true
+frontend_dist_path = "/app/frontend/dist"
+
+ai_base_url = ""
+ai_model = "qwen-plus"
+ai_api_key = ""
+ai_timeout_seconds = 60
+
+azure_blob_test_upload_enabled = false
+azure_blob_account_url = ""
+azure_blob_account_key = ""
+azure_blob_container_name = ""
+azure_blob_max_upload_bytes = 20971520
+azure_blob_workbench_template_name = ""
+
+databricks_server_hostname = ""
+databricks_http_path = ""
+databricks_client_id = ""
+databricks_client_secret = ""
+databricks_view_name = "semantic_poc.test_poc.dim_distributor"
+databricks_timeout_seconds = 60
+
+sso_enabled = true
+sso_issuer = ""
+sso_client_id = ""
+sso_client_secret = ""

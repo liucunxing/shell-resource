@@ -30,3 +30,9 @@ docs/       本期业务契约和协作说明
 当前开发身份使用 `X-User-Email`；`production` 环境明确拒绝此身份方式，可信登录接入仍是正式上线前的必要工作。Tracking、小 One 真实问数、审批和实时协同不在一期范围。
 
 本机 PostgreSQL 5432 访问超时，尚未核对或执行远端增量 SQL；真实百炼调用需要填写 key 和地址。自动化测试与本地合成数据验证不能替代这两项外部联调。增量脚本和检查命令见后端说明。
+
+## Docker 单机部署
+
+`Dockerfile` 会先构建前端，再把静态文件与 FastAPI 后端放入同一个非 root 运行容器；`compose.yaml` 负责配置、健康检查、端口和自动重启。服务器部署、数据库初始化、升级、验收与回滚步骤见 [Docker 部署手册](docs/DOCKER_DEPLOYMENT.md)。
+
+首次执行 `sudo bash deploy/deploy.sh --init` 并填写 `deploy/settings.toml`，之后执行 `sudo bash deploy/deploy.sh --port 8080` 一键构建和启动。脚本实时输出 8 个阶段，失败立即停止；完整日志保存在 `logs/deploy/`。不传 `--port` 时使用 `deploy/.env` 的 `APP_PORT`。

@@ -92,3 +92,4 @@ node_modules/
 
 # Local multi-environment settings with real credentials
 backend/config/settings.toml
+deploy/settings.toml
