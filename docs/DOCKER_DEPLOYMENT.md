@@ -12,6 +12,13 @@ sudo bash deploy/deploy.sh --init
 sudo vi deploy/settings.toml
 ```
 
+初始化脚本会将 `deploy/.env` 和 `deploy/settings.toml` 的属主设为执行 `sudo` 前的部署账号，并设为仅属主可读写。若早期版本已将 `.env` 建为 root 属主，执行一次：
+
+```bash
+sudo chown ecs-user:ecs-user deploy/.env
+sudo chmod 600 deploy/.env
+```
+
 填写 `[development]` 的真实 PostgreSQL 连接，以及需要启用的外部服务配置；数据库建表或迁移按下文第 7 节准备一次。随后一条命令部署：
 
 ```bash

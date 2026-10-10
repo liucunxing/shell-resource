@@ -78,7 +78,16 @@ done_step
 
 step "准备配置和发布版本"
 if ((INIT_ONLY)); then
-    [[ -f deploy/.env ]] || cp deploy/.env.example deploy/.env
+    if [[ ! -f deploy/.env ]]; then
+        cp deploy/.env.example deploy/.env
+        if ((EUID == 0)); then
+            CONFIG_UID=${SUDO_UID:-10001}
+            CONFIG_GID=${SUDO_GID:-10001}
+            [[ "$CONFIG_UID" != 0 ]] || CONFIG_UID=10001
+            [[ "$CONFIG_GID" != 0 ]] || CONFIG_GID=10001
+            chown "$CONFIG_UID:$CONFIG_GID" deploy/.env
+        fi
+    fi
     if [[ ! -f deploy/settings.toml ]]; then
         cp deploy/settings.example.toml deploy/settings.toml
         if ((EUID == 0)); then
