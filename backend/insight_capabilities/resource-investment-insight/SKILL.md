@@ -48,4 +48,4 @@ python scripts/build_preview.py
 
 ## 交付范围
 
-这是可复制到工程中试验的独立分析能力包，不会自动替换现有六段返回协议，也没有安装到全局 Codex skill 路径。接入时由同事选择性增加适配器与渲染组件，沿用现有 Controller → Service → Repository 分层和权限查询。
+本目录是已接入 shell-resource 实际前后端的工程副本，包含适配器与结果渲染组件；工程外原型和独立源包没有同步修改，也未安装到全局 Codex skill 路径。沿用 Controller → Service → Repository 分层和权限查询。

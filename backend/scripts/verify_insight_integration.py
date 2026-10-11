@@ -19,20 +19,27 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--live", action="store_true")
     parser.add_argument("--presets", nargs="+", default=["comprehensive", "quadrant", "structure"])
+    parser.add_argument("--base-url", default=BASE)
+    parser.add_argument("--output", type=Path, default=ROOT / ".cache/insight-integration/results")
     args = parser.parse_args()
     if not args.live:
         parser.error("Pass --live to generate reports through the local fixture and real Qwen")
-    output = ROOT / ".cache/insight-integration/results"
+    output = args.output
     output.mkdir(parents=True, exist_ok=True)
     checks = []
 
     def check(name: str, passed: bool) -> None:
         checks.append({"check": name, "passed": passed})
+        (output / "checks.json").write_text(
+            json.dumps(checks, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
         print(json.dumps(checks[-1]), flush=True)
         if not passed:
             raise AssertionError(name)
 
-    with httpx.Client(base_url=BASE, timeout=150, headers={"X-User-Email": OWNER}) as client:
+    with httpx.Client(
+        base_url=args.base_url, timeout=150, headers={"X-User-Email": OWNER}
+    ) as client:
         before = client.get("/workspace", params={"planning_year": 2027})
         before.raise_for_status()
         initial = before.json()["data"]["state"]["initiatives"]

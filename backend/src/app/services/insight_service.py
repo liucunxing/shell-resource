@@ -1,10 +1,12 @@
 """Small, evidence-led integration with BaiLian's OpenAI-compatible API."""
 
+import asyncio
 import hashlib
 import json
 from collections import defaultdict
 from datetime import UTC, datetime
 from decimal import Decimal
+from time import perf_counter
 from typing import Any, NoReturn, cast
 
 import httpx
@@ -99,6 +101,19 @@ class InsightService:
     async def generate(
         self, *, scope: str, planning_year: int, preset_id: str = "comprehensive"
     ) -> dict[str, Any]:
+        deadline = float(getattr(self.settings, "insight_timeout_seconds", 60))
+        try:
+            async with asyncio.timeout(deadline):
+                return await self._generate(
+                    scope=scope, planning_year=planning_year, preset_id=preset_id
+                )
+        except TimeoutError as exc:
+            raise HTTPException(
+                status_code=504, detail="分析等待超时，原记录已保留，请稍后重试"
+            ) from exc
+
+    async def _generate(self, *, scope: str, planning_year: int, preset_id: str) -> dict[str, Any]:
+        started = perf_counter()
         self._preset(preset_id)
         workspace = await self._workspace(planning_year)
         descriptor = self._scope(workspace, scope)
@@ -112,14 +127,46 @@ class InsightService:
             evidence, preset_id, model=self.settings.ai_model, thinking=False
         )
         await self._finish_read_transaction()
-        candidate, usage = await self._call_model(body)
-        result, normalizations = normalize_result(candidate)
-        try:
-            pack.validate_result(result, evidence, preset_id)
-        except PackError as exc:
-            raise HTTPException(
-                status_code=502, detail="百炼 Insight 结果校验失败，原记录已保留"
-            ) from exc
+        prepared = perf_counter()
+        attempts = []
+        for attempt in range(2):
+            call_started = perf_counter()
+            candidate, usage = await self._call_model(body)
+            call_seconds = perf_counter() - call_started
+            result, normalizations = normalize_result(candidate)
+            diagnostic: dict[str, Any] = {
+                "model_seconds": round(call_seconds, 3),
+                "usage": usage,
+                "request_bytes": len(json.dumps(body, ensure_ascii=False).encode("utf-8")),
+            }
+            attempts.append(diagnostic)
+            try:
+                result, bindings = pack.resolve_fact_tokens(result, evidence)
+                result, citation_bindings = pack.bind_named_facts(result, evidence)
+                pack.validate_consistency(result, evidence, preset_id)
+                diagnostic["validation"] = "passed"
+                break
+            except PackError as exc:
+                diagnostic["validation"] = "rejected"
+                diagnostic["reason"] = str(exc)
+                if attempt:
+                    raise HTTPException(
+                        status_code=502, detail="分析与证据不一致，原记录已保留，请稍后重试"
+                    ) from exc
+                body["messages"].extend(
+                    [
+                        {"role": "assistant", "content": json.dumps(candidate, ensure_ascii=False)},
+                        {
+                            "role": "user",
+                            "content": "上次候选未通过校验。修复这些问题，返回完整JSON；"
+                            "不增加事实或改变允许状态：" + str(exc),
+                        },
+                    ]
+                )
+        usage = {
+            key: sum(a["usage"].get(key, 0) for a in attempts)
+            for key in ("prompt_tokens", "completion_tokens", "total_tokens")
+        }
         await self._refresh_user()
         current_workspace = await self._workspace(planning_year)
         current_descriptor = self._scope(current_workspace, scope)
@@ -148,7 +195,17 @@ class InsightService:
                 **metadata,
                 "usage": usage,
                 "normalizations": normalizations,
+                "fact_bindings": bindings,
+                "citation_bindings": citation_bindings,
                 "guide_version": int(guide.get("version") or 0),
+                "attempts": attempts,
+                "timing": {
+                    "prepare_seconds": round(prepared - started, 3),
+                    "before_save_seconds": round(perf_counter() - started, 3),
+                    "deadline_seconds": float(
+                        getattr(self.settings, "insight_timeout_seconds", 60)
+                    ),
+                },
             },
             "items": [],
             "access": access,
@@ -501,13 +558,55 @@ class InsightService:
             raise HTTPException(status_code=503, detail="百炼 AI 尚未配置，原 Insight 记录已保留")
         url = base if base.endswith("/chat/completions") else base + "/chat/completions"
         timeout = float(getattr(self.settings, "ai_timeout_seconds", 120))
+        started = perf_counter()
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
-                response = await client.post(
-                    url, headers={"Authorization": f"Bearer {secret}"}, json=body
-                )
-                response.raise_for_status()
-                payload = response.json()
+                async with client.stream(
+                    "POST",
+                    url,
+                    headers={"Authorization": f"Bearer {secret}"},
+                    json={**body, "stream": True, "stream_options": {"include_usage": True}},
+                ) as response:
+                    response.raise_for_status()
+                    if "text/event-stream" in response.headers.get("content-type", ""):
+                        parts: list[str] = []
+                        usage: dict[str, Any] = {}
+                        finish = None
+                        first_token = None
+                        request_id = None
+                        async for line in response.aiter_lines():
+                            if not line.startswith("data:"):
+                                continue
+                            data = line[5:].strip()
+                            if data == "[DONE]":
+                                break
+                            chunk = json.loads(data)
+                            request_id = chunk.get("id") or request_id
+                            if chunk.get("usage"):
+                                usage = chunk["usage"]
+                            for item in chunk.get("choices", []):
+                                content = item.get("delta", {}).get("content")
+                                if content:
+                                    if first_token is None:
+                                        first_token = round(perf_counter() - started, 3)
+                                    parts.append(content)
+                                finish = item.get("finish_reason") or finish
+                        if finish != "stop":
+                            raise ValueError("incomplete model stream")
+                        payload: dict[str, Any] = {
+                            "choices": [
+                                {"message": {"content": "".join(parts)}, "finish_reason": finish}
+                            ],
+                            "usage": {
+                                **usage,
+                                "request_id": request_id,
+                                "first_token_seconds": first_token,
+                            },
+                        }
+                    else:
+                        # Compatible gateways may return ordinary JSON.
+                        await response.aread()
+                        payload = response.json()
             choice = payload["choices"][0]
             if choice.get("finish_reason") not in {None, "stop"}:
                 raise ValueError("incomplete model response")

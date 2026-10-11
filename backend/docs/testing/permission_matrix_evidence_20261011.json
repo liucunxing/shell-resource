@@ -1,0 +1,121 @@
+{
+  "date": "2026-10-11",
+  "commit": "621b15e2b657fb9f3e6df5c09f2f2cc96423847b",
+  "environment": "isolated SQLite; real service queries; synthetic fixtures",
+  "observations": [
+    {
+      "role": "owner",
+      "initiative_ids": [
+        "1"
+      ],
+      "current_allocation": [
+        {
+          "dealerId": "d1",
+          "amount": 70.0,
+          "note": null
+        }
+      ],
+      "draft_get_status": 200,
+      "publication_get_status": 200,
+      "history_dealer_ids": [
+        "d1",
+        "d2"
+      ],
+      "history_resource_keys": [
+        "MRD",
+        "SP&A"
+      ],
+      "audit_operations": [
+        "DRAFT_SAVE",
+        "PUBLISH",
+        "DRAFT_SAVE"
+      ]
+    },
+    {
+      "role": "lead",
+      "initiative_ids": [
+        "1",
+        "2"
+      ],
+      "current_allocation": [
+        {
+          "dealerId": "d1",
+          "amount": 70.0,
+          "note": null
+        }
+      ],
+      "draft_get_status": 200,
+      "publication_get_status": 200,
+      "history_dealer_ids": [
+        "d1",
+        "d2",
+        "d3"
+      ],
+      "history_resource_keys": [
+        "Capex",
+        "ICE Rebate",
+        "MRD",
+        "SP&A"
+      ],
+      "audit_operations": [
+        "DRAFT_SAVE",
+        "PUBLISH",
+        "DRAFT_SAVE"
+      ]
+    },
+    {
+      "role": "management",
+      "initiative_ids": [
+        "1"
+      ],
+      "current_allocation": [
+        {
+          "dealerId": "d1",
+          "amount": 100.0,
+          "note": null
+        }
+      ],
+      "draft_get_status": 403,
+      "publication_get_status": 200,
+      "history_dealer_ids": [
+        "d1"
+      ],
+      "history_resource_keys": [
+        "Capex",
+        "ICE Rebate",
+        "MRD",
+        "SP&A"
+      ],
+      "audit_operations": []
+    },
+    {
+      "role": "admin",
+      "initiative_ids": [
+        "1",
+        "2"
+      ],
+      "current_allocation": [],
+      "draft_get_status": 403,
+      "publication_get_status": 403,
+      "history_dealer_ids": [
+        "d1",
+        "d2",
+        "d3"
+      ],
+      "history_resource_keys": [
+        "Capex",
+        "ICE Rebate",
+        "MRD",
+        "SP&A"
+      ],
+      "audit_operations": []
+    }
+  ],
+  "insight_statuses": {
+    "management_generate": 403,
+    "management_prompt_update": 403,
+    "admin_prompt_update": 403
+  },
+  "matrix_source": "https://bba12hub36.feishu.cn/sheets/HcNusjG8xhAdyctxyA4cXDMDnPb?sheet=1gowPA",
+  "matrix_revision": 165
+}

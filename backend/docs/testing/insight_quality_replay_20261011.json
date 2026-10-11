@@ -1,0 +1,145 @@
+[
+  {
+    "file": ".cache/insight-live/20261011-v4-final-normal/healthy.comprehensive.run1.json",
+    "original_status": "passed",
+    "seconds": 18.44,
+    "error": null,
+    "usage": {
+      "prompt_tokens": 8886,
+      "completion_tokens": 744,
+      "total_tokens": 9630
+    },
+    "current_gate_replay": "passed"
+  },
+  {
+    "file": ".cache/insight-live/20261011-v4-final-normal/healthy.comprehensive.run2.json",
+    "original_status": "passed",
+    "seconds": 23.07,
+    "error": null,
+    "usage": {
+      "prompt_tokens": 8886,
+      "completion_tokens": 949,
+      "total_tokens": 9835
+    },
+    "current_gate_replay": "passed"
+  },
+  {
+    "file": ".cache/insight-live/20261011-v4-final-normal/healthy.quadrant.run1.json",
+    "original_status": "passed",
+    "seconds": 23.42,
+    "error": null,
+    "usage": {
+      "prompt_tokens": 8905,
+      "completion_tokens": 1061,
+      "total_tokens": 9966
+    },
+    "current_gate_replay": "passed"
+  },
+  {
+    "file": ".cache/insight-live/20261011-v4-final-normal/healthy.quadrant.run2.json",
+    "original_status": "passed",
+    "seconds": 21.16,
+    "error": null,
+    "usage": {
+      "prompt_tokens": 8905,
+      "completion_tokens": 772,
+      "total_tokens": 9677
+    },
+    "current_gate_replay": "passed"
+  },
+  {
+    "file": ".cache/insight-live/20261011-v4-final-normal/healthy.structure.run1.json",
+    "original_status": "passed",
+    "seconds": 16.81,
+    "error": null,
+    "usage": {
+      "prompt_tokens": 8901,
+      "completion_tokens": 770,
+      "total_tokens": 9671
+    },
+    "current_gate_replay": "passed"
+  },
+  {
+    "file": ".cache/insight-live/20261011-v4-final-normal/healthy.structure.run2.json",
+    "original_status": "failed",
+    "seconds": 5.47,
+    "error": "ConnectError",
+    "usage": {
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 0
+    }
+  },
+  {
+    "file": ".cache/insight-live/20261011-v4-final-edge/missing_note.comprehensive.run1.json",
+    "original_status": "passed",
+    "seconds": 23.12,
+    "error": null,
+    "usage": {
+      "prompt_tokens": 9074,
+      "completion_tokens": 1031,
+      "total_tokens": 10105
+    },
+    "current_gate_replay": "passed"
+  },
+  {
+    "file": ".cache/insight-live/20261011-v4-final-edge/overspend.comprehensive.run1.json",
+    "original_status": "passed",
+    "seconds": 24.33,
+    "error": null,
+    "usage": {
+      "prompt_tokens": 8884,
+      "completion_tokens": 1132,
+      "total_tokens": 10016
+    },
+    "current_gate_replay": "passed"
+  },
+  {
+    "file": ".cache/insight-live/20261011-v4-final-edge/uniform_yield.comprehensive.run1.json",
+    "original_status": "failed",
+    "seconds": 42.81,
+    "error": "PackError",
+    "usage": {
+      "prompt_tokens": 17568,
+      "completion_tokens": 1944,
+      "total_tokens": 19512
+    },
+    "current_gate_replay": "passed"
+  },
+  {
+    "file": ".cache/insight-live/20261011-v4-final-edge/zero_history.comprehensive.run1.json",
+    "original_status": "passed",
+    "seconds": 17.75,
+    "error": null,
+    "usage": {
+      "prompt_tokens": 8821,
+      "completion_tokens": 817,
+      "total_tokens": 9638
+    },
+    "current_gate_replay": "passed"
+  },
+  {
+    "file": ".cache/insight-live/20261011-v4-cohort-recheck/uniform_yield.comprehensive.run1.json",
+    "original_status": "failed",
+    "seconds": 37.23,
+    "error": "PackError",
+    "usage": {
+      "prompt_tokens": 17492,
+      "completion_tokens": 1653,
+      "total_tokens": 19145
+    },
+    "current_gate_replay": "passed"
+  },
+  {
+    "file": ".cache/insight-live/20261011-v4-cohort-final/uniform_yield.comprehensive.run1.json",
+    "original_status": "passed",
+    "seconds": 20.41,
+    "error": null,
+    "usage": {
+      "prompt_tokens": 8342,
+      "completion_tokens": 1236,
+      "total_tokens": 9578
+    },
+    "current_gate_replay": "passed"
+  }
+]

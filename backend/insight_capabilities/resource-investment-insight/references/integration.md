@@ -1,6 +1,6 @@
 # 独立测试与工程接入
 
-当前目录独立于 `prototype/`、`shell-resource/`，未安装到全局Codex，也没有读取现有工程的模型密钥。先在这里测试，再由同事复制到工程的独立目录，例如 `backend/insight_capabilities/resource-investment-insight/`。
+当前目录是 `shell-resource/backend/insight_capabilities/resource-investment-insight/` 的工程副本，已由实际前后端接入；工程外原型与独立源包不随这里的修改更新。命令行能力包只读显式环境变量；工程 Service 从宿主配置读取模型连接。
 
 ## 先做本地离线检查
 
@@ -55,14 +55,16 @@ python scripts/build_preview.py --evidence examples/baseline.evidence.json --res
    现有管理员维护的业务规则、目标和说明，应作为带来源与版本的事实继续传入，不应在适配时丢失。它们属于待解释的业务资料，不是可覆盖系统边界的指令。若工程接口与此前实现已不同，以当前接口实际传入的证据为准。
 2. **选择已发布方案**：客户端只传方案ID；后端白名单查manifest。普通用户不编辑提示词。现有管理层只读与生成权限继续由宿主控制。
 3. **组装请求**：调用 `InsightPack(pack_path).compile(evidence, preset_id)`，把返回payload交给现有httpx模型客户端；不必使用本包的urllib命令行客户端。
-4. **校验并保存**：`validate_result()`通过后，再保存result与metadata。生成期间再次检查数据/权限/方案版本是否变化，沿用原有stale和并发逻辑。
+4. **校验并保存**：规范化后依次调用 `resolve_fact_tokens()`、`bind_named_facts()`、`validate_consistency()`，通过后保存 result、证据、绑定审计与 metadata。`validate_result()` 只做结构/引用校验，用于兼容旧样例，不能替代生成链路一致性校验。生成期间再次检查数据/权限/方案版本是否变化，沿用原有stale和并发逻辑。
 5. **前端映射**：复用现有React样式与图形基础，将有限图种映射到组件。预览只是输出组件与布局参考，不要求复制整个HTML或增加新框架。始终保留六维紧凑摘要，不能继续按固定数组下标写死六个正文标题。
 
 ```python
 pack = InsightPack(pack_path)
 payload, metadata = pack.compile(evidence, preset_id="quadrant")
 # model_json = await existing_model_client(payload)
-# pack.validate_result(model_json, evidence, "quadrant")
+# model_json, bindings = pack.resolve_fact_tokens(model_json, evidence)
+# model_json, citations = pack.bind_named_facts(model_json, evidence)
+# pack.validate_consistency(model_json, evidence, "quadrant")
 # save(record={"metadata": metadata, "result": model_json})
 ```
 
@@ -94,3 +96,14 @@ payload, metadata = pack.compile(evidence, preset_id="quadrant")
 ## 工程适配版 0.1.2-engineering
 
 已有历史 Yield/计划金额、完整可比经营年度对按 observed 进行事实分析，缺未来目标不阻塞已有分析。limited 中文为“待补充信息”，只用于实际缺失的关键历史或不可比数据，具体写清字段、影响与补充动作。图文引用至少共享一个事实，且提示词要求主题/对象一致，无合适图表时不配图。
+
+
+## 工程适配版 0.1.4-engineering：一致性与耗时
+
+- 事实与图表行采用无损列式传输，共享 note/period/source 按 fact_annotations 合并；所有行、null、0、单位、scope 和年份保留。请求 Schema 用 $defs 去重，未放松本地契约。可用 expand_evidence() 还原检查。
+- 模型可用 `{{fact_id}}` 引用真实值；服务端仅替换显式占位符。对明确命名的对象和指标补全授权事实引用，逐项写入 fact_bindings / citation_bindings，不改写结论，再运行数字、对象、分组、状态和图表主题检查。
+- visual.title 固定为对应 dataset.title，visual.body 为空；图表口径由数据集直接呈现。AI 的额外解释使用独立 finding 并绑定具体事实，避免金额图附带 Yield/趋势判断。报告主标题与文字发现仍由模型组织。
+- 规则覆盖已知反例，不等于任意自然语言的形式化证明；未支持的复杂比较和隐含因果仍须人工抽检。
+- 工程内部消费 Qwen SSE，完整接收且校验后才保存/展示；不向用户流出未校验片段。记录首 token、模型调用、准备、保存前耗时、usage 和每次校验诊断。
+- 后端 insight_timeout_seconds 默认且最高 60 秒，覆盖准备、首次调用、最多一次修复、复验与保存；前端 65 秒兜底并显示等待秒数。失败保留原记录，无自动无限重试。独立 urllib CLI 的 socket timeout 仍为 120 秒，不能作为工程 SLA。
+- `scripts/evaluate_insight_engineering.py --live` 使用实际 Service 与隔离合成 SQLite，`scripts/verify_insight_integration.py --live` 验证真实 HTTP 保存读回及权限。真实业务数据规模与 PostgreSQL 延迟需在目标环境另验，合成通过不代表生产验收。

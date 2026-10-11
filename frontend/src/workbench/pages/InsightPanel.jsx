@@ -22,6 +22,17 @@ export function InsightPanel({ scope }) {
   const requestEpoch = useRef(0);
   const busyRef = useRef(false);
   const [busy, setBusy] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!busy) return;
+    const started = performance.now();
+    setElapsed(0);
+    const timer = window.setInterval(
+      () => setElapsed(Math.floor((performance.now() - started) / 1000)),
+      1000,
+    );
+    return () => window.clearInterval(timer);
+  }, [busy]);
   const [selection, setSelection] = useState(null);
   const [preset, setPreset] = useState("comprehensive");
   const [remote, setRemote] = useState({
@@ -227,10 +238,11 @@ export function InsightPanel({ scope }) {
           正在加载 Insight…
         </div>
       )}
-      {busy && record && (
+      {busy && (
         <div className="note-box" role="status">
-          正在生成，以下保留上次分析（
-          {new Date(record.createdAt).toLocaleString("zh-CN")}）。
+          正在分析 · 已等待 {elapsed} 秒。
+          {record ? "下方保留上次结果。" : "完成后将在这里显示结果。"}
+          {elapsed >= 15 && " 本次处理较慢，可以继续查看工作台。"}
         </div>
       )}
       {record?.stale && (

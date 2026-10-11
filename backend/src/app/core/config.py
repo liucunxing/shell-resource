@@ -79,6 +79,7 @@ class Settings(BaseModel):
     ai_base_url: str = ""
     ai_model: str = "qwen-plus"
     ai_timeout_seconds: float = Field(default=60, gt=0, le=180)
+    insight_timeout_seconds: float = Field(default=60, gt=0, le=60)
 
     azure_blob_test_upload_enabled: bool = False
     azure_blob_account_url: str | None = None

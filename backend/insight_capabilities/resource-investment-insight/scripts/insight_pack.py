@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import copy
 import hashlib
+import importlib.util
 import json
 import math
 import os
@@ -18,6 +19,12 @@ from jsonschema import Draft202012Validator
 
 ROOT = Path(__file__).resolve().parents[1]
 DIMENSIONS = ("low_yield", "high_yield", "concentration", "overlap", "trend", "completeness")
+
+_consistency_spec = importlib.util.spec_from_file_location(
+    "insight_consistency", Path(__file__).with_name("consistency.py")
+)
+_consistency = importlib.util.module_from_spec(_consistency_spec)
+_consistency_spec.loader.exec_module(_consistency)
 
 
 class PackError(ValueError):
@@ -228,6 +235,23 @@ class InsightPack:
                     raise PackError("必显事项被省略或标记为非关注状态")
         return result
 
+    def validate_consistency(self, result, evidence, preset_id=None):
+        self.validate_result(result, evidence, preset_id)
+        problems = _consistency.issues(result, evidence)
+        if problems:
+            raise PackError("consistency: " + "; ".join(problems[:12]))
+        return result
+
+    def resolve_fact_tokens(self, result, evidence):
+        self.validate_schema(result, "output_schema")
+        try:
+            return _consistency.resolve_fact_tokens(result, evidence)
+        except ValueError as exc:
+            raise PackError(str(exc)) from exc
+
+    def bind_named_facts(self, result, evidence):
+        return _consistency.bind_named_facts(result, evidence)
+
     def compile(self, evidence, preset_id="comprehensive", model=None, thinking=False, response_format="schema"):
         self.validate_evidence(evidence)
         manifest = self.manifest()
@@ -244,7 +268,7 @@ class InsightPack:
             "enable_thinking": bool(thinking),
             "messages": [
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": json.dumps({"task": {"preset_id": selected["id"], "preset_version": selected["version"], "output": "JSON", "allowed_visuals": selected["allowed_visuals"]}, "evidence": evidence}, ensure_ascii=False, allow_nan=False)},
+                {"role": "user", "content": json.dumps({"task": {"preset_id": selected["id"], "preset_version": selected["version"], "output": "JSON", "allowed_visuals": selected["allowed_visuals"]}, "evidence": _consistency.compact_evidence(evidence)}, ensure_ascii=False, allow_nan=False, separators=(",", ":"))},
             ],
         }
         if response_format == "schema":
@@ -294,12 +318,15 @@ class InsightPack:
                         properties["kind"]["enum"] = ["visual"]
                         properties["dataset_id"]["enum"] = [dataset["id"]]
                         properties["title"]["enum"] = [dataset["title"]]
+                        # Graph captions already come from the verified dataset.
+                        # Any AI interpretation must be a separately grounded finding.
+                        properties["body"]["enum"] = [""]
                         properties["fact_ids"]["items"]["enum"] = dataset["fact_ids"]
                         properties["fact_ids"]["minItems"] = 1
                         block_branches.append(visual_branch)
             api_schema["properties"]["blocks"]["items"] = {"anyOf": block_branches}
 
-            payload["response_format"] = {"type": "json_schema", "json_schema": {"name": "resource_investment_insight", "strict": True, "schema": api_schema}}
+            payload["response_format"] = {"type": "json_schema", "json_schema": {"name": "resource_investment_insight", "strict": True, "schema": _consistency.compact_schema(api_schema)}}
         elif response_format == "object":
             payload["response_format"] = {"type": "json_object"}
             payload["messages"][0]["content"] += "\n\n返回的 JSON 须符合此结构：\n" + json.dumps(schema, ensure_ascii=False)
@@ -314,7 +341,10 @@ class InsightPack:
             "scope_id": evidence["scope"]["id"], "data_version": evidence["data_version"],
             "evidence_sha256": hashlib.sha256(json.dumps(evidence, ensure_ascii=False, sort_keys=True, allow_nan=False).encode("utf-8")).hexdigest(),
             "provenance": evidence["provenance"],
-            "api_schema_projection": "authorized-dataset-title-facts-status-anyOf-omit-uniqueItems",
+            "api_schema_projection": "authorized-anyOf-deduplicated-defs-v2",
+            "input_encoding": "lossless-columnar-annotations-v2",
+            "consistency_version": "1.0",
+            "consistency_sha256": hashlib.sha256(Path(__file__).with_name("consistency.py").read_bytes()).hexdigest(),
         }
         return payload, meta
 
@@ -380,7 +410,10 @@ def main():
             print("PASS: 请求已生成，未联网")
             return 0
         result, usage = call_qwen(payload)
-        pack.validate_result(result, evidence, metadata["preset_id"])
+        result, metadata["normalizations"] = normalize_result(result)
+        result, metadata["fact_bindings"] = pack.resolve_fact_tokens(result, evidence)
+        result, metadata["citation_bindings"] = pack.bind_named_facts(result, evidence)
+        pack.validate_consistency(result, evidence, metadata["preset_id"])
         metadata["generated_at"] = datetime.now(timezone.utc).isoformat()
         write_json(args.output, {"metadata": metadata, "usage": usage, "result": result})
         print("PASS: 模型结果通过结构与引用校验；业务解释仍需复核")

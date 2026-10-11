@@ -78,9 +78,11 @@ async def evaluate(args: argparse.Namespace) -> int:
                 # Save candidates for honest failure review; never publish them as valid records.
                 entry["raw_result"] = result
                 result, normalizations = module.normalize_result(result)
-                entry["result"] = result
                 entry["normalizations"] = normalizations
-                pack.validate_result(result, evidence, preset)
+                result, entry["fact_bindings"] = pack.resolve_fact_tokens(result, evidence)
+                result, entry["citation_bindings"] = pack.bind_named_facts(result, evidence)
+                entry["result"] = result
+                pack.validate_consistency(result, evidence, preset)
                 entry["status"] = "passed"
             except httpx.HTTPStatusError as exc:
                 entry.update(status="failed", error=f"HTTP {exc.response.status_code}")

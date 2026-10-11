@@ -1,0 +1,152 @@
+[
+  {
+    "sheet_id": "lzFL3m",
+    "verified_cells": 5,
+    "changes": {
+      "A2": "描述:当前 Initiative 预算与 Owner 配置；按 planning_year 查询；Owner 看本人项目，Lead 看本部门，管理层看最新同步快照，管理员看配置信息",
+      "D11": "当前已安排金额；含经销商分配与其他预算；草稿及分配操作重新计算；NUMERIC(18,2)，必填",
+      "D12": "可空；管理员只能分配已启用、同部门的 Owner；当前不按 Owner.sector 限制项目 Sector",
+      "D13": "乐观锁修订号；默认 0；保存草稿、分配变更及预算/归属变更递增；冲突返回 409",
+      "D14": "0=编辑中，1=已同步；保存或变更后回到 0；历史同步快照仍保留"
+    },
+    "addition": null,
+    "revision": 170
+  },
+  {
+    "sheet_id": "hW86Es",
+    "verified_cells": 2,
+    "changes": {
+      "D5": "关联 data.budgets.id；建表允许 NULL、未建外键；当前应用写入所属预算 ID",
+      "D13": "建表默认 MANUAL；整项草稿保存写 DRAFT；其他接口按其实现写入"
+    },
+    "addition": null,
+    "revision": 172
+  },
+  {
+    "sheet_id": "u9pjpN",
+    "verified_cells": 1,
+    "changes": {
+      "A2": "描述:旧版历史表现兼容表；完整建表脚本保留，当前无 ORM 映射、工作台不直接读取；字段以建表脚本为准"
+    },
+    "addition": null,
+    "revision": 173
+  },
+  {
+    "sheet_id": "ssvKC0",
+    "verified_cells": 4,
+    "changes": {
+      "A2": "描述:预算、草稿、同步、配置、用户维护与历史参考导入日志；当前管理员仅返回配置类操作，不含 DRAFT_SAVE/PUBLISH",
+      "D6": "当前操作包括 DRAFT_SAVE、PUBLISH、ADMIN_CREATE、ADMIN_UPDATE、CONFIG_UPDATE、REFERENCE_IMPORT、USER_CREATE、USER_UPDATE、USER_DELETE",
+      "D10": "完整建表脚本保留，可空；当前 ORM 无映射，应用不写入、不下发",
+      "D11": "完整建表脚本保留，可空；当前 ORM 无映射，应用不写入、不下发"
+    },
+    "addition": null,
+    "revision": 177
+  },
+  {
+    "sheet_id": "R3uCBX",
+    "verified_cells": 8,
+    "changes": {
+      "A2": "描述:用户邮箱、角色、部门与 Sector 授权配置；当前 Sector 用于 Owner 历史数据与经销商目录过滤，项目查询按部门及 Owner 邮箱",
+      "D5": "必填且唯一；应用保存与登录解析时去空格、转小写；非生产环境通过 X-User-Email 查启用权限；生产环境拒绝该临时身份入口",
+      "D8": "Owner/Lead 必填；管理层/管理员可空；项目范围当前按部门过滤，management 部门为空时查看全局已同步项目",
+      "D9": "账号是否启用；接口创建默认 true；权限解析只读取 enabled=true 的记录"
+    },
+    "addition": [
+      "A12:D12",
+      [
+        "sector",
+        "[\"PCMO\"]",
+        "VARCHAR(32)[]",
+        "可空数组；Owner 恰好 1 项，Lead 1–4 项，Management/Admin 不配置；允许 PCMO/CRTO/B2B/OEM；启用 Owner 的业务线须由本部门启用 Lead 覆盖"
+      ],
+      "A11:D11"
+    ],
+    "revision": 182
+  },
+  {
+    "sheet_id": "I1BIYt",
+    "verified_cells": 2,
+    "changes": {
+      "D7": "NUMERIC(18,2)，必填且 API 要求不小于 0；计入已安排金额，草稿允许未平衡，提交时必须与经销商金额合计等于总预算",
+      "D8": "数据库可空；提交时非零其他预算必须填写说明；最多 500 字"
+    },
+    "addition": null,
+    "revision": 184
+  },
+  {
+    "sheet_id": "JiBuLp",
+    "verified_cells": 3,
+    "changes": {
+      "D5": "全局配置乐观锁修订号；默认 0；管理员维护配置时递增，冲突返回 409",
+      "D8": "全局业务指引；管理员维护正文，服务端递增 version；用于 Insight 依据及同步快照的 guideVersion",
+      "D9": "历史导入兼容元数据；当前工作台 reference 来自 distributor_sellin_resource_history 统计，不直接使用本字段作为主历史源"
+    },
+    "addition": null,
+    "revision": 187
+  },
+  {
+    "sheet_id": "vINObI",
+    "verified_cells": 2,
+    "changes": {
+      "A2": "描述:Owner 提交产生的不可变历史快照；Owner 本人、Lead 本部门及范围内管理层可读；当前管理员访问版本接口返回 403",
+      "D9": "冻结 initiative 分配/其他预算、reference 元数据和 guideVersion；管理层工作台只取每个项目最新版本，不读取后续草稿"
+    },
+    "addition": null,
+    "revision": 189
+  },
+  {
+    "sheet_id": "dymUrJ",
+    "verified_cells": 1,
+    "changes": {
+      "A2": "描述:管理员历史导入接口写入的兼容表；同规划年度重导替换；当前工作台仍读取 distributor_sellin_resource_history，导入本表不会替换当前主历史源"
+    },
+    "addition": null,
+    "revision": 190
+  },
+  {
+    "sheet_id": "NWapjs",
+    "verified_cells": 3,
+    "changes": {
+      "A2": "描述:保留的 Insight 提示词兼容表；当前分析采用版本化能力包及 preset_id；所有角色均不能通过提示词接口修改，接口返回 403",
+      "D7": "保留的数据库提示词正文；当前模型请求使用能力包 prompts；用户界面不下发正文、不可编辑",
+      "D8": "数据库兼容版本；默认 1；当前提示词响应 version=0；能力包版本另在结果 metadata.package_version 中记录"
+    },
+    "addition": null,
+    "revision": 193
+  },
+  {
+    "sheet_id": "o52PuN",
+    "verified_cells": 4,
+    "changes": {
+      "A2": "描述:Owner/Lead 调用百炼成功并通过结果校验后保存的分析记录；管理层为最新同步快照计算预览，不调用模型、不写记录；管理员不可生成",
+      "D8": "数据库提示词兼容版本；生成时保存服务内部 prompt.version；界面记录 promptVersion=0，能力包版本另行记录",
+      "D9": "生成时历史来源标识；当前为 data.distributor_sellin_resource_history，不是 workspace_references 导入批次",
+      "D12": "完整结果 result、结构化 evidence、access 授权快照、metadata（preset/package/model/usage）、signature 与免责声明；旧六点 items 当前为空兼容字段"
+    },
+    "addition": null,
+    "revision": 197
+  },
+  {
+    "sheet_id": "ngCFvm",
+    "verified_cells": 9,
+    "changes": {
+      "A2": "描述:当前工作台直接读取的历史源；数据团队装载；Owner 按授权 Sector 筛经销商且按部门裁资源列，Lead/Admin 当前读取全部，Management 仅取已同步项目涉及的经销商",
+      "D4": "可空；无主键/唯一约束；查询 distinct，服务按 distributor_code 去重；同编码不同内容需数据团队清理",
+      "D16": "来源提供的原始 Yield 比值，非百分比；接口映射 history.yield；当前不读取 resource_uc3 计算",
+      "D17": "旧字典保留项；当前 ORM 与完整建表脚本均无此列，API 不读取、不下发；总资源业务口径仍待确认，未核验外部数据库扩展列",
+      "D18": "旧字典保留项；当前 ORM 与完整建表脚本均无此列，API 不读取、不下发；当前比值来源为 yield_2025，未核验外部数据库扩展列"
+    },
+    "addition": [
+      "A19:D19",
+      [
+        "sector",
+        "PCMO",
+        "VARCHAR(100)",
+        "历史记录所属业务线；可空；当前 Owner 按 user_permissions.sector 精确过滤；Lead/Admin 不筛，Management 按同步经销商编码筛"
+      ],
+      "A16:D16"
+    ],
+    "revision": 203
+  }
+]

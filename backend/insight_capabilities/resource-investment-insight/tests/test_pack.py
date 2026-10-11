@@ -41,7 +41,7 @@ class PackTests(unittest.TestCase):
                     evidence, result = self.sample(item["id"], preset)
                     self.pack.validate_result(result, evidence, preset)
                     payload, meta = self.pack.compile(evidence, preset)
-                    self.assertEqual(json.loads(payload["messages"][1]["content"])["evidence"], evidence)
+                    self.assertEqual(runtime._consistency.expand_evidence(json.loads(payload["messages"][1]["content"])["evidence"]), evidence)
                     self.assertEqual(meta["provenance"]["kind"], "synthetic")
 
     def test_independent_budget_math_and_declared_share_denominator(self):

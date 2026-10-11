@@ -28,7 +28,9 @@ from app.models.do.budget_distributor import BudgetDistributorDO
 from app.models.do.distributor_history import distributor_sellin_resource_history
 from app.models.do.workspace import OtherBudgetDO, UserPermissionDO, WorkspaceConfigDO
 
-CACHE = ROOT / ".cache/insight-integration"
+CACHE = Path(
+    os.environ.get("INSIGHT_FIXTURE_DIR", str(ROOT / ".cache/insight-integration"))
+).resolve()
 CACHE.mkdir(parents=True, exist_ok=True)
 engine = create_async_engine("sqlite+aiosqlite:///" + (CACHE / "main.sqlite").as_posix())
 factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -161,3 +163,33 @@ if (ROOT / "config/settings.toml").exists():
 app = create_app()
 app.router.lifespan_context = lifespan
 app.dependency_overrides[get_db_session] = local_session
+
+# Opt-in diagnostics for this synthetic app only; never writes headers or keys.
+if os.environ.get("INSIGHT_TRACE_DIR"):
+    import json
+    from time import perf_counter
+    from uuid import uuid4
+
+    from app.services.insight_service import InsightService
+
+    trace_directory = Path(os.environ["INSIGHT_TRACE_DIR"]).resolve()
+    trace_directory.mkdir(parents=True, exist_ok=True)
+    original_call = InsightService._call_model
+
+    async def traced_call(self, body):
+        started = perf_counter()
+        trace = {"request": body}
+        try:
+            result, usage = await original_call(self, body)
+            trace.update(raw_result=result, usage=usage)
+            return result, usage
+        except BaseException as exc:
+            trace["error"] = type(exc).__name__
+            raise
+        finally:
+            trace["seconds"] = round(perf_counter() - started, 3)
+            (trace_directory / f"{uuid4().hex}.json").write_text(
+                json.dumps(trace, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+
+    InsightService._call_model = traced_call

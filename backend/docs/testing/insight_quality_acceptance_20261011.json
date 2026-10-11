@@ -1,0 +1,79 @@
+{
+  "scope": "local full-stack / synthetic SQLite / real Qwen",
+  "final_http": [
+    {
+      "preset": "comprehensive",
+      "seconds": 15.88,
+      "attempts": 1,
+      "usage": {
+        "prompt_tokens": 9157,
+        "completion_tokens": 651,
+        "total_tokens": 9808
+      },
+      "metadata": {
+        "package_version": "0.1.4-engineering",
+        "preset_version": "1.0.4",
+        "model": "qwen3.8-flash",
+        "prompt_sha256": "404469ed96ba293fe2e8e5a7ec4e45dec6e0e3a0ecae85ef71510ad1820cbe46",
+        "consistency_sha256": "55931436605735b7109af0a6fcc52ed1346de2510e16af1e49c3506a73a19504",
+        "evidence_sha256": "11a85177f3777564c5b4235d107912e33aa922107f2a3a13fec7c0c32eb1f50c"
+      }
+    },
+    {
+      "preset": "quadrant",
+      "seconds": 20.93,
+      "attempts": 1,
+      "usage": {
+        "prompt_tokens": 9176,
+        "completion_tokens": 1001,
+        "total_tokens": 10177
+      },
+      "metadata": {
+        "package_version": "0.1.4-engineering",
+        "preset_version": "1.0.4",
+        "model": "qwen3.8-flash",
+        "prompt_sha256": "2bcf7c5ebcae7aea083ca8582bff01e8e874fecdf0a92863f5dace847c6b1e1e",
+        "consistency_sha256": "55931436605735b7109af0a6fcc52ed1346de2510e16af1e49c3506a73a19504",
+        "evidence_sha256": "11a85177f3777564c5b4235d107912e33aa922107f2a3a13fec7c0c32eb1f50c"
+      }
+    },
+    {
+      "preset": "structure",
+      "seconds": 17.57,
+      "attempts": 1,
+      "usage": {
+        "prompt_tokens": 9172,
+        "completion_tokens": 828,
+        "total_tokens": 10000
+      },
+      "metadata": {
+        "package_version": "0.1.4-engineering",
+        "preset_version": "1.0.4",
+        "model": "qwen3.8-flash",
+        "prompt_sha256": "d3f7768ade90dcb4134056f226c69505c09589c9941a334474ab8d87607a0369",
+        "consistency_sha256": "55931436605735b7109af0a6fcc52ed1346de2510e16af1e49c3506a73a19504",
+        "evidence_sha256": "11a85177f3777564c5b4235d107912e33aa922107f2a3a13fec7c0c32eb1f50c"
+      }
+    }
+  ],
+  "http_checks_passed": 25,
+  "http_checks_total": 25,
+  "median_seconds": 17.57,
+  "browser_generate_seconds": 26.7506,
+  "backend_tests": 126,
+  "package_tests": 25,
+  "frontend_tests": 72,
+  "warning": "Small synthetic cohort; earlier failures retained separately; not a production SLA.",
+  "browser_call_breakdown": {
+    "independent_call": true,
+    "preset": "structure",
+    "total_http_seconds": 26.7506,
+    "model_seconds": 26.531,
+    "prepare_seconds": 0.12,
+    "other_request_seconds": 0.2196,
+    "completion_tokens": 1277,
+    "comparison_structure_model_seconds": 17.383,
+    "comparison_structure_completion_tokens": 828,
+    "note": "Independent calls and prompt revisions; do not subtract these totals to infer frontend overhead. Model_seconds includes network and provider processing."
+  }
+}

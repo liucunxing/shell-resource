@@ -54,6 +54,8 @@ def build_evidence(workspace: dict, descriptor: dict, role: str, year: int) -> d
         at: str = period,
         **extra: Any,
     ) -> None:
+        if kind in {"composition", "ranked_bar"} and extra.get("denominator", 0) > 0:
+            rows = [{**row, "share": row["value"] / extra["denominator"]} for row in rows]
         datasets.append(
             dict(
                 id=key,
@@ -71,7 +73,7 @@ def build_evidence(workspace: dict, descriptor: dict, role: str, year: int) -> d
 
     budget = allocated = other = Decimal(0)
     dealers: dict[str, dict] = {}
-    other_rows = []
+    other_rows: list[dict[str, Any]] = []
     for item in descriptor["items"]:
         budget += Decimal(str(item.get("budget") or 0))
         for row in item.get("rows") or []:
@@ -94,13 +96,27 @@ def build_evidence(workspace: dict, descriptor: dict, role: str, year: int) -> d
                 }
             )
     gap = budget - allocated - other
+    missing_other_notes = sum(row["amount"] != 0 and not row["note"].strip() for row in other_rows)
     for key, label, total_value in [
         ("budget", "负责预算", budget),
         ("allocated", "经销商分配", allocated),
         ("other", "其他预算安排", other),
         ("gap", "未解释差额", gap),
+        ("arranged", "已安排总额（经销商及其他安排）", allocated + other),
     ]:
         fact(key, label, float(total_value), "CNY")
+    fact(
+        "missing-other-notes",
+        "非零其他预算缺少说明的条数",
+        missing_other_notes,
+        "count",
+        note="提交要求非零其他预算填写说明；原因代码不代替说明。金额平衡不代表说明完整。",
+    )
+    for key, label, budget_part in [
+        ("allocated-budget-share", "经销商分配占负责预算比例", allocated),
+        ("other-budget-share", "其他安排占负责预算比例", other),
+    ]:
+        fact(key, label, float(budget_part / budget) if budget > 0 else None, "ratio")
     fact(
         "cohort",
         "计划分配经销商总数",
@@ -112,6 +128,12 @@ def build_evidence(workspace: dict, descriptor: dict, role: str, year: int) -> d
         "overlap",
         "涉及多个不同 Initiative 的经销商数",
         sum(len(v["initiatives"]) > 1 for v in dealers.values()),
+        "count",
+    )
+    fact(
+        "max-initiative-count",
+        "单家经销商关联Initiative数最大值",
+        max((len(v["initiatives"]) for v in dealers.values()), default=0),
         "count",
     )
     guide = state.get("guide") or {}
@@ -179,12 +201,19 @@ def build_evidence(workspace: dict, descriptor: dict, role: str, year: int) -> d
         yld = number(history.get("yield"))
         fact(f"plan:{dealer_id}", f"{dealer_id} 本范围计划投入", plan, "CNY")
         fact(
+            f"share:{dealer_id}",
+            f"{dealer_id} 占经销商分配比例",
+            float(value["amount"] / allocated) if allocated > 0 else None,
+            "ratio",
+            note="分母为当前授权范围经销商分配合计，不含其他预算；分母为0时比例不可计算。",
+        )
+        fact(
             f"yield:{dealer_id}",
             f"{dealer_id} 历史整体 Yield",
             yld,
             "multiple",
             "2025全年",
-            "授权只读汇总；不含跨部门资源分母。",
+            "只提供授权整体Yield值，不展示或反算其跨部门资源分母。",
         )
         detail.append(
             dict(
@@ -210,6 +239,33 @@ def build_evidence(workspace: dict, descriptor: dict, role: str, year: int) -> d
                 "",
                 "2026累计" if "2026" in key else ("2024全年" if "2024" in key else "2025全年"),
                 "2026累计不年化，源表未声明计量单位。",
+            )
+        for metric, previous, current in [
+            ("vol", values["vol2024"], values["vol2025"]),
+            ("c3", values["c32024"], values["c32025"]),
+        ]:
+            change = (
+                Decimal(str(current)) - Decimal(str(previous))
+                if previous is not None and current is not None
+                else None
+            )
+            fact(
+                f"{metric}-change:{dealer_id}",
+                f"{dealer_id} {metric.upper()} 全年变化量",
+                float(change) if change is not None else None,
+                "",
+                "2025全年 / 2024全年",
+                "系统计算2025减2024；零值、负值保留；缺任一年度才为空，单位沿用源数据。",
+            )
+            fact(
+                f"{metric}-growth:{dealer_id}",
+                f"{dealer_id} {metric.upper()} 全年同比变化率",
+                float(change / Decimal(str(previous)))
+                if change is not None and previous is not None and previous > 0
+                else None,
+                "ratio",
+                "2025全年 / 2024全年",
+                "仅正数基期计算变化率；零或负基期仍可陈述原值及变化量，不能称数据缺失。",
             )
         trend.append(dict(id=dealer_id, dealer=label, **values))
     if detail:
@@ -277,6 +333,12 @@ def build_evidence(workspace: dict, descriptor: dict, role: str, year: int) -> d
                     f"计划投入{'高' if row['y'] > ymid else '低'}"
                 )
             )
+            fact(
+                f"position:{row['id']}",
+                f"{row['id']} 系统相对分组",
+                row["group"],
+                note=f"完整入图队列中位数：历史Yield {xmid}、计划投入 {ymid}；非业务阈值。",
+            )
         dataset(
             "yield-plan",
             "quadrant",
@@ -341,8 +403,8 @@ def build_evidence(workspace: dict, descriptor: dict, role: str, year: int) -> d
             )
         if dim == "trend":
             comparable = any(
-                (r["vol2024"] is not None and r["vol2024"] > 0 and r["vol2025"] is not None)
-                or (r["c32024"] is not None and r["c32024"] > 0 and r["c32025"] is not None)
+                (r["vol2024"] is not None and r["vol2025"] is not None)
+                or (r["c32024"] is not None and r["c32025"] is not None)
                 for r in trend
             )
             statuses = ["observed"] if comparable else ["limited"]
@@ -352,18 +414,19 @@ def build_evidence(workspace: dict, descriptor: dict, role: str, year: int) -> d
                 else "待补充2024及2025全年 Vol 或 C3；补充同指标完整年度对后可分析经营变化。"
             )
         if dim == "completeness":
-            statuses = ["clear", "observed"] if gap == 0 else ["review"]
+            statuses = ["clear", "observed"] if gap == 0 and not missing_other_notes else ["review"]
             reason = (
-                "仅金额平衡，不代表其他安排已落实。"
-                if gap == 0
-                else "预算与安排存在差额，必须显式复核。"
+                "金额平衡且非零其他预算说明已填，不代表投入合理或已落实到经销商。"
+                if gap == 0 and not missing_other_notes
+                else "预算差额或非零其他预算缺少说明，"
+                "必须引用gap及missing-other-notes区分并显式复核。"
             )
         constraints.append(
             dict(
                 dimension_id=dim,
                 allowed_statuses=statuses,
                 reason=reason,
-                required_focus=dim == "completeness" and gap != 0,
+                required_focus=dim == "completeness" and (gap != 0 or missing_other_notes > 0),
             )
         )
     evidence = dict(

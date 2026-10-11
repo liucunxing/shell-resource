@@ -158,24 +158,15 @@ def test_non_json_model_response_preserves_existing_record(monkeypatch) -> None:
     insight.settings.ai_base_url = "https://example.test/v1"
     repository.records.append(SimpleNamespace(record={"id": "old"}))
 
-    class Response:
-        def raise_for_status(self):
-            return None
-
-        def json(self):
-            return {"choices": [{"message": {"content": "not json"}}]}
-
-    class Client:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *_):
-            return None
-
-        async def post(self, *_args, **_kwargs):
-            return Response()
-
-    monkeypatch.setattr(httpx, "AsyncClient", lambda **_kwargs: Client())
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(
+            200, json={"choices": [{"message": {"content": "not json"}}]}
+        )
+    )
+    original_client = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx, "AsyncClient", lambda **kwargs: original_client(transport=transport, **kwargs)
+    )
     with pytest.raises(HTTPException, match="生成失败"):
         asyncio.run(insight.generate(scope="initiative:1", planning_year=2027))
     assert len(repository.records) == 1
@@ -229,6 +220,8 @@ def test_success_uses_authorized_yield_and_marks_changed_basis_stale(monkeypatch
 
         def handler(request):
             captured.update(json.loads(request.content))
+            from app.services.insight_pack_adapter import _module
+
             return httpx.Response(
                 200,
                 json={
@@ -237,7 +230,11 @@ def test_success_uses_authorized_yield_and_marks_changed_basis_stale(monkeypatch
                             "message": {
                                 "content": json.dumps(
                                     valid_result(
-                                        json.loads(captured["messages"][1]["content"])["evidence"]
+                                        _module._consistency.expand_evidence(
+                                            json.loads(captured["messages"][1]["content"])[
+                                                "evidence"
+                                            ]
+                                        )
                                     )
                                 )
                             }
@@ -655,6 +652,7 @@ def test_api_visual_schema_binds_dataset_title_and_facts():
 
     insight, _ = service()
     data = workspace()
+    data["state"]["initiatives"][0]["otherBudgets"][0]["note"] = "用途已明确"
     evidence = build_evidence(data, insight._scope(data, "initiative:1"), "owner", 2027)
     body, _ = InsightPack(PACK_ROOT).compile(evidence)
     validator = Draft202012Validator(body["response_format"]["json_schema"]["schema"])
@@ -665,7 +663,7 @@ def test_api_visual_schema_binds_dataset_title_and_facts():
             id="budget-view",
             kind="visual",
             title=dataset["title"],
-            body="Budget allocation.",
+            body="",
             status="observed",
             dimension_ids=["completeness"],
             fact_ids=[dataset["fact_ids"][0]],
@@ -675,6 +673,7 @@ def test_api_visual_schema_binds_dataset_title_and_facts():
     validator.validate(candidate)
     for field, value in [
         ("title", "Unrelated yield title"),
+        ("body", "Unverified chart commentary"),
         ("fact_ids", ["cohort"]),
         ("fact_ids", []),
         ("kind", "finding"),

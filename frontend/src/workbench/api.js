@@ -112,9 +112,22 @@ export const uploadReference = (value) => request("/admin/reference", {
   method: "POST", body: JSON.stringify(value),
 });
 export const getInsights = (scope, presetId = "comprehensive") => request(`/insights?scope=${encodeURIComponent(scope)}&planning_year=${planningYear}&preset_id=${encodeURIComponent(presetId)}`);
-export const generateInsights = (scope, presetId = "comprehensive") => request("/insights/generate", {
-  method: "POST", body: JSON.stringify({ scope, planning_year: planningYear, preset_id: presetId }),
-});
+export async function generateInsights(scope, presetId = "comprehensive") {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 65000);
+  try {
+    return await request("/insights/generate", {
+      method: "POST", signal: controller.signal,
+      body: JSON.stringify({ scope, planning_year: planningYear, preset_id: presetId }),
+    });
+  } catch (error) {
+    if (controller.signal.aborted)
+      throw new ApiError("分析等待超时，请稍后刷新查看或重试。", 504);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 export const saveInsightPrompt = (scope, text, expectedVersion) => request("/insights/prompt", {
   method: "PUT", body: JSON.stringify({ scope, planning_year: planningYear, text, expected_version: expectedVersion }),
 });
