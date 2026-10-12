@@ -23,6 +23,13 @@ backend/data
 
 deploy/.env
 deploy/settings.toml
+deploy/certs
+deploy/backups
+**/*.pem
+**/*.key
+**/*.crt
+**/*.csr
+**/digitalshell.com.cn_nginx.zip
 
 **/*.log
 **/*.sqlite

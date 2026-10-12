@@ -93,3 +93,8 @@ node_modules/
 # Local multi-environment settings with real credentials
 backend/config/settings.toml
 deploy/settings.toml
+
+# HTTPS certificates, uploaded archives and rollout backups (server only)
+deploy/certs/
+deploy/backups/
+digitalshell.com.cn_nginx.zip

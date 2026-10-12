@@ -36,3 +36,5 @@ docs/       本期业务契约和协作说明
 `Dockerfile` 会先构建前端，再把静态文件与 FastAPI 后端放入同一个非 root 运行容器；`compose.yaml` 负责配置、健康检查、端口和自动重启。服务器部署、数据库初始化、升级、验收与回滚步骤见 [Docker 部署手册](docs/DOCKER_DEPLOYMENT.md)。
 
 首次执行 `sudo bash deploy/deploy.sh --init` 并填写 `deploy/settings.toml`，之后执行 `sudo bash deploy/deploy.sh --port 8080` 一键构建和启动。脚本实时输出 8 个阶段，失败立即停止；完整日志保存在 `logs/deploy/`。不传 `--port` 时使用 `deploy/.env` 的 `APP_PORT`。
+
+现有 HTTP 服务升级为 Docker Nginx HTTPS（含证书 ZIP 导入、main 发布、验证、回滚及续期）见 [HTTPS 操作手册](docs/HTTPS.md)。启用后继续使用同一个部署脚本，证书保留在服务器 `deploy/certs/`，不进入 Git 或镜像。

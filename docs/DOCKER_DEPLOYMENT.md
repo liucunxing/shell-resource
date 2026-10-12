@@ -2,6 +2,8 @@
 
 本文用于把 Shell Forecast 部署到 Linux 服务器 `172.19.49.45`。当前方案是单机 Docker Compose：一个镜像包含 React 编译产物和 FastAPI，PostgreSQL 使用外部数据库，不在本机自动创建或清空数据库。
 
+已有服务从 `http://resource.digitalshell.com.cn:18080/` 切换到 `https://resource.digitalshell.com.cn/` 时，按 [Docker Nginx HTTPS 操作手册](HTTPS.md) 执行；不要安装主机 Nginx。HTTPS 启用后 `deploy/deploy.sh` 会同时检查并维护 Nginx 和应用入口。
+
 ## 一键部署（推荐入口）
 
 服务器准备好 Docker Engine、Compose plugin、Git、Python 3、curl、ss（iproute2）后，在已检出发布代码的仓库目录运行。首次只生成配置模板：

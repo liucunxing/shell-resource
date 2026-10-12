@@ -32,8 +32,11 @@ if a[0] == "inspect":
     print("running starting" if scenario == "timeout" else "running healthy")
     sys.exit(0)
 if "config" in a and "--format" in a:
-    print(json.dumps({"services": {"app": {"ports": [{"published": os.environ.get("APP_PORT", values["APP_PORT"]),
-        "host_ip": "0.0.0.0"}]}}, "secrets": {"app_settings": {"file": "deploy/settings.toml"}}}))
+    services = {"app": {"ports": [{"published": os.environ.get("APP_PORT", values["APP_PORT"]),
+        "host_ip": values.get("APP_BIND_ADDRESS", "0.0.0.0")}]}}
+    if "https" in values.get("COMPOSE_PROFILES", "").split(","):
+        services["nginx"] = {"image": "nginx:test", "environment": {"HTTPS_DOMAIN": "resource.example.test"}}
+    print(json.dumps({"services": services, "secrets": {"app_settings": {"file": "deploy/settings.toml"}}}))
 elif "build" in a and scenario == "build-failure": sys.exit(42)
 elif "run" in a and scenario == "db-failure" and "scripts/check_database.py" in a: sys.exit(43)
 elif "up" in a: pathlib.Path("started").touch()
@@ -54,6 +57,11 @@ class DeployTests(unittest.TestCase):
         shutil.copyfile(ROOT / "compose.yaml", self.root / "compose.yaml")
         shutil.copyfile(self.root / "deploy/.env.example", self.root / "deploy/.env")
         (self.root / "deploy/settings.toml").write_text("# test sentinel\n", encoding="utf-8")
+        (self.root / "deploy/https.sh").write_text(
+            '#!/usr/bin/env bash\necho "$*" >> https.log\n'
+            'if [ "${SCENARIO:-}" = https-check-failure ]; then exit 45; fi\n',
+            encoding="utf-8", newline="\n",
+        )
         subprocess.run(["git", "init", "-q", str(self.root)], check=True)
         subprocess.run(["git", "-C", str(self.root), "-c", "user.name=Test", "-c",
                         "user.email=test@example.test", "commit", "--allow-empty", "-qm", "test"],
@@ -140,6 +148,33 @@ class DeployTests(unittest.TestCase):
         result = self.run_deploy(args=("--port", "65536"))
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.calls(), "")
+
+    def enable_https(self, bind="127.0.0.1"):
+        path = self.root / "deploy/.env"
+        text = path.read_text().replace("APP_BIND_ADDRESS=0.0.0.0", f"APP_BIND_ADDRESS={bind}")
+        path.write_text(text + "\nCOMPOSE_PROFILES=https\n")
+
+    def test_https_release_checks_config_and_verifies_public_entry(self):
+        self.enable_https()
+        result = self.run_deploy(args=("--port", "18080"))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("nginx -t", self.calls())
+        self.assertIn("up -d --no-build nginx", self.calls())
+        self.assertEqual((self.root / "https.log").read_text().splitlines(), ["--check", "--verify"])
+        self.assertIn("https://resource.example.test/", result.stdout)
+
+    def test_https_rejects_public_app_binding_before_build(self):
+        self.enable_https(bind="0.0.0.0")
+        result = self.run_deploy()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("build --pull", self.calls())
+
+    def test_https_certificate_failure_preserves_running_app(self):
+        self.enable_https()
+        result = self.run_deploy("https-check-failure")
+        self.assertEqual(result.returncode, 45, result.stdout + result.stderr)
+        self.assertNotIn("build --pull", self.calls())
+        self.assertNotIn("up -d", self.calls())
 
 
 if __name__ == "__main__":
