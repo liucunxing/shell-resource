@@ -20,6 +20,7 @@ async def test_databricks_directory_uses_oauth_and_statement_api(
             "databricks_http_path": "/sql/1.0/warehouses/warehouse-1",
             "databricks_client_id": "client-id",
             "databricks_client_secret": SecretStr("client-secret"),
+            "databricks_view_name": "prod.resource_planning.dim_distributor",
         }
     )
 
@@ -31,6 +32,7 @@ async def test_databricks_directory_uses_oauth_and_statement_api(
         assert request.url.path == "/api/2.0/sql/statements"
         assert request.headers["authorization"] == "Bearer short-lived-token"
         assert "WHERE sector IN ('PCMO')" in request.content.decode()
+        assert "FROM prod.resource_planning.dim_distributor " in request.content.decode()
         return httpx.Response(
             200,
             json={

@@ -92,7 +92,7 @@ class Settings(BaseModel):
     databricks_http_path: str = ""
     databricks_client_id: str = ""
     databricks_client_secret: SecretStr | None = None
-    databricks_view_name: str = "semantic_poc.test_poc.dim_distributor"
+    databricks_view_name: str = "prod.resource_planning.dim_distributor"
     databricks_timeout_seconds: float = Field(default=60, gt=0, le=120)
 
     sso_enabled: bool = False

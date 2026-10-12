@@ -177,6 +177,7 @@ APP_GID=1000
 - `database_url`：真实 PostgreSQL 连接。密码中的特殊字符需要 URL 编码；是否使用 `ssl=require` 以数据库要求为准。
 - `db_echo=false`：服务器不要输出 SQL 参数。
 - `ai_*`、`azure_blob_*`、`databricks_*`：只在已开通并验证对应能力时填写。
+- Databricks 经销商目录使用 `resource-planning` service principal：在当前启用的 profile 中填写 `databricks_server_hostname`（不带 `https://` 的主机名）、`databricks_http_path`（`/sql/1.0/warehouses/<warehouse-id>`）、`databricks_client_id` 和 `databricks_client_secret`。schema 重命名后，`databricks_view_name` 应为 `prod.resource_planning.dim_distributor`；发布已有配置时需同步替换旧的 `test_poc` 引用，复制新版模板不会自动更新现有配置。
 - `frontend_dist_path=/app/frontend/dist` 保持不变。
 - 同站点访问时 `cors_origins=[]` 即可。
 

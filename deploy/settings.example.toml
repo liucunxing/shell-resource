@@ -29,7 +29,7 @@ databricks_server_hostname = ""
 databricks_http_path = ""
 databricks_client_id = ""
 databricks_client_secret = ""
-databricks_view_name = "semantic_poc.test_poc.dim_distributor"
+databricks_view_name = "prod.resource_planning.dim_distributor"
 databricks_timeout_seconds = 60
 
 sso_enabled = false
@@ -68,7 +68,7 @@ databricks_server_hostname = ""
 databricks_http_path = ""
 databricks_client_id = ""
 databricks_client_secret = ""
-databricks_view_name = "semantic_poc.test_poc.dim_distributor"
+databricks_view_name = "prod.resource_planning.dim_distributor"
 databricks_timeout_seconds = 60
 
 sso_enabled = true
