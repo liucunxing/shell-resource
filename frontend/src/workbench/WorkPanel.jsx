@@ -17,8 +17,7 @@ import { useWorkbench } from "./WorkbenchContext.jsx";
 import E from "./domain/engine.js";
 import A from "./domain/explore.js";
 import { InsightPanel } from "./pages/InsightPanel.jsx";
-import { parseYiwenUrl } from "../config/yiwen";
-const config = parseYiwenUrl(import.meta.env.VITE_YIWEN_IFRAME_URL);
+import { buildYiwenUrl } from "../config/yiwen";
 const fmt = (value) =>
   Number.isFinite(value)
     ? (Math.abs(value) < 0.005 ? 0 : value).toLocaleString("zh-CN", {
@@ -44,6 +43,7 @@ export function WorkPanel({ overlay }) {
     initiativeId,
     view,
   } = useWorkbench();
+  const config = buildYiwenUrl(import.meta.env.VITE_YIWEN_IFRAME_URL, identity.email);
   const panel = useRef(null);
   const closeButton = useRef(null);
   const [chatVisited, setChatVisited] = useState(false);
@@ -205,6 +205,8 @@ export function WorkPanel({ overlay }) {
         >
           {config.url ? (
             <EmbeddedAsk
+              key={config.url}
+              url={config.url}
               loaded={
                 chatVisited || (auxiliary.open && auxiliary.tab === "chat")
               }
@@ -212,7 +214,7 @@ export function WorkPanel({ overlay }) {
           ) : config.error ? (
             <div className="work-empty">
               <h3>问数接入地址配置有误</h3>
-              <p>请联系管理员检查。当前预算工作区仍可使用。</p>
+              <p>{config.error} 当前预算工作区仍可使用。</p>
             </div>
           ) : (
             <LocalChat />
@@ -389,7 +391,7 @@ function ReferencePanel() {
     </>
   );
 }
-function EmbeddedAsk({ loaded }) {
+export function EmbeddedAsk({ loaded, url }) {
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(true);
   const [slow, setSlow] = useState(false);
@@ -401,7 +403,7 @@ function EmbeddedAsk({ loaded }) {
   return (
     <div className="embedded-ask">
       <div className="embedded-toolbar">
-        <span>易问产品问数界面</span>
+        <span>Data Agent 问数界面</span>
         <button
           className="button small"
           onClick={() => {
@@ -413,7 +415,7 @@ function EmbeddedAsk({ loaded }) {
           <ArrowClockwise size={16} />
           重新加载
         </button>
-        <a href={config.url} target="_blank" rel="noopener noreferrer">
+        <a href={url} target="_blank" rel="noopener noreferrer">
           独立打开 <ArrowSquareOut size={15} />
         </a>
       </div>
@@ -421,8 +423,8 @@ function EmbeddedAsk({ loaded }) {
         {loaded && (
           <iframe
             key={revision}
-            src={config.url}
-            title="易问产品问数界面"
+            src={url}
+            title="Data Agent 问数界面"
             referrerPolicy="no-referrer"
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
             onLoad={() => {

@@ -9,3 +9,13 @@
 部署沿用现有内部 UAT 的 `APP_ENV=development`，无需新增配置或表结构迁移。如果部署指向其他 PG，需在该库单独配置此邮箱的管理员权限。发布后用以上链接验证直接进入管理员页面，并验证刷新及未配置邮箱被拒绝。
 
 这是用户指定的临时邮箱传递方案，URL 邮箱可被修改，无法证明访问者已通过帆软认证。仅适用于当前受控内部测试入口；不等同于可信 SSO。现有 `production` 环境仍拒绝此类邮箱身份，后续正式接入需替换为可验证的认证凭据。
+
+## Data Agent iframe
+
+“小One问数Agent”入口嵌入 `http://dataaitest.digitalshell.com.cn:3052/`。前端使用后端返回的当前用户 `identity.email`，自动生成 `?user_email=lukx1%40digitalchina.com`；iframe 与“独立打开”使用同一个地址。不会透传角色、Token 或业务数据。
+
+首次打开才加载 iframe，切换参考/Insight 或收起后保留页面；切换用户重新建立 iframe，重新加载按钮只刷新该 iframe。
+
+Docker/Compose 构建默认接入上述地址，`VITE_YIWEN_IFRAME_URL` 可覆盖；已有部署配置若仍是空值，Compose 使用该默认值。地址在构建时注入，发布需重新构建前端镜像。本机开发可复制 `frontend/.env.example` 为 `.env.local`。HTTP 仅放行这个明确的内部测试 origin 及 localhost，其他远程地址仍须 HTTPS。当前工作台与 Agent 均使用 HTTP；以后工作台切 HTTPS 时，Agent 也需使用 HTTPS 以避免混合内容拦截。
+
+2026-10-12 本地验证：前端 92 项测试、9 项部署脚本测试及构建通过；真实浏览器确认邮箱 URL、首次打开加载、Tab/收起保留、重新加载及切换账号。远端入口返回 HTTP 200，未返回 X-Frame-Options / CSP 限制；Data Agent 加载较慢，独立打开携带邮箱后最终跳转至 `/signin?redirect=/admin` 并要求用户名和密码。因此本应用的邮箱透传已完成，但 Data Agent 对端免登尚未打通，需对端接收 `user_email` 并配置对应账号映射。iframe 的 load 事件不代表认证成功。
