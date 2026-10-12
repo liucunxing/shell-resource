@@ -17,6 +17,7 @@ import {
 } from "@phosphor-icons/react";
 import { useWorkbench } from "./WorkbenchContext.jsx";
 import { WorkPanel } from "./WorkPanel.jsx";
+import { useWorkPanelWidth } from "./WorkPanelResizer";
 const HomePage = lazy(() =>
   import("./pages/OverviewPages.jsx").then((m) => ({ default: m.HomePage })),
 );
@@ -102,6 +103,7 @@ export default function WorkbenchApp() {
   const narrow = useNarrow("(max-width: 1023px)");
   const phone = useNarrow("(max-width: 759px)");
   const workOverlay = auxiliary.open && narrow;
+  const panelSize = useWorkPanelWidth();
   const closeNav = () => {
     setMobileNav(false);
     requestAnimationFrame(() => navTrigger.current?.focus());
@@ -182,7 +184,12 @@ export default function WorkbenchApp() {
       >
         跳至工作区
       </a>
-      <div className={`app-shell ${auxiliary.open ? "work-open" : ""}`}>
+      <div
+        className={`app-shell ${auxiliary.open ? "work-open" : ""}`}
+        style={{ "--work-panel-size": `${panelSize.width}px` }}
+        data-work-resizing={panelSize.resizing || undefined}
+      >
+        {panelSize.resizing && <div className="work-resize-shield" aria-hidden="true" />}
         {mobileNav && (
           <button
             className="mobile-nav-scrim"
@@ -383,6 +390,7 @@ export default function WorkbenchApp() {
         <WorkPanel
           key={`${identity.key}:${scenarioEpoch}`}
           overlay={workOverlay}
+          panelSize={panelSize}
         />
       </div>
       <dialog

@@ -18,6 +18,7 @@ import E from "./domain/engine.js";
 import A from "./domain/explore.js";
 import { InsightPanel } from "./pages/InsightPanel.jsx";
 import { buildYiwenUrl } from "../config/yiwen";
+import { WorkPanelResizer } from "./WorkPanelResizer";
 const fmt = (value) =>
   Number.isFinite(value)
     ? (Math.abs(value) < 0.005 ? 0 : value).toLocaleString("zh-CN", {
@@ -31,7 +32,7 @@ const tabs = [
   ["chat", ChatCircleDots, "问数"],
 ];
 
-export function WorkPanel({ overlay }) {
+export function WorkPanel({ overlay, panelSize }) {
   const {
     identity,
     auxiliary,
@@ -103,6 +104,7 @@ export function WorkPanel({ overlay }) {
         />
       )}
       <aside
+        id="work-panel"
         ref={panel}
         className="workbench"
         aria-label="辅助工作栏"
@@ -110,6 +112,9 @@ export function WorkPanel({ overlay }) {
         aria-modal={overlay || undefined}
         inert={mobileNav}
       >
+        {auxiliary.open && panelSize && !panelSize.phone && (
+          <WorkPanelResizer {...panelSize} />
+        )}
         <div className="work-rail">
           <div className="work-tabs" role="tablist" aria-label="工作栏工具">
             {tabs.map(([id, Icon, label]) => (

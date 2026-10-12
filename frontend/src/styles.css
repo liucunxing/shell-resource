@@ -5303,7 +5303,7 @@ th {
 }
 :root {
   --work-nav-size: 240px;
-  --work-panel-size: clamp(320px, 26vw, 380px);
+  --work-panel-size: 480px;
 }
 .app-shell {
   grid-template-columns: var(--work-nav-size) minmax(0, 1fr) 54px;
@@ -5337,6 +5337,43 @@ th {
 .work-window-actions button {
   padding: 7px;
   min-width: 30px;
+}
+.work-resize-handle {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 3;
+}
+.work-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  width: 3px;
+  height: 40px;
+  border-radius: 3px;
+  background: #b7bdc4;
+}
+.work-resize-handle:hover,
+.work-resize-handle:focus-visible {
+  background: #ffcd0040;
+  outline: none;
+  box-shadow: inset 2px 0 #b17b24;
+}
+.work-resize-shield {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  cursor: col-resize;
+  user-select: none;
+}
+[data-work-resizing] iframe {
+  pointer-events: none;
+}
+[data-work-resizing] {
+  user-select: none;
 }
 .nav-mobile-close {
   display: none;
@@ -5504,6 +5541,10 @@ dialog.modal:not([open]) {
   }
 }
 @media (max-width: 1023px) {
+  .work-open .workbench {
+    width: var(--work-panel-size);
+    max-width: 100vw;
+  }
   .app-shell,
   .app-shell.work-open {
     grid-template-columns: var(--work-nav-size) minmax(0, 1fr) 54px;
