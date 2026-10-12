@@ -13,6 +13,7 @@ import * as api from "./api.js";
 
 export const STORAGE_KEY = "shell-resource-workbench-v13";
 const demoMode = import.meta.env.VITE_DATA_MODE === "demo";
+if (!demoMode) api.acceptPortalEmail();
 
 export const roles = E.DEPARTMENTS.flatMap((department) => [
   ...[1, 2].map((number) => ({

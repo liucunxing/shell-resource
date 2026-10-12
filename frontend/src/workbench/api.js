@@ -22,6 +22,20 @@ export function setDevelopmentEmail(email) {
   else sessionStorage.removeItem(DEV_EMAIL_KEY);
 }
 
+// Temporary FineReport Portal handoff; permissions are always resolved by the API.
+export function acceptPortalEmail() {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  const entries = [...url.searchParams].filter(([key]) => key.trim() === "user_email");
+  if (!entries.length) return;
+  const email = entries.length === 1 ? entries[0][1].trim().toLowerCase() : "";
+  // An invalid handoff must never fall back to a previously logged-in account.
+  const valid = email.length <= 255 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  setDevelopmentEmail(valid ? email : "");
+  for (const [key] of entries) url.searchParams.delete(key);
+  window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+}
+
 function emailHeader() {
   const email = getDevelopmentEmail();
   return email ? { "X-User-Email": email } : {};
