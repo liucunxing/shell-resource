@@ -19,13 +19,13 @@ describe("易问嵌入地址", () => {
     "http://localhost:4173/ask",
     "http://127.0.0.1:8080/",
     "http://[::1]:8080/",
-    "http://dataaitest.digitalshell.com.cn:3052/",
   ])("允许本机 HTTP：%s", (url) => {
     expect(parseYiwenUrl(url)).toEqual({ url, error: null });
   });
 
   it.each([
     "http://yiwen.example.com/",
+    "http://dataaitest.digitalshell.com.cn:3052/",
     "http://dataaitest.digitalshell.com.cn:3053/",
     "http://dataaitest.digitalshell.com.cn.evil.example:3052/",
     "http://localhost.example.com/",
@@ -50,7 +50,7 @@ describe("易问嵌入地址", () => {
 });
 
 describe("Data Agent 邮箱透传", () => {
-  const base = "http://dataaitest.digitalshell.com.cn:3052/";
+  const base = "https://dataaitest.digitalshell.com.cn/";
   it("uses the authenticated identity and replaces every stale email", () => {
     const result = buildYiwenUrl(base + "?view=chat&user_email=old@example.com&%20user_email=other@example.com#start", " LUKX1@digitalchina.com ");
     expect(result).toEqual({url: base + "?view=chat&user_email=lukx1%40digitalchina.com#start", error: null});

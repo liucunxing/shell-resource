@@ -17,9 +17,8 @@ export function parseYiwenUrl(raw?: string): {
   }
 
   const local = ["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname);
-  const internalTest = parsed.origin === "http://dataaitest.digitalshell.com.cn:3052";
-  if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && (local || internalTest))) {
-    return { url: "", error: "易问地址须使用 HTTPS，仅本机或指定内部测试地址可使用 HTTP。" };
+  if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && local)) {
+    return { url: "", error: "易问地址须使用 HTTPS，仅本机调试地址可使用 HTTP。" };
   }
 
   return { url: parsed.href, error: null };

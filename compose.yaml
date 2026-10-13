@@ -10,7 +10,7 @@ services:
         APP_REVISION: ${IMAGE_TAG:-local}
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1/workbench}
         VITE_PLANNING_YEAR: ${VITE_PLANNING_YEAR:-2027}
-        VITE_YIWEN_IFRAME_URL: ${VITE_YIWEN_IFRAME_URL:-http://dataaitest.digitalshell.com.cn:3052/}
+        VITE_YIWEN_IFRAME_URL: ${VITE_YIWEN_IFRAME_URL:-https://dataaitest.digitalshell.com.cn/}
     restart: unless-stopped
     init: true
     user: "${APP_UID:-10001}:${APP_GID:-10001}"

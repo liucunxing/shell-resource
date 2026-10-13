@@ -9,7 +9,7 @@ COPY frontend/ ./
 
 ARG VITE_API_BASE_URL=/api/v1/workbench
 ARG VITE_PLANNING_YEAR=2027
-ARG VITE_YIWEN_IFRAME_URL=http://dataaitest.digitalshell.com.cn:3052/
+ARG VITE_YIWEN_IFRAME_URL=https://dataaitest.digitalshell.com.cn/
 
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL} \
     VITE_PLANNING_YEAR=${VITE_PLANNING_YEAR} \

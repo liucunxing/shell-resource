@@ -233,7 +233,7 @@ curl --fail http://127.0.0.1:18080/health
 续期：从运维取得新的同格式 ZIP，再执行 `https.sh --cert-zip 新ZIP路径`。
 脚本检查有效期、域名、证书与私钥匹配；不会在日志中输出私钥。不要覆盖共享证书的其他服务。
 
-**Data Agent iframe**：当前默认 `http://dataaitest.digitalshell.com.cn:3052/`，HTTPS 主站会拦截 HTTP iframe。需要该服务实际提供 HTTPS，再把服务器 `.env` 的 `VITE_YIWEN_IFRAME_URL` 改成验证过的 HTTPS 地址，重新运行 deploy.sh 构建前端。不要仅替换协议文字，也不要开启浏览器不安全内容绕过。
+**Data Agent iframe**：当前默认 `https://dataaitest.digitalshell.com.cn/`。若服务器已有 `deploy/.env`，发布前也要把 `VITE_YIWEN_IFRAME_URL` 更新为该地址；随后重新运行 `deploy.sh` 构建前端。仅重启旧容器不会更新构建时注入的 iframe 地址。
 
 若门户/SSO 使用绝对回调地址，应将它们更新为 HTTPS 并登记到身份平台；现有相对 API 地址无需改动。
 Nginx 终止 TLS，后端仍走 Docker 内部 HTTP；HTTPS 本身不改变当前 UAT 的认证方式。
