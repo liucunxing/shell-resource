@@ -1,5 +1,7 @@
 # 资源投资工作台 V1.4
 
+> 服务器发布、重启、健康检查、日志和证书续期，请先阅读 [服务器运维手册](docs/SERVER_OPERATIONS.md)。
+
 Quick Win 一期：年度预算分配、其他预算、Excel 回传、草稿保存、同步快照、角色范围查询、管理员配置和百炼六点 Insight。复用现有 React 页面，后端使用 FastAPI + PostgreSQL；同一应用站点可提供前端静态文件和 API。
 
 ```text
