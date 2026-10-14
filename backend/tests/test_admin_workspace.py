@@ -343,6 +343,10 @@ def test_distributor_history_field_mapping_and_department_scope():
         }
         ice = (await ReferenceService(session).get_dealers(2027, "ICE"))[0]
         assert ice["history"]["resources2025"] == {"ICE Rebate": 8.0}
+        multi = (await ReferenceService(session).get_dealers(2027, ["MKT", "ICE"]))[0]
+        assert multi["history"]["resources2025"] == {"MRD": 7.0, "SP&A": 9.0, "ICE Rebate": 8.0}
+        empty = (await ReferenceService(session).get_dealers(2027, []))[0]
+        assert empty["history"]["resources2025"] == {}
 
     asyncio.run(database_case(run))
 

@@ -1,8 +1,9 @@
 from collections.abc import Sequence
 
-from sqlalchemy import String, cast, func, select
+from sqlalchemy import String, cast, exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.departments import departments
 from app.models.do.base import BaseDO
 from app.models.do.budget import BudgetDO
 from app.models.do.workspace import OtherBudgetDO, UserPermissionDO, WorkspaceConfigDO
@@ -15,14 +16,22 @@ class AdminRepository:
     async def owners(self, email: str, department: str) -> Sequence[UserPermissionDO]:
         return (
             await self.session.scalars(
-                select(UserPermissionDO).where(
+                select(UserPermissionDO)
+                .where(
                     UserPermissionDO.email == email,
                     UserPermissionDO.enabled.is_(True),
                     UserPermissionDO.role == "owner",
-                    UserPermissionDO.department == department,
-                ).with_for_update()
+                    self._department_member(department),
+                )
+                .with_for_update()
             )
         ).all()
+
+    def _department_member(self, department: str):
+        if self.session.get_bind().dialect.name == "sqlite":
+            entries = func.json_each(UserPermissionDO.department).table_valued("value")
+            return exists(select(1).select_from(entries).where(entries.c.value == department))
+        return UserPermissionDO.department.any(department)
 
     @staticmethod
     def _budget_for_email(email_column):
@@ -55,7 +64,7 @@ class AdminRepository:
         if role:
             conditions.append(UserPermissionDO.role == role)
         if department:
-            conditions.append(UserPermissionDO.department == department)
+            conditions.append(self._department_member(department))
         if sector:
             conditions.append(cast(UserPermissionDO.sector, String).contains(sector))
         total = await self.session.scalar(
@@ -91,7 +100,7 @@ class AdminRepository:
             await self.session.scalars(
                 select(UserPermissionDO)
                 .where(
-                    UserPermissionDO.department == department,
+                    self._department_member(department),
                     UserPermissionDO.enabled.is_(True),
                 )
                 .with_for_update()
@@ -110,8 +119,20 @@ class AdminRepository:
         ).all()
         result: dict[str, set[str]] = {}
         for lead in leads:
-            result.setdefault(lead.department, set()).update(lead.sector or [])
+            for department in departments(lead.department):
+                result.setdefault(department, set()).update(lead.sector or [])
         return {department: sorted(sectors) for department, sectors in result.items()}
+
+    async def assigned_departments(self, email: str) -> set[str]:
+        return set(
+            (
+                await self.session.scalars(
+                    select(BudgetDO.department)
+                    .where(func.lower(func.trim(BudgetDO.owner_email)) == email.lower())
+                    .distinct()
+                )
+            ).all()
+        )
 
     async def user_has_budgets(self, email: str) -> bool:
         return bool(await self.session.scalar(select(self._budget_for_email(email))))

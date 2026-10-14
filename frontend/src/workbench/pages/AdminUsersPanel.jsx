@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import E from "../domain/engine.js";
 import * as api from "../api.js";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 
@@ -7,15 +8,15 @@ const DEPARTMENTS = ["MKT", "ICE", "CAPEX"];
 const SECTORS = ["PCMO", "CRTO", "B2B", "OEM"];
 const EMPTY_FILTERS = { email: "", name: "", role: "", department: "", sector: "" };
 const EMPTY_USER = {
-  email: "", display_name: "", role: "owner", department: "MKT", sector: [], enabled: true,
+  email: "", display_name: "", role: "owner", department: ["MKT"], sector: [], enabled: true,
 };
 const ROLE_LABELS = {
   owner: "Owner", lead: "部门负责人", management: "管理层", admin: "管理员",
 };
 export const userDepartmentOptions = (current) =>
-  [...new Set([...DEPARTMENTS, current].filter(Boolean))];
+  [...new Set([...DEPARTMENTS, ...E.departments(current)].filter(Boolean))];
 export const departmentAfterRoleChange = (role, current) =>
-  ["owner", "lead"].includes(role) && !current ? DEPARTMENTS[0] : current;
+  ["owner", "lead"].includes(role) ? (E.departments(current).length ? E.departments(current) : [DEPARTMENTS[0]]) : [];
 export const sectorAfterRoleChange = (role, current) => {
   if (!["owner", "lead"].includes(role)) return [];
   return role === "owner" ? current.slice(0, 1) : current;
@@ -25,7 +26,7 @@ export const toggleSectorSelection = (role, current, sector) => {
   return role === "owner" ? [sector] : [...current, sector];
 };
 export const ownerSectorOptions = (department, leadSectorsByDepartment = {}) =>
-  leadSectorsByDepartment[department] || [];
+  E.departments(department).length ? SECTORS.filter((sector) => E.departments(department).every((dep) => (leadSectorsByDepartment[dep] || []).includes(sector))) : [];
 
 function UserDialog({ title, children, onClose, onConfirm, confirmLabel, saving }) {
   const ref = useRef(null);
@@ -92,7 +93,7 @@ export function AdminUsersPanel() {
   const close = () => { if (!saving) { setDialog(null); setFormError(""); } };
   const open = (kind, user = null) => {
     setFormError("");
-    if (user?.has_initiatives) {
+    if (user?.has_initiatives && kind === "delete") {
       setDialog({ kind: "blocked", user });
       return;
     }
@@ -100,7 +101,7 @@ export function AdminUsersPanel() {
       email: user.email,
       display_name: user.display_name,
       role: user.role,
-      department: user.department || "",
+      department: E.departments(user),
       sector: user.sector || [],
       enabled: user.enabled,
     } : { ...EMPTY_USER });
@@ -117,7 +118,7 @@ export function AdminUsersPanel() {
         return;
       }
       if (!displayName) { setFormError("姓名不能为空。"); return; }
-      if (["owner", "lead"].includes(form.role) && !form.department.trim()) {
+      if (["owner", "lead"].includes(form.role) && !form.department.length) {
         setFormError("Owner 和部门负责人必须填写部门。");
         return;
       }
@@ -126,7 +127,7 @@ export function AdminUsersPanel() {
         return;
       }
       if (form.role === "owner" && !ownerAllowedSectors.includes(form.sector[0])) {
-        setFormError("Owner 的业务线必须在本部门负责人的业务线范围内。");
+        setFormError("Owner 的业务线必须在所有所选部门负责人的业务线范围内。");
         return;
       }
       if (form.role === "lead" && !(form.sector.length >= 1 && form.sector.length <= 4)) {
@@ -145,7 +146,7 @@ export function AdminUsersPanel() {
           display_name: form.display_name.trim(),
           role: form.role,
           department: ["owner", "lead"].includes(form.role)
-            ? form.department.trim().toUpperCase() : null,
+            ? form.department : [],
           sector: ["owner", "lead"].includes(form.role) ? form.sector : [],
           enabled: form.enabled,
         };
@@ -160,7 +161,7 @@ export function AdminUsersPanel() {
       else setRevision((value) => value + 1);
       await refresh();
     } catch (error) {
-      if (error.status === 409 && error.message?.includes("Initiative")) {
+      if (dialog.kind === "delete" && error.status === 409 && error.message?.includes("Initiative")) {
         setDialog({ kind: "blocked", user: dialog.user });
       } else {
         setFormError(error.message || "操作失败，请重试。");
@@ -231,7 +232,7 @@ export function AdminUsersPanel() {
                 <td>{user.email}</td>
                 <td>{user.display_name}</td>
                 <td>{ROLE_LABELS[user.role] || user.role}</td>
-                <td>{user.department || "—"}</td>
+                <td>{E.departments(user).join("、") || "—"}</td>
                 <td>{user.sector?.length ? user.sector.join("、") : "—"}</td>
                 <td><span className={`badge ${user.enabled ? "teal" : "amber"}`}>
                   {user.enabled ? "启用" : "停用"}</span></td>
@@ -269,15 +270,15 @@ export function AdminUsersPanel() {
         {dialog.kind === "delete" && <p>确定删除 <strong>{dialog.user.email}</strong>？删除后该邮箱将无法登录工作台。</p>}
         {["create", "edit"].includes(dialog.kind) && <>
           <label className="form-field">邮箱
-            <input type="email" maxLength={255} value={form.email} autoFocus
+            <input disabled={dialog.user?.has_initiatives} type="email" maxLength={255} value={form.email} autoFocus
               onChange={(event) => setForm({ ...form, email: event.target.value })} />
           </label>
           <label className="form-field">姓名
-            <input maxLength={255} value={form.display_name}
+            <input disabled={dialog.user?.has_initiatives} maxLength={255} value={form.display_name}
               onChange={(event) => setForm({ ...form, display_name: event.target.value })} />
           </label>
           <label className="form-field">角色
-            <select value={form.role} onChange={(event) => setForm({
+            <select disabled={dialog.user?.has_initiatives} value={form.role} onChange={(event) => setForm({
               ...form, role: event.target.value,
               department: departmentAfterRoleChange(event.target.value, form.department),
               sector: sectorAfterRoleChange(event.target.value, form.sector),
@@ -285,28 +286,20 @@ export function AdminUsersPanel() {
               {Object.entries(ROLE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </label>
-          {["owner", "lead"].includes(form.role) && <label className="form-field">部门
-            <select value={form.department}
-              onChange={(event) => {
-                const department = event.target.value;
-                const allowedSectors = ownerSectorOptions(
-                  department,
-                  result.lead_sectors_by_department,
-                );
-                setForm({
-                  ...form,
-                  department,
-                  sector:
-                    form.role === "owner" && !allowedSectors.includes(form.sector[0])
-                      ? []
-                      : form.sector,
-                });
-              }}>
-              {userDepartmentOptions(form.department).map((value) => (
-                <option key={value} value={value}>{value}</option>
-              ))}
-            </select>
-          </label>}
+          {dialog.user?.has_initiatives && <p className="note-box">已有预算事项，仅可调整部门；仍有项目的部门必须保留。</p>}
+          {["owner", "lead"].includes(form.role) && <div className="form-field">部门（可多选）
+            <div className="sector-choice-group" role="group" aria-label="选择部门">
+              {userDepartmentOptions(form.department).map((value) => <button
+                key={value} type="button"
+                className={`sector-choice${form.department.includes(value) ? " is-selected" : ""}`}
+                aria-pressed={form.department.includes(value)}
+                onClick={() => {
+                  const department = form.department.includes(value) ? form.department.filter((dep) => dep !== value) : [...form.department, value];
+                  const allowed = ownerSectorOptions(department, result.lead_sectors_by_department);
+                  setForm({ ...form, department, sector: form.role === "owner" && !dialog.user?.has_initiatives && !allowed.includes(form.sector[0]) ? [] : form.sector });
+                }}>{value}</button>)}
+            </div>
+          </div>}
           {["owner", "lead"].includes(form.role) && <div className="form-field">业务线
             <div className="sector-choice-group" role="group" aria-label="选择业务线">
               {SECTORS.map((value) => <button
@@ -314,7 +307,7 @@ export function AdminUsersPanel() {
                 type="button"
                 className={`sector-choice${form.sector.includes(value) ? " is-selected" : ""}`}
                 aria-pressed={form.sector.includes(value)}
-                disabled={form.role === "owner" && !ownerAllowedSectors.includes(value)}
+                disabled={dialog.user?.has_initiatives || form.role === "owner" && !ownerAllowedSectors.includes(value)}
                 onClick={() => setForm({
                   ...form,
                   sector: toggleSectorSelection(form.role, form.sector, value),
@@ -323,12 +316,12 @@ export function AdminUsersPanel() {
             </div>
             <small>{form.role === "owner"
               ? ownerAllowedSectors.length
-                ? `Owner 仅可选择部门负责人已覆盖的业务线：${ownerAllowedSectors.join("、")}。`
+                ? `Owner 仅可选择所有所选部门负责人共同覆盖的业务线：${ownerAllowedSectors.join("、")}。`
                 : "请先为该部门配置启用的部门负责人及其业务线。"
               : "部门负责人可选择一至四条业务线。"}</small>
           </div>}
           <label className="user-enabled-field">
-            <input type="checkbox" checked={form.enabled}
+            <input type="checkbox" disabled={dialog.user?.has_initiatives} checked={form.enabled}
               onChange={(event) => setForm({ ...form, enabled: event.target.checked })} />启用该用户
           </label>
         </>}

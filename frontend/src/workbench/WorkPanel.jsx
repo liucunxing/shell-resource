@@ -92,7 +92,7 @@ export function WorkPanel({ overlay, panelSize }) {
         view.initiatives.some((item) => item.id === initiativeId)
         ? `initiative:${initiativeId}`
         : `owner:${identity.ownerId}`
-      : identity.department || "global";
+      : E.departments(identity)[0] || "global";
   const scope = auxiliary.scope || defaultScope;
   return (
     <>
@@ -160,7 +160,7 @@ export function WorkPanel({ overlay, panelSize }) {
                 : "历史参考"}
           </h2>
           <span className="small-text muted">
-            {identity.department || "全局"}
+            {E.departments(identity).join("、") || "全局"}
           </span>
         </div>
         <div
@@ -360,7 +360,7 @@ function ReferencePanel() {
           <span>
             {model.allResources
               ? "全部资源"
-              : `${identity.department} 授权范围`}
+              : `${E.departments(identity).join("、")} 授权范围`}
           </span>
         </div>
         {model.resources.map((resource) => (
@@ -483,7 +483,7 @@ function LocalChat() {
       identity.role === "owner"
         ? "本人负责"
         : identity.role === "lead"
-          ? `${identity.department} 本部门`
+          ? `${E.departments(identity).join("、")} 本部门`
           : identity.role === "admin"
             ? "预算配置"
             : "最新同步";

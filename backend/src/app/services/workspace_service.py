@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.departments import departments
 from app.dependencies.workbench_user import WorkbenchUser
 from app.models.do.budget import BudgetDO
 from app.models.do.workspace import (
@@ -74,12 +75,10 @@ class WorkspaceService:
         elif self.user.role == "owner":
             # An Owner can review every dealer in the single business line assigned to them.
             dealers = await reference_service.get_dealers(
-                planning_year, self.user.department, sectors=self.user.sectors
+                planning_year, self.user.departments, sectors=self.user.sectors
             )
         elif self.user.role == "management":
-            dealers = await reference_service.get_dealers(
-                planning_year, self.user.department, dealer_ids
-            )
+            dealers = await reference_service.get_dealers(planning_year, None, dealer_ids)
         audit = []
         if self.user.role != "management":
             audit = [
@@ -242,16 +241,18 @@ class WorkspaceService:
 
     def _matches(self, budget: BudgetDO) -> bool:
         if self.user.role == "owner":
-            return budget.owner_email == self.user.email
-        return budget.department == self.user.department
+            return (
+                budget.owner_email == self.user.email and budget.department in self.user.departments
+            )
+        return budget.department in self.user.departments
 
-    def _scope(self) -> tuple[str | None, str | None, str | None]:
+    def _scope(self) -> tuple[tuple[str, ...] | None, str | None, str | None]:
         if self.user.role == "owner":
-            return self.user.department, None, self.user.email
+            return self.user.departments, None, self.user.email
         if self.user.role == "lead":
-            return self.user.department, None, None
+            return self.user.departments, None, None
         if self.user.role == "management":
-            return self.user.department, None, None
+            return None, None, None
         return None, None, None
 
     def _identity(self) -> dict:
@@ -259,7 +260,7 @@ class WorkspaceService:
             "key": self.user.email,
             "email": self.user.email,
             "role": self.user.role,
-            "department": self.user.department,
+            "department": list(self.user.departments),
             "sectors": list(self.user.sectors),
             "ownerId": self.user.email,
             "label": self.user.display_name,
@@ -339,7 +340,7 @@ class WorkspaceService:
             "email": item.email,
             "label": item.display_name,
             "role": item.role,
-            "department": item.department,
+            "department": departments(item.department),
         }
 
     async def _validate_rows(self, rows: list, other: list, budget: BudgetDO) -> None:

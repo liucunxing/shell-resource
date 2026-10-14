@@ -3,6 +3,7 @@ from decimal import Decimal
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.departments import departments
 from app.models.do.budget import BudgetDO
 from app.models.do.budget_distributor import BudgetDistributorDO
 from app.models.do.workspace import (
@@ -36,11 +37,15 @@ class WorkspaceRepository:
         )
 
     async def list_budgets(
-        self, year: int, department: str | None, sector: str | None, owner: str | None
+        self,
+        year: int,
+        department: str | list[str] | tuple[str, ...] | None,
+        sector: str | None,
+        owner: str | None,
     ) -> list[BudgetDO]:
         statement = select(BudgetDO).where(BudgetDO.planning_year == year)
-        if department:
-            statement = statement.where(BudgetDO.department == department)
+        if department is not None:
+            statement = statement.where(BudgetDO.department.in_(departments(department)))
         if sector:
             statement = statement.where(BudgetDO.sector == sector)
         if owner:
@@ -51,7 +56,7 @@ class WorkspaceRepository:
         self,
         budget_id: int,
         planning_year: int | None,
-        department: str | None,
+        department: str | list[str] | tuple[str, ...] | None,
         sector: str | None,
         owner_email: str | None,
         for_update: bool = False,
@@ -59,8 +64,8 @@ class WorkspaceRepository:
         statement = select(BudgetDO).where(BudgetDO.id == budget_id)
         if planning_year is not None:
             statement = statement.where(BudgetDO.planning_year == planning_year)
-        if department:
-            statement = statement.where(BudgetDO.department == department)
+        if department is not None:
+            statement = statement.where(BudgetDO.department.in_(departments(department)))
         if sector:
             statement = statement.where(BudgetDO.sector == sector)
         if owner_email:
@@ -97,11 +102,15 @@ class WorkspaceRepository:
         return list((await self.session.scalars(statement)).all())
 
     async def latest_publications(
-        self, year: int, department: str | None, sector: str | None, owner: str | None
+        self,
+        year: int,
+        department: str | list[str] | tuple[str, ...] | None,
+        sector: str | None,
+        owner: str | None,
     ) -> list[WorkspacePublicationDO]:
         ids = select(BudgetDO.id).where(BudgetDO.planning_year == year)
-        if department:
-            ids = ids.where(BudgetDO.department == department)
+        if department is not None:
+            ids = ids.where(BudgetDO.department.in_(departments(department)))
         if sector:
             ids = ids.where(BudgetDO.sector == sector)
         if owner:
@@ -185,8 +194,13 @@ class WorkspaceRepository:
             statement = statement.where(
                 BudgetChangeLogDO.operation_type.in_(
                     [
-                        "ADMIN_UPDATE", "ADMIN_CREATE", "CONFIG_UPDATE", "REFERENCE_IMPORT",
-                        "USER_CREATE", "USER_UPDATE", "USER_DELETE",
+                        "ADMIN_UPDATE",
+                        "ADMIN_CREATE",
+                        "CONFIG_UPDATE",
+                        "REFERENCE_IMPORT",
+                        "USER_CREATE",
+                        "USER_UPDATE",
+                        "USER_DELETE",
                     ]
                 )
             )

@@ -1177,6 +1177,10 @@ tr:hover td {
 }
 .user-list-footer { margin-top: 12px; color: var(--muted); }
 .user-dialog { border: 0; padding: 0; }
+.user-dialog[open] { display: flex; flex-direction: column; }
+.user-dialog .modal-body { min-height: 0; overflow-y: auto; }
+.user-dialog .modal-head,
+.user-dialog .modal-foot { flex: 0 0 auto; }
 .user-enabled-field { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; }
 .sector-choice-group { display: flex; flex-wrap: wrap; gap: 8px; }
 .sector-choice {

@@ -61,7 +61,7 @@ class WorkbenchService:
             raise HTTPException(status_code=403, detail="当前角色请使用工作台投影接口")
         initiatives = await self.budget_repository.list_for_workbench(
             planning_year=WORKBENCH_PLANNING_YEAR,
-            department=self.user.department,
+            department=list(self.user.departments),
             sector=None,
             owner_email=self.user.email if self.user.role == "owner" else None,
             initiative_keyword=initiative_keyword,
@@ -70,7 +70,7 @@ class WorkbenchService:
         )
         all_items = await self.budget_repository.list_for_workbench(
             planning_year=WORKBENCH_PLANNING_YEAR,
-            department=self.user.department,
+            department=list(self.user.departments),
             sector=None,
             owner_email=self.user.email if self.user.role == "owner" else None,
             initiative_keyword=None,
@@ -84,7 +84,7 @@ class WorkbenchService:
             current_user=WorkbenchUserVO(
                 user_id=self.user.user_id,
                 user_name=self.user.user_name,
-                department=self.user.department,
+                department=list(self.user.departments),
             ),
             initiatives=[self._initiative_vo(item) for item in initiatives],
             responsible_budget=ResponsibleBudgetVO(
@@ -250,7 +250,7 @@ class WorkbenchService:
         budget = await self.budget_repository.get_scoped(
             budget_id=budget_id,
             planning_year=None,
-            department=self.user.department,
+            department=list(self.user.departments),
             sector=None,
             owner_email=self.user.email if self.user.role == "owner" else None,
             for_update=writable,

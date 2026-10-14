@@ -27,9 +27,7 @@ async def api(monkeypatch):
             {"distributor_code": "d2", "distributor_name": "Dealer 2"},
         ]
 
-    monkeypatch.setattr(
-        DatabricksDistributorRepository, "list_distributors", list_distributors
-    )
+    monkeypatch.setattr(DatabricksDistributorRepository, "list_distributors", list_distributors)
     seed = await _session()
     engine = seed.bind
     for index, (email, role, dept, sectors) in enumerate(
@@ -329,3 +327,69 @@ async def test_append_import_duplicate_batch_rolls_back(api):
         "data"
     ]
     assert len(rows) == 1 and rows[0]["distributor_code"] == "d1"
+
+
+@pytest.mark.asyncio
+async def test_multiple_departments_scope_writes_publications_and_revocation(api):
+    client, engine = api
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        for email in ("a@example.com", "lead@example.com"):
+            user = await session.scalar(
+                select(UserPermissionDO).where(UserPermissionDO.email == email)
+            )
+            user.department = ["MKT", "ICE"]
+        for number, dep, owner in [(3, "ICE", "a"), (4, "CAPEX", "a"), (5, "ICE", "b")]:
+            session.add(
+                BudgetDO(
+                    id=number,
+                    planning_year=2027,
+                    sector="PCMO",
+                    department=dep,
+                    resource_type="MRD",
+                    initiative_name=f"Multi {number}",
+                    plan_budget_amount=100,
+                    allocate_budget_amount=0,
+                    owner_email=f"{owner}@example.com",
+                    revision=0,
+                    status=0,
+                    input_source="TEST",
+                )
+            )
+        await session.commit()
+    for email, ids in [("a@example.com", {"1", "3"}), ("lead@example.com", {"1", "2", "3", "5"})]:
+        response = await client.get("workspace?planning_year=2027", headers=headers(email))
+        assert response.status_code == 200, response.text
+        body = response.json()["data"]
+        assert body["identity"]["department"] == ["MKT", "ICE"]
+        assert {i["id"] for i in body["state"]["initiatives"]} == ids
+        legacy = await client.get("my-initiatives", headers=headers(email))
+        assert legacy.status_code == 200, legacy.text
+        assert {str(i["id"]) for i in legacy.json()["data"]["initiatives"]} == ids
+        assert (await client.get("initiatives/4/draft", headers=headers(email))).status_code == 404
+    assert (await client.get("initiatives/5/draft", headers=headers())).status_code == 404
+    draft = {"expected_revision": 0, "rows": [{"dealerId": "d1", "amount": 100, "note": "test"}]}
+    assert (
+        await client.put("initiatives/3/draft", headers=headers("lead@example.com"), json=draft)
+    ).status_code == 403
+    saved = await client.put("initiatives/3/draft", headers=headers(), json=draft)
+    assert saved.status_code == 200, saved.text
+    published = await client.post(
+        "initiatives/3/publish", headers=headers(), json={"expected_revision": 1}
+    )
+    assert published.status_code == 200, published.text
+    assert (
+        await client.get("initiatives/3/publications", headers=headers("lead@example.com"))
+    ).status_code == 200
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        user = await session.get(UserPermissionDO, 1)
+        user.department = ["MKT"]
+        await session.commit()
+    assert (await client.get("initiatives/3/draft", headers=headers())).status_code == 404
+    assert (
+        await client.put("initiatives/3/draft", headers=headers(), json=draft)
+    ).status_code == 404
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        user = await session.get(UserPermissionDO, 1)
+        user.department = []
+        await session.commit()
+    assert (await client.get("workspace?planning_year=2027", headers=headers())).status_code == 403

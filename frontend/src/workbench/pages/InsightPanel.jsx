@@ -46,7 +46,7 @@ export function InsightPanel({ scope }) {
     readOnly = identity.role === "management";
   const incoming =
     scope ||
-    (own ? "owner:" + identity.ownerId : identity.department || "global");
+    (own ? "owner:" + identity.ownerId : E.departments(identity)[0] || "global");
   const effective = readOnly
     ? "global"
     : selection?.source === incoming && selection?.identity === identity.key
@@ -119,6 +119,13 @@ export function InsightPanel({ scope }) {
         : effective + " 部门工作稿";
   return (
     <div className="insight-panel">
+      {identity.role === "lead" && E.departments(identity).length > 1 && (
+        <label className="form-field insight-scope-select">分析部门
+          <select aria-label="分析部门" value={effective} onChange={(event) => setSelection({ source: incoming, identity: identity.key, value: event.target.value })}>
+            {E.departments(identity).map((dep) => <option key={dep} value={dep}>{dep}</option>)}
+          </select>
+        </label>
+      )}
       {own && (
         <label className="form-field insight-scope-select">
           分析范围

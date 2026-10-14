@@ -48,8 +48,8 @@ function scope(state, identity) {
         : identity.role === "admin"
           ? "全公司预算配置"
           : identity.role === "owner"
-            ? `${identity.department} / ${identity.ownerId} 本人方案`
-            : identity.department + " 本部门",
+            ? `${E.departments(identity).join("、")} / ${identity.ownerId} 本人方案`
+            : E.departments(identity).join("、") + " 本部门",
     coverage: {
       published,
       total: identity.role === "management" ? 3 : deps.length,
@@ -281,11 +281,7 @@ function rawData(state, identity, data, tab) {
     const all = ["management", "admin", "lead"].includes(identity.role);
     const resources = all
       ? ["MRD", "SP&A", "ICE Rebate", "Capex"]
-      : identity.department === "MKT"
-        ? ["MRD", "SP&A"]
-        : identity.department === "ICE"
-          ? ["ICE Rebate"]
-          : ["Capex"];
+      : Object.entries(E.RESOURCE_DEPARTMENT).filter(([, dep]) => E.hasDepartment(identity, dep)).map(([resource]) => resource);
     const history = [
       ["vol2024", "2024 Vol (KL)"],
       ["c32024", "2024 C3 (K$)"],
@@ -316,7 +312,7 @@ function rawData(state, identity, data, tab) {
     model.scopeLabel =
       identity.role === "owner"
         ? `业务线 ${ownerSectors || "未配置"} · 全部经销商历史`
-        : `共享经销商 Vol / C3 · ${all ? "全业务线" : identity.department + " 授权资源"}`;
+        : `共享经销商 Vol / C3 · ${all ? "全业务线" : E.departments(identity).join("、") + " 授权资源"}`;
     model.basisLabel = `源历史数据 · 共 ${data.dealers.length} 家经销商`;
     model.notes.push(
       "2024、2025 为全年；2026 为 1–8 月累计，不默认同比或年化。",

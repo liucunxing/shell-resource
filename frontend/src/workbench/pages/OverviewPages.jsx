@@ -365,12 +365,19 @@ export function HomePage() {
 export function DepartmentPage() {
   const { view, identity, openAuxiliary } = useWorkbench(),
     own = identity.role === "owner",
-    dep = identity.department,
+    departments = E.departments(identity),
+    [selectedDepartment, setSelectedDepartment] = useState(departments[0]),
+    dep = departments.includes(selectedDepartment) ? selectedDepartment : departments[0],
     items = view.initiatives.filter((i) => i.department === dep),
     t = own ? view.summaries[dep] : E.totals(items);
   if (!t) return <div className="empty">当前角色无权查看部门工作稿。</div>;
   return (
     <>
+      {departments.length > 1 && <label className="form-field">查看部门
+        <select aria-label="查看部门" value={dep} onChange={(event) => setSelectedDepartment(event.target.value)}>
+          {departments.map((value) => <option key={value} value={value}>{value}</option>)}
+        </select>
+      </label>}
       <PageHead
         title={<>
           {dep} · 部门总览

@@ -216,7 +216,7 @@ async function previewImport(buffer, state, identity, users = []) {
       );
       if (
         !owner ||
-        owner.department !== item.department
+        !engine.hasDepartment(owner, item.department)
       )
         add(
           `第 ${rowNumber} 行：Owner 必须是项目部门内已配置的 Owner 邮箱。`,

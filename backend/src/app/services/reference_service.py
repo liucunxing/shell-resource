@@ -2,6 +2,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.departments import departments
 from app.repositories.reference_repository import ReferenceRepository
 
 
@@ -12,7 +13,7 @@ class ReferenceService:
     async def get_dealers(
         self,
         planning_year: int,
-        department: str | None = None,
+        department: str | tuple[str, ...] | list[str] | None = None,
         dealer_ids: list[str] | None = None,
         sectors: tuple[str, ...] | None = None,
     ) -> list[dict]:
@@ -32,7 +33,11 @@ class ReferenceService:
                 "ICE Rebate": row["reb_2025"],
                 "Capex": row["capex_2025"],
             }
-            visible = allowed.get(department, set()) if department else set(resources)
+            visible = (
+                set().union(*(allowed.get(dep, set()) for dep in departments(department)))
+                if department is not None
+                else set(resources)
+            )
             history_values = {
                 "vol2024": row["volume_2024"],
                 "c32024": row["c3_2024"],

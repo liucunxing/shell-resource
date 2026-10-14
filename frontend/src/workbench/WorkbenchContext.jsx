@@ -86,6 +86,9 @@ function normalizeWorkspace(payload) {
     publications: incoming.publications || {},
     audit: incoming.audit || [],
   };
+  for (const dep of new Set([...E.departments(payload.identity), ...state.initiatives.map((item) => item.department)])) {
+    state.departments[dep] ||= { id: dep, status: "collecting", versions: [], comments: [] };
+  }
   state.initiatives = state.initiatives.map((item) => ({
     ...item,
     id: String(item.id),
@@ -97,6 +100,7 @@ function normalizeWorkspace(payload) {
   const identity = payload.identity && {
     ...payload.identity,
     apiMode: true,
+    department: E.departments(payload.identity),
     ownerId: payload.identity.ownerId || payload.identity.email,
   };
   return {
@@ -588,7 +592,7 @@ export function WorkbenchProvider({ children }) {
       open: chosen.role === "lead",
       tab: "insight",
       dealerId: "",
-      scope: chosen.department || "global",
+      scope: E.departments(chosen)[0] || "global",
     });
     return true;
   };

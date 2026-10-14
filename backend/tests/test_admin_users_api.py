@@ -103,7 +103,10 @@ async def test_create_search_edit_disable_and_delete_user(api):
     assert created.status_code == 200, created.text
     user = created.json()["data"]
     assert (user["email"], user["display_name"], user["department"], user["sector"]) == (
-        "new@example.com", "新执行人", "ICE", ["PCMO"]
+        "new@example.com",
+        "新执行人",
+        ["ICE"],
+        ["PCMO"],
     )
     user_id = user["id"]
 
@@ -111,7 +114,10 @@ async def test_create_search_edit_disable_and_delete_user(api):
         "admin/users",
         headers=headers(),
         params={
-            "email": "NEW", "name": "执行", "role": "owner", "department": "ICE",
+            "email": "NEW",
+            "name": "执行",
+            "role": "owner",
+            "department": "ICE",
             "sector": "PCMO",
         },
     )
@@ -174,9 +180,7 @@ async def test_email_is_unique_and_user_fields_are_validated(api):
 @pytest.mark.asyncio
 async def test_owner_sector_must_be_covered_by_an_enabled_department_lead(api):
     client, engine = api
-    rejected = await client.post(
-        "admin/users", headers=headers(), json=payload(sector=["B2B"])
-    )
+    rejected = await client.post("admin/users", headers=headers(), json=payload(sector=["B2B"]))
     assert rejected.status_code == 422
     assert "未被任何启用的部门负责人覆盖" in rejected.json()["msg"]
 
@@ -226,3 +230,78 @@ async def test_budget_owner_cannot_be_edited_or_deleted_even_if_case_differs(api
         assert "已有 Initiative 预算事项" in response.json()["msg"]
     async with AsyncSession(engine) as session:
         assert (await session.get(UserPermissionDO, user_id)).email == "a@example.com"
+
+
+@pytest.mark.asyncio
+async def test_multi_department_create_search_coverage_and_legacy_input(api):
+    client, engine = api
+    response = await client.post(
+        "admin/users", headers=headers(), json=payload(department=["mkt", " ICE "])
+    )
+    assert response.status_code == 200, response.text
+    user = response.json()["data"]
+    assert user["department"] == ["MKT", "ICE"]
+    for dep in ("MKT", "ICE"):
+        listed = await client.get(
+            "admin/users", headers=headers(), params={"department": dep, "email": user["email"]}
+        )
+        assert listed.json()["data"]["total"] == 1
+    for value in (["MKT", "mkt"], [], [""], [False], {"MKT": True}):
+        bad = await client.post(
+            "admin/users",
+            headers=headers(),
+            json=payload(email="invalid@example.com", department=value),
+        )
+        assert bad.status_code == 422
+    uncovered = await client.post(
+        "admin/users",
+        headers=headers(),
+        json=payload(email="uncovered@example.com", department=["MKT", "ICE"], sector=["CRTO"]),
+    )
+    assert uncovered.status_code == 422
+    created = await client.post(
+        "admin/budgets",
+        headers=headers(),
+        json={
+            "planning_year": 2027,
+            "items": [
+                {
+                    "name": "Cross department Owner",
+                    "sector": "PCMO",
+                    "resourceType": "MRD",
+                    "department": "ICE",
+                    "ownerId": user["email"],
+                    "budget": 1,
+                }
+            ],
+        },
+    )
+    assert created.status_code == 200, created.text
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        stored = await session.get(UserPermissionDO, user["id"])
+        assert stored.department == ["MKT", "ICE"]
+
+
+@pytest.mark.asyncio
+async def test_existing_owner_can_add_department_but_not_remove_used_department(api):
+    client, _ = api
+    update = {
+        "email": "a@example.com",
+        "display_name": "A",
+        "role": "owner",
+        "department": ["MKT", "ICE"],
+        "sector": ["PCMO"],
+        "enabled": True,
+    }
+    response = await client.put("admin/users/1", headers=headers(), json=update)
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["department"] == ["MKT", "ICE"]
+    blocked = await client.put(
+        "admin/users/1", headers=headers(), json={**update, "department": ["ICE"]}
+    )
+    assert blocked.status_code == 409
+    restored = await client.put(
+        "admin/users/1", headers=headers(), json={**update, "department": "MKT"}
+    )
+    assert restored.status_code == 200
+    assert restored.json()["data"]["department"] == ["MKT"]

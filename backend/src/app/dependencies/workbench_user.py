@@ -5,6 +5,7 @@ from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.departments import departments
 from app.db.session import get_db_session
 from app.repositories.workspace_repository import WorkspaceRepository
 
@@ -15,9 +16,13 @@ class WorkbenchUser:
 
     email: str
     role: str
-    department: str | None
+    department: str | list[str] | tuple[str, ...] | None
     display_name: str
     sectors: tuple[str, ...] = ()
+
+    @property
+    def departments(self) -> tuple[str, ...]:
+        return tuple(departments(self.department))
 
     @property
     def owner_id(self) -> str:
@@ -48,7 +53,7 @@ async def get_current_workbench_user(
     if permission is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前邮箱没有工作台权限")
     if permission.role not in {"owner", "lead", "management", "admin"} or (
-        permission.role in {"owner", "lead"} and not (permission.department or "").strip()
+        permission.role in {"owner", "lead"} and not departments(permission.department)
     ):
         raise HTTPException(status_code=403, detail="用户权限配置无效")
     return WorkbenchUser(
