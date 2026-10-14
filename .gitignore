@@ -96,5 +96,7 @@ deploy/settings.toml
 
 # HTTPS certificates, uploaded archives and rollout backups (server only)
 deploy/certs/
+gateway/.env
+gateway/certs/
 deploy/backups/
 digitalshell.com.cn_nginx.zip

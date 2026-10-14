@@ -2,7 +2,7 @@
 
 本文用于把 Shell Forecast 部署到 Linux 服务器 `172.19.49.45`。当前方案是单机 Docker Compose：一个镜像包含 React 编译产物和 FastAPI，PostgreSQL 使用外部数据库，不在本机自动创建或清空数据库。
 
-已有服务从 `http://resource.digitalshell.com.cn:18080/` 切换到 `https://resource.digitalshell.com.cn/` 时，按 [Docker Nginx HTTPS 操作手册](HTTPS.md) 执行；不要安装主机 Nginx。HTTPS 启用后 `deploy/deploy.sh` 会同时检查并维护 Nginx 和应用入口。
+公网 HTTPS 由服务器级 [共享网关](SHARED_GATEWAY.md) 统一管理；本项目只监听 `127.0.0.1:18080`。不要在本项目中安装或启动独占 80/443 的 Nginx。
 
 ## 一键部署（推荐入口）
 
@@ -42,7 +42,7 @@ sudo bash deploy/deploy.sh --port 8080
 
 任意命令失败立即停止，打印步骤名、退出码、脚本行号（命令执行失败时）、日志位置和排查命令。日志实时保存到 `logs/deploy/日期时间-进程号.log`，可用 `sudo tail -f <日志路径>` 跟踪；日志目录不进入 Git 或镜像。
 
-端口优先级：`--port` > 当前 shell 的 `APP_PORT` > `deploy/.env` 的 `APP_PORT` > 默认 80。`--port` 会写回 `deploy/.env`，后续重启沿用。容器内部保持 8000，无需修改代码或前端 API 地址。
+端口优先级：`--port` > 当前 shell 的 `APP_PORT` > `deploy/.env` 的 `APP_PORT` > 默认 18080。`--port` 会写回 `deploy/.env`，后续重启沿用。生产部署必须保持 `APP_BIND_ADDRESS=127.0.0.1`；容器内部保持 8000，无需修改代码或前端 API 地址。
 
 ```bash
 # 改为 18080，先检查是否被其他服务占用

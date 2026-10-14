@@ -9,7 +9,6 @@ STEP=0
 STAGE="参数检查"
 LOG_FILE=""
 COMPOSE_READY=0
-HTTPS_ACTIVE=0
 PORT_OVERRIDE=""
 INIT_ONLY=0
 WAIT_SECONDS=180
@@ -168,11 +167,7 @@ p = c["services"]["app"]["ports"][0]
 print(p["published"], p.get("host_ip", "0.0.0.0"))
 ')
 BIND=${BIND%$'\r'}
-HTTPS_ACTIVE=$(printf '%s' "$CONFIG" | python3 -c 'import json,sys; print(int("nginx" in json.load(sys.stdin)["services"]))')
-if ((HTTPS_ACTIVE)); then
-    [[ "$BIND" == 127.0.0.1 ]] || fail 'HTTPS 模式要求 APP_BIND_ADDRESS=127.0.0.1，请检查 deploy/.env 和 shell 环境'
-    bash deploy/https.sh --check
-fi
+[[ "$BIND" == 127.0.0.1 ]] || fail '共享网关模式要求 APP_BIND_ADDRESS=127.0.0.1；请检查 deploy/.env 和 shell 环境'
 [[ "$PORT" =~ ^[1-9][0-9]{0,4}$ ]] && (( PORT <= 65535 )) || fail "APP_PORT 无效"
 log "入口配置：$BIND:$PORT → 容器 8000"
 if [[ -n "$(git -c "safe.directory=$ROOT" status --porcelain)" ]]; then
@@ -201,12 +196,6 @@ if ((OWN_PORT)); then log "端口由本项目旧容器使用，允许原地更�
 done_step
 
 step "构建前端和后端镜像"
-if ((HTTPS_ACTIVE)); then
-    # Check Nginx before replacing the running application; never auto-renew certificates.
-    NGINX_IMAGE=$(printf '%s' "$CONFIG" | python3 -c 'import json,sys; print(json.load(sys.stdin)["services"]["nginx"]["image"])')
-    if ! docker image inspect "$NGINX_IMAGE" >/dev/null 2>&1; then "${COMPOSE[@]}" pull nginx; fi
-    "${COMPOSE[@]}" run --rm --no-deps -T nginx nginx -t
-fi
 "${COMPOSE[@]}" --progress plain build --pull app
 done_step
 
@@ -228,9 +217,6 @@ done_step
 
 step "启动或更新应用容器"
 "${COMPOSE[@]}" up -d --no-build app
-if ((HTTPS_ACTIVE)); then
-    "${COMPOSE[@]}" up -d --no-build nginx
-fi
 done_step
 
 step "等待容器健康（最多 ${WAIT_SECONDS}s）"
@@ -256,16 +242,6 @@ curl --noproxy '*' --fail --show-error --silent --max-time 15 "http://$HOST:$POR
 printf '\n'
 curl --noproxy '*' --fail --show-error --silent --max-time 15 -o /dev/null "http://$HOST:$PORT/"
 "${COMPOSE[@]}" ps
-if ((HTTPS_ACTIVE)); then
-    # Nginx may still be starting, so wait for its own health before end-to-end check.
-    "${COMPOSE[@]}" up -d --no-build --wait --wait-timeout "$WAIT_SECONDS" nginx
-    bash deploy/https.sh --verify
-fi
 done_step
-if ((HTTPS_ACTIVE)); then
-    DOMAIN=$(printf '%s' "$CONFIG" | python3 -c 'import json,sys; print(json.load(sys.stdin)["services"]["nginx"]["environment"]["HTTPS_DOMAIN"])')
-    log "部署成功，访问地址：https://$DOMAIN/"
-else
-    log "部署成功，访问地址：http://<服务器IP>:$PORT/（目标服务器：172.19.49.45）"
-fi
+log "部署成功，应用本机入口：http://127.0.0.1:$PORT/；公网入口由 /opt/digitalshell-gateway 管理。"
 log "日志：$LOG_FILE"

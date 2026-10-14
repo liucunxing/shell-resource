@@ -1,6 +1,6 @@
 # 资源投资工作台服务器运维手册
 
-本文是日常发布入口，适用于已启用 Docker Nginx HTTPS 的 ECS：
+本文是 resource 应用的日常发布入口；公网 HTTPS 与域名路由由服务器级共享网关管理：
 
 ```text
 公网 https://resource.digitalshell.com.cn:443
@@ -37,11 +37,11 @@ git diff --name-only HEAD..origin/main -- backend/migrations
 git checkout --detach origin/main
 git rev-parse --short=12 HEAD
 
-# 5. 构建新镜像、更新 app 和 nginx、等待健康检查，并验证 HTTPS。
+# 5. 构建新镜像、更新 app、等待健康检查。
 sudo bash deploy/deploy.sh --port 18080
 ```
 
-`deploy/deploy.sh` 在 HTTPS 模式会校验证书和 Nginx 配置，然后重新构建应用镜像；不需要额外手动重启 Nginx。它不会拉取 Git 代码、不会自动执行数据库迁移、不会清空数据库。
+`deploy/deploy.sh` 会重新构建并更新应用镜像；它不会拉取 Git 代码、不会自动执行数据库迁移、不会清空数据库，也不会重启共享网关。首次切换或证书/路由变更按 [共享 HTTPS 网关操作手册](SHARED_GATEWAY.md) 执行。
 
 如果 `git status --short` 报 `.git/index: Permission denied`，修复 Git 元数据属主后再继续：
 
@@ -72,16 +72,16 @@ sudo docker compose --env-file deploy/.env run --rm --no-deps app alembic curren
 
 ## 发布或重启后的检查
 
-部署脚本成功后，执行以下命令确认容器、HTTPS 和日志：
+部署脚本成功后，执行以下命令确认应用容器、共享 HTTPS 入口和日志：
 
 ```bash
 cd /opt/shell-forecast
 sudo docker compose --env-file deploy/.env ps
-sudo bash deploy/https.sh --verify
-sudo docker compose --env-file deploy/.env logs --tail=100 nginx app
+sudo docker compose --env-file deploy/.env logs --tail=100 app
+curl --noproxy '*' --fail https://resource.digitalshell.com.cn/health
 ```
 
-预期：`app` 和 `nginx` 都为 `healthy`，`https.sh --verify` 返回健康响应。
+预期：`app` 为 `healthy`，公网健康接口返回成功。网关状态请在 `/opt/digitalshell-gateway` 通过 `sudo docker compose --env-file .env ps` 查看。
 
 从本地 Windows PowerShell 再验证一次公网入口：
 
@@ -93,7 +93,7 @@ curl.exe --fail https://resource.digitalshell.com.cn/health
 实时查看日志：
 
 ```bash
-sudo docker compose --env-file deploy/.env logs --tail=100 -f nginx app
+sudo docker compose --env-file deploy/.env logs --tail=100 -f app
 ```
 
 按 `Ctrl+C` 只会退出日志查看，不会停止容器。
@@ -105,52 +105,42 @@ sudo docker compose --env-file deploy/.env logs --tail=100 -f nginx app
 ```bash
 cd /opt/shell-forecast
 sudo docker compose --env-file deploy/.env restart app
-sudo bash deploy/https.sh --verify
+curl --noproxy '*' --fail http://127.0.0.1:18080/health
 ```
 
 仅重启不会加载新的前端或后端源码；源码改动必须走“日常代码发布”。修改前端构建变量（如 `VITE_YIWEN_IFRAME_URL`）也必须重新运行 `deploy.sh` 构建镜像。
 
 ## 证书有效期和续期
 
-当前 `*.digitalshell.com.cn` 证书有效至 **2026-11-27 07:59:59（北京时间）**。每次检查服务器当前实际证书：
+证书由共享网关持有。每次检查服务器当前实际证书：
 
 ```bash
-cd /opt/shell-forecast
-sudo openssl x509 -in deploy/certs/fullchain.pem -noout -dates
+sudo openssl x509 -in /opt/digitalshell-gateway/certs/fullchain.pem -noout -dates
 ```
 
-建议在到期前至少 14 天向运维索取续期后的 Nginx 格式 ZIP。拿到新 ZIP 后，在本地 Windows PowerShell 上传：
-
-```powershell
-scp -i "C:\Users\Lenovo\Desktop\id_ed25519" "C:\证书目录\new_digitalshell.com.cn_nginx.zip" ecs-user@47.117.67.109:/home/ecs-user/
-```
-
-服务器执行：
+建议在到期前至少 14 天向运维索取同时覆盖两个域名的 PEM 证书链和私钥。替换前先备份，再复制新文件并验证两个域名，最后重启共享网关：
 
 ```bash
-cd /opt/shell-forecast
-sudo chmod 600 /home/ecs-user/new_digitalshell.com.cn_nginx.zip
-sudo bash deploy/https.sh --cert-zip /home/ecs-user/new_digitalshell.com.cn_nginx.zip
-sudo bash deploy/https.sh --verify
+sudo cp -a /opt/digitalshell-gateway/certs /opt/digitalshell-gateway/certs.backup-$(date +%F)
+sudo install -m 0644 -o ecs-user -g ecs-user /path/to/fullchain.pem /opt/digitalshell-gateway/certs/fullchain.pem
+sudo install -m 0600 -o ecs-user -g ecs-user /path/to/private.key /opt/digitalshell-gateway/certs/private.key
+sudo openssl x509 -in /opt/digitalshell-gateway/certs/fullchain.pem -noout -checkhost resource.digitalshell.com.cn
+sudo openssl x509 -in /opt/digitalshell-gateway/certs/fullchain.pem -noout -checkhost oneportal.digitalshell.com.cn
+cd /opt/digitalshell-gateway
+sudo docker compose --env-file .env up -d --force-recreate nginx
 ```
 
-脚本会验证证书域名、有效期、完整链和私钥匹配，备份旧证书，然后重启相关容器。成功后可删除服务器上已导入的 ZIP，因为 ZIP 含私钥：
-
-```bash
-sudo rm -f /home/ecs-user/new_digitalshell.com.cn_nginx.zip
-```
-
-不要提交或传播 `deploy/certs/`、证书 ZIP、`.key`、`.pem`、`deploy/.env`、`deploy/settings.toml`。
+不要提交或传播 `/opt/digitalshell-gateway/certs/`、证书 ZIP、`.key`、`.pem`、`deploy/.env`、`deploy/settings.toml`。
 
 ## 快速排错和回滚
 
 ```bash
 # 容器状态和最近日志
 sudo docker compose --env-file deploy/.env ps
-sudo docker compose --env-file deploy/.env logs --tail=200 app nginx
+sudo docker compose --env-file deploy/.env logs --tail=200 app
 
 # 本机 HTTPS 验证，绕过 DNS 但仍验证证书
-sudo bash deploy/https.sh --verify
+curl --noproxy '*' --fail --resolve resource.digitalshell.com.cn:443:127.0.0.1 https://resource.digitalshell.com.cn/health
 
 # 查看最近部署日志
 ls -lt logs/deploy | head
@@ -168,5 +158,5 @@ sudo bash deploy/deploy.sh --port 18080
 
 ## 相关文档
 
-- [Docker Nginx HTTPS 首次部署与恢复](HTTPS.md)
+- [共享 HTTPS 网关首次部署与恢复](SHARED_GATEWAY.md)
 - [Docker 部署与数据库初始化](DOCKER_DEPLOYMENT.md)
