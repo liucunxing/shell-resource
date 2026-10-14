@@ -800,7 +800,7 @@ export function AdminPage() {
                   {(apiMode
                     ? roles.filter(
                         (user) =>
-                          user.role === "owner" &&
+                          ["owner", "lead"].includes(user.role) &&
                           user.department === modal.item.department,
                       )
                     : [1, 2].map((n) => ({

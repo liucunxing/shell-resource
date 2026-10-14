@@ -244,7 +244,7 @@ class WorkbenchService:
         return result.blob_name, result.data, result.content_type
 
     async def _get_scoped_budget(self, budget_id: int, writable: bool = False) -> BudgetDO:
-        allowed = {"owner"} if writable else {"owner", "lead"}
+        allowed = {"owner", "lead"}
         if self.user.role not in allowed:
             raise HTTPException(status_code=403, detail="当前角色无此操作权限")
         budget = await self.budget_repository.get_scoped(
@@ -257,6 +257,8 @@ class WorkbenchService:
         )
         if budget is None:
             raise HTTPException(status_code=404, detail="预算不存在或不属于当前工作台范围")
+        if writable and budget.owner_email != self.user.email:
+            raise HTTPException(status_code=403, detail="仅当前 Initiative 的 Owner 可编辑")
         return budget
 
     @staticmethod

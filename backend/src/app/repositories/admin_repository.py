@@ -18,7 +18,7 @@ class AdminRepository:
                 select(UserPermissionDO).where(
                     UserPermissionDO.email == email,
                     UserPermissionDO.enabled.is_(True),
-                    UserPermissionDO.role == "owner",
+                    UserPermissionDO.role.in_(("owner", "lead")),
                     UserPermissionDO.department == department,
                 ).with_for_update()
             )

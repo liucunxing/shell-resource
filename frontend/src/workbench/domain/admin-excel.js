@@ -212,7 +212,7 @@ async function previewImport(buffer, state, identity, users = []) {
   const validateOwner = (rowNumber, item, ownerId) => {
     if (identity.apiMode) {
       const owner = users.find(
-        (user) => user.email === ownerId && user.role === "owner",
+        (user) => user.email === ownerId && ["owner", "lead"].includes(user.role),
       );
       if (
         !owner ||

@@ -7,7 +7,7 @@
 角色：
 
 - Owner：仅本人负责的 Initiative。
-- 部门负责人（Lead）：本部门且在本人 Sector 范围内的 Initiative，业务操作只读。
+- 部门负责人（Lead）：本部门且在本人 Sector 范围内的 Initiative，本人为 Initiative Owner 时可维护分配，其他项目只读。
 - 管理层（Management）：仅最新同步快照；不可读取未同步工作稿。
 - 管理员（Admin）：全部预算配置；不可读取业务分配明细或同步版本。
 
@@ -42,7 +42,7 @@
 3. Owner A 验证本人项目、未配平草稿和版本冲突。
 4. Owner B 验证同部门 Owner 隔离。
 5. ICE Owner 验证跨部门隔离。
-6. Lead 验证本部门工作稿只读。
+6. Lead 验证本人担任 Owner 的项目可维护，其他本部门工作稿只读。
 7. Management 验证只读最新同步快照。
 8. Owner A 再次同步 A_DRIFT，验证管理层最新版本切换和旧版本不可变。
 9. 验证 Insight、日志、导出和 Excel 反向权限。
@@ -144,7 +144,7 @@ ADM-01“新增预算”通过管理员配置 Excel 的空编号行完成；页�
 | INIT-04 | ICE Owner | 打开 ICE_PUBLISHED | 200；看不到 MKT 项目 |
 | INIT-05 | Lead | 查看工作台 | 仅显示 MKT/PCMO 的 A_DRAFT、A_DRIFT、B_PUBLISHED |
 | INIT-06 | Lead | 查看三个 MKT Draft | 200，只读 |
-| INIT-07 | Lead | PUT 任一 Draft | 403 |
+| INIT-07 | Lead | PUT 他人 Draft | 403 |
 | INIT-08 | Management | 查看工作台 | 只显示 A_DRIFT、B_PUBLISHED、ICE_PUBLISHED 的最新同步快照；不显示 A_DRAFT |
 | INIT-09 | Management | GET 任一 Draft | 403 |
 | INIT-10 | Admin | 查看工作台 | 显示四个 Initiative 的预算、Owner、部门和资源类型；rows/otherBudgets 为空 |
@@ -251,3 +251,11 @@ ADM-01“新增预算”通过管理员配置 Excel 的空编号行完成；页�
 | 结论 | Pass / Fail / Blocked |
 
 任何“页面按钮隐藏但直接调用接口成功”的情况都必须判定为 Fail。
+
+
+### 部门负责人兼任 Owner 验收
+
+- 管理员将同部门 Initiative 指派给已启用 Lead；页面及 Excel 均可选择该负责人。
+- Lead 对本人项目可编辑、导入 Excel、保存草稿、同步，并可增删改经销商分配。
+- 同部门他人项目继续只读，写入返回 403；跨部门写入返回 404。
+- 转交 Owner 后原 Owner 立即失去写入权限。上述原始 Lead 只读用例仍适用于未指派给 Lead 的项目。

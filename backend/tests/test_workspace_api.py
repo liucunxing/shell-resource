@@ -27,9 +27,7 @@ async def api(monkeypatch):
             {"distributor_code": "d2", "distributor_name": "Dealer 2"},
         ]
 
-    monkeypatch.setattr(
-        DatabricksDistributorRepository, "list_distributors", list_distributors
-    )
+    monkeypatch.setattr(DatabricksDistributorRepository, "list_distributors", list_distributors)
     seed = await _session()
     engine = seed.bind
     for index, (email, role, dept, sectors) in enumerate(
@@ -119,7 +117,7 @@ async def test_owner_loads_sector_history_and_distributor_directory_separately(a
     ]
     assert (
         await client.get("distributors", headers=headers("lead@example.com"))
-    ).status_code == 403
+    ).status_code == 200
 
 
 @pytest.mark.asyncio
@@ -329,3 +327,62 @@ async def test_append_import_duplicate_batch_rolls_back(api):
         "data"
     ]
     assert len(rows) == 1 and rows[0]["distributor_code"] == "d1"
+
+
+@pytest.mark.asyncio
+async def test_lead_can_own_allocate_publish_but_not_edit_other_projects(api):
+    client, engine = api
+    lead = headers("lead@example.com")
+    response = await client.put(
+        "admin/budgets",
+        headers=headers("admin@example.com"),
+        json={
+            "items": [
+                {"id": 1, "expected_revision": 0, "budget": 100, "ownerId": "lead@example.com"}
+            ]
+        },
+    )
+    assert response.status_code == 200, response.text
+    response = await client.put(
+        "initiatives/1/draft",
+        headers=lead,
+        json={"expected_revision": 1, "rows": [{"dealerId": "d1", "amount": 100}]},
+    )
+    assert response.status_code == 200, response.text
+    response = await client.post(
+        "initiatives/1/publish", headers=lead, json={"expected_revision": 2}
+    )
+    assert response.status_code == 200, response.text
+    response = await client.post(
+        "initiatives/1/distributor-allocations",
+        headers=lead,
+        json={"distributor_code": "d2", "distributor_budget_amount": 0},
+    )
+    assert response.status_code == 200, response.text
+    allocation_id = response.json()["data"]["id"]
+    assert (
+        await client.patch(
+            f"initiatives/1/distributor-allocations/{allocation_id}",
+            headers=lead,
+            json={"distributor_budget_amount": 1},
+        )
+    ).status_code == 200
+    assert (
+        await client.delete(f"initiatives/1/distributor-allocations/{allocation_id}", headers=lead)
+    ).status_code == 200
+    assert (
+        await client.put("initiatives/2/draft", headers=lead, json={"expected_revision": 0})
+    ).status_code == 403
+    assert (
+        await client.post("initiatives/2/publish", headers=lead, json={"expected_revision": 0})
+    ).status_code == 403
+    assert (
+        await client.put("initiatives/1/draft", headers=headers(), json={"expected_revision": 5})
+    ).status_code == 404
+    async with AsyncSession(engine) as session:
+        budget = await session.get(BudgetDO, 1)
+        budget.department = "ICE"
+        await session.commit()
+    assert (
+        await client.put("initiatives/1/draft", headers=lead, json={"expected_revision": 5})
+    ).status_code == 404

@@ -231,7 +231,7 @@ function canEdit(state, id, identity) {
     identityCheck(identity);
     const i = initiative(state, id);
     return (
-      identity.role === "owner" &&
+      ["owner", "lead"].includes(identity.role) &&
       i.department === identity.department &&
       i.ownerId === identity.ownerId &&
       unlocked(state, i.department)
@@ -836,7 +836,7 @@ function clearReassignmentCaches(
 function validateOwnerAssignment(item, ownerId, identity, users = []) {
   if (identity?.apiMode) {
     const owner = users.find(
-      (user) => user.email === ownerId && user.role === "owner",
+      (user) => user.email === ownerId && ["owner", "lead"].includes(user.role),
     );
     if (
       !owner ||

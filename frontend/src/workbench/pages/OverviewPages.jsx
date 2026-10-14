@@ -432,7 +432,7 @@ export function DepartmentPage() {
         <InitiativeTable items={items} owner={!own} />
         {!own && (
           <div className="table-footer">
-            本部门明细只读 · 分配由各 Marketer 维护
+            你作为 Owner 的 Initiative 可调整分配，其他项目只读
           </div>
         )}
       </section>

@@ -227,7 +227,7 @@ class WorkspaceService:
         for_update: bool = False,
         publications: bool = False,
     ) -> BudgetDO:
-        allowed = {"owner"} if writable else {"owner", "lead"}
+        allowed = {"owner", "lead"}
         if publications:
             allowed.add("management")
         if self.user.role not in allowed:
@@ -238,6 +238,8 @@ class WorkspaceService:
         )
         if budget is None:
             raise HTTPException(status_code=404, detail="Initiative 不存在或不在当前权限范围")
+        if writable and budget.owner_email != self.user.email:
+            raise HTTPException(status_code=403, detail="仅当前 Initiative 的 Owner 可编辑")
         return budget
 
     def _matches(self, budget: BudgetDO) -> bool:

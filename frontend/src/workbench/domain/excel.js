@@ -80,7 +80,7 @@ function editable(state, id, identity) {
   const i = state.initiatives.find((x) => x.id === id);
   if (!i) throw new Error("当前 Initiative 不存在");
   if (
-    identity.role !== "owner" ||
+    !["owner", "lead"].includes(identity.role) ||
     identity.ownerId !== i.ownerId ||
     identity.department !== i.department ||
     !engine.canEdit(state, id, identity)

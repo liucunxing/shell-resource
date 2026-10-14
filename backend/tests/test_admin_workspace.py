@@ -251,7 +251,7 @@ def test_owner_can_receive_initiatives_in_multiple_sectors(resource_type):
 @pytest.mark.parametrize(
     "role,enabled,department",
     [
-        ("lead", True, "MKT"),
+        ("management", True, "MKT"),
         ("owner", False, "MKT"),
         ("owner", True, "ICE"),
     ],
