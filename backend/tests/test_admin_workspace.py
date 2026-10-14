@@ -220,7 +220,8 @@ def test_duplicate_admin_create_rolls_back_whole_batch():
     asyncio.run(database_case(run))
 
 
-def test_owner_can_receive_initiatives_in_multiple_sectors():
+@pytest.mark.parametrize("resource_type", ["MRD", "SP&A", "ICE Rebate", "Capex"])
+def test_owner_can_receive_initiatives_in_multiple_sectors(resource_type):
     async def run(session, service):
         await seed_budget(session)
         result = await service.create_budgets(
@@ -229,7 +230,7 @@ def test_owner_can_receive_initiatives_in_multiple_sectors():
                 items=[
                     {
                         "name": "Other sector",
-                        "resourceType": "MRD",
+                        "resourceType": resource_type,
                         "sector": "OTHER",
                         "department": "MKT",
                         "budget": 50,
@@ -242,6 +243,7 @@ def test_owner_can_receive_initiatives_in_multiple_sectors():
         budgets = (await session.scalars(select(BudgetDO).order_by(BudgetDO.id))).all()
         assert {budget.sector for budget in budgets} == {"PCMO", "OTHER"}
         assert {budget.owner_email for budget in budgets} == {"owner@example.com"}
+        assert budgets[1].resource_type == resource_type
 
     asyncio.run(database_case(run))
 
@@ -378,7 +380,7 @@ def test_mixed_admin_import_is_atomic_and_creates_new_initiative():
         invalid_resource = {
             **duplicate,
             "name": "Invalid resource",
-            "resourceType": "ICE Rebate",
+            "resourceType": "Unknown",
         }
         with pytest.raises(HTTPException) as error:
             await service.import_budgets(
@@ -393,7 +395,7 @@ def test_mixed_admin_import_is_atomic_and_creates_new_initiative():
         assert original.revision == 3 and original.plan_budget_amount == 100
         assert await session.scalar(select(func.count()).select_from(BudgetDO)) == 1
 
-        created = {**duplicate, "name": "New Initiative"}
+        created = {**duplicate, "name": "New Initiative", "resourceType": "ICE Rebate"}
         result = await service.import_budgets(
             AdminBudgetsImportDTO(
                 planning_year=2027,
@@ -407,6 +409,8 @@ def test_mixed_admin_import_is_atomic_and_creates_new_initiative():
         initiatives = (await session.scalars(select(BudgetDO).order_by(BudgetDO.id))).all()
         assert len(initiatives) == 2
         assert initiatives[1].initiative_name == "New Initiative"
+        assert initiatives[1].resource_type == "ICE Rebate"
+        assert initiatives[1].department == "MKT"
         assert initiatives[1].revision == 0 and initiatives[1].allocate_budget_amount == 0
 
     asyncio.run(database_case(run))

@@ -983,11 +983,10 @@ function applyAdminConfiguration(
       fail("Initiative 名称不能为空且最多 255 个字符。");
     if (!hasText(item.sector) || item.sector.trim().length > 32)
       fail("Sector 不能为空且最多 32 个字符。");
-    if (
-      !hasText(item.department) ||
-      RESOURCE_DEPARTMENT[item.resourceType] !== item.department
-    )
-      fail("资源类型与部门不匹配。");
+    if (!hasText(item.department) || item.department.length > 32)
+      fail("部门不能为空且最多 32 个字符。");
+    if (!["MRD", "SP&A", "ICE Rebate", "Capex"].includes(item.resourceType))
+      fail("资源类型必须为 MRD、SP&A、ICE Rebate 或 Capex。");
     if (!validMoney(item.budget)) fail("预算须为非负有限金额，最多两位小数。");
     const normalized = {
       name: item.name.trim(),

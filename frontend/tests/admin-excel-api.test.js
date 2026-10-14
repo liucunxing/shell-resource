@@ -50,7 +50,7 @@ describe("API administrator Excel round trip", () => {
     const book = new ExcelJS.Workbook();
     await book.xlsx.load(bytes);
     expect(book.getWorksheet("模板说明").getCell("B2").value).toContain(
-      "MKT → MRD、SP&A；ICE → ICE Rebate；CAPEX → Capex",
+      "与部门独立配置",
     );
     const result = await AX.previewImport(bytes, state, admin, users);
     expect(result.errors).toEqual([]);
@@ -137,14 +137,28 @@ describe("API administrator Excel round trip", () => {
     expect(duplicateResult.errors.join(" ")).toContain("Initiative 名称重复");
     expect(state.initiatives).toHaveLength(1);
   });
-  it("rejects a new Initiative whose resource type and department do not match", async () => {
+  it("imports and confirms a resource type independently of department", async () => {
     const { state, users } = fixture();
     const invalid = await appendInitiative(
       await AX.exportWorkbook(state, admin),
       { resourceType: "ICE Rebate", department: "MKT" },
     );
     const result = await AX.previewImport(invalid, state, admin, users);
-    expect(result.errors.join(" ")).toContain("资源类型与部门不匹配");
+    expect(result.errors).toEqual([]);
+    expect(state.initiatives).toHaveLength(1);
+    AX.confirmImport(result, state, admin);
+    expect(state.initiatives[1]).toMatchObject({
+      resourceType: "ICE Rebate",
+      department: "MKT",
+    });
+  });
+  it("still rejects unknown resource types", async () => {
+    const { state, users } = fixture();
+    const bytes = await appendInitiative(await AX.exportWorkbook(state, admin), {
+      resourceType: "Unknown",
+    });
+    const result = await AX.previewImport(bytes, state, admin, users);
+    expect(result.errors.join(" ")).toContain("资源类型必须为");
     expect(state.initiatives).toHaveLength(1);
   });
 });

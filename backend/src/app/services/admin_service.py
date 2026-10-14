@@ -289,12 +289,8 @@ class AdminService(WorkspaceService):
                         detail="同年度、部门、Sector 和资源类型下 Initiative 已存在",
                     )
                 keys.add(key)
-                if item.resourceType not in {
-                    "MKT": {"MRD", "SP&A"},
-                    "ICE": {"ICE Rebate"},
-                    "CAPEX": {"Capex"},
-                }.get(item.department, set()):
-                    raise HTTPException(status_code=422, detail="资源类型与部门不匹配")
+                if item.resourceType not in {"MRD", "SP&A", "ICE Rebate", "Capex"}:
+                    raise HTTPException(status_code=422, detail="资源类型无效")
                 owner = await self._owner(item.ownerId, item.department)
                 entities.append(
                     BudgetDO(
@@ -347,11 +343,7 @@ class AdminService(WorkspaceService):
 
             entities = []
             keys = set()
-            allowed_resources = {
-                "MKT": {"MRD", "SP&A"},
-                "ICE": {"ICE Rebate"},
-                "CAPEX": {"Capex"},
-            }
+            allowed_resources = {"MRD", "SP&A", "ICE Rebate", "Capex"}
             for item in payload.creates:
                 key = (item.sector, item.department, item.resourceType, item.name)
                 if key in keys or await self.admin_repository.business_key_exists(
@@ -366,8 +358,8 @@ class AdminService(WorkspaceService):
                         detail="同年度、部门、Sector 和资源类型下 Initiative 已存在",
                     )
                 keys.add(key)
-                if item.resourceType not in allowed_resources.get(item.department, set()):
-                    raise HTTPException(status_code=422, detail="资源类型与部门不匹配")
+                if item.resourceType not in allowed_resources:
+                    raise HTTPException(status_code=422, detail="资源类型无效")
                 owner = await self._owner(item.ownerId, item.department)
                 entities.append(
                     BudgetDO(

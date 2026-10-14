@@ -10,12 +10,7 @@ const HEADERS = [
   "邮箱",
   "预算金额",
 ];
-const RESOURCE_DEPARTMENT = {
-  MRD: "MKT",
-  "SP&A": "MKT",
-  "ICE Rebate": "ICE",
-  Capex: "CAPEX",
-};
+const RESOURCE_TYPES = ["MRD", "SP&A", "ICE Rebate", "Capex"];
 const tickets = new WeakMap();
 const json = (value) => JSON.stringify(value);
 const clone = (value) => JSON.parse(json(value));
@@ -62,7 +57,7 @@ async function exportWorkbook(state, identity) {
     ["字段", "内容"],
     [
       "部门与资源类型",
-      "新增 Initiative 仅允许：MKT → MRD、SP&A；ICE → ICE Rebate；CAPEX → Capex。任一不匹配组合都会在预览中报错，且整份文件不能导入。",
+      "资源类型可选择 MRD、SP&A、ICE Rebate 或 Capex，与部门独立配置；Owner 必须属于项目所在部门。",
     ],
     [
       "发布规则",
@@ -258,10 +253,10 @@ async function previewImport(buffer, state, identity, users = []) {
       add(`第 ${r} 行：Initiative 名称不能为空且最多 255 个字符。`);
     if (!item.sector || item.sector.length > 32)
       add(`第 ${r} 行：Sector 不能为空且最多 32 个字符。`);
-    if (!RESOURCE_DEPARTMENT[item.resourceType])
+    if (!RESOURCE_TYPES.includes(item.resourceType))
       add(`第 ${r} 行：资源类型必须为 MRD、SP&A、ICE Rebate 或 Capex。`);
-    if (RESOURCE_DEPARTMENT[item.resourceType] !== item.department)
-      add(`第 ${r} 行：资源类型与部门不匹配。`);
+    if (!item.department || item.department.length > 32)
+      add(`第 ${r} 行：部门不能为空且最多 32 个字符。`);
     validateOwner(r, item, item.ownerId);
     if (!engine.validMoney(item.budget))
       add(`第 ${r} 行：预算须为非负金额，最多两位小数，不能为空。`);
