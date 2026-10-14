@@ -159,6 +159,11 @@ class AdminBudgetItemDTO(BaseModel):
     budget: Decimal = Field(ge=0, max_digits=18, decimal_places=2)
     ownerId: str = Field(min_length=3, max_length=255)
 
+    @field_validator("ownerId", mode="before")
+    @classmethod
+    def normalize_owner(cls, value: Any) -> Any:
+        return value.strip().lower() if isinstance(value, str) else value
+
 
 class AdminBudgetsUpdateDTO(BaseModel):
     items: list[AdminBudgetItemDTO] = Field(min_length=1)
@@ -183,6 +188,17 @@ class AdminBudgetCreateItemDTO(BaseModel):
     @classmethod
     def normalize_text(cls, value: Any) -> Any:
         return value.strip() if isinstance(value, str) else value
+
+    @field_validator("ownerId")
+    @classmethod
+    def normalize_owner(cls, value: str) -> str:
+        return value.lower()
+
+    @field_validator("resourceType")
+    @classmethod
+    def normalize_resource_type(cls, value: str) -> str:
+        resources = {name.lower(): name for name in ("MRD", "SP&A", "ICE Rebate", "Capex")}
+        return resources.get(value.lower(), value)
 
 
 class AdminBudgetsCreateDTO(BaseModel):

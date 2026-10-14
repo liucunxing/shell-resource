@@ -836,7 +836,7 @@ function clearReassignmentCaches(
 function validateOwnerAssignment(item, ownerId, identity, users = []) {
   if (identity?.apiMode) {
     const owner = users.find(
-      (user) => user.email === ownerId && ["owner", "lead"].includes(user.role),
+      (user) => user.email?.trim().toLowerCase() === ownerId.trim().toLowerCase() && ["owner", "lead"].includes(user.role),
     );
     if (
       !owner ||

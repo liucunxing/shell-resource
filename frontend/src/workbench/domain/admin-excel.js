@@ -212,7 +212,7 @@ async function previewImport(buffer, state, identity, users = []) {
   const validateOwner = (rowNumber, item, ownerId) => {
     if (identity.apiMode) {
       const owner = users.find(
-        (user) => user.email === ownerId && ["owner", "lead"].includes(user.role),
+        (user) => user.email?.trim().toLowerCase() === ownerId.toLowerCase() && ["owner", "lead"].includes(user.role),
       );
       if (
         !owner ||
@@ -244,9 +244,9 @@ async function previewImport(buffer, state, identity, users = []) {
     const item = {
       name: text(cells[0]),
       sector: text(cells[1]),
-      resourceType: text(cells[2]),
+      resourceType: RESOURCE_TYPES.find((value) => value.toLowerCase() === text(cells[2]).toLowerCase()) || text(cells[2]),
       department: text(cells[3]),
-      ownerId: text(cells[4]),
+      ownerId: identity.apiMode ? text(cells[4]).toLowerCase() : text(cells[4]),
       budget: parseBudget(cells[5]),
     };
     if (!item.name || item.name.length > 255)
@@ -271,7 +271,7 @@ async function previewImport(buffer, state, identity, users = []) {
       out.creates.push({ ...item, row: r });
       return;
     }
-    if (item.budget === i.budget && item.ownerId === i.ownerId) {
+    if (item.budget === i.budget && item.ownerId === (identity.apiMode ? i.ownerId?.trim().toLowerCase() : i.ownerId)) {
       out.unchanged++;
       return;
     }
