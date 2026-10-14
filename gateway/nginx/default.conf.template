@@ -1,3 +1,9 @@
+# Preserve the existing application's upload and long-running request limits.
+client_max_body_size 20m;
+proxy_read_timeout 300s;
+proxy_send_timeout 300s;
+ssl_protocols TLSv1.2 TLSv1.3;
+
 server {
     listen 80 default_server;
     server_name _;

@@ -18,6 +18,7 @@ BASH = os.environ.get("DEPLOY_TEST_BASH", "bash")
 MOCK_DOCKER = r'''
 import json, os, pathlib, sys
 a = sys.argv[1:]
+is_compose = bool(a and a[0] == "compose")
 if a and a[0] == "compose": a = a[1:]
 command = next((item for item in a if item in {"build", "config", "inspect", "ps", "run", "up", "version"}), "")
 scenario = os.environ.get("SCENARIO", "success")
@@ -25,7 +26,7 @@ p = pathlib.Path("calls.log")
 with p.open("a") as f: f.write(" ".join(a) + "\n")
 values = dict(line.split("=", 1) for line in pathlib.Path("deploy/.env").read_text().splitlines()
               if "=" in line and not line.startswith("#"))
-if command == "ps":
+if command == "ps" and not is_compose:
     print("other-container" if scenario == "docker-conflict" else
           "current-container" if scenario == "upgrade" or pathlib.Path("started").exists() else "")
     sys.exit(0)

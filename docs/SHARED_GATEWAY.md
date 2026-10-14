@@ -43,6 +43,8 @@ sudo install -m 0600 -o ecs-user -g ecs-user deploy/certs/private.key /opt/digit
 ```bash
 sudo openssl x509 -in /opt/digitalshell-gateway/certs/fullchain.pem -noout -checkhost resource.digitalshell.com.cn
 sudo openssl x509 -in /opt/digitalshell-gateway/certs/fullchain.pem -noout -checkhost oneportal.digitalshell.com.cn
+cd /opt/digitalshell-gateway
+sudo bash deploy.sh --check
 ```
 
 旧项目私有 Nginx 仍占用 80/443，必须先仅停止它。以下命令按 Compose 标签精确定位，不会停止 `app`：
@@ -72,6 +74,22 @@ sudo docker compose --env-file .env logs --tail=100 nginx
 ```
 
 `oneportal` 尚未部署前，其根路径返回 502 是预期行为；`/nginx-health` 返回 200 说明域名路由和 TLS 已就绪。
+
+## 网关日常维护
+
+网关部署目录独立于应用仓库；更改仓库内的 `gateway/` 后，需显式同步才会生效：
+
+```bash
+cd /opt/shell-forecast
+sudo bash gateway/install.sh /opt/digitalshell-gateway
+cd /opt/digitalshell-gateway
+sudo bash deploy.sh --check
+sudo bash deploy.sh
+```
+
+`--check` 使用隔离网络的临时容器验证模板、证书及私钥，不占用 80/443。正式部署仅在预检成功后更新网关。保留原入口的 20MB 上传限制和 300 秒请求超时。现有镜像可用时直接复用；镜像版本升级时先修改 `.env` 中的 `GATEWAY_NGINX_IMAGE`。
+
+旧项目 Nginx 在迁移后保持停止状态，可设为 `sudo docker update --restart=no shell-forecast-nginx-1` 避免误启动；需要回滚时仍可手动启动。
 
 ## 之后发布 resource 项目
 

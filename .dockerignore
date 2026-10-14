@@ -25,6 +25,8 @@ deploy/.env
 deploy/settings.toml
 deploy/certs
 deploy/backups
+gateway/.env
+gateway/certs
 **/*.pem
 **/*.key
 **/*.crt
