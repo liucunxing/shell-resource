@@ -8,7 +8,25 @@
 
 部署沿用现有内部 UAT 的 `APP_ENV=development`，无需新增配置或表结构迁移。如果部署指向其他 PG，需在该库单独配置此邮箱的管理员权限。发布后用以上链接验证直接进入管理员页面，并验证刷新及未配置邮箱被拒绝。
 
-这是用户指定的临时邮箱传递方案，前端已关闭手工邮箱输入，但 URL 参数和 `X-User-Email` 请求头仍可被具备浏览器开发能力的用户伪造，无法证明访问者已通过帆软认证。仅适用于当前受控内部测试入口；不等同于可信 SSO。现有 `production` 环境仍拒绝此类邮箱身份，后续正式接入需替换为可验证的认证凭据。
+这是用户指定的临时邮箱传递方案。手工输入可通过下述开关控制；无论是否开启，URL 参数和 `X-User-Email` 请求头均无法证明访问者已通过帆软认证。仅适用于当前受控内部测试入口；不等同于可信 SSO。现有 `production` 环境仍拒绝此类邮箱身份，后续正式接入需替换为可验证的认证凭据。
+
+## 测试邮箱输入开关
+
+服务器修改 `/opt/shell-forecast/deploy/.env` 中的一个配置：
+
+```dotenv
+# true：允许编辑邮箱、直接输入邮箱登录；false：灰色只读，仅接收 Portal 邮箱。
+VITE_LOGIN_EMAIL_EDITABLE=true
+```
+
+未配置时默认 `false`。该值经 Compose/Dockerfile 在前端构建时注入，因此修改后需要重新构建发布，单纯 restart 不会生效：
+
+```bash
+cd /opt/shell-forecast
+sudo bash deploy/deploy.sh --port 18080
+```
+
+本机开发使用 `frontend/.env.local` 中的同名配置并重启 Vite。两种模式均保留 Portal 带入邮箱后自动校验并进入工作台的行为；手工输入仅在提交时建立该标签页身份，后端继续检查用户权限。测试完成后把配置改回 `false` 并重新部署。
 
 ## Data Agent iframe
 
