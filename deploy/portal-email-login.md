@@ -1,8 +1,8 @@
 # 临时帆软 Portal 邮箱免登
 
-入口：`http://resource.digitalshell.com.cn:18080/?user_email=lukx1%40digitalchina.com`
+入口：`https://resource.digitalshell.com.cn/?user_email=lukx1%40digitalchina.com`
 
-前端在首次加载工作台之前接收 `user_email`，去除首尾空格并转小写，建立当前标签页身份，然后清除地址栏中的该参数。登录页自动展示 Portal 传入的邮箱，但输入框为灰色只读，用户不能修改；仍需点击“进入工作台”。无 `user_email`、空值、格式错误和重复参数都会清除旧身份，邮箱保持为空且登录按钮不可点击。Demo 模式不受影响。
+前端在首次加载工作台之前接收 `user_email`，去除首尾空格并转小写，建立当前标签页身份，然后清除地址栏中的该参数。有效邮箱会自动请求后端校验权限，有权限直接进入工作台；校验失败显示登录框和错误，邮箱仍为灰色只读，可点击“进入工作台”重试。无 `user_email`、空值、格式错误和重复参数都会清除旧身份，邮箱保持为空且登录按钮不可点击。Demo 模式不受影响。
 
 继续使用现有 `X-User-Email` API 链路，由后端查询 PG `data.user_permissions`，仅允许启用且角色有效的用户进入。邮箱不在前端绑定角色。`lukx1@digitalchina.com` 在当前配置的 PG 中配置为 `admin`，原测试管理员保留。
 
