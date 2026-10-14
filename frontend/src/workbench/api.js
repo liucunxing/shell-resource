@@ -27,7 +27,11 @@ export function acceptPortalEmail() {
   if (typeof window === "undefined") return;
   const url = new URL(window.location.href);
   const entries = [...url.searchParams].filter(([key]) => key.trim() === "user_email");
-  if (!entries.length) return;
+  // Do not reuse an email from a prior visit: access starts with a Portal handoff.
+  if (!entries.length) {
+    setDevelopmentEmail("");
+    return;
+  }
   const email = entries.length === 1 ? entries[0][1].trim().toLowerCase() : "";
   // An invalid handoff must never fall back to a previously logged-in account.
   const valid = email.length <= 255 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);

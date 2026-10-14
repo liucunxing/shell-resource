@@ -273,7 +273,9 @@ export function WorkbenchProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    refresh();
+    // Portal hands off the email before React mounts. Keep the login screen visible
+    // so the user can confirm that immutable identity before loading the workspace.
+    if (!demoMode) setLoading(false);
   }, []);
   useEffect(() => {
     if (!toast) return undefined;

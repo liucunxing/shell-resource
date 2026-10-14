@@ -39,10 +39,10 @@ describe("FineReport Portal email handoff", () => {
     expect(getDevelopmentEmail()).toBe("lukx1@digitalchina.com");
   });
 
-  it("retains the current identity on refresh without a handoff", () => {
+  it("clears the current identity without a Portal handoff", () => {
     const browser = navigate("?view=admin");
     acceptPortalEmail();
-    expect(getDevelopmentEmail()).toBe("old@example.com");
+    expect(getDevelopmentEmail()).toBe("");
     expect(browser.history.replaceState).not.toHaveBeenCalled();
   });
 

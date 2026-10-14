@@ -4830,6 +4830,16 @@ tbody tr:hover {
   outline: 0;
   box-shadow: 0 0 0 4px #d7192015;
 }
+.login-input-wrap input[readonly] {
+  color: #756e68;
+  border-color: #d8d1ca;
+  background: #f1efec;
+  cursor: not-allowed;
+}
+.login-input-wrap input[readonly]:focus {
+  border-color: #d8d1ca;
+  box-shadow: none;
+}
 .login-submit {
   width: 100%;
   height: 54px;

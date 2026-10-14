@@ -144,7 +144,7 @@ export default function WorkbenchApp() {
   }, [mobileNav]);
   if (!identity && apiMode)
     return (
-      <DevelopmentLogin
+      <PortalLogin
         email={devEmail}
         loading={loading}
         onSubmit={setDevelopmentEmail}
@@ -285,10 +285,10 @@ export default function WorkbenchApp() {
                   {identity.label}
                   <button
                     className="button subtle small"
-                    title="请先保存草稿；切换会清空未保存的编辑"
+                    title="退出后须从帆软 Portal 重新进入"
                     onClick={() => setDevelopmentEmail("")}
                   >
-                    切换开发邮箱
+                    退出工作台
                   </button>
                 </div>
               ) : (
@@ -444,8 +444,7 @@ export default function WorkbenchApp() {
   );
 }
 
-function DevelopmentLogin({ email, loading, onSubmit, error }) {
-  const [value, setValue] = useState(email);
+export function PortalLogin({ email, loading, onSubmit, error }) {
   return (
     <main className="login-shell">
       <section className="login-story" aria-label="壳牌资源投资工作台介绍">
@@ -490,15 +489,16 @@ function DevelopmentLogin({ email, loading, onSubmit, error }) {
       <section className="login-entry">
         <form
           className="login-card"
+          aria-labelledby="portal-login-title"
           onSubmit={(event) => {
             event.preventDefault();
-            if (!loading && value.trim()) onSubmit(value);
+            if (!loading && email) onSubmit(email);
           }}
         >
           <div className="login-card-heading">
             <span className="login-environment">开发环境</span>
-            <h2>登录资源投资工作台</h2>
-            <p>使用已在服务端配置权限的邮箱继续。</p>
+            <h2 id="portal-login-title">登录资源投资工作台</h2>
+            <p>邮箱由帆软 Portal 自动传入，不能手工修改。</p>
           </div>
 
           {error && (
@@ -514,10 +514,10 @@ function DevelopmentLogin({ email, loading, onSubmit, error }) {
               <input
                 type="email"
                 autoComplete="email"
-                autoFocus
-                value={value}
-                onChange={(event) => setValue(event.target.value)}
-                placeholder="name@example.com"
+                value={email}
+                readOnly
+                aria-readonly="true"
+                placeholder="请从帆软 Portal 进入"
               />
             </span>
           </label>
@@ -525,7 +525,7 @@ function DevelopmentLogin({ email, loading, onSubmit, error }) {
           <button
             type="submit"
             className="login-submit"
-            disabled={loading || !value.trim()}
+            disabled={loading || !email}
           >
             <span>{loading ? "正在加载工作台…" : "进入工作台"}</span>
             <ArrowRight size={20} weight="bold" aria-hidden="true" />
@@ -533,7 +533,7 @@ function DevelopmentLogin({ email, loading, onSubmit, error }) {
 
           <p className="login-session-note">
             <LockKey size={15} aria-hidden="true" />
-            邮箱仅保存在当前浏览器会话，并作为开发请求头发送。
+            请从已授权的帆软 Portal 链接跳转至本系统；直接访问不会建立登录身份。
           </p>
         </form>
         <p className="login-footer">壳牌资源投资规划工作台 · 内部系统</p>
