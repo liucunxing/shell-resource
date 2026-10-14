@@ -18,7 +18,7 @@ class AdminRepository:
             await self.session.scalars(
                 select(UserPermissionDO)
                 .where(
-                    UserPermissionDO.email == email,
+                    func.lower(func.trim(UserPermissionDO.email)) == email.strip().lower(),
                     UserPermissionDO.enabled.is_(True),
                     UserPermissionDO.role.in_(("owner", "lead")),
                     self._department_member(department),

@@ -159,6 +159,35 @@ async def seed_budget(session):
     await session.commit()
 
 
+@pytest.mark.parametrize(
+    ("incoming", "canonical"),
+    [(" mRd ", "MRD"), ("sp&a", "SP&A"), ("ICE REBATE", "ICE Rebate"), ("capex", "Capex")],
+)
+def test_budget_import_matches_email_case_and_stores_canonical_resources(incoming, canonical):
+    async def run(session, service):
+        await seed_budget(session)
+        owner = (await session.scalars(select(UserPermissionDO))).one()
+        owner.email = "Owner@Example.COM"
+        await session.commit()
+        payload = AdminBudgetsImportDTO(
+            planning_year=2027,
+            updates=[{"id": 1, "expected_revision": 3, "budget": 150,
+                      "ownerId": " OWNER@example.COM "}],
+            creates=[{"name": "Case import", "sector": "PCMO", "department": "MKT",
+                      "resourceType": incoming, "budget": 20,
+                      "ownerId": " OWNER@example.COM "}],
+        )
+        assert payload.updates[0].ownerId == "owner@example.com"
+        assert payload.creates[0].ownerId == "owner@example.com"
+        result = await service.import_budgets(payload)
+        assert result == {"updated_count": 1, "created_count": 1}
+        budgets = (await session.scalars(select(BudgetDO).order_by(BudgetDO.id))).all()
+        assert budgets[1].resource_type == canonical
+        assert budgets[1].owner_email == "Owner@Example.COM"
+
+    asyncio.run(database_case(run))
+
+
 def test_admin_budget_revision_and_atomic_validation():
     async def run(session, service):
         await seed_budget(session)

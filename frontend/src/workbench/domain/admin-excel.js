@@ -213,7 +213,7 @@ async function previewImport(buffer, state, identity, users = []) {
   const validateOwner = (rowNumber, item, ownerId) => {
     if (identity.apiMode) {
       const owner = users.find(
-        (user) => user.email === ownerId && ["owner", "lead"].includes(user.role),
+        (user) => user.email?.trim().toLowerCase() === ownerId.toLowerCase() && ["owner", "lead"].includes(user.role),
       );
       if (
         !owner ||
@@ -272,7 +272,7 @@ async function previewImport(buffer, state, identity, users = []) {
       out.creates.push({ ...item, row: r });
       return;
     }
-    if (item.budget === i.budget && item.ownerId === i.ownerId) {
+    if (item.budget === i.budget && item.ownerId === (identity.apiMode ? i.ownerId?.trim().toLowerCase() : i.ownerId)) {
       out.unchanged++;
       return;
     }
