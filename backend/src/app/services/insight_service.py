@@ -14,6 +14,7 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
+from app.core.departments import departments
 from app.dependencies.workbench_user import WorkbenchUser
 from app.models.do.insight import InsightPromptDO, InsightRecordDO
 from app.repositories.insight_repository import InsightRepository
@@ -262,7 +263,7 @@ class InsightService:
         items = list(state.get("initiatives") or [])
         role = str(getattr(self.user, "role", ""))
         email = str(getattr(self.user, "email", ""))
-        department = getattr(self.user, "department", None)
+        user_departments = departments(getattr(self.user, "department", None))
         if scope == "global":
             return {"kind": "global", "scope": scope, "items": items}
         if scope.startswith("initiative:"):
@@ -280,11 +281,11 @@ class InsightService:
                 "scope": scope,
                 "items": [item for item in items if item.get("ownerId") == email],
             }
-        if role == "lead" and scope == department:
+        if role == "lead" and scope in user_departments:
             return {
                 "kind": "department",
                 "scope": scope,
-                "items": [item for item in items if item.get("department") == department],
+                "items": [item for item in items if item.get("department") == scope],
             }
         raise HTTPException(status_code=403, detail="无权访问此 Insight 范围")
 
@@ -361,7 +362,7 @@ class InsightService:
         return {
             "email": self.user.email,
             "role": self.user.role,
-            "department": self.user.department,
+            "department": sorted(departments(self.user.department)),
             "sectors": sorted(getattr(self.user, "sectors", ()) or ()),
             "initiativeIds": sorted(str(item["id"]) for item in descriptor["items"]),
         }

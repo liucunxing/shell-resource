@@ -13,7 +13,7 @@ class AdminUserDTO(BaseModel):
     email: str = Field(max_length=255)
     display_name: str = Field(max_length=255)
     role: Literal["owner", "lead", "management", "admin"]
-    department: str | None = Field(default=None, max_length=32)
+    department: list[str] = Field(default_factory=list)
     sector: list[str] = Field(default_factory=list, max_length=4)
     enabled: bool = True
 
@@ -40,7 +40,18 @@ class AdminUserDTO(BaseModel):
     @field_validator("department", mode="before")
     @classmethod
     def normalize_department(cls, value: Any) -> Any:
-        return value.strip().upper() or None if isinstance(value, str) else value
+        if value is None:
+            return []
+        if isinstance(value, str):
+            value = [value] if value.strip() else []
+        if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+            raise ValueError("部门必须为字符串列表")
+        normalized = [item.strip().upper() for item in value]
+        if any(not item or len(item) > 32 for item in normalized):
+            raise ValueError("部门不能为空且最多 32 个字符")
+        if len(normalized) != len(set(normalized)):
+            raise ValueError("部门不可重复")
+        return normalized
 
     @field_validator("sector", mode="before")
     @classmethod
@@ -183,6 +194,12 @@ class AdminBudgetCreateItemDTO(BaseModel):
     @classmethod
     def normalize_text(cls, value: Any) -> Any:
         return value.strip() if isinstance(value, str) else value
+
+    @field_validator("resourceType")
+    @classmethod
+    def canonical_resource_type(cls, value: str) -> str:
+        types = {item.lower(): item for item in ("MRD", "SP&A", "ICE Rebate", "Capex")}
+        return types.get(value.lower(), value)
 
 
 class AdminBudgetsCreateDTO(BaseModel):

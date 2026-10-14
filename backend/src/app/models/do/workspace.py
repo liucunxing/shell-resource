@@ -15,8 +15,9 @@ from sqlalchemy import (
     Text,
     func,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, validates
 
+from app.core.departments import departments
 from app.models.do.base import BaseDO, TimestampMixin
 
 
@@ -36,7 +37,16 @@ class UserPermissionDO(TimestampMixin, BaseDO):
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(32), nullable=False)
-    department: Mapped[str | None] = mapped_column(String(32))
+    department: Mapped[list[str]] = mapped_column(
+        ARRAY(String(32)).with_variant(JSON(), "sqlite"), default=list
+    )
+
+    @validates("department")
+    def normalize_department(
+        self, key: str, value: str | list[str] | tuple[str, ...] | None
+    ) -> list[str]:
+        return departments(value)
+
     sector: Mapped[list[str] | None] = mapped_column(
         ARRAY(String(32)).with_variant(JSON(), "sqlite")
     )

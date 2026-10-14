@@ -44,6 +44,19 @@ async function appendInitiative(bytes, values = {}) {
   return book.xlsx.writeBuffer();
 }
 describe("API administrator Excel round trip", () => {
+  it("normalizes pasted email and resource casing without duplicating existing business keys", async () => {
+    const { state, users } = fixture();
+    state.initiatives[0].resourceType = "CAPEX";
+    const book = new ExcelJS.Workbook();
+    await book.xlsx.load(await AX.exportWorkbook(state, admin));
+    book.getWorksheet("预算与归属").getCell("E2").value = "  A@EXAMPLE.TEST ";
+    book.getWorksheet("预算与归属").getCell("C2").value = "capex";
+    const result = await AX.previewImport(await book.xlsx.writeBuffer(), state, admin, users);
+    expect(result.errors).toEqual([]);
+    expect(result.creates).toHaveLength(0);
+    expect(result.unchanged).toBe(1);
+  });
+
   it("accepts exported email owners and initial revision zero unchanged", async () => {
     const { state, users } = fixture();
     const bytes = await AX.exportWorkbook(state, admin);

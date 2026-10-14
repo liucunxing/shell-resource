@@ -1,4 +1,9 @@
 "use strict";
+const departments = (value) => {
+  const raw = value && typeof value === "object" && !Array.isArray(value) ? value.department : value;
+  return [...new Set((Array.isArray(raw) ? raw : raw ? [raw] : []).filter((v) => typeof v === "string" && v.trim()).map((v) => v.trim().toUpperCase()))];
+};
+const hasDepartment = (identity, department) => departments(identity).includes(department);
 const DEPARTMENTS = ["MKT", "ICE", "CAPEX"];
 const RESOURCE_DEPARTMENT = {
   MRD: "MKT",
@@ -36,14 +41,14 @@ function identityCheck(identity) {
     fail("身份无效，请选择演示角色。");
   if (
     ["owner", "lead"].includes(identity.role) &&
-    !DEPARTMENTS.includes(identity.department)
+    (!departments(identity).length || (!identity.apiMode && departments(identity).some((dep) => !DEPARTMENTS.includes(dep))))
   )
     fail("部门身份无效。");
   if (
     identity.role === "owner" &&
     (!hasText(identity.ownerId) ||
       (!identity.apiMode &&
-        ![identity.department + "-1", identity.department + "-2"].includes(
+        !departments(identity).flatMap((dep) => [dep + "-1", dep + "-2"]).includes(
           identity.ownerId,
         )))
   )
@@ -54,7 +59,7 @@ function role(identity, expected) {
   if (identity.role !== expected) fail("当前角色无权执行此操作。");
 }
 function department(state, dep) {
-  if (!DEPARTMENTS.includes(dep) || !state.departments[dep])
+  if (!state.departments[dep])
     fail("部门不存在。");
   return state.departments[dep];
 }
@@ -232,7 +237,7 @@ function canEdit(state, id, identity) {
     const i = initiative(state, id);
     return (
       ["owner", "lead"].includes(identity.role) &&
-      i.department === identity.department &&
+      hasDepartment(identity, i.department) &&
       i.ownerId === identity.ownerId &&
       unlocked(state, i.department)
     );
@@ -480,7 +485,7 @@ function latestPublication(state, id, identity) {
   if (identity.role === "admin") fail("管理员无权读取分配发布内容。");
   if (identity.role === "owner" && item.ownerId !== identity.ownerId)
     fail("无权读取其它 Owner 的发布版本。");
-  if (identity.role === "lead" && item.department !== identity.department)
+  if (identity.role === "lead" && !hasDepartment(identity, item.department))
     fail("无权读取其它部门的发布版本。");
   return latestPublicationInternal(state, id);
 }
@@ -526,13 +531,13 @@ function latestPublishedItems(state, dep, identity) {
   department(state, dep);
   if (identity.role === "admin" || identity.role === "owner")
     fail("当前角色无权读取部门发布明细。");
-  if (identity.role === "lead" && identity.department !== dep)
+  if (identity.role === "lead" && !hasDepartment(identity, dep))
     fail("无权读取其它部门的发布明细。");
   return latestPublishedItemsInternal(state, dep);
 }
 function getSnapshot(state, dep, versionId, identity) {
   identityCheck(identity);
-  if (["owner", "lead"].includes(identity.role) && identity.department !== dep)
+  if (["owner", "lead"].includes(identity.role) && !hasDepartment(identity, dep))
     fail("无权读取其它部门的提交明细。");
   const snapshot = snapshotInternal(state, dep, versionId);
   if (!snapshot) return null;
@@ -603,74 +608,76 @@ function selectView(state, identity) {
     };
   };
   if (identity.role === "owner" || identity.role === "lead") {
-    const dep = identity.department;
-    const all = itemsFor(state, dep);
-    const visible =
-      identity.role === "lead"
-        ? all
-        : all.filter((i) => i.ownerId === identity.ownerId);
-    const allowedIds = new Set(visible.map((i) => i.id));
-    result.initiatives = visible.map((item) => {
-      const publication = latestPublicationInternal(state, item.id);
-      return Object.assign(
-        {},
-        clone(item),
-        publication
-          ? {
-              publishedAt: publication.publishedAt,
-              publishedRevision: publication.publishedRevision,
-              publicationId: publication.id,
-            }
-          : {},
-      );
-    });
-    result.summaries[dep] = Object.assign(totals(all), {
-      initiativeCount: all.length,
-      completedCount: all.filter((i) => i.status === "completed").length,
-    });
-    result.departments[dep] = Object.assign(progress(dep), {
-      comments: clone(
-        state.departments[dep].comments.filter(
-          (c) => identity.role === "lead" || allowedIds.has(c.initiativeId),
-        ),
-      ),
-    });
-    if (state.insights[dep]) {
-      if (identity.role === "owner")
-        result.insightStatus[dep] = {
-          createdAt: state.insights[dep].createdAt,
-          stale: insightIsStale(state, dep),
-          promptVersion: state.insights[dep].promptVersion || 1,
-        };
-      else
-        result.insights[dep] = Object.assign(clone(state.insights[dep]), {
-          stale: insightIsStale(state, dep),
-        });
-    }
-    if (identity.role === "owner") {
-      const ownerScope = "owner:" + identity.ownerId;
-      if (state.insights[ownerScope])
-        result.insights[ownerScope] = Object.assign(
-          clone(state.insights[ownerScope]),
-          { stale: insightIsStale(state, ownerScope) },
+    for (const dep of departments(identity)) {
+      const all = itemsFor(state, dep);
+      const visible =
+        identity.role === "lead"
+          ? all
+          : all.filter((i) => i.ownerId === identity.ownerId);
+      const allowedIds = new Set(visible.map((i) => i.id));
+      result.initiatives.push(...visible.map((item) => {
+        const publication = latestPublicationInternal(state, item.id);
+        return Object.assign(
+          {},
+          clone(item),
+          publication
+            ? {
+                publishedAt: publication.publishedAt,
+                publishedRevision: publication.publishedRevision,
+                publicationId: publication.id,
+              }
+            : {},
         );
-      visible.forEach((item) => {
-        const itemScope = "initiative:" + item.id;
-        if (state.insights[itemScope])
-          result.insights[itemScope] = Object.assign(
-            clone(state.insights[itemScope]),
-            { stale: insightIsStale(state, itemScope) },
-          );
+      }));
+      result.summaries[dep] = Object.assign(totals(all), {
+        initiativeCount: all.length,
+        completedCount: all.filter((i) => i.status === "completed").length,
       });
+      result.departments[dep] = Object.assign(progress(dep), {
+        comments: clone(
+          state.departments[dep].comments.filter(
+            (c) => identity.role === "lead" || allowedIds.has(c.initiativeId),
+          ),
+        ),
+      });
+      if (state.insights[dep]) {
+        if (identity.role === "owner")
+          result.insightStatus[dep] = {
+            createdAt: state.insights[dep].createdAt,
+            stale: insightIsStale(state, dep),
+            promptVersion: state.insights[dep].promptVersion || 1,
+          };
+        else
+          result.insights[dep] = Object.assign(clone(state.insights[dep]), {
+            stale: insightIsStale(state, dep),
+          });
+      }
+      if (identity.role === "owner") {
+        const ownerScope = "owner:" + identity.ownerId;
+        if (state.insights[ownerScope])
+          result.insights[ownerScope] = Object.assign(
+            clone(state.insights[ownerScope]),
+            { stale: insightIsStale(state, ownerScope) },
+          );
+        visible.forEach((item) => {
+          const itemScope = "initiative:" + item.id;
+          if (state.insights[itemScope])
+            result.insights[itemScope] = Object.assign(
+              clone(state.insights[itemScope]),
+              { stale: insightIsStale(state, itemScope) },
+            );
+        });
+      }
+      // Final ids from other departments do not belong in an Owner/Lead view.
+      result.final = state.final
+        ? {
+            id: state.final.id,
+            createdAt: state.final.createdAt,
+            departmentVersionId: state.final.departmentVersions[dep],
+            departmentVersions: Object.fromEntries(departments(identity).map((d) => [d, state.final.departmentVersions[d]])),
+          }
+        : null;
     }
-    // Final ids from other departments do not belong in an Owner/Lead view.
-    result.final = state.final
-      ? {
-          id: state.final.id,
-          createdAt: state.final.createdAt,
-          departmentVersionId: state.final.departmentVersions[dep],
-        }
-      : null;
   } else if (identity.role === "management") {
     DEPARTMENTS.forEach((dep) => {
       const published = latestPublishedItemsInternal(state, dep);
@@ -707,7 +714,7 @@ function selectView(state, identity) {
 }
 function submit(state, dep, identity, data, note) {
   role(identity, "lead");
-  if (identity.department !== dep) fail("负责人只能提交本部门方案。");
+  if (!hasDepartment(identity, dep)) fail("负责人只能提交本部门方案。");
   const d = department(state, dep);
   requireUnlocked(state, dep);
   const items = itemsFor(state, dep);
@@ -775,7 +782,7 @@ function returnDepartment(state, dep, comment, identity) {
 function returnInitiative(state, id, comment, identity) {
   role(identity, "lead");
   const i = initiative(state, id);
-  if (identity.department !== i.department)
+  if (!hasDepartment(identity, i.department))
     fail("负责人只能退回本部门 Initiative。");
   requireUnlocked(state, i.department);
   if (!hasText(comment)) fail("退回 Owner 须填写明确意见。");
@@ -840,7 +847,7 @@ function validateOwnerAssignment(item, ownerId, identity, users = []) {
     );
     if (
       !owner ||
-      owner.department !== item.department
+      !hasDepartment(owner, item.department)
     )
       fail("Owner 必须是项目部门内已配置的 Owner 邮箱。");
     return;
@@ -1161,12 +1168,13 @@ function assertInsightScopeAccess(state, descriptor, identity, allowAdmin) {
     if (identity.role !== "management") fail("仅管理层可查看全局 Insight。");
     return;
   }
-  if (identity.role === "lead" && identity.department === descriptor.department)
+  if (identity.role === "lead" && hasDepartment(identity, descriptor.department) && descriptor.items.every((item) => hasDepartment(identity, item.department)))
     return;
   if (
     identity.role === "owner" &&
     descriptor.ownerId === identity.ownerId &&
-    descriptor.department === identity.department
+    hasDepartment(identity, descriptor.department) &&
+    descriptor.items.every((item) => hasDepartment(identity, item.department))
   )
     return;
   fail("无权读取或编辑此 Insight 范围。");
@@ -1186,7 +1194,7 @@ function getAnalysisPrompt(state, scope, identity) {
     identity.role === "admin" ||
     (identity.role === "lead" &&
       descriptor.kind === "department" &&
-      descriptor.department === identity.department) ||
+      hasDepartment(identity, descriptor.department)) ||
     (identity.role === "owner" &&
       ["owner", "initiative"].includes(descriptor.kind)) ||
     false;
@@ -1774,6 +1782,8 @@ function createState(data, scenario) {
   return state;
 }
 export default {
+  departments,
+  hasDepartment,
   DEPARTMENTS,
   RESOURCE_DEPARTMENT,
   DEFAULT_BUDGET_REASONS,

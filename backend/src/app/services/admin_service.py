@@ -4,6 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.departments import departments
 from app.dependencies.workbench_user import WorkbenchUser
 from app.models.do.budget import BudgetDO
 from app.models.do.workspace import (
@@ -41,7 +42,7 @@ class AdminService(WorkspaceService):
             "email": item.email,
             "display_name": item.display_name,
             "role": item.role,
-            "department": item.department,
+            "department": departments(item.department),
             "sector": list(item.sector or []),
             "enabled": item.enabled,
             "has_initiatives": has_initiatives,
@@ -86,8 +87,12 @@ class AdminService(WorkspaceService):
             self.admin_repository.add(user)
             await self.session.flush()
             self.repository.add_log(
-                0, "USER_CREATE", self.user.email, None,
-                self._user_record(user), note=f"新增人员：{user.email}",
+                0,
+                "USER_CREATE",
+                self.user.email,
+                None,
+                self._user_record(user),
+                note=f"新增人员：{user.email}",
             )
             await self.session.commit()
         except IntegrityError as exc:
@@ -105,10 +110,19 @@ class AdminService(WorkspaceService):
             if user is None:
                 raise HTTPException(status_code=404, detail="人员不存在")
             if await self.admin_repository.user_has_budgets(user.email):
-                raise HTTPException(
-                    status_code=409,
-                    detail="该用户当前已有 Initiative 预算事项，不可修改或删除。",
-                )
+                unchanged = all(
+                    getattr(payload, field) == getattr(user, field)
+                    for field in ("email", "display_name", "role", "enabled")
+                ) and payload.sector == list(user.sector or [])
+                assigned = await self.admin_repository.assigned_departments(user.email)
+                if not unchanged or not assigned.issubset(payload.department):
+                    raise HTTPException(
+                        status_code=409,
+                        detail=(
+                            "该用户当前已有 Initiative 预算事项，仅可调整部门，"
+                            "且不能移除仍有项目的部门。"
+                        ),
+                    )
             duplicate = await self.admin_repository.user_by_email(payload.email)
             if duplicate is not None and duplicate.id != user.id:
                 raise HTTPException(status_code=409, detail="邮箱已存在")
@@ -121,7 +135,11 @@ class AdminService(WorkspaceService):
             after = self._user_record(user)
             if before != after:
                 self.repository.add_log(
-                    0, "USER_UPDATE", self.user.email, before, after,
+                    0,
+                    "USER_UPDATE",
+                    self.user.email,
+                    before,
+                    after,
                     note=f"修改人员：{before['email']}",
                 )
             await self.session.commit()
@@ -138,19 +156,15 @@ class AdminService(WorkspaceService):
         payload: AdminUserDTO,
         *,
         replacing_user_id: int | None = None,
-        previous_department: str | None = None,
+        previous_department: list[str] | None = None,
     ) -> None:
         """Ensure every enabled Owner sector is covered by an enabled Lead in that department."""
-        departments = {
-            department
-            for department in (payload.department, previous_department)
-            if department
-        }
-        for department in departments:
+        affected_departments = set(payload.department) | set(departments(previous_department))
+        for department in sorted(affected_departments):
             users = list(await self.admin_repository.locked_enabled_users_by_department(department))
             if replacing_user_id is not None:
                 users = [user for user in users if user.id != replacing_user_id]
-            if payload.enabled and payload.department == department:
+            if payload.enabled and department in payload.department:
                 users.append(
                     UserPermissionDO(
                         email=payload.email,
@@ -202,7 +216,11 @@ class AdminService(WorkspaceService):
             before = self._user_record(user)
             await self.session.delete(user)
             self.repository.add_log(
-                0, "USER_DELETE", self.user.email, before, None,
+                0,
+                "USER_DELETE",
+                self.user.email,
+                before,
+                None,
                 note=f"删除人员：{before['email']}",
             )
             await self.session.commit()

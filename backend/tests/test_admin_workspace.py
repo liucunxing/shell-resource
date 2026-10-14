@@ -220,7 +220,7 @@ def test_duplicate_admin_create_rolls_back_whole_batch():
     asyncio.run(database_case(run))
 
 
-@pytest.mark.parametrize("resource_type", ["MRD", "SP&A", "ICE Rebate", "Capex"])
+@pytest.mark.parametrize("resource_type", ["MRD", "SP&A", "ICE Rebate", "Capex", "CAPEX"])
 def test_owner_can_receive_initiatives_in_multiple_sectors(resource_type):
     async def run(session, service):
         await seed_budget(session)
@@ -243,7 +243,7 @@ def test_owner_can_receive_initiatives_in_multiple_sectors(resource_type):
         budgets = (await session.scalars(select(BudgetDO).order_by(BudgetDO.id))).all()
         assert {budget.sector for budget in budgets} == {"PCMO", "OTHER"}
         assert {budget.owner_email for budget in budgets} == {"owner@example.com"}
-        assert budgets[1].resource_type == resource_type
+        assert budgets[1].resource_type == ("Capex" if resource_type == "CAPEX" else resource_type)
 
     asyncio.run(database_case(run))
 
@@ -343,6 +343,10 @@ def test_distributor_history_field_mapping_and_department_scope():
         }
         ice = (await ReferenceService(session).get_dealers(2027, "ICE"))[0]
         assert ice["history"]["resources2025"] == {"ICE Rebate": 8.0}
+        multi = (await ReferenceService(session).get_dealers(2027, ["MKT", "ICE"]))[0]
+        assert multi["history"]["resources2025"] == {"MRD": 7.0, "SP&A": 9.0, "ICE Rebate": 8.0}
+        empty = (await ReferenceService(session).get_dealers(2027, []))[0]
+        assert empty["history"]["resources2025"] == {}
 
     asyncio.run(database_case(run))
 

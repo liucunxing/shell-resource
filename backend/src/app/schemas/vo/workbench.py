@@ -6,7 +6,7 @@ from pydantic import BaseModel
 class WorkbenchUserVO(BaseModel):
     user_id: str
     user_name: str
-    department: str
+    department: list[str]
 
 
 class MyInitiativeVO(BaseModel):

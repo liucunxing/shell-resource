@@ -82,7 +82,7 @@ function editable(state, id, identity) {
   if (
     !["owner", "lead"].includes(identity.role) ||
     identity.ownerId !== i.ownerId ||
-    identity.department !== i.department ||
+    !engine.hasDepartment(identity, i.department) ||
     !engine.canEdit(state, id, identity)
   )
     throw new Error("当前身份或方案状态不允许修改该 Initiative");

@@ -11,6 +11,7 @@ const HEADERS = [
   "预算金额",
 ];
 const RESOURCE_TYPES = ["MRD", "SP&A", "ICE Rebate", "Capex"];
+const canonicalResource = (value) => RESOURCE_TYPES.find(type => type.toLowerCase() === value.toLowerCase()) || value;
 const tickets = new WeakMap();
 const json = (value) => JSON.stringify(value);
 const clone = (value) => JSON.parse(json(value));
@@ -194,7 +195,7 @@ async function previewImport(buffer, state, identity, users = []) {
   );
   const byBusinessKey = new Map(
       initial.initiatives.map((i) => [
-        json([i.sector, i.department, i.resourceType, i.name]),
+        json([i.sector, i.department, canonicalResource(i.resourceType), i.name]),
         i,
       ]),
     ),
@@ -216,7 +217,7 @@ async function previewImport(buffer, state, identity, users = []) {
       );
       if (
         !owner ||
-        owner.department !== item.department
+        !engine.hasDepartment(owner, item.department)
       )
         add(
           `第 ${rowNumber} 行：Owner 必须是项目部门内已配置的 Owner 邮箱。`,
@@ -244,9 +245,9 @@ async function previewImport(buffer, state, identity, users = []) {
     const item = {
       name: text(cells[0]),
       sector: text(cells[1]),
-      resourceType: text(cells[2]),
+      resourceType: canonicalResource(text(cells[2])),
       department: text(cells[3]),
-      ownerId: text(cells[4]),
+      ownerId: identity.apiMode ? text(cells[4]).toLowerCase() : text(cells[4]),
       budget: parseBudget(cells[5]),
     };
     if (!item.name || item.name.length > 255)

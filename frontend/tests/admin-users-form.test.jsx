@@ -14,8 +14,10 @@ describe("管理员人员部门选择", () => {
 
   it("切换管理员再切回 Owner 时恢复可选部门", () => {
     const previous = departmentAfterRoleChange("admin", "ICE");
-    expect(departmentAfterRoleChange("owner", previous)).toBe("ICE");
-    expect(departmentAfterRoleChange("owner", "")).toBe("MKT");
+    expect(previous).toEqual([]);
+    expect(departmentAfterRoleChange("owner", previous)).toEqual(["MKT"]);
+    expect(departmentAfterRoleChange("owner", "")).toEqual(["MKT"]);
+    expect(departmentAfterRoleChange("lead", ["MKT", "ICE"])).toEqual(["MKT", "ICE"]);
     expect(userDepartmentOptions("MKT")).toHaveLength(3);
   });
 });

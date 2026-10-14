@@ -5,6 +5,7 @@ from sqlalchemy import Select, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
+from app.core.departments import departments
 from app.models.do.budget import BudgetDO
 from app.models.do.budget_distributor import BudgetDistributorDO
 from app.repositories.base import BaseRepository
@@ -20,19 +21,18 @@ class BudgetRepository(BaseRepository[BudgetDO]):
         self,
         *,
         planning_year: int | None,
-        department: str | None,
+        department: str | list[str] | tuple[str, ...] | None,
         sector: str | None,
         owner_email: str | None = None,
         initiative_keyword: str | None,
         resource_type_keyword: str | None,
         status: int | None,
     ) -> list[BudgetDO]:
-        statement: Select[tuple[BudgetDO]] = select(BudgetDO).where(
-        )
+        statement: Select[tuple[BudgetDO]] = select(BudgetDO).where()
         if planning_year is not None:
             statement = statement.where(BudgetDO.planning_year == planning_year)
-        if department:
-            statement = statement.where(BudgetDO.department == department)
+        if department is not None:
+            statement = statement.where(BudgetDO.department.in_(departments(department)))
         if sector:
             statement = statement.where(BudgetDO.sector == sector)
         if owner_email:
@@ -55,7 +55,7 @@ class BudgetRepository(BaseRepository[BudgetDO]):
         *,
         budget_id: int,
         planning_year: int | None,
-        department: str | None,
+        department: str | list[str] | tuple[str, ...] | None,
         sector: str | None,
         owner_email: str | None = None,
         for_update: bool = False,
@@ -65,8 +65,8 @@ class BudgetRepository(BaseRepository[BudgetDO]):
         )
         if planning_year is not None:
             statement = statement.where(BudgetDO.planning_year == planning_year)
-        if department:
-            statement = statement.where(BudgetDO.department == department)
+        if department is not None:
+            statement = statement.where(BudgetDO.department.in_(departments(department)))
         if sector:
             statement = statement.where(BudgetDO.sector == sector)
         if owner_email:
@@ -91,7 +91,7 @@ class BudgetRepository(BaseRepository[BudgetDO]):
             ),
         ).where(
             BudgetDO.planning_year == planning_year,
-            BudgetDO.department == department,
+            BudgetDO.department.in_(departments(department)),
             BudgetDO.sector == sector,
         )
         result = (await self.session.execute(statement)).one()

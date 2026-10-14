@@ -736,7 +736,7 @@ export function AdminPage() {
                       <td>
                         {entry.actor.label ||
                           entry.actor.ownerId ||
-                          entry.actor.department ||
+                          E.departments(entry.actor).join("、") ||
                           entry.actor.role}
                       </td>
                       <td>{actionNames[entry.action] || entry.action}</td>
@@ -801,7 +801,7 @@ export function AdminPage() {
                     ? roles.filter(
                         (user) =>
                           ["owner", "lead"].includes(user.role) &&
-                          user.department === modal.item.department,
+                          E.hasDepartment(user, modal.item.department),
                       )
                     : [1, 2].map((n) => ({
                         key: `${modal.item.department}-${n}`,
