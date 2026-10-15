@@ -270,3 +270,18 @@ ADM-01“新增预算”通过管理员配置 Excel 的空编号行完成；页�
 - 部门总览与 Insight 可切换部门。总计不可因一人属于多个部门重复计算项目。
 - 空部门集合不能被查询层当作全局权限；未授权部门详情和写入应拒绝。
 - 升级前旧值 `MKT` 在数据库迁移后成为 `{MKT}`，用户 ID/邮箱/项目归属保持不变。
+
+## PostgreSQL 隔离验收（2026-10-15）
+
+使用 development 配置的真实 PostgreSQL，在随机 `codex_multi_dept_*` Schema 中克隆实际用户表结构，执行原迁移操作（仅替换测试 Schema），再运行真实 Controller、Service、Repository 和邮件身份依赖。业务表不参与写入，业务序列不用于测试；每次接口提交只释放保存点，最外层事务最终回滚所有测试表及数据。
+
+```powershell
+# 在仓库根目录运行；连接配置保持在忽略的 backend/config/settings.toml。
+backend/.venv/Scripts/python.exe backend/scripts/verify_multi_department_pg.py --report output/pg/multi-department.json
+# 可选：用本地管理员 Excel 预览 JSON 检查批量导入和金额。
+backend/.venv/Scripts/python.exe backend/scripts/verify_multi_department_pg.py --report output/pg/multi-department.json --import-json output/playwright/customer-admin-preview.json
+```
+
+本次 17 组检查通过：旧单值/null/空字符串升级、单部门降级、多部门降级保护、Owner/Lead 部门范围、PG 数组成员筛选、Owner 草稿与同步、Lead 兼任 Owner 的草稿/同步/分配增删改、拒绝越权写入、有项目部门不可移除、部门业务线覆盖、旧字符串 API、多部门人员 API 保存、第二部门 Owner 指派、撤销授权、空部门拒绝、Excel 批量导入与金额核对。
+
+提供的 Excel 24 项预算在隔离 Schema 成功导入，总额为 365,079,700。表格测试账户权限为模拟配置，经销商目录也为测试替身，不代表真实 Databricks 集成或线上人员权限已验收。回滚后已确认测试 Schema 不存在、业务用户部门列仍为 `varchar`。正式迁移和应用部署均未执行。
