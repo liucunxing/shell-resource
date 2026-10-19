@@ -6,10 +6,32 @@ import {
   AdminBudgetFields,
   budgetForm,
   budgetPayload,
+  budgetSectors,
 } from "../src/workbench/pages/AdminBudgetFields.jsx";
 
 const admin = { role: "admin", apiMode: true };
 const users = [{ email: "owner@example.com", department: ["MKT", "ICE"], role: "lead" }];
+
+it("offers four sector choices and all enabled department emails irrespective of role", () => {
+  expect(budgetSectors).toEqual(["PCMO", "CRTO", "B2B", "OEM"]);
+  const form = { ...budgetForm(), budget: "10" };
+  const candidates = [
+    { email: "lead@x.com", department: ["MKT", "ICE"], role: "lead" },
+    { email: "admin@x.com", department: ["MKT"], role: "admin" },
+    { email: "other@x.com", department: ["ICE"], role: "owner" },
+    { email: "disabled@x.com", department: ["MKT"], role: "owner", enabled: false },
+  ];
+  const html = renderToStaticMarkup(<AdminBudgetFields value={form} onChange={() => {}} users={candidates} apiMode />);
+  expect(html).toContain("lead@x.com");
+  expect(html).toContain("admin@x.com");
+  expect(html).not.toContain("other@x.com");
+  expect(html).not.toContain("disabled@x.com");
+  expect(html).toMatch(/<select[^>]*>.*PCMO.*CRTO.*B2B.*OEM/);
+  expect(() => budgetPayload({ ...form, sector: "Other" }, true)).toThrow("业务线必须");
+  const state = E.createState(data, "working");
+  E.editAdminBudget(state, state.initiatives[0].id, { name: "Assigned", sector: "PCMO", department: "MKT", resourceType: "MRD", ownerId: "admin@x.com", budget: 10 }, admin, candidates);
+  expect(state.initiatives[0].ownerId).toBe("admin@x.com");
+});
 
 it("uses the same six fields for create and edit and normalizes email and resource values", () => {
   const form = {

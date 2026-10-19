@@ -1,6 +1,7 @@
 import E from "../domain/engine.js";
 
 const resources = ["MRD", "SP&A", "ICE Rebate", "Capex"];
+export const budgetSectors = ["PCMO", "CRTO", "B2B", "OEM"];
 
 export function budgetForm(item) {
   return {
@@ -15,6 +16,7 @@ export function budgetForm(item) {
 
 export function budgetPayload(form, apiMode) {
   if (!form.budget.trim()) throw Error("预算不能为空。");
+  if (!budgetSectors.includes(form.sector)) throw Error("业务线必须为 PCMO、CRTO、B2B 或 OEM。");
   return {
     name: form.name.trim(),
     sector: form.sector.trim(),
@@ -40,7 +42,7 @@ export function AdminBudgetFields({
   const owners = apiMode
     ? users.filter(
         (user) =>
-          ["owner", "lead"].includes(user.role) &&
+          user.enabled !== false &&
           E.hasDepartment(user, value.department),
       )
     : [1, 2].map((number) => ({ email: `${value.department}-${number}` }));
@@ -65,11 +67,12 @@ export function AdminBudgetFields({
       </label>
       <label className="form-field">
         Sector
-        <input
-          maxLength={32}
+        <select
           value={value.sector}
           onChange={(event) => set("sector", event.target.value)}
-        />
+        >
+          {budgetSectors.map((sector) => <option key={sector}>{sector}</option>)}
+        </select>
       </label>
       <label className="form-field">
         资源类型
@@ -101,7 +104,7 @@ export function AdminBudgetFields({
           value={apiMode ? value.ownerId.toLowerCase() : value.ownerId}
           onChange={(event) => set("ownerId", event.target.value)}
         >
-          <option value="">请选择部门内 Owner</option>
+          <option value="">请选择部门内邮箱（含负责人）</option>
           {owners.map((owner) => (
             <option
               key={owner.email}

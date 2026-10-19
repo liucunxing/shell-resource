@@ -299,6 +299,8 @@ class AdminService(WorkspaceService):
 
     async def edit_budget(self, budget_id: int, payload: AdminBudgetEditDTO) -> dict:
         self._admin()
+        if payload.sector not in {"PCMO", "CRTO", "B2B", "OEM"}:
+            raise HTTPException(status_code=422, detail="业务线必须为 PCMO、CRTO、B2B 或 OEM")
         try:
             await self._locked_config()
             budget = await self.admin_repository.locked_budget(budget_id)
@@ -376,6 +378,10 @@ class AdminService(WorkspaceService):
             entities = []
             keys = set()
             for item in payload.items:
+                if item.sector not in {"PCMO", "CRTO", "B2B", "OEM"}:
+                    raise HTTPException(
+                        status_code=422, detail="业务线必须为 PCMO、CRTO、B2B 或 OEM",
+                    )
                 key = (item.sector, item.department, item.resourceType, item.name)
                 if key in keys or await self.admin_repository.business_key_exists(
                     payload.planning_year,

@@ -18,6 +18,7 @@ import {
 import { useWorkbench } from "./WorkbenchContext.jsx";
 import { WorkPanel } from "./WorkPanel.jsx";
 import { useWorkPanelWidth } from "./WorkPanelResizer";
+import { ToastNotice } from "./ToastNotice.jsx";
 const loginEmailEditable = import.meta.env.VITE_LOGIN_EMAIL_EDITABLE === "true";
 const HomePage = lazy(() =>
   import("./pages/OverviewPages.jsx").then((m) => ({ default: m.HomePage })),
@@ -425,22 +426,7 @@ export default function WorkbenchApp() {
           </button>
         </div>
       </dialog>
-      {toast && (
-        <div
-          id="toast"
-          className={`visible ${toast.error ? "error" : ""}`}
-          role={toast.error ? "alert" : "status"}
-        >
-          <span>{toast.message}</span>
-          <button
-            className="icon-button"
-            aria-label="关闭提示"
-            onClick={dismissToast}
-          >
-            <X size={16} />
-          </button>
-        </div>
-      )}
+      {toast && <ToastNotice toast={toast} onDismiss={dismissToast} />}
     </>
   );
 }

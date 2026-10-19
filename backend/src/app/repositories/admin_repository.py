@@ -26,7 +26,6 @@ class AdminRepository:
                 .where(
                     func.lower(func.trim(UserPermissionDO.email)) == email.strip().lower(),
                     UserPermissionDO.enabled.is_(True),
-                    UserPermissionDO.role.in_(("owner", "lead")),
                     self._department_member(department),
                 )
                 .with_for_update()

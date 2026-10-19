@@ -843,13 +843,13 @@ function clearReassignmentCaches(
 function validateOwnerAssignment(item, ownerId, identity, users = []) {
   if (identity?.apiMode) {
     const owner = users.find(
-      (user) => user.email?.trim().toLowerCase() === ownerId.trim().toLowerCase() && ["owner", "lead"].includes(user.role),
+      (user) => user.email?.trim().toLowerCase() === ownerId.trim().toLowerCase() && user.enabled !== false,
     );
     if (
       !owner ||
       !hasDepartment(owner, item.department)
     )
-      fail("Owner 必须是项目部门内已配置的 Owner 邮箱。");
+      fail("Owner 必须是项目部门内已启用的邮箱（含部门负责人）。");
     return;
   }
   if (![item.department + "-1", item.department + "-2"].includes(ownerId))

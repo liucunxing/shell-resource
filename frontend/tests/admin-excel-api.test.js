@@ -95,7 +95,7 @@ describe("API administrator Excel round trip", () => {
         state.initiatives[0].budget,
       );
       const result = await AX.previewImport(bytes, state, admin, users);
-      expect(result.errors.join(" ")).toContain("已配置的 Owner 邮箱");
+      expect(result.errors.join(" ")).toContain("已启用的邮箱");
       expect(state.initiatives[0].ownerId).toBe("a@example.test");
     }
   });

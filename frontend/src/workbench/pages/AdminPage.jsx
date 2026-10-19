@@ -44,6 +44,7 @@ function AdminDialog({
   onConfirm,
   confirmLabel = "保存",
   disabled = false,
+  error = "",
 }) {
   const ref = useRef(null);
   useEffect(() => {
@@ -78,6 +79,7 @@ function AdminDialog({
           ×
         </button>
       </div>
+      {error && <div className="admin-dialog-error" role="alert">{error}</div>}
       <div className="modal-body">{children}</div>
       <div className="modal-foot">
         <button className="button" type="button" onClick={onClose}>
@@ -432,13 +434,6 @@ export function AdminPage() {
                       <td className="num">{money(item.budget)}</td>
                       <td>
                         <div className="actions">
-                          <button
-                            className="button small"
-                            disabled={budgetPending}
-                            onClick={() => setModal({ kind: "create", form: budgetForm() })}
-                          >
-                            新增
-                          </button>
                           <button
                             className="button small"
                             disabled={budgetPending}
@@ -809,10 +804,10 @@ export function AdminPage() {
           title={{ create: "新增 Initiative", edit: "编辑 Initiative", delete: "删除 Initiative" }[modal.kind]}
           onClose={() => { if (!savingBudgets) close(); }}
           onConfirm={saveBudgetOperation}
+          error={budgetError}
           disabled={budgetPending}
           confirmLabel={savingBudgets ? "正在保存…" : modal.kind === "delete" ? "确认删除" : "保存"}
         >
-          {budgetError && <div className="note-box warn" role="alert">{budgetError}</div>}
           {modal.kind === "delete" ? <div className="note-box warn">
             确认删除“{modal.item.name}”（ID：{modal.item.id}）？此操作将删除该项目及其经销商分配、其他预算和同步记录，无法在页面撤销。删除前快照保留在服务端操作日志。
           </div> : <>

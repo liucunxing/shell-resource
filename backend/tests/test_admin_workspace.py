@@ -32,6 +32,32 @@ from app.services.admin_service import AdminService
 from app.services.reference_service import ReferenceService
 
 
+@pytest.mark.parametrize("role", ["admin", "management", "lead"])
+def test_budget_assignment_accepts_all_enabled_department_emails_and_rejects_disabled(role):
+    async def run(session, service):
+        await seed_budget(session)
+        session.add_all([
+            UserPermissionDO(email="assigned-admin@x.com", display_name="Assigned", role=role,
+                             department=["MKT", "ICE"], enabled=True),
+            UserPermissionDO(email="disabled@x.com", display_name="Disabled", role="lead",
+                             department=["MKT"], enabled=False),
+        ])
+        await session.commit()
+        item = dict(name="Any department email", sector="PCMO", department="MKT",
+                    resourceType="MRD", budget=10, ownerId="assigned-admin@x.com")
+        await service.create_budgets(AdminBudgetsCreateDTO(planning_year=2027, items=[item]))
+        edit_item = {**item, "name": "Existing reassigned"}
+        await service.edit_budget(1, AdminBudgetEditDTO(**edit_item, expected_revision=3))
+        for patch in [{"ownerId": "disabled@x.com"}, {"department": "CAPEX"}, {"sector": "Other"}]:
+            with pytest.raises(HTTPException) as error:
+                await service.edit_budget(1, AdminBudgetEditDTO(
+                    **{**edit_item, **patch}, expected_revision=4,
+                ))
+            assert error.value.status_code == 422
+
+    asyncio.run(database_case(run))
+
+
 def test_full_budget_edit_preserves_allocations_and_delete_keeps_audit_snapshot():
     async def run(session, service):
         await seed_budget(session)
@@ -353,7 +379,7 @@ def test_owner_can_receive_initiatives_in_multiple_sectors(resource_type):
                     {
                         "name": "Other sector",
                         "resourceType": resource_type,
-                        "sector": "OTHER",
+                        "sector": "B2B",
                         "department": "MKT",
                         "budget": 50,
                         "ownerId": "owner@example.com",
@@ -363,7 +389,7 @@ def test_owner_can_receive_initiatives_in_multiple_sectors(resource_type):
         )
         assert result["created_count"] == 1
         budgets = (await session.scalars(select(BudgetDO).order_by(BudgetDO.id))).all()
-        assert {budget.sector for budget in budgets} == {"PCMO", "OTHER"}
+        assert {budget.sector for budget in budgets} == {"PCMO", "B2B"}
         assert {budget.owner_email for budget in budgets} == {"owner@example.com"}
         assert budgets[1].resource_type == ("Capex" if resource_type == "CAPEX" else resource_type)
 
@@ -373,7 +399,6 @@ def test_owner_can_receive_initiatives_in_multiple_sectors(resource_type):
 @pytest.mark.parametrize(
     "role,enabled,department",
     [
-        ("management", True, "MKT"),
         ("owner", False, "MKT"),
         ("owner", True, "ICE"),
     ],

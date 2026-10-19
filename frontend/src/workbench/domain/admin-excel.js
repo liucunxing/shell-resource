@@ -213,14 +213,14 @@ async function previewImport(buffer, state, identity, users = []) {
   const validateOwner = (rowNumber, item, ownerId) => {
     if (identity.apiMode) {
       const owner = users.find(
-        (user) => user.email?.trim().toLowerCase() === ownerId.toLowerCase() && ["owner", "lead"].includes(user.role),
+        (user) => user.email?.trim().toLowerCase() === ownerId.toLowerCase() && user.enabled !== false,
       );
       if (
         !owner ||
         !engine.hasDepartment(owner, item.department)
       )
         add(
-          `第 ${rowNumber} 行：Owner 必须是项目部门内已配置的 Owner 邮箱。`,
+          `第 ${rowNumber} 行：Owner 必须是项目部门内已启用的邮箱（含部门负责人）。`,
         );
     } else if (
       ![item.department + "-1", item.department + "-2"].includes(ownerId)

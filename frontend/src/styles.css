@@ -5402,12 +5402,25 @@ th {
 }
 #toast {
   display: flex;
+  top: 16px;
+  bottom: auto;
+  z-index: 2147483647;
+  pointer-events: auto;
   align-items: center;
   gap: 12px;
   max-width: min(90vw, 700px);
 }
 #toast .icon-button {
   color: inherit;
+}
+.admin-dialog-error {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 14px 23px;
+  background: #fff0ee;
+  color: #a32119;
+  border-bottom: 1px solid #efb5ae;
 }
 dialog.modal {
   padding: 0;
