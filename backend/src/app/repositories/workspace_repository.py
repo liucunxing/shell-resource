@@ -189,7 +189,9 @@ class WorkspaceRepository:
         if not budget_ids and not admin:
             return []
         allowed_ids = [*budget_ids, 0] if admin else budget_ids
-        statement = select(BudgetChangeLogDO).where(BudgetChangeLogDO.budget_id.in_(allowed_ids))
+        statement = select(BudgetChangeLogDO)
+        if not admin:
+            statement = statement.where(BudgetChangeLogDO.budget_id.in_(allowed_ids))
         if admin:
             statement = statement.where(
                 BudgetChangeLogDO.operation_type.in_(
@@ -201,6 +203,8 @@ class WorkspaceRepository:
                         "USER_CREATE",
                         "USER_UPDATE",
                         "USER_DELETE",
+                        "ADMIN_EDIT",
+                        "ADMIN_DELETE",
                     ]
                 )
             )

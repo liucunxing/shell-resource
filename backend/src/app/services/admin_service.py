@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime
 
 from fastapi import HTTPException
@@ -6,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.departments import departments
 from app.dependencies.workbench_user import WorkbenchUser
+from app.models.do.base import BaseDO
 from app.models.do.budget import BudgetDO
 from app.models.do.workspace import (
     UserPermissionDO,
@@ -15,6 +17,8 @@ from app.models.do.workspace import (
 from app.repositories.admin_repository import AdminRepository
 from app.repositories.reference_repository import ReferenceRepository
 from app.schemas.dto.workbench import (
+    AdminBudgetDeleteDTO,
+    AdminBudgetEditDTO,
     AdminBudgetsCreateDTO,
     AdminBudgetsImportDTO,
     AdminBudgetsUpdateDTO,
@@ -285,6 +289,84 @@ class AdminService(WorkspaceService):
             await self.session.rollback()
             raise
         return {"updated_count": updated}
+
+    @staticmethod
+    def _entity_snapshot(entity: BaseDO) -> dict:
+        return json.loads(json.dumps(
+            {column.name: getattr(entity, column.name) for column in entity.__table__.columns},
+            default=str,
+        ))
+
+    async def edit_budget(self, budget_id: int, payload: AdminBudgetEditDTO) -> dict:
+        self._admin()
+        try:
+            await self._locked_config()
+            budget = await self.admin_repository.locked_budget(budget_id)
+            if budget is None:
+                raise HTTPException(status_code=404, detail="预算不存在或已删除")
+            if budget.revision != payload.expected_revision:
+                raise HTTPException(status_code=409, detail="项目已被修改，请刷新后重试")
+            if payload.resourceType not in {"MRD", "SP&A", "ICE Rebate", "Capex"}:
+                raise HTTPException(status_code=422, detail="资源类型无效")
+            if await self.admin_repository.business_key_exists(
+                budget.planning_year, payload.sector, payload.department,
+                payload.resourceType, payload.name, exclude_id=budget.id,
+            ):
+                raise HTTPException(
+                    status_code=409, detail="同年度、部门、Sector 和资源类型下 Initiative 已存在"
+                )
+            owner = await self._owner(payload.ownerId, payload.department)
+            before = self._entity_snapshot(budget)
+            budget.initiative_name = payload.name
+            budget.sector = payload.sector
+            budget.department = payload.department
+            budget.resource_type = payload.resourceType
+            budget.owner_email = owner.email
+            budget.plan_budget_amount = payload.budget
+            budget.revision += 1
+            budget.status = 0
+            await self.admin_repository.sync_allocation_metadata(budget)
+            await self.session.flush()
+            await self.session.refresh(budget)
+            self.repository.add_log(
+                budget.id, "ADMIN_EDIT", self.user.email, before,
+                self._entity_snapshot(budget),
+                note=f"编辑项目：{budget.initiative_name}；保留分配，需重新同步",
+            )
+            await self.session.commit()
+        except Exception:
+            await self.session.rollback()
+            raise
+        return {"updated_id": budget_id}
+
+    async def delete_budget(self, budget_id: int, payload: AdminBudgetDeleteDTO) -> dict:
+        self._admin()
+        try:
+            await self._locked_config()
+            budget = await self.admin_repository.locked_budget(budget_id)
+            if budget is None:
+                raise HTTPException(status_code=404, detail="预算不存在或已删除")
+            if budget.revision != payload.expected_revision:
+                raise HTTPException(status_code=409, detail="项目已被修改，请刷新后重试")
+            rows = await self.repository.rows_for(budget_id)
+            other = await self.repository.other_for(budget_id)
+            publications = await self.repository.publications_for(budget_id)
+            snapshot = {
+                "budget": self._entity_snapshot(budget),
+                "allocations": [self._entity_snapshot(row) for row in rows],
+                "other_budgets": [self._entity_snapshot(row) for row in other],
+                "publications": [self._entity_snapshot(row) for row in publications],
+            }
+            self.repository.add_log(
+                budget_id, "ADMIN_DELETE", self.user.email, snapshot, None,
+                note=f"删除项目：{budget.initiative_name}；已记录删除前快照",
+            )
+            await self.admin_repository.delete_budget(budget)
+            await self.session.commit()
+        except Exception:
+            await self.session.rollback()
+            raise
+        return {"deleted_id": budget_id}
 
     async def create_budgets(self, payload: AdminBudgetsCreateDTO) -> dict:
         self._admin()

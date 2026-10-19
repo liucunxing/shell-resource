@@ -74,6 +74,35 @@ def headers(email="a@example.com"):
 
 
 @pytest.mark.asyncio
+async def test_admin_budget_full_edit_and_delete_http_contract(api):
+    client, engine = api
+    admin = headers("admin@example.com")
+    item = {"name": "HTTP CRUD", "sector": "PCMO", "department": "MKT",
+            "resourceType": "capex", "ownerId": "a@example.com", "budget": 10}
+    response = await client.post("admin/budgets", headers=admin, json={
+        "planning_year": 2027, "items": [item],
+    })
+    assert response.status_code == 200
+    async with AsyncSession(engine) as session:
+        budget = await session.scalar(
+            select(BudgetDO).where(BudgetDO.initiative_name == "HTTP CRUD")
+        )
+        budget_id = budget.id
+    url = f"admin/budgets/{budget_id}"
+    edit = {**item, "name": "HTTP edited", "sector": "B2B",
+            "ownerId": "B@EXAMPLE.COM", "expected_revision": 0}
+    assert (await client.put(url, headers=headers(), json=edit)).status_code == 403
+    assert (await client.request("DELETE", url, headers=headers(),
+                                 json={"expected_revision": 0})).status_code == 403
+    response = await client.put(url, headers=admin, json=edit)
+    assert response.status_code == 200 and response.json()["data"]["updated_id"] == budget_id
+    assert (await client.put(url, headers=admin, json=edit)).status_code == 409
+    response = await client.request("DELETE", url, headers=admin, json={"expected_revision": 1})
+    assert response.status_code == 200 and response.json()["data"]["deleted_id"] == budget_id
+    assert (await client.put(url, headers=admin, json=edit)).status_code == 404
+
+
+@pytest.mark.asyncio
 async def test_http_auth_and_role_boundaries(api):
     client, _ = api
     assert (await client.get("workspace?planning_year=2027")).status_code == 401

@@ -1092,6 +1092,31 @@ function applyAdminConfiguration(
   });
   return applied;
 }
+function editAdminBudget(state, id, fields, identity, users = []) {
+  role(identity, "admin");
+  const current = initiative(state, id);
+  const candidate = clone(state);
+  candidate.initiatives = candidate.initiatives.filter((item) => item.id !== id);
+  applyAdminConfiguration(candidate, [], identity, users, [fields]);
+  const previousOwner = current.ownerId;
+  const previousDepartment = current.department;
+  Object.assign(current, fields);
+  changed(current);
+  clearReassignmentCaches(state, id, previousOwner, fields.ownerId);
+  for (const department of [previousDepartment, fields.department]) {
+    delete state.insights["department:" + department];
+    if (state.analysisPrompts) delete state.analysisPrompts["department:" + department];
+  }
+  audit(state, identity, "edit_admin_budget", id, "编辑全部配置；保留分配，需重新同步。");
+}
+function deleteAdminBudget(state, id, identity) {
+  role(identity, "admin");
+  const current = initiative(state, id);
+  clearReassignmentCaches(state, id, current.ownerId, current.ownerId);
+  state.initiatives = state.initiatives.filter((item) => item.id !== id);
+  delete state.publications[id];
+  audit(state, identity, "delete_admin_budget", id, "删除项目：" + current.name);
+}
 function changeReference(state, identity) {
   role(identity, "admin");
   state.reference = {
@@ -1806,6 +1831,8 @@ export default {
   getBudgetReasons,
   setBudgetReasons,
   applyAdminConfiguration,
+  editAdminBudget,
+  deleteAdminBudget,
   changeReference,
   setGuide,
   getAnalysisPrompt,

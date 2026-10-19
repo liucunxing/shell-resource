@@ -212,6 +212,14 @@ class AdminBudgetCreateItemDTO(BaseModel):
         return resources.get(value.lower(), value)
 
 
+class AdminBudgetEditDTO(AdminBudgetCreateItemDTO):
+    expected_revision: int = Field(ge=0)
+
+
+class AdminBudgetDeleteDTO(BaseModel):
+    expected_revision: int = Field(ge=0)
+
+
 class AdminBudgetsCreateDTO(BaseModel):
     planning_year: int = Field(ge=2020, le=2100)
     items: list[AdminBudgetCreateItemDTO] = Field(min_length=1)

@@ -4,6 +4,7 @@ import E from "../domain/engine.js";
 import AX from "../domain/admin-excel.js";
 import { parseReferenceInWorker, previewExcelInWorker } from "../file-import.js";
 import { AdminUsersPanel } from "./AdminUsersPanel.jsx";
+import { AdminBudgetFields, budgetForm, budgetPayload } from "./AdminBudgetFields.jsx";
 
 const money = (value) =>
   Number.isFinite(value)
@@ -22,6 +23,8 @@ const tabs = [
   ["audit", "变更记录"],
 ];
 const actionNames = {
+  edit_admin_budget: "编辑项目配置",
+  delete_admin_budget: "删除项目",
   set_budget: "预算调整",
   import_admin_configuration: "预算与归属导入",
   change_reference: "参考批次发布",
@@ -105,6 +108,7 @@ export function AdminPage() {
     apiMode,
     roles,
     saveAdminBudgets,
+    manageAdminBudget,
     importAdminBudgets,
     saveConfig,
     saveReference,
@@ -116,6 +120,8 @@ export function AdminPage() {
   const [guide, setGuide] = useState(state.guide.text);
   const [busy, setBusy] = useState(false);
   const [savingBudgets, setSavingBudgets] = useState(false);
+  const [budgetError, setBudgetError] = useState("");
+  useEffect(() => setBudgetError(""), [modal?.kind, modal?.item?.id]);
   const upload = useRef(null);
   const referenceUpload = useRef(null);
   const sequence = useRef(0);
@@ -156,6 +162,42 @@ export function AdminPage() {
     setTab(next);
   };
   const budgetPending = busy || savingBudgets || loading;
+
+  async function saveBudgetOperation() {
+    if (budgetPending) return;
+    const { kind, item } = modal;
+    setBudgetError("");
+    try {
+      const payload = kind === "delete" ? null : budgetPayload(modal.form, apiMode);
+      if (kind !== "delete") {
+        const candidate = structuredClone(state);
+        if (kind === "edit") E.editAdminBudget(candidate, item.id, payload, identity, roles);
+        else E.applyAdminConfiguration(candidate, [], identity, roles, [payload]);
+      }
+      if (!apiMode) {
+        change((draft) => {
+          if (kind === "delete") E.deleteAdminBudget(draft, item.id, identity);
+          else if (kind === "edit") E.editAdminBudget(draft, item.id, payload, identity, roles);
+          else E.applyAdminConfiguration(draft, [], identity, roles, [payload]);
+        }, "项目配置已更新。");
+        return;
+      }
+      setSavingBudgets(true);
+      const request = ++saveSequence.current;
+      try {
+        const ok = await manageAdminBudget(kind, item, payload);
+        if (ok && request === saveSequence.current) {
+          close();
+          notify(kind === "delete" ? "项目已删除，删除前快照保留在服务端操作日志。" : "项目已保存，已有分配保留，请重新复核并同步。");
+        }
+      } finally {
+        if (request === saveSequence.current) setSavingBudgets(false);
+      }
+    } catch (error) {
+      setBudgetError(error.message || "配置校验失败。");
+      notify(error.message || "配置校验失败。", true);
+    }
+  }
 
   async function persistAdminBudgets(items) {
     const request = ++saveSequence.current;
@@ -331,6 +373,7 @@ export function AdminPage() {
               </p>
             </div>
             <div className="actions">
+              <button className="button small" disabled={budgetPending} onClick={() => setModal({ kind: "create", form: budgetForm() })}>新增</button>
               <button
                 className="button small"
                 disabled={budgetPending}
@@ -392,16 +435,23 @@ export function AdminPage() {
                           <button
                             className="button small"
                             disabled={budgetPending}
-                            onClick={() => edit("budget", item, item.budget)}
+                            onClick={() => setModal({ kind: "create", form: budgetForm() })}
                           >
-                            调整预算
+                            新增
                           </button>
                           <button
                             className="button small"
                             disabled={budgetPending}
-                            onClick={() => edit("owner", item, item.ownerId)}
+                            onClick={() => setModal({ kind: "edit", item, form: budgetForm(item) })}
                           >
-                            分配 Owner
+                            编辑
+                          </button>
+                          <button
+                            className="button small"
+                            disabled={budgetPending}
+                            onClick={() => setModal({ kind: "delete", item })}
+                          >
+                            删除
                           </button>
                         </div>
                       </td>
@@ -753,6 +803,23 @@ export function AdminPage() {
             </table>
           </div>
         </section>
+      )}
+      {modal && ["create", "edit", "delete"].includes(modal.kind) && (
+        <AdminDialog
+          title={{ create: "新增 Initiative", edit: "编辑 Initiative", delete: "删除 Initiative" }[modal.kind]}
+          onClose={() => { if (!savingBudgets) close(); }}
+          onConfirm={saveBudgetOperation}
+          disabled={budgetPending}
+          confirmLabel={savingBudgets ? "正在保存…" : modal.kind === "delete" ? "确认删除" : "保存"}
+        >
+          {budgetError && <div className="note-box warn" role="alert">{budgetError}</div>}
+          {modal.kind === "delete" ? <div className="note-box warn">
+            确认删除“{modal.item.name}”（ID：{modal.item.id}）？此操作将删除该项目及其经销商分配、其他预算和同步记录，无法在页面撤销。删除前快照保留在服务端操作日志。
+          </div> : <>
+            <AdminBudgetFields value={modal.form} onChange={(form) => setModal((current) => ({ ...current, form }))} users={roles} apiMode={apiMode} disabled={budgetPending} />
+            {modal.kind === "edit" && <div className="note-box">修改字段后保留已有分配，历史同步版本保持原样，需由 Owner 重新复核并同步。</div>}
+          </>}
+        </AdminDialog>
       )}
       {modal && ["budget", "owner", "reason"].includes(modal.kind) && (
         <AdminDialog

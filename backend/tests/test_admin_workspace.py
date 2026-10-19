@@ -9,15 +9,19 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.dependencies.workbench_user import WorkbenchUser
 from app.models.do.base import BaseDO
 from app.models.do.budget import BudgetDO
+from app.models.do.budget_distributor import BudgetDistributorDO
 from app.models.do.distributor_history import distributor_sellin_resource_history
 from app.models.do.workspace import (
     BudgetChangeLogDO,
+    OtherBudgetDO,
     UserPermissionDO,
     WorkspaceConfigDO,
     WorkspacePublicationDO,
     WorkspaceReferenceDO,
 )
 from app.schemas.dto.workbench import (
+    AdminBudgetDeleteDTO,
+    AdminBudgetEditDTO,
     AdminBudgetsCreateDTO,
     AdminBudgetsImportDTO,
     AdminBudgetsUpdateDTO,
@@ -26,6 +30,95 @@ from app.schemas.dto.workbench import (
 )
 from app.services.admin_service import AdminService
 from app.services.reference_service import ReferenceService
+
+
+def test_full_budget_edit_preserves_allocations_and_delete_keeps_audit_snapshot():
+    async def run(session, service):
+        await seed_budget(session)
+        session.add(UserPermissionDO(email="ice@example.com", display_name="ICE", role="lead",
+                                     department=["MKT", "ICE"], enabled=True))
+        session.add(BudgetDistributorDO(
+            budget_id=1, planning_year=2027, sector="PCMO", department="MKT",
+            resource_type="MRD", initiative_name="Plan", distributor_code="D1",
+            distributor_budget_amount=60, input_source="DRAFT",
+        ))
+        session.add(OtherBudgetDO(budget_id=1, reason_id="reserve", amount=10, note="Preserve"))
+        await session.commit()
+        edit = AdminBudgetEditDTO(
+            name="Renamed", sector="B2B", department="ICE", resourceType="capex",
+            ownerId="ICE@EXAMPLE.COM", budget=120, expected_revision=3,
+        )
+        await service.edit_budget(1, edit)
+        budget = await session.get(BudgetDO, 1)
+        assert (budget.initiative_name, budget.department, budget.sector) == (
+            "Renamed", "ICE", "B2B",
+        )
+        assert budget.resource_type == "Capex" and budget.owner_email == "ice@example.com"
+        assert budget.revision == 4 and budget.allocate_budget_amount == 70
+        row = (await session.scalars(select(BudgetDistributorDO))).one()
+        assert (row.department, row.sector, row.resource_type) == ("ICE", "B2B", "Capex")
+        assert row.initiative_name == "Renamed" and row.distributor_budget_amount == 60
+        publication = (await session.scalars(select(WorkspacePublicationDO))).one()
+        assert publication.department == "MKT" and publication.snapshot == {"budget": 100}
+        with pytest.raises(HTTPException) as error:
+            await service.delete_budget(1, AdminBudgetDeleteDTO(expected_revision=3))
+        assert error.value.status_code == 409
+        await service.delete_budget(1, AdminBudgetDeleteDTO(expected_revision=4))
+        for model in (BudgetDO, BudgetDistributorDO, OtherBudgetDO, WorkspacePublicationDO):
+            assert await session.scalar(select(func.count()).select_from(model)) == 0
+        logs = await service.repository.logs_for([], admin=True)
+        deletion = next(log for log in logs if log.operation_type == "ADMIN_DELETE")
+        assert deletion.before_data["budget"]["initiative_name"] == "Renamed"
+        assert len(deletion.before_data["allocations"]) == 1
+        assert len(deletion.before_data["other_budgets"]) == 1
+        assert len(deletion.before_data["publications"]) == 1
+
+    asyncio.run(database_case(run))
+
+
+def test_budget_edit_rejects_duplicate_wrong_owner_and_stale_revision():
+    async def run(session, service):
+        await seed_budget(session)
+        fields = dict(name="Second", sector="PCMO", department="MKT", resourceType="MRD",
+                      budget=10, ownerId="owner@example.com")
+        await service.create_budgets(AdminBudgetsCreateDTO(planning_year=2027, items=[fields]))
+        for patch, status in [({}, 409), ({"name": "New", "ownerId": "missing@x.com"}, 422),
+                              ({"name": "New", "expected_revision": 0}, 409),
+                              ({"name": "New", "resourceType": "Unknown"}, 422)]:
+            with pytest.raises(HTTPException) as error:
+                await service.edit_budget(1, AdminBudgetEditDTO(
+                    **{**fields, "expected_revision": 3, **patch},
+                ))
+            assert error.value.status_code == status
+        budget = await session.get(BudgetDO, 1)
+        assert budget.initiative_name == "Plan" and budget.revision == 3
+        actor = AdminService(session, WorkbenchUser("owner@example.com", "owner", "MKT", "Owner"))
+        for operation in [actor.edit_budget(1, AdminBudgetEditDTO(**fields, expected_revision=3)),
+                          actor.delete_budget(1, AdminBudgetDeleteDTO(expected_revision=3))]:
+            with pytest.raises(HTTPException) as error:
+                await operation
+            assert error.value.status_code == 403
+
+    asyncio.run(database_case(run))
+
+
+def test_budget_deletion_failure_rolls_back_all_children():
+    async def run(session, service):
+        await seed_budget(session)
+        original = service.admin_repository.delete_budget
+
+        async def fail_after_delete(budget):
+            await original(budget)
+            raise RuntimeError("injected deletion failure")
+
+        service.admin_repository.delete_budget = fail_after_delete
+        with pytest.raises(RuntimeError):
+            await service.delete_budget(1, AdminBudgetDeleteDTO(expected_revision=3))
+        assert await session.get(BudgetDO, 1) is not None
+        assert await session.scalar(select(func.count()).select_from(WorkspacePublicationDO)) == 1
+        assert await session.scalar(select(func.count()).select_from(BudgetChangeLogDO)) == 0
+
+    asyncio.run(database_case(run))
 
 
 async def database_case(callback):

@@ -391,6 +391,8 @@ class WorkspaceService:
             "PUBLISH": "publish_initiative",
             "ADMIN_UPDATE": "import_admin_configuration",
             "ADMIN_CREATE": "set_budget",
+            "ADMIN_EDIT": "edit_admin_budget",
+            "ADMIN_DELETE": "delete_admin_budget",
             "CONFIG_UPDATE": "set_guide",
             "REFERENCE_IMPORT": "change_reference",
             "USER_CREATE": "create_user",

@@ -12,6 +12,8 @@ from app.dependencies.storage import get_workbench_blob_storage
 from app.dependencies.workbench_user import WorkbenchUser, get_current_workbench_user
 from app.repositories.budget_repository import BudgetDistributorRepository, BudgetRepository
 from app.schemas.dto.workbench import (
+    AdminBudgetDeleteDTO,
+    AdminBudgetEditDTO,
     AdminBudgetsCreateDTO,
     AdminBudgetsImportDTO,
     AdminBudgetsUpdateDTO,
@@ -140,6 +142,30 @@ async def put_admin_budgets(
     user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
 ) -> ApiResponse[dict]:
     return success(await _admin_service(session, user).update_budgets(payload))
+
+
+@router.put(
+    "/admin/budgets/{budget_id}", response_model=ApiResponse[dict], summary="编辑项目全部配置"
+)
+async def put_admin_budget(
+    budget_id: int,
+    payload: AdminBudgetEditDTO,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+) -> ApiResponse[dict]:
+    return success(await _admin_service(session, user).edit_budget(budget_id, payload))
+
+
+@router.delete(
+    "/admin/budgets/{budget_id}", response_model=ApiResponse[dict], summary="删除项目及关联分配"
+)
+async def delete_admin_budget(
+    budget_id: int,
+    payload: AdminBudgetDeleteDTO,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+) -> ApiResponse[dict]:
+    return success(await _admin_service(session, user).delete_budget(budget_id, payload))
 
 
 @router.post("/admin/budgets", response_model=ApiResponse[dict], summary="初始化预算")

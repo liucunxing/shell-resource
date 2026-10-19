@@ -98,6 +98,15 @@ export const publications = (id) => request(`/initiatives/${encodeURIComponent(i
 export const updateBudgets = (items) => request("/admin/budgets", {
   method: "PUT", body: JSON.stringify({ items }),
 });
+export const createBudget = (item) => request("/admin/budgets", {
+  method: "POST", body: JSON.stringify({ planning_year: planningYear, items: [item] }),
+});
+export const editBudget = (id, item) => request(`/admin/budgets/${encodeURIComponent(id)}`, {
+  method: "PUT", body: JSON.stringify(item),
+});
+export const deleteBudget = (id, expectedRevision) => request(`/admin/budgets/${encodeURIComponent(id)}`, {
+  method: "DELETE", body: JSON.stringify({ expected_revision: expectedRevision }),
+});
 export const importBudgets = (planningYearValue, updates, creates) =>
   request("/admin/budgets/import", {
     method: "POST",

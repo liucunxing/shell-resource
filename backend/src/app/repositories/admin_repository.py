@@ -1,12 +1,18 @@
 from collections.abc import Sequence
 
-from sqlalchemy import String, cast, exists, func, select
+from sqlalchemy import String, cast, delete, exists, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.departments import departments
 from app.models.do.base import BaseDO
 from app.models.do.budget import BudgetDO
-from app.models.do.workspace import OtherBudgetDO, UserPermissionDO, WorkspaceConfigDO
+from app.models.do.budget_distributor import BudgetDistributorDO
+from app.models.do.workspace import (
+    OtherBudgetDO,
+    UserPermissionDO,
+    WorkspaceConfigDO,
+    WorkspacePublicationDO,
+)
 
 
 class AdminRepository:
@@ -172,7 +178,8 @@ class AdminRepository:
         self.session.add_all(entities)
 
     async def business_key_exists(
-        self, planning_year: int, sector: str, department: str, resource_type: str, name: str
+        self, planning_year: int, sector: str, department: str, resource_type: str, name: str,
+        exclude_id: int | None = None,
     ) -> bool:
         return (
             await self.session.scalar(
@@ -183,7 +190,21 @@ class AdminRepository:
                     BudgetDO.department == department,
                     BudgetDO.resource_type == resource_type,
                     BudgetDO.initiative_name == name,
+                    BudgetDO.id != exclude_id if exclude_id is not None else True,
                 )
                 .limit(1)
             )
         ) is not None
+
+    async def sync_allocation_metadata(self, budget: BudgetDO) -> None:
+        await self.session.execute(
+            update(BudgetDistributorDO).where(BudgetDistributorDO.budget_id == budget.id).values(
+                sector=budget.sector, department=budget.department,
+                resource_type=budget.resource_type, initiative_name=budget.initiative_name,
+            )
+        )
+
+    async def delete_budget(self, budget: BudgetDO) -> None:
+        for model in (BudgetDistributorDO, OtherBudgetDO, WorkspacePublicationDO):
+            await self.session.execute(delete(model).where(model.budget_id == budget.id))
+        await self.session.delete(budget)

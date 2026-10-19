@@ -502,6 +502,21 @@ export function WorkbenchProvider({ children }) {
       return false;
     }
   };
+  const manageAdminBudget = async (action, item, payload) => {
+    const epoch = sessionEpoch.current;
+    try {
+      if (action === "create") await api.createBudget(payload);
+      else if (action === "edit") await api.editBudget(item.id, { ...payload, expected_revision: item.revision });
+      else if (action === "delete") await api.deleteBudget(item.id, item.revision);
+      else throw Error("项目操作无效");
+      if (epoch !== sessionEpoch.current) return false;
+      return await refresh();
+    } catch (error) {
+      if (epoch !== sessionEpoch.current) return false;
+      notify(error.message || "项目配置保存失败，请重试。", true);
+      throw error;
+    }
+  };
   const importAdminBudgets = async ({ updates, creates }) => {
     const epoch = sessionEpoch.current;
     try {
@@ -651,6 +666,7 @@ export function WorkbenchProvider({ children }) {
     saveDraft,
     publish,
     saveAdminBudgets,
+    manageAdminBudget,
     importAdminBudgets,
     saveConfig,
     saveReference,
