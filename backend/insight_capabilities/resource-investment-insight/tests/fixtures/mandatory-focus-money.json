@@ -1,0 +1,103 @@
+{
+  "schema_version": "1.0",
+  "preset_id": "comprehensive",
+  "headline": "2027年经销商预算已全额安排，4项投入变化需确认",
+  "summary": "负责预算{{budget}}已全部用于经销商分配。有{{investment-review-count}}项投入变化需要确认。例如合成经销商300的2025实际投入10万元，2027计划120万元，增加110万元，请确认增投原因。",
+  "blocks": [
+    {
+      "id": "visual-budget-compare",
+      "kind": "visual",
+      "title": "负责预算与已安排",
+      "body": "",
+      "status": "clear",
+      "dimension_ids": [
+        "completeness"
+      ],
+      "fact_ids": [
+        "budget",
+        "allocated",
+        "other",
+        "gap"
+      ],
+      "dataset_id": "budget-compare"
+    }
+  ],
+  "checks": [
+    {
+      "dimension_id": "low_yield",
+      "status": "observed",
+      "summary": "SYN021历史Yield为{{yield:SYN021}}，本范围计划投入{{plan:SYN021}}。",
+      "fact_ids": [
+        "yield:SYN021",
+        "plan:SYN021"
+      ]
+    },
+    {
+      "dimension_id": "high_yield",
+      "status": "observed",
+      "summary": "SYN020历史Yield为{{yield:SYN020}}，本范围计划投入{{plan:SYN020}}。",
+      "fact_ids": [
+        "yield:SYN020",
+        "plan:SYN020"
+      ]
+    },
+    {
+      "dimension_id": "concentration",
+      "status": "observed",
+      "summary": "SYN300占经销商分配{{share:SYN300}}，SYN001占{{share:SYN001}}。",
+      "fact_ids": [
+        "share:SYN300",
+        "share:SYN001"
+      ]
+    },
+    {
+      "dimension_id": "overlap",
+      "status": "observed",
+      "summary": "涉及多个不同 Initiative 的经销商数为{{overlap}}家。",
+      "fact_ids": [
+        "overlap"
+      ]
+    },
+    {
+      "dimension_id": "trend",
+      "status": "review",
+      "summary": "有{{investment-review-count}}项投入变化触发复核规则，详见下方正文。",
+      "fact_ids": [
+        "investment-review-count"
+      ]
+    },
+    {
+      "dimension_id": "completeness",
+      "status": "clear",
+      "summary": "负责预算{{budget}}与已安排总额{{arranged}}一致，未解释差额为{{gap}}。",
+      "fact_ids": [
+        "budget",
+        "arranged",
+        "gap"
+      ]
+    }
+  ],
+  "limitations": [
+    "2025全年实际与2027计划为跨年参考，非同比；历史为同Sector同资源类型全年总额，计划仅含本授权范围Initiative合计。",
+    "摘要只列主要例子，完整复核清单在页面单独展示。"
+  ],
+  "required_findings": {
+    "trend": {
+      "id": "focus-trend",
+      "kind": "finding",
+      "title": "投入变化复核事项",
+      "body": "有{{investment-review-count}}项投入变化需要确认：\n1. 合成经销商1（SYN001）：2025实际投入10万元，2027计划100万元，增加90万元。\n2. 合成经销商2（SYN002）：2025实际投入12万元，2027计划0万元，减少12万元。\n3. 合成经销商4（SYN004）：2025实际投入10万元，2027计划3万元，减少7万元。\n4. 合成经销商300（SYN300）：2025实际投入10万元，2027计划120万元，增加110万元。\n请确认上述经销商的增投或减投原因。",
+      "status": "review",
+      "dimension_ids": [
+        "trend"
+      ],
+      "fact_ids": [
+        "investment:e46812cea0f8d51ad141",
+        "investment:56fd9800bb5f876782e3",
+        "investment:7a4cddbd1df9644dcc37",
+        "investment:6d41be434058ba805611"
+      ],
+      "dataset_id": null
+    }
+  }
+}

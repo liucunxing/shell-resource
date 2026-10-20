@@ -209,7 +209,7 @@ class InsightPack:
             if item["status"] != "limited" and not item["fact_ids"]:
                 raise PackError(f"{path}.fact_ids: {item['status']} 必须引用至少一个本次事实ID；请为该结论绑定具体证据")
             if item["status"] != "limited" and not any(facts[key]["value"] is not None for key in item["fact_ids"]):
-                raise PackError("不能仅凭缺失值作出已核对结论")
+                raise PackError(f"{path}.fact_ids: 不能仅凭缺失值作出已核对结论；请选择有值的具体事实")
 
         for check in checks.values():
             if check["status"] not in constraints[check["dimension_id"]]["allowed_statuses"]:
@@ -232,7 +232,7 @@ class InsightPack:
         for dimension, constraint in constraints.items():
             if constraint.get("required_focus"):
                 if checks[dimension]["status"] != "review" or not any(block["status"] == "review" and dimension in block["dimension_ids"] and block["body"].strip() for block in result["blocks"]):
-                    raise PackError("必显事项被省略或标记为非关注状态")
+                    raise PackError(f"required_focus.{dimension}: 必须提供status=review、包含该维度且body非空的独立finding；不能仅写summary或checks")
         return result
 
     def validate_consistency(self, result, evidence, preset_id=None):
@@ -256,6 +256,18 @@ class InsightPack:
 
     def bind_named_facts(self, result, evidence):
         return _consistency.bind_named_facts(result, evidence)
+
+    def unpack_model_result(self, candidate):
+        """Move mandatory model-written findings into the stable public blocks API."""
+        result = copy.deepcopy(candidate)
+        findings = result.pop("required_findings", {})
+        if not isinstance(findings, dict):
+            raise PackError("required_findings 必须为对象")
+        result["blocks"] = list(findings.values()) + result.get("blocks", [])
+        return result
+
+    def format_result_display(self, result):
+        return _consistency.format_result_display(result)
 
     def model_evidence(self, evidence, preset_id="comprehensive"):
         """Bound model reasoning, while preserving complete server-side chart populations.
@@ -321,6 +333,7 @@ class InsightPack:
     def validate_model_references(self, result, evidence, preset_id="comprehensive"):
         projected = self.model_evidence(evidence, preset_id)
         allowed = {f["id"] for f in projected["facts"]}
+        allowed_facts = {f["id"]: f for f in projected["facts"]}
         datasets = {d["id"] for d in projected["datasets"]}
         for collection in ("checks", "blocks"):
             for item in result.get(collection, []):
@@ -331,7 +344,9 @@ class InsightPack:
         # Tokens are resolved later; reject unseen IDs before that stage as well.
         import re
         for token in re.findall(r"\{\{([^{}]+)\}\}", json.dumps(result, ensure_ascii=False)):
-            if token not in allowed:
+            try:
+                _consistency.fact_token_reference(token, allowed_facts)
+            except ValueError:
                 raise PackError("模型占位符引用了本次未发送的事实")
         if projected is not evidence:
             known = {f["id"].split(":", 1)[1] for f in evidence["facts"] if ":" in f["id"]}
@@ -368,9 +383,9 @@ class InsightPack:
         return result
 
     def model_transport(self, full, projected):
-        if projected is full:
-            return _consistency.compact_evidence(full), {"mode": "complete", "total_facts": len(full["facts"]), "selected_facts": len(full["facts"]), "omitted_facts": 0}
         transport = copy.deepcopy(projected)
+        if projected is full:
+            return _consistency.compact_evidence(transport), {"mode": "complete", "total_facts": len(full["facts"]), "selected_facts": len(full["facts"]), "omitted_facts": 0}
         entities = {f["id"].split(":", 1)[1] for f in projected["facts"] if ":" in f["id"]}
         datasets = []
         for dataset in transport["datasets"]:
@@ -411,6 +426,21 @@ class InsightPack:
                 {"role": "user", "content": json.dumps({"task": {"preset_id": selected["id"], "preset_version": selected["version"], "output": "JSON", "allowed_visuals": selected["allowed_visuals"]}, "coverage": coverage, "evidence": encoded}, ensure_ascii=False, allow_nan=False, separators=(",", ":"))},
             ],
         }
+        focus_dimensions = [c["dimension_id"] for c in evidence["check_constraints"] if c.get("required_focus")]
+        task = json.loads(payload["messages"][1]["content"])
+        task["task"]["required_focus_dimensions"] = focus_dimensions
+        display_values = {}
+        for fact in evidence["facts"]:
+            if fact["unit"] == "CNY" and numeric(fact["value"]):
+                display_values[fact["id"]] = _consistency.money_wan(fact["value"]) + "万元"
+            elif fact["unit"] == "multiple" and numeric(fact["value"]):
+                display_values[fact["id"]] = str(_consistency.Decimal(str(fact["value"])).quantize(_consistency.Decimal("0.1"), rounding=_consistency.ROUND_HALF_UP)) + "倍"
+            elif fact["id"].startswith("investment:"):
+                row = json.loads(fact["value"])
+                display_values[fact["id"]] = {key: (_consistency.money_wan(row[key]) + "万元" if row.get(key) is not None else "缺失") for key in ("historical_actual", "plan", "delta", "abs_delta")}
+        task["display_values"] = display_values
+        task["task"]["display"] = "金额使用display_values中的万元，Yield保留一位小数；原始值仅用于校验，不能改变判断和分组"
+        payload["messages"][1]["content"] = json.dumps(task, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
         if response_format == "schema":
             # $schema is for local tooling; the API receives the actual object schema.
             def api_projection(value):
@@ -423,6 +453,7 @@ class InsightPack:
             api_schema = api_projection(schema)
             # Bind the provider's decoding schema to this authorized invocation.
             fact_ids = [fact["id"] for fact in evidence["facts"]]
+            present_fact_ids = [fact["id"] for fact in evidence["facts"] if fact["value"] is not None]
             dataset_ids = [dataset["id"] for dataset in evidence["datasets"]
                            if dataset["kind"] in selected["allowed_visuals"]]
             checks_schema = api_schema["properties"]["checks"]["items"]
@@ -437,6 +468,7 @@ class InsightPack:
                 branch["properties"]["status"]["enum"] = constraint["allowed_statuses"]
                 if "limited" not in constraint["allowed_statuses"]:
                     branch["properties"]["fact_ids"]["minItems"] = 1
+                    branch["properties"]["fact_ids"]["items"]["enum"] = present_fact_ids
                 check_branches.append(branch)
             api_schema["properties"]["checks"]["items"] = {"anyOf": check_branches}
             block_branches = []
@@ -448,6 +480,7 @@ class InsightPack:
                     branch["properties"]["status"]["enum"] = [status]
                     if status != "limited":
                         branch["properties"]["fact_ids"]["minItems"] = 1
+                        branch["properties"]["fact_ids"]["items"]["enum"] = present_fact_ids
                     branch["properties"]["dimension_ids"]["items"]["enum"] = dimensions
                     branch["properties"]["dimension_ids"]["maxItems"] = min(6, len(dimensions))
                     text_branch = copy.deepcopy(branch)
@@ -465,10 +498,29 @@ class InsightPack:
                         # Graph captions already come from the verified dataset.
                         # Any AI interpretation must be a separately grounded finding.
                         properties["body"]["enum"] = [""]
-                        properties["fact_ids"]["items"]["enum"] = dataset["fact_ids"]
+                        properties["fact_ids"]["items"]["enum"] = [key for key in dataset["fact_ids"] if status == "limited" or key in present_fact_ids]
                         properties["fact_ids"]["minItems"] = 1
                         block_branches.append(visual_branch)
             api_schema["properties"]["blocks"]["items"] = {"anyOf": block_branches}
+            if focus_dimensions:
+                # A required object key is enforced by provider decoding. An optional
+                # blocks array plus a prose instruction allowed blocks=[] repeatedly.
+                required_findings = {"type": "object", "properties": {}, "required": focus_dimensions, "additionalProperties": False}
+                for dimension in focus_dimensions:
+                    finding = copy.deepcopy(blocks_schema)
+                    props = finding["properties"]
+                    props["id"]["enum"] = ["focus-" + dimension]
+                    props["kind"]["enum"] = ["finding"]
+                    props["status"]["enum"] = ["review"]
+                    props["dimension_ids"].update(items={"type": "string", "enum": [dimension]}, minItems=1, maxItems=1)
+                    props["dataset_id"]["enum"] = [None]
+                    props["body"]["minLength"] = 1
+                    props["fact_ids"]["minItems"] = 1
+                    props["fact_ids"]["items"]["enum"] = present_fact_ids
+                    required_findings["properties"][dimension] = finding
+                api_schema["properties"]["required_findings"] = required_findings
+                api_schema["required"].append("required_findings")
+                api_schema["properties"]["blocks"]["maxItems"] = max(0, api_schema["properties"]["blocks"].get("maxItems", 12) - len(focus_dimensions))
 
             payload["response_format"] = {"type": "json_schema", "json_schema": {"name": "resource_investment_insight", "strict": True, "schema": _consistency.compact_schema(api_schema)}}
         elif response_format == "object":
@@ -485,7 +537,7 @@ class InsightPack:
             "scope_id": evidence["scope"]["id"], "data_version": evidence["data_version"],
             "evidence_sha256": hashlib.sha256(json.dumps(full_evidence, ensure_ascii=False, sort_keys=True, allow_nan=False).encode("utf-8")).hexdigest(),
             "provenance": evidence["provenance"],
-            "api_schema_projection": "authorized-anyOf-deduplicated-defs-v2",
+            "api_schema_projection": "authorized-anyOf-required-focus-v3",
             "input_encoding": "bounded-columnar-projection-v3",
             "model_coverage": coverage,
             "consistency_version": "1.0",
@@ -555,10 +607,11 @@ def main():
             print("PASS: 请求已生成，未联网")
             return 0
         result, usage = call_qwen(payload)
-        result, metadata["normalizations"] = normalize_result(result)
+        result, metadata["normalizations"] = normalize_result(pack.unpack_model_result(result))
         result, metadata["fact_bindings"] = pack.resolve_fact_tokens(result, evidence)
         result, metadata["citation_bindings"] = pack.bind_named_facts(result, evidence)
         pack.validate_consistency(result, evidence, metadata["preset_id"])
+        result = pack.format_result_display(result)
         metadata["generated_at"] = datetime.now(timezone.utc).isoformat()
         write_json(args.output, {"metadata": metadata, "usage": usage, "result": result})
         print("PASS: 模型结果通过结构与引用校验；业务解释仍需复核")

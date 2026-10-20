@@ -111,6 +111,6 @@ describe("capability result", () => {
   });
   it("distinguishes missing and real zero", () => {
     expect(formatEvidence(null)).toBe("缺失");
-    expect(formatEvidence(0, "CNY")).toBe("0 元");
+    expect(formatEvidence(0, "CNY")).toBe("0 万元");
   });
 });

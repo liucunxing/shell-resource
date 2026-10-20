@@ -7,6 +7,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import sys
 from pathlib import Path
 from time import perf_counter
@@ -37,6 +38,8 @@ async def evaluate(args: argparse.Namespace) -> int:
     candidates = []
 
     async def capture_candidate(service, body):
+        if args.json_only:
+            body = {**body, "stream": False}
         result, usage = await original_call(service, body)
         candidates.append({"result": result, "usage": usage})
         (output / "synthetic-candidates.json").write_text(
@@ -146,12 +149,41 @@ async def evaluate(args: argparse.Namespace) -> int:
             assert rows["SYN002"]["reason_code"] == "unallocated"
             assert rows["SYN003"]["historical_actual"] == 0
             assert rows["SYN005"]["historical_actual"] is None
-            for preset in args.presets:
+            if args.live and args.probe_output_limit:
+                from fastapi import HTTPException
+
+                from app.dependencies.workbench_user import get_current_workbench_user
+
+                async with fixture.factory() as probe_session:
+                    user = await get_current_workbench_user(
+                        probe_session, x_user_email=headers["X-User-Email"]
+                    )
+                    probe = InsightService(probe_session, user, fixture.settings)
+                    probe_body, _ = InsightPack(PACK_ROOT).compile(
+                        evidence, "comprehensive", fixture.settings.ai_model, False
+                    )
+                    try:
+                        async with asyncio.timeout(60):
+                            await original_call(probe, {**probe_body, "max_tokens": 8})
+                    except HTTPException as exc:
+                        assert str(exc.__cause__) == "output_limit", type(exc.__cause__).__name__
+                        (output / "output-limit-probe.json").write_text(
+                            json.dumps(exc.model_diagnostics, indent=2), encoding="utf-8"
+                        )
+                        print(
+                            "Controlled Qwen limit probe classified as length; "
+                            "no retry or persistence",
+                            flush=True,
+                        )
+                    else:
+                        raise AssertionError("Expected controlled output limit")
+            for run_index, preset in enumerate(args.presets, 1):
                 body, metadata = InsightPack(PACK_ROOT).compile(
                     evidence, preset, fixture.settings.ai_model, False
                 )
                 entry = {
                     "preset": preset,
+                    "run_index": run_index,
                     "dealers": args.dealers,
                     "request_bytes": len(
                         httpx.Request(
@@ -182,6 +214,25 @@ async def evaluate(args: argparse.Namespace) -> int:
                         (output / f"{preset}-record.json").write_text(
                             json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8"
                         )
+                        (output / f"{preset}-{run_index}-record.json").write_text(
+                            json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8"
+                        )
+                        copy_text = " ".join(
+                            [record["result"]["headline"], record["result"]["summary"]]
+                            + [c["summary"] for c in record["result"]["checks"]]
+                            + [b["body"] for b in record["result"]["blocks"]]
+                        )
+                        assert not re.search(r"\d[\d,.]*\s*元", copy_text), (
+                            "Money must be displayed in 万元"
+                        )
+                        assert any(
+                            b["status"] == "review"
+                            and "trend" in b["dimension_ids"]
+                            and b["body"].strip()
+                            for b in record["result"]["blocks"]
+                        )
+                        entry["display_unit"] = "万元"
+                        entry["required_focus_present"] = True
                         entry["timing"] = record["metadata"]["timing"]
                         entry["attempts"] = record["metadata"]["attempts"]
                         entry["usage"] = record["metadata"]["usage"]
@@ -230,6 +281,14 @@ if __name__ == "__main__":
         "--live", action="store_true", help="Call configured LLM with synthetic data"
     )
     parser.add_argument("--presets", nargs="+", default=["comprehensive", "quadrant", "structure"])
+    parser.add_argument(
+        "--json-only", action="store_true", help="Verify the real non-stream recovery protocol"
+    )
+    parser.add_argument(
+        "--probe-output-limit",
+        action="store_true",
+        help="First induce a real max_tokens=8 failure using synthetic input",
+    )
     arguments = parser.parse_args()
     if arguments.dealers < 6:
         parser.error("--dealers must be at least 6")

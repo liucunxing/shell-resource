@@ -90,7 +90,17 @@ export function formatEvidence(value: Cell | undefined, unit = ""): string {
   if (typeof value !== "number") return value;
   if (unit === "ratio")
     return `${(value * 100).toLocaleString("zh-CN", { maximumFractionDigits: 2 })}%`;
-  return `${value.toLocaleString("zh-CN", { maximumFractionDigits: 2 })}${unit === "CNY" ? " 元" : unit === "multiple" ? " 倍" : unit === "count" ? "" : unit ? ` ${unit}` : ""}`;
+  if (unit === "CNY")
+    return `${(value / 10000).toLocaleString("zh-CN", { maximumFractionDigits: 6 })} 万元`;
+  return `${value.toLocaleString("zh-CN", { minimumFractionDigits: unit === "multiple" ? 1 : 0, maximumFractionDigits: unit === "multiple" ? 1 : 2 })}${unit === "multiple" ? " 倍" : unit === "count" ? "" : unit ? ` ${unit}` : ""}`;
+}
+export function formatInsightCopy(value: Cell | undefined): string {
+  const text = String(value ?? "");
+  return text
+    .replace(/([+\-−]?\d[\d,]*(?:\.\d+)?)\s*(万元|元)/g, (_, value, unit) =>
+      `${(Number(value.replaceAll(",", "").replace("−", "-")) / (unit === "元" ? 10000 : 1)).toLocaleString("zh-CN", { maximumFractionDigits: 6 })}万元`,
+    )
+    .replace(/((?:Yield|投入产出比)[^。；;，\n]{0,24}?)([+\-]?\d+(?:\.\d+)?)\s*倍/gi, (_, prefix, value) => `${prefix}${Number(value).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false })}倍`);
 }
 const investmentPageSize = 20;
 export function investmentPage(
@@ -150,7 +160,7 @@ export function InvestmentReview({
       <p className="ic-caption">
         按金额和复核规则计算，完整名单不受分析摘要篇幅影响。标记仅供复核，不代表分配错误。
       </p>
-      <p className="ic-caption">{dataset.note}</p>
+      <p className="ic-caption">{formatInsightCopy(dataset.note)}</p>
       <p>
         共 {dataset.rows.length} 项 · 建议复核 {count("review")} 项 · 待补充信息{" "}
         {count("limited")} 项
@@ -196,9 +206,9 @@ export function InvestmentReview({
                 "经销商",
                 "Sector",
                 "资源类型",
-                "2025 实际投入",
-                "本次计划",
-                "差额",
+                "2025 实际投入（万元）",
+                "本次计划（万元）",
+                "差额（万元）",
                 "计划 / 实际",
                 "核对状态",
                 "复核说明",
@@ -235,7 +245,7 @@ export function InvestmentReview({
                     {statuses[row.status as Status] || row.status}
                   </span>
                 </td>
-                <td>{row.reason}</td>
+                <td>{formatInsightCopy(row.reason)}</td>
               </tr>
             ))}
           </tbody>
@@ -325,7 +335,7 @@ function Quadrant({ dataset }: { dataset: Dataset }) {
       </p>
       <p>
         {dataset.y.period} {dataset.y.label}（
-        {dataset.y.unit === "CNY" ? "元" : dataset.y.unit}）
+        {dataset.y.unit === "CNY" ? "万元" : dataset.y.unit}）
       </p>
       <svg
         className="ic-quadrant"
@@ -340,13 +350,13 @@ function Quadrant({ dataset }: { dataset: Dataset }) {
           strokeDasharray="4 4"
         />
         <text x="38" y="258">
-          {formatEvidence(minX)}
+          {formatEvidence(minX, dataset.x.unit)}
         </text>
         <text x="338" y="258" textAnchor="end">
-          {formatEvidence(maxX)}
+          {formatEvidence(maxX, dataset.x.unit)}
         </text>
         <text x="36" y="20">
-          {formatEvidence(maxY)}
+          {formatEvidence(maxY, dataset.y.unit)}
         </text>
         {dataset.rows.map((item) => (
           <circle
@@ -419,7 +429,7 @@ export function InsightChart({ dataset }: { dataset: Dataset }) {
     <figure className="ic-chart">
       <figcaption>{dataset.title}</figcaption>
       <p>
-        {dataset.period} · {dataset.note}
+        {dataset.period} · {formatInsightCopy(dataset.note)}
       </p>
       {dataset.denominator != null && (
         <p>占比分母：{formatEvidence(dataset.denominator, dataset.unit)}</p>
@@ -548,7 +558,7 @@ function FactReferences({
           </strong>
           <br />
           {fact.period} · {formatFactSource(fact.source)}
-          {fact.note && ` · ${fact.note}`}
+          {fact.note && ` · ${formatInsightCopy(fact.note)}`}
         </p>
       ))}
     </details>
@@ -570,8 +580,8 @@ export function InsightCapabilityResult({
   );
   return (
     <section className="ic-result">
-      <h3>{result.headline}</h3>
-      <p className="ic-body">{result.summary}</p>
+      <h3>{formatInsightCopy(result.headline)}</h3>
+      <p className="ic-body">{formatInsightCopy(result.summary)}</p>
       {evidence.provenance.kind === "synthetic" && (
         <p className="note-box">合成数据：{evidence.provenance.description}</p>
       )}
@@ -607,10 +617,10 @@ export function InsightCapabilityResult({
               {investment && ["clear", "observed"].includes(check.status) ? (
                 <details>
                   <summary>查看本项说明</summary>
-                  <p>{check.summary}</p>
+                  <p>{formatInsightCopy(check.summary)}</p>
                 </details>
               ) : (
-                <p>{check.summary}</p>
+                <p>{formatInsightCopy(check.summary)}</p>
               )}
             </li>
           ))}
@@ -625,8 +635,8 @@ export function InsightCapabilityResult({
             <span className={`ic-status ${block.status}`}>
               {statuses[block.status]}
             </span>
-            {block.title && <h3>{block.title}</h3>}
-            <p className="ic-body">{block.body}</p>
+            {block.title && <h3>{formatInsightCopy(block.title)}</h3>}
+            <p className="ic-body">{formatInsightCopy(block.body)}</p>
             {block.kind === "visual" &&
               dataset?.id !== "investment-review" &&
               (dataset ? (
@@ -641,7 +651,7 @@ export function InsightCapabilityResult({
       {result.limitations.length > 0 && (
         <aside className="ic-limitations" aria-label="分析限制">
           {result.limitations.map((text, index) => (
-            <p key={index}>{text}</p>
+            <p key={index}>{formatInsightCopy(text)}</p>
           ))}
         </aside>
       )}

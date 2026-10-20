@@ -5,6 +5,7 @@ import * as api from "../api.js";
 import {
   InsightCapabilityResult,
   InvestmentReview,
+  formatInsightCopy,
 } from "./InsightCapabilityResult";
 const defaultPresets = [
   { id: "comprehensive", label: "综合体检" },
@@ -342,7 +343,7 @@ export function InsightPanel({ scope }) {
               </div>
               <h3>{titles[n]}</h3>
               <p className="insight-copy">
-                {item.text || item.evidence + " " + item.review}
+                {formatInsightCopy(item.text || item.evidence + " " + item.review)}
               </p>
             </article>
           ))

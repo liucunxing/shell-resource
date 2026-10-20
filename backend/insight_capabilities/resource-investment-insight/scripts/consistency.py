@@ -7,7 +7,33 @@ import json
 import math
 import re
 from collections import Counter
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
+
+
+def money_wan(value):
+    """Display conversion only; preserve source amounts and calculation precision."""
+    scaled = Decimal(str(value).replace(",", "").replace("−", "-")) / Decimal(10000)
+    rendered = format(scaled, "f")
+    return rendered.rstrip("0").rstrip(".") if "." in rendered else rendered
+
+
+def format_result_display(result):
+    output = copy.deepcopy(result)
+
+    def text(value):
+        value = re.sub(r"(?<![A-Za-z\d.])([+\-−]?\d[\d,]*(?:\.\d+)?)\s*(万元|元)",
+                       lambda m: (m[1] if m[2] == "万元" else money_wan(m[1])) + "万元", value)
+        return re.sub(r"((?:Yield|投入产出比)[^。；;，\n]{0,24}?)([+\-]?\d+(?:\.\d+)?)\s*倍",
+                      lambda m: m[1] + str(Decimal(m[2]).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)) + "倍", value, flags=re.I)
+
+    for key in ("headline", "summary"):
+        output[key] = text(output[key])
+    for collection, keys in (("checks", ("summary",)), ("blocks", ("title", "body"))):
+        for item in output[collection]:
+            for key in keys:
+                item[key] = text(item[key])
+    output["limitations"] = [text(value) for value in output["limitations"]]
+    return output
 
 
 def _whole_cohort(text, facts):
@@ -15,6 +41,16 @@ def _whole_cohort(text, facts):
     return bool(re.search(r"(?:全部|所有|各)(?:已分配)?(?:\d+家)?经销商", text)) or any(
         int(n) == count for n in re.findall(r"(\d+)家经销商", text)
     )
+
+
+def fact_token_reference(token, facts):
+    if token in facts:
+        return token, None
+    parent, separator, field = token.rpartition(".")
+    if (separator and parent.startswith("investment:") and parent in facts
+            and field in {"historical_actual", "plan", "delta", "abs_delta", "multiple"}):
+        return parent, field
+    raise ValueError("unknown_fact_token")
 
 
 def resolve_fact_tokens(result, evidence):
@@ -29,26 +65,32 @@ def resolve_fact_tokens(result, evidence):
             return text
 
         def replace(match):
-            key = match[1]
-            if key not in facts:
+            try:
+                key, field = fact_token_reference(match[1], facts)
+            except ValueError:
                 raise ValueError(f"{path}:unknown_fact_token")
             f = facts[key]
-            value = f["value"]
+            value = json.loads(f["value"]).get(field) if field else f["value"]
+            unit = ("multiple" if field == "multiple" else "CNY") if field else f["unit"]
+            wan_suffix = re.match(r"\s*万元", text[match.end():])
+            yuan_suffix = re.match(r"\s*元", text[match.end():])
             if value is None:
                 rendered = "未提供"
             elif isinstance(value, (int, float)):
                 rendered = (
+                    money_wan(value) + ("" if wan_suffix else "万元")
+                    if unit == "CNY" and not yuan_suffix else
                     f"{value * 100:.2f}".rstrip("0").rstrip(".") + "%"
-                    if f["unit"] == "ratio"
+                    if unit == "ratio"
                     else format(Decimal(str(value)), "f")
                 )
-                if f["unit"] != "ratio" and "." in rendered:
+                if unit != "ratio" and "." in rendered:
                     rendered = rendered.rstrip("0").rstrip(".")
             else:
                 rendered = str(value)
             if refs is not None and key not in refs:
                 refs.append(key)
-            bindings.append({"path": path, "fact_id": key})
+            bindings.append({"path": path, "fact_id": key, **({"field": field} if field else {})})
             return rendered
 
         return token.sub(replace, text)
@@ -356,6 +398,9 @@ def issues(result, evidence):
                 break
 
     def check(text, path, refs, dataset_id=None, dimensions=None, status=None):
+        # Numbered-list markers are layout, not unbound business quantities.
+        # Require a line start and separator whitespace so decimals stay numeric.
+        text = re.sub(r"(?m)^[ \t]*\d+[.)、][ \t]+", "", text)
         if re.search(r"其余[^。；;]{0,35}(?:介于|范围|区间)", text):
             errors.append(
                 f"{path}:unprovided_aggregate:没有预计算的其余对象范围事实，请列具体对象事实"

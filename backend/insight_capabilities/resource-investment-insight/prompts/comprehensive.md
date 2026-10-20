@@ -1,2 +1,2 @@
 # 综合体检
-preset_id=comprehensive。六维检查始终保留，优先展开required_focus事项。没有review时给平实的事实概览，不为最高、最低值或多项叠加制造风险。每项摘要选一个有代表性的已给事实即可，其他对象在图表或数据中可查。通常不需要额外正文；确有信息增量可添加独立finding或图表。不要复述所有经销商，不反复讲缺未来目标。
+preset_id=comprehensive。保留六维检查。存在required_focus时，必须逐维度填写required_findings中的非空复核正文，写具体经销商、历史年份与实际金额、计划年份与金额、变化以及需确认事项。summary或checks写过同一事项，也不能省略required_findings；blocks仅放额外有信息增量的内容，可为空。没有required_focus时给平实事实概览，不为排名、分组或多项叠加制造风险。不复述所有经销商或反复讲缺未来目标。

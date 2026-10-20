@@ -552,14 +552,26 @@ def test_request_schema_binds_authorized_references_and_states():
     body, _ = InsightPack(PACK_ROOT).compile(evidence)
     schema = body["response_format"]["json_schema"]["schema"]
     validator = Draft202012Validator(schema)
-    valid = valid_result(evidence)
+    def wire_valid():
+        value = valid_result(evidence)
+        value["required_findings"] = {}
+        for constraint in evidence["check_constraints"]:
+            if constraint.get("required_focus"):
+                dimension = constraint["dimension_id"]
+                finding = next(block for block in value["blocks"] if dimension in block["dimension_ids"])
+                finding["id"] = "focus-" + dimension
+                value["required_findings"][dimension] = finding
+        value["blocks"] = []
+        return value
+
+    valid = wire_valid()
     validator.validate(valid)
     valid["checks"][0]["status"] = "review"
     assert list(validator.iter_errors(valid))
-    valid = valid_result(evidence)
+    valid = wire_valid()
     valid["checks"][0]["fact_ids"] = ["fabricated"]
     assert list(validator.iter_errors(valid))
-    valid = valid_result(evidence)
+    valid = wire_valid()
     valid["blocks"] = [
         dict(
             id="x",

@@ -55,10 +55,10 @@ describe("full investment comparison", () => {
       <InvestmentReview dataset={dataset} scopeLabel="本人范围" />,
     );
     for (const text of [
-      "100,000 元",
-      "1,000,000 元",
-      "900,000 元",
-      "10 倍",
+      "10 万元",
+      "100 万元",
+      "90 万元",
+      "10.0 倍",
       "2025 实际 / 2027 计划",
       "本人范围",
       "下一页",
@@ -85,7 +85,7 @@ describe("full investment comparison", () => {
       />,
     );
     expect(html).toContain("缺失");
-    expect(html).toContain("0 元");
+    expect(html).toContain("0 万元");
     expect(html).toContain("不适用（实际为 0）");
   });
   it("shows comparison even if the model returns no blocks, and rejects other scopes", () => {
@@ -107,7 +107,7 @@ describe("full investment comparison", () => {
       renderToString(
         <InsightCapabilityResult result={result} evidence={evidence} />,
       ),
-    ).toContain("100,000 元");
+    ).toContain("10 万元");
     expect(
       renderToString(
         <InsightCapabilityResult
@@ -115,7 +115,7 @@ describe("full investment comparison", () => {
           evidence={{ ...evidence, scope: { id: "other" } }}
         />,
       ),
-    ).not.toContain("100,000 元");
+    ).not.toContain("10 万元");
   });
 });
 describe("generation failure persistence", () => {
@@ -156,9 +156,9 @@ describe("readable investment evidence", () => {
       id: "investment:hash",
       value: JSON.stringify({ ...dataset.rows[0], id: "internalhash" }),
     });
-    expect(text).toContain("2025 实际投入 100,000 元");
-    expect(text).toContain("本次计划 1,000,000 元");
-    expect(text).toContain("10 倍");
+    expect(text).toContain("2025 实际投入 10 万元");
+    expect(text).toContain("本次计划 100 万元");
+    expect(text).toContain("10.0 倍");
     expect(text).toContain("建议复核");
     expect(text).not.toContain("internalhash");
     expect(text).not.toContain("historical_actual");
@@ -173,7 +173,7 @@ describe("readable investment evidence", () => {
       }),
     });
     expect(missing).toContain("2025 实际投入 缺失");
-    expect(missing).toContain("本次计划 0 元");
+    expect(missing).toContain("本次计划 0 万元");
   });
   it("renders configured thresholds in plain Chinese and handles invalid old data", () => {
     const text = investmentFactText({
@@ -185,7 +185,7 @@ describe("readable investment evidence", () => {
         version: "internal-v1",
       }),
     });
-    for (const term of ["2 倍", "50%", "50,000 元", "不代表审批结论"])
+    for (const term of ["2.0 倍", "50%", "5 万元", "不代表审批结论"])
       expect(text).toContain(term);
     expect(text).not.toContain("internal-v1");
     expect(text).not.toContain("increase_multiple");

@@ -37,6 +37,18 @@ ITEM_KEYS = ("low_yield", "high_yield", "concentration", "overlap", "trend", "co
 logger = logging.getLogger(__name__)
 
 
+class ModelResponseError(ValueError):
+    """A classified provider response failure, without response text or input."""
+
+    def __init__(self, reason: str, *, retryable: bool = False) -> None:
+        super().__init__(reason)
+        self.retryable = retryable
+
+
+def _safe_request_id(value: Any) -> str:
+    return "".join(char for char in str(value or "")[:128] if char.isalnum() or char in "-_")
+
+
 class InsightService:
     def __init__(
         self,
@@ -71,7 +83,10 @@ class InsightService:
                 {key: "请结合以上已同步事实复核；此处为只读计算预览。" for key in ITEM_KEYS},
             )
             record["evidence"] = build_evidence(
-                workspace, descriptor, self.user.role, planning_year,
+                workspace,
+                descriptor,
+                self.user.role,
+                planning_year,
                 investment_rules=self._investment_rules(),
             )
             record["status"] = "preview"
@@ -120,14 +135,17 @@ class InsightService:
                 )
                 logger.info(
                     "insight.generate_complete preset=%s elapsed=%.3f attempts=%d",
-                    preset_id, perf_counter() - started,
+                    preset_id,
+                    perf_counter() - started,
                     len(record.get("metadata", {}).get("attempts", [])),
                 )
                 return record
         except TimeoutError as exc:
             logger.warning(
                 "insight.generate_timeout preset=%s elapsed=%.3f deadline=%.3f",
-                preset_id, perf_counter() - started, deadline,
+                preset_id,
+                perf_counter() - started,
+                deadline,
             )
             raise HTTPException(
                 status_code=504, detail="分析等待超时，原记录已保留，请稍后重试"
@@ -135,7 +153,9 @@ class InsightService:
         except HTTPException as exc:
             logger.warning(
                 "insight.generate_failed preset=%s status=%d elapsed=%.3f",
-                preset_id, exc.status_code, perf_counter() - started,
+                preset_id,
+                exc.status_code,
+                perf_counter() - started,
             )
             raise
 
@@ -156,7 +176,10 @@ class InsightService:
         signature = self._signature(workspace, scope, prompt, preset_id)
         access = self._access(descriptor)
         evidence = build_evidence(
-            workspace, descriptor, self.user.role, planning_year,
+            workspace,
+            descriptor,
+            self.user.role,
+            planning_year,
             investment_rules=self._investment_rules(),
         )
         pack = InsightPack(PACK_ROOT)
@@ -170,7 +193,7 @@ class InsightService:
             call_started = perf_counter()
             candidate, usage = await self._call_model(body)
             call_seconds = perf_counter() - call_started
-            result, normalizations = normalize_result(candidate)
+            result, normalizations = normalize_result(pack.unpack_model_result(candidate))
             diagnostic: dict[str, Any] = {
                 "model_seconds": round(call_seconds, 3),
                 "usage": usage,
@@ -183,6 +206,8 @@ class InsightService:
                 result, citation_bindings = pack.bind_named_facts(result, evidence)
                 pack.validate_model_references(result, evidence, preset_id)
                 pack.validate_consistency(result, evidence, preset_id)
+                result = pack.format_result_display(result)
+                pack.validate_consistency(result, evidence, preset_id)
                 diagnostic["validation"] = "passed"
                 break
             except PackError as exc:
@@ -190,7 +215,9 @@ class InsightService:
                 diagnostic["reason"] = str(exc)
                 logger.warning(
                     "insight.validation_failed preset=%s attempt=%d reason=%s",
-                    preset_id, attempt + 1, str(exc),
+                    preset_id,
+                    attempt + 1,
+                    str(exc),
                 )
                 if attempt:
                     raise HTTPException(
@@ -390,7 +417,10 @@ class InsightService:
             or prompt.planning_year
         )
         evidence = build_evidence(
-            workspace, descriptor, self.user.role, year,
+            workspace,
+            descriptor,
+            self.user.role,
+            year,
             investment_rules=self._investment_rules(),
         )
         _, metadata = InsightPack(PACK_ROOT).compile(
@@ -601,9 +631,10 @@ class InsightService:
     async def _call_model(self, body: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
         """Retry one transient connection/provider failure within the shared deadline."""
         started = perf_counter()
+        request_body = body
         for attempt in range(2):
             try:
-                result, usage = await self._call_model_once(body)
+                result, usage = await self._call_model_once(request_body)
                 usage["transport_attempts"] = attempt + 1
                 return result, usage
             except HTTPException as exc:
@@ -611,28 +642,53 @@ class InsightService:
                 status = (
                     cause.response.status_code if isinstance(cause, httpx.HTTPStatusError) else 0
                 )
-                retryable = isinstance(cause, httpx.TransportError) or (
-                    isinstance(cause, httpx.HTTPStatusError)
-                    and status in {429, 502, 503, 504}
+                incomplete = (
+                    isinstance(cause, ModelResponseError)
+                    and cause.retryable
+                    or (isinstance(cause, json.JSONDecodeError))
+                    or (
+                        isinstance(cause, ValueError)
+                        and str(cause) in {"incomplete model stream", "incomplete model response"}
+                    )
+                )
+                retryable = (
+                    incomplete
+                    or isinstance(cause, httpx.TransportError)
+                    or (isinstance(cause, httpx.HTTPStatusError) and status in {429, 502, 503, 504})
                 )
                 request_id = (
                     cause.response.headers.get("x-request-id", "")
-                    if isinstance(cause, httpx.HTTPStatusError) else ""
+                    if isinstance(cause, httpx.HTTPStatusError)
+                    else ""
                 )
-                safe_request_id = "".join(
-                    char for char in request_id[:128] if char.isalnum() or char in "-_"
-                )
+                diagnostics = getattr(exc, "model_diagnostics", {})
+                status = diagnostics.get("provider_status", status)
+                safe_request_id = _safe_request_id(request_id or diagnostics.get("request_id"))
                 remaining = getattr(self, "_deadline_at", started + 60) - perf_counter()
                 retry = attempt == 0 and retryable and remaining > 5
                 logger.warning(
                     "insight.model_failed category=%s provider_status=%d request_id=%s "
-                    "attempt=%d elapsed=%.3f retry=%s",
-                    type(cause).__name__ if cause else "configuration",
-                    status, safe_request_id or "-", attempt + 1,
-                    perf_counter() - started, retry,
+                    "attempt=%d elapsed=%.3f retry=%s diagnostics=%s",
+                    str(cause)
+                    if isinstance(cause, ModelResponseError)
+                    else "incomplete_response"
+                    if incomplete
+                    else type(cause).__name__
+                    if cause
+                    else "configuration",
+                    status,
+                    safe_request_id or "-",
+                    attempt + 1,
+                    perf_counter() - started,
+                    retry,
+                    json.dumps(diagnostics, ensure_ascii=True),
                 )
                 if not retry:
                     raise
+                # A second connection using ordinary JSON avoids repeating a broken
+                # SSE framing/stream. It still needs the same schema and fact checks.
+                if incomplete or isinstance(cause, httpx.TransportError):
+                    request_body = {**body, "stream": False}
                 await asyncio.sleep(0.25)
         raise RuntimeError("unreachable model retry state")
 
@@ -645,15 +701,35 @@ class InsightService:
         url = base if base.endswith("/chat/completions") else base + "/chat/completions"
         timeout = float(getattr(self.settings, "ai_timeout_seconds", 120))
         started = perf_counter()
+        streaming = body.get("stream", True)
+        request_body = {**body, "stream": streaming}
+        if streaming:
+            request_body["stream_options"] = {"include_usage": True}
+        else:
+            request_body.pop("stream_options", None)
+        diagnostics: dict[str, Any] = {
+            "mode": "sse" if streaming else "json",
+            "stage": "connect",
+            "chunks": 0,
+            "data_bytes": 0,
+            "content_bytes": 0,
+            "finish_reason": None,
+            "done_received": False,
+        }
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
                 async with client.stream(
                     "POST",
                     url,
                     headers={"Authorization": f"Bearer {secret}"},
-                    json={**body, "stream": True, "stream_options": {"include_usage": True}},
+                    json=request_body,
                 ) as response:
+                    diagnostics["request_id"] = _safe_request_id(
+                        response.headers.get("x-request-id")
+                    )
+                    diagnostics["provider_status"] = response.status_code
                     response.raise_for_status()
+                    diagnostics["stage"] = "receive"
                     if "text/event-stream" in response.headers.get("content-type", ""):
                         parts: list[str] = []
                         usage: dict[str, Any] = {}
@@ -665,9 +741,24 @@ class InsightService:
                                 continue
                             data = line[5:].strip()
                             if data == "[DONE]":
+                                diagnostics["done_received"] = True
                                 break
-                            chunk = json.loads(data)
+                            if not data:
+                                continue
+                            diagnostics["data_bytes"] += len(data.encode("utf-8"))
+                            diagnostics["chunks"] += 1
+                            try:
+                                chunk = json.loads(data)
+                            except json.JSONDecodeError as exc:
+                                raise ModelResponseError("malformed_sse", retryable=True) from exc
+                            if not isinstance(chunk, dict):
+                                raise ModelResponseError("invalid_sse_frame", retryable=True)
+                            if chunk.get("error"):
+                                raise ModelResponseError("provider_error_frame")
                             request_id = chunk.get("id") or request_id
+                            diagnostics["request_id"] = (
+                                _safe_request_id(request_id) or diagnostics["request_id"]
+                            )
                             if chunk.get("usage"):
                                 usage = chunk["usage"]
                             for item in chunk.get("choices", []):
@@ -675,10 +766,26 @@ class InsightService:
                                 if content:
                                     if first_token is None:
                                         first_token = round(perf_counter() - started, 3)
+                                        diagnostics["first_token_seconds"] = first_token
                                     parts.append(content)
+                                    diagnostics["content_bytes"] += len(content.encode("utf-8"))
                                 finish = item.get("finish_reason") or finish
+                                diagnostics["finish_reason"] = (
+                                    finish
+                                    if finish in {"stop", "length", "content_filter", None}
+                                    else "other"
+                                )
                         if finish != "stop":
-                            raise ValueError("incomplete model stream")
+                            raise ModelResponseError(
+                                "output_limit"
+                                if finish == "length"
+                                else "content_filter"
+                                if finish == "content_filter"
+                                else "stream_eof"
+                                if finish is None
+                                else "provider_finish",
+                                retryable=finish is None,
+                            )
                         payload: dict[str, Any] = {
                             "choices": [
                                 {"message": {"content": "".join(parts)}, "finish_reason": finish}
@@ -692,18 +799,35 @@ class InsightService:
                     else:
                         # Compatible gateways may return ordinary JSON.
                         await response.aread()
+                        diagnostics["data_bytes"] = len(response.content)
                         payload = response.json()
+                        if not isinstance(payload, dict):
+                            raise ModelResponseError("invalid_response_object")
+                        if payload.get("error"):
+                            raise ModelResponseError("provider_error_frame")
             choice = payload["choices"][0]
+            finish = choice.get("finish_reason")
+            diagnostics["finish_reason"] = (
+                finish if finish in {"stop", "length", "content_filter", None} else "other"
+            )
+            content = choice["message"]["content"]
+            diagnostics["content_bytes"] = len(content.encode("utf-8"))
             if choice.get("finish_reason") not in {None, "stop"}:
-                raise ValueError("incomplete model response")
-            parsed = json.loads(choice["message"]["content"])
+                raise ModelResponseError(
+                    "output_limit" if finish == "length" else "provider_finish"
+                )
+            diagnostics["stage"] = "parse_content"
+            parsed = json.loads(content)
             if not isinstance(parsed, dict):
-                raise ValueError("result must be object")
-            return parsed, payload.get("usage") or {}
+                raise ModelResponseError("non_object_result")
+            diagnostics["stage"] = "complete"
+            diagnostics["elapsed_seconds"] = round(perf_counter() - started, 3)
+            return parsed, {**(payload.get("usage") or {}), "response_diagnostics": diagnostics}
         except (httpx.HTTPError, IndexError, KeyError, TypeError, ValueError) as exc:
-            raise HTTPException(
-                status_code=502, detail="百炼 Insight 生成失败，原记录已保留"
-            ) from exc
+            diagnostics["elapsed_seconds"] = round(perf_counter() - started, 3)
+            error = HTTPException(status_code=502, detail="百炼 Insight 生成失败，原记录已保留")
+            error.model_diagnostics = diagnostics
+            raise error from exc
 
     def _record(
         self,

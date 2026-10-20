@@ -107,3 +107,11 @@ payload, metadata = pack.compile(evidence, preset_id="quadrant")
 - 工程内部消费 Qwen SSE，完整接收且校验后才保存/展示；不向用户流出未校验片段。记录首 token、模型调用、准备、保存前耗时、usage 和每次校验诊断。
 - 后端 insight_timeout_seconds 默认且最高 60 秒，覆盖准备、首次调用、最多一次修复、复验与保存；前端 65 秒兜底并显示等待秒数。失败保留原记录，无自动无限重试。独立 urllib CLI 的 socket timeout 仍为 120 秒，不能作为工程 SLA。
 - `scripts/evaluate_insight_engineering.py --live` 使用实际 Service 与隔离合成 SQLite，`scripts/verify_insight_integration.py --live` 验证真实 HTTP 保存读回及权限。真实业务数据规模与 PostgreSQL 延迟需在目标环境另验，合成通过不代表生产验收。
+
+## 工程适配版 0.3.0：必填正文、展示与模型传输
+
+- `required_focus_dimensions` 对应的 `required_findings` 在供应商结构化输出中设为必填；宿主解包为公共 blocks 后仍执行完整事实校验。不要只在 summary 或 checks 提及复核而缺少独立正文。
+- 金额展示使用万元，Yield 保留一位小数；原始证据和计算精度保留。金额标量占位符没有单位后缀时自动带万元，已有显式元后缀继续兼容，再统一展示转换。不可把整个 investment JSON 作为正文占位符。
+- 每次模型响应记录结束原因、接收字节/帧数、首 token 时间、耗时、请求 ID 和失败阶段；生产日志不记录输入、响应正文或密钥。`length`、`content_filter`、提前 EOF、坏 SSE 与 JSON 解析失败分开诊断，不能把所有 ValueError 都认定为截断。
+- 提前 EOF、坏 SSE、JSON 解析失败、网络中断等瞬时错误在总截止时间内最多重试一次，并改用普通 JSON 传输；完整 schema、权限和事实校验不变。输出上限与内容过滤不重复发送相同请求，失败不保存候选。429/502/503/504 也只允许一次有截止时间的重试。
+- `evaluate_insight_investment.py --live --json-only` 验证真实 JSON 传输；`--probe-output-limit` 使用同一批合成输入和刻意缩小的 max_tokens=8 验证真实 length 诊断，不写 Insight 记录。此实验不能证明历史某次失败也是输出上限。
