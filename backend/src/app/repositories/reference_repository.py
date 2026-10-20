@@ -26,7 +26,10 @@ class ReferenceRepository:
                 return []
             statement = statement.where(distributor_sellin_resource_history.c.sector.in_(sectors))
         result = await self.session.execute(
-            statement.order_by(distributor_sellin_resource_history.c.distributor_code)
+            statement.order_by(
+                distributor_sellin_resource_history.c.distributor_code,
+                distributor_sellin_resource_history.c.sector,
+            )
         )
         return result.mappings().all()
 

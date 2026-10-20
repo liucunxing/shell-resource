@@ -2,6 +2,7 @@ type AllocationRow = { dealerId: string; amount: number; note?: string };
 type Dealer = {
   id: string;
   name?: string;
+  sector?: string | null;
   history?: { vol2025?: number | null; c32025?: number | null };
 };
 
@@ -10,10 +11,12 @@ export function allocateByHistory(
   dealers: Dealer[],
   availableCents: number,
   field: "vol2025" | "c32025",
+  sector?: string,
 ) {
   if (!Number.isSafeInteger(availableCents) || availableCents < 0)
     throw Error("其他预算安排超过总预算或可分配预算无效，无法辅助填充。");
-  const byId = new Map(dealers.map((dealer) => [String(dealer.id), dealer]));
+  const scoped = sector ? dealers.filter((dealer) => dealer.sector === sector || !dealer.sector) : dealers;
+  const byId = new Map(scoped.map((dealer) => [String(dealer.id), dealer]));
   const weighted = rows.map((row) => {
     const dealer = byId.get(String(row.dealerId));
     const value = dealer?.history?.[field];

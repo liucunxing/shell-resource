@@ -13,6 +13,10 @@ export function uniqueDealersByCode(dealers) {
   dealers.forEach((dealer) => {
     const code = String(dealer.id);
     if (!unique.has(code)) unique.set(code, { ...dealer, id: code });
+    else {
+      const current = unique.get(code);
+      current.sector = [...new Set([...(current.sector || "").split(" / "), dealer.sector].filter(Boolean))].join(" / ");
+    }
   });
   return [...unique.values()];
 }
@@ -293,7 +297,7 @@ function EditorContent({
           throw Error("其他预算安排超过总预算，无法辅助填充。");
         const field = metric === "vol" ? "vol2025" : "c32025";
         const label = metric === "vol" ? "2025 Vol" : "2025 C3";
-        const allocation = allocateByHistory(i.rows, data.dealers || [], available, field);
+        const allocation = allocateByHistory(i.rows, data.dealers || [], available, field, i.sector);
         setModal({
           type: "fill",
           revision: i.revision,

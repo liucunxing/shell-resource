@@ -8,6 +8,16 @@ const dealers = (values: (number | null)[]) => values.map((value, index) => ({
 }));
 
 describe("historical proportional allocation", () => {
+  it("uses the Initiative sector instead of overwriting with another sector's history", () => {
+    const source = [
+      { id: "A", sector: "PCMO", history: { c32025: 1 } },
+      { id: "B", sector: "PCMO", history: { c32025: 3 } },
+      { id: "A", sector: "CRTO", history: { c32025: 900 } },
+    ];
+    const result = allocateByHistory(rows.slice(0, 2), source, 10000, "c32025", "PCMO");
+    expect(result.rows.map((row) => row.amount)).toEqual([25, 75]);
+    expect(allocateByHistory(rows.slice(0, 2), source, 10000, "c32025", "CRTO").rows.map((row) => row.amount)).toEqual([100, 0]);
+  });
   it("allocates the full available budget to positive dealers and zeroes missing or zero dealers", () => {
     const result = allocateByHistory(rows, dealers([1, 2, 3, 0]), 10000, "c32025");
     expect(result.rows.map((row) => row.amount)).toEqual([16.67, 33.33, 50, 0]);

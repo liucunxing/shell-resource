@@ -25,3 +25,36 @@ it("labels multi-sector Lead history and global administrator/management history
     expect(global.notes).toContain("管理员与总负责人展示全部业务线的经销商数据。");
   }
 });
+
+it("shows and exports both sectors for one code and selects reference history by sector", () => {
+  const data = { ...D, dealers: [
+    { id: "12088918", name: "Dealer", sector: "PCMO", history: { vol2025: 821370.19, yield: 8 } },
+    { id: "12088918", name: "Dealer", sector: "CRTO", history: { vol2025: 160384.05, yield: 4.33 } },
+  ] };
+  const state = E.createState(D, "working");
+  const identity = { role: "admin" };
+  const model = X.rawData(state, identity, data, "history");
+  expect(model.rows.map((row) => row.sector)).toEqual(["PCMO", "CRTO"]);
+  expect(model.basisLabel).toContain("1 家经销商 / 2 条业务线记录");
+  expect(X.csv(model)).toContain('"PCMO","12088918"');
+  expect(X.csv(model)).toContain('"CRTO","12088918"');
+  expect(X.historyReference(state, identity, data, "12088918", "PCMO").yield).toBe(8);
+  expect(X.historyReference(state, identity, data, "12088918", "CRTO").yield).toBe(4.33);
+  expect(() => X.historyReference(state, identity, data, "12088918")).toThrow(/选择业务线/);
+});
+
+it("uses the matching sector in calculated Insight instead of the last history row", () => {
+  const state = E.createState(D, "working");
+  const item = state.initiatives.find((initiative) => initiative.department === "MKT");
+  const dealerId = item.rows[0].dealerId;
+  const source = { ...D, dealers: [
+    { id: dealerId, sector: item.sector, history: { yield: 7 } },
+    { id: dealerId, sector: "ANOTHER-SECTOR", history: { yield: 999999 } },
+  ] };
+  const result = E.generateInsight(state, `initiative:${item.id}`, {
+    role: "owner", ownerId: item.ownerId, department: item.department,
+  }, { data: source });
+  const low = result.items.find((entry) => entry.key === "low_yield");
+  expect(low.evidence).toContain("为 7");
+  expect(low.evidence).not.toContain("999,999");
+});

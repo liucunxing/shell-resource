@@ -8,6 +8,8 @@ from pathlib import Path
 from statistics import median
 from typing import Any
 
+from app.services.dealer_history import scoped_dealer_histories
+
 PACK_ROOT = Path(__file__).resolve().parents[3] / "insight_capabilities/resource-investment-insight"
 _spec = importlib.util.spec_from_file_location(
     "resource_insight_pack", PACK_ROOT / "scripts/insight_pack.py"
@@ -188,7 +190,9 @@ def build_evidence(workspace: dict, descriptor: dict, role: str, year: int) -> d
                 "分母为负责预算；其他安排不等于到经销商。",
                 denominator=float(budget),
             )
-    histories = {str(row["id"]): row for row in (workspace.get("data") or {}).get("dealers") or []}
+    histories = scoped_dealer_histories(
+        (workspace.get("data") or {}).get("dealers") or [], descriptor["items"]
+    )
     detail: list[dict[str, Any]] = []
     quadrant: list[dict[str, Any]] = []
     trend: list[dict[str, Any]] = []

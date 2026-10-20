@@ -49,6 +49,7 @@ async def test_databricks_directory_uses_oauth_and_statement_api(
                     "data_array": [
                         ["D1", "Dealer One", "PCMO"],
                         ["D1", "Duplicate ignored", "PCMO"],
+                        ["D1", "Dealer One", "CRTO"],
                         ["D2", None, None],
                     ]
                 },
@@ -68,12 +69,14 @@ async def test_databricks_directory_uses_oauth_and_statement_api(
 
     assert result == [
         {"distributor_code": "D1", "distributor_name": "Dealer One", "sector": "PCMO"},
+        {"distributor_code": "D1", "distributor_name": "Dealer One", "sector": "CRTO"},
         {"distributor_code": "D2", "distributor_name": None, "sector": None},
     ]
 
     service = DistributorDirectoryService(settings)
     assert await service.list_distributors(sectors) == [
         {"id": "D1", "name": "Dealer One", "sector": "PCMO"},
+        {"id": "D1", "name": "Dealer One", "sector": "CRTO"},
         {"id": "D2", "name": None, "sector": None},
     ]
 

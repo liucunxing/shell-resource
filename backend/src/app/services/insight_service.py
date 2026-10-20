@@ -18,6 +18,7 @@ from app.core.departments import departments
 from app.dependencies.workbench_user import WorkbenchUser
 from app.models.do.insight import InsightPromptDO, InsightRecordDO
 from app.repositories.insight_repository import InsightRepository
+from app.services.dealer_history import scoped_dealer_histories
 from app.services.insight_pack_adapter import (
     PACK_ROOT,
     InsightPack,
@@ -409,8 +410,10 @@ class InsightService:
             "经销商分配": self._number(total_allocated),
         }
         histories = {
-            str(row.get("id")): row.get("history") or {}
-            for row in (workspace.get("data") or {}).get("dealers") or []
+            code: row.get("history") or {}
+            for code, row in scoped_dealer_histories(
+                (workspace.get("data") or {}).get("dealers") or [], items
+            ).items()
         }
         yields: list[tuple[str, Decimal, dict[str, Any]]] = []
         for dealer_id in dealers:

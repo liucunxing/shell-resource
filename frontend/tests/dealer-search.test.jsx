@@ -20,6 +20,12 @@ describe("dealer picker search", () => {
     expect(uniqueDealersByCode(dealers)).toHaveLength(5);
   });
 
+  it("keeps all sector labels when a distributor belongs to multiple sectors", () => {
+    expect(uniqueDealersByCode([
+      { id: "D1", sector: "PCMO" }, { id: "D1", sector: "CRTO" }, { id: "D1", sector: "PCMO" },
+    ])).toEqual([{ id: "D1", sector: "PCMO / CRTO" }]);
+  });
+
   it("matches only the distributor code field", () => {
     const result = filterDealers(uniqueDealersByCode(dealers), "1020", "");
     expect(result.map((dealer) => dealer.id)).toEqual(["10208074", "13151020"]);

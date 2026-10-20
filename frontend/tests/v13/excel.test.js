@@ -7,7 +7,7 @@ vitestTest(
   "V1.4 simplified allocation template regression contract",
   async () => {
     const identity = { role: "owner", department: "MKT", ownerId: "MKT-1" };
-    const data = { dealers: [{ id: "D001", name: "Dealer One", sector: "PCMO" }, { id: "D002" }, { id: "D003" }] };
+    const data = { dealers: [{ id: "D001", name: "Dealer One", sector: "PCMO" }, { id: "D001", name: "Dealer One", sector: "CRTO" }, { id: "D002" }, { id: "D003" }] };
     const base = () => ({
       departments: {
         MKT: { status: "collecting", versions: [], comments: [] },
@@ -68,13 +68,20 @@ vitestTest(
       assert.deepEqual(book.getWorksheet("经销商列表").getRow(1).values.slice(1),
         ["经销商编码", "经销商名称", "Sector 业务线"]);
       assert.equal(book.getWorksheet("经销商列表").getCell("C2").value, "PCMO");
+      assert.equal(book.getWorksheet("经销商列表").getCell("C3").value, "CRTO");
       const directory = new ExcelJS.Workbook();
       await directory.xlsx.load(await X.exportDealerDirectory({
-        ...data, distributorDirectory: [{ id: "NEW", name: "New Dealer", sector: "OEM" }],
+        ...data, distributorDirectory: [
+          { id: "NEW", name: "New Dealer", sector: "OEM" },
+          { id: "NEW", name: "New Dealer", sector: "CRTO" },
+          { id: "NEW", name: "New Dealer", sector: "CRTO" },
+        ],
       }));
       assert.equal(directory.worksheets.length, 1);
       assert.deepEqual(directory.getWorksheet("经销商列表").getRow(2).values.slice(1),
         ["NEW", "New Dealer", "OEM"]);
+      assert.equal(directory.getWorksheet("经销商列表").rowCount, 3);
+      assert.equal(directory.getWorksheet("经销商列表").getCell("C3").value, "CRTO");
       assert.equal(book.getWorksheet("原因类型参考").getCell("A2").value, "新增经销商预留");
       assert.equal(book.getWorksheet("其他预算安排").rowCount, 4);
       assert.equal(

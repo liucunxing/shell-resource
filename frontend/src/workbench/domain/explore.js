@@ -315,7 +315,7 @@ function rawData(state, identity, data, tab) {
       scopedDealers
         ? `业务线 ${userSectors || "未配置"} · 全部经销商历史`
         : `共享经销商 Vol / C3 · ${all ? "全业务线" : E.departments(identity).join("、") + " 授权资源"}`;
-    model.basisLabel = `源历史数据 · 共 ${data.dealers.length} 家经销商`;
+    model.basisLabel = `源历史数据 · 共 ${new Set(data.dealers.map((d) => String(d.id))).size} 家经销商 / ${data.dealers.length} 条业务线记录`;
     model.notes.push(
       "2024、2025 为全年；2026 为 1–8 月累计，不默认同比或年化。",
       "Yield 向所有角色只读开放，取源数据中的 2025 C3 / 资源原始比值，不转换为百分比。",
@@ -329,12 +329,15 @@ function rawData(state, identity, data, tab) {
   }
   return model;
 }
-function historyReference(state, identity, data, dealerId) {
+function historyReference(state, identity, data, dealerId, sector) {
   const model = rawData(state, identity, data, "history");
-  const row = model.rows.find((r) => String(r.dealerId) === String(dealerId));
+  const matches = model.rows.filter((r) => String(r.dealerId) === String(dealerId) && (sector === undefined || r.sector === sector));
+  if (matches.length > 1) throw Error("该经销商有多条业务线历史，请先选择业务线。");
+  const row = matches[0];
   if (!row) throw Error("经销商不存在或不在历史数据权限范围。");
   return {
     dealerId: row.dealerId,
+    sector: row.sector,
     scopeLabel: model.scopeLabel,
     yield: row.yield,
     periods: [

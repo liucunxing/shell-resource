@@ -150,7 +150,7 @@ function dealerDirectory(data = {}) {
     : Array.isArray(data.dealers)
       ? data.dealers
       : [];
-  return [...new Map(rows.map((dealer) => [String(dealer.id), dealer])).values()];
+  return [...new Map(rows.map((dealer) => [json([String(dealer.id), dealer.sector || ""]), dealer])).values()];
 }
 async function exportWorkbook(state, id, identity, data = {}) {
   const i = editable(state, id, identity),

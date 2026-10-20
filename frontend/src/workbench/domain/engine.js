@@ -1245,7 +1245,7 @@ function setAnalysisPrompt(state, scope, text, identity) {
   return getAnalysisPrompt(state, scope, identity);
 }
 // Bump whenever analysis semantics or shared historical authorization changes.
-const ANALYSIS_BASIS_VERSION = "2026-09-22-latest-publication-owner-scope-v1";
+const ANALYSIS_BASIS_VERSION = "2026-10-20-latest-publication-owner-scope-dealer-sector-v2";
 function signature(state, scope) {
   migrateState(state);
   const descriptor = insightScope(state, scope);
@@ -1390,9 +1390,18 @@ function generateInsight(state, scope, identity, options) {
   );
   const format = (value) =>
     Number(value).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
-  const rawDealers = new Map(
-    (((options || {}).data || {}).dealers || []).map((d) => [d.id, d]),
-  );
+  const rawCandidates = new Map();
+  const rawRecords = (((options || {}).data || {}).dealers || []);
+  rawRecords.forEach((dealer) => {
+    const sectors = new Set(source.filter((item) => item.rows.some((row) => String(row.dealerId) === String(dealer.id)))
+      .map((item) => item.sector).filter(Boolean));
+    if (dealer.sector && sectors.size && !sectors.has(dealer.sector)) return;
+    const code = String(dealer.id);
+    rawCandidates.set(code, [...(rawCandidates.get(code) || []), dealer]);
+  });
+  // Multi-sector ratios have no agreed aggregation rule; keep them unavailable.
+  const rawDealers = new Map([...rawCandidates].filter(([, rows]) => rows.length === 1)
+    .map(([code, rows]) => [code, rows[0]]));
   const history = (id) => (rawDealers.get(id) || {}).history || {};
   const numeric = (value) =>
     typeof value === "number" && Number.isFinite(value);

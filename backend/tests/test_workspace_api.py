@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.controllers.workbench_controller import router
 from app.db.session import get_db_session
 from app.models.do.budget import BudgetDO
+from app.models.do.distributor_history import distributor_sellin_resource_history
 from app.models.do.workspace import BudgetChangeLogDO, UserPermissionDO, WorkspaceConfigDO
 from app.repositories.distributor_directory_repository import DatabricksDistributorRepository
 from test_workspace import _session
@@ -26,6 +27,7 @@ async def api(monkeypatch):
             {"distributor_code": "d1", "distributor_name": "Dealer 1", "sector": "PCMO"},
             {"distributor_code": "d2", "distributor_name": "Dealer 2", "sector": "PCMO"},
             {"distributor_code": "d3", "distributor_name": "Dealer 3", "sector": "CRTO"},
+            {"distributor_code": "d1", "distributor_name": "Dealer 1", "sector": "CRTO"},
         ]
         return [row for row in rows if _sectors is None or row["sector"] in _sectors]
 
@@ -94,19 +96,27 @@ async def test_dealer_sector_scope_for_history_and_directory(api, role, sectors,
             select(UserPermissionDO).where(UserPermissionDO.email == email)
         )
         permission.sector = sectors
+        await session.execute(distributor_sellin_resource_history.insert(), [{
+            "distributor_code": "d1", "distributor_name": "Dealer 1",
+            "sector": "CRTO", "volume_2025": 999,
+        }])
         await session.commit()
 
     # Request parameters must never override the authenticated user's sector scope.
     response = await client.get("workspace?planning_year=2027&sector=OEM", headers=headers(email))
     assert response.status_code == 200
     dealers = response.json()["data"]["data"]["dealers"]
-    assert [dealer["id"] for dealer in dealers] == expected
+    expected_keys = {(code, "CRTO" if code == "d3" else "PCMO") for code in expected}
+    if role in {"admin", "management"} or "CRTO" in sectors:
+        expected_keys.add(("d1", "CRTO"))
+    assert {(dealer["id"], dealer["sector"]) for dealer in dealers} == expected_keys
+    assert len(dealers) == len(expected_keys)
     response = await client.get("distributors?sector=OEM", headers=headers(email))
     if role in {"owner", "lead"} and not sectors:
         assert response.status_code == 403
     else:
         assert response.status_code == 200
-        assert [dealer["id"] for dealer in response.json()["data"]] == expected
+        assert {(dealer["id"], dealer["sector"]) for dealer in response.json()["data"]} == expected_keys
 
 
 @pytest.mark.asyncio

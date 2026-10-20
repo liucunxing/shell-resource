@@ -58,7 +58,7 @@ class DatabricksDistributorRepository:
                             f"FROM {self.settings.databricks_view_name} "
                             "WHERE distributor_code IS NOT NULL "
                             f"{sector_filter}"
-                            "ORDER BY distributor_code"
+                            "ORDER BY distributor_code, sector"
                         ),
                         "format": "JSON_ARRAY",
                         "disposition": "INLINE",
@@ -83,16 +83,19 @@ class DatabricksDistributorRepository:
             raise DatabricksDirectoryError("Databricks distributor query failed") from error
 
         result: list[dict[str, str | None]] = []
-        seen_codes: set[str] = set()
+        seen_keys: set[tuple[str, str | None]] = set()
         for row in rows:
             if not row or row[0] is None:
                 continue
             code = str(row[0]).strip()
-            if not code or code in seen_codes:
+            if not code:
                 continue
-            seen_codes.add(code)
             name = None if len(row) < 2 or row[1] is None else str(row[1]).strip() or None
             sector = None if len(row) < 3 or row[2] is None else str(row[2]).strip() or None
+            key = (code, sector)
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
             result.append({"distributor_code": code, "distributor_name": name, "sector": sector})
         return result
 

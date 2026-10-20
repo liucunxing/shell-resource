@@ -618,7 +618,7 @@ export function WorkbenchProvider({ children }) {
       open: true,
       tab,
       ...(tab === "reference" && selection
-        ? { dealerId: String(selection) }
+        ? { dealerId: String(selection), dealerSector: undefined }
         : {}),
       ...(tab === "insight" ? { scope: selection || "" } : {}),
     }));

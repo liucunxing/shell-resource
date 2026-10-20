@@ -241,7 +241,7 @@ function ReferencePanel() {
     view,
     openRaw,
   } = useWorkbench();
-  const selected =
+  const selectedId =
     auxiliary.dealerId ||
     String(
       view.initiatives.find((item) => item.id === initiativeId)?.rows?.[0]
@@ -249,8 +249,12 @@ function ReferencePanel() {
         data.dealers[0]?.id ||
         "",
     );
+  const initiative = view.initiatives.find((item) => item.id === initiativeId);
+  const preferredSector = auxiliary.dealerSector ?? initiative?.sector;
+  const candidates = data.dealers.filter((dealer) => String(dealer.id) === String(selectedId));
+  const selected = candidates.find((dealer) => dealer.sector === preferredSector) || candidates[0];
   if (!selected) return <div className="empty">暂无历史数据。</div>;
-  const model = A.historyReference(state, identity, data, selected);
+  const model = A.historyReference(state, identity, data, selected.id, selected.sector || "—");
   const fullYears = model.periods.filter((period) => period.comparable);
   const ytd = model.periods.find((period) => !period.comparable);
   const resourceTotal = model.resources.reduce(
@@ -267,17 +271,18 @@ function ReferencePanel() {
         经销商
         <select
           aria-label="历史参考经销商"
-          value={selected}
+          value={JSON.stringify([String(selected.id), selected.sector || ""])}
           onChange={(event) =>
             setAuxiliary((value) => ({
               ...value,
-              dealerId: event.target.value,
+              dealerId: JSON.parse(event.target.value)[0],
+              dealerSector: JSON.parse(event.target.value)[1],
             }))
           }
         >
           {data.dealers.map((dealer) => (
-            <option key={dealer.id} value={dealer.id}>
-              {dealer.id} · {dealer.name || "—"}
+            <option key={JSON.stringify([dealer.id, dealer.sector || ""])} value={JSON.stringify([String(dealer.id), dealer.sector || ""])}>
+              {dealer.id} · {dealer.name || "—"} · {dealer.sector || "—"}
             </option>
           ))}
         </select>
@@ -389,7 +394,7 @@ function ReferencePanel() {
       </p>
       <button
         className="button small"
-        onClick={() => openRaw("history", selected)}
+        onClick={() => openRaw("history", String(selected.id))}
       >
         查看历史原始数据
       </button>

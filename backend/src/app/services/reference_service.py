@@ -20,13 +20,14 @@ class ReferenceService:
         del planning_year  # The source table contains fixed historical years, not planning years.
         rows = await self.repository.list_dealers(dealer_ids, sectors)
         result = []
-        seen_codes: set[str] = set()
+        seen_keys: set[tuple[str, str | None]] = set()
         allowed = {"MKT": {"MRD", "SP&A"}, "ICE": {"ICE Rebate"}, "CAPEX": {"Capex"}}
         for row in rows:
             code = str(row["distributor_code"])
-            if code in seen_codes:
+            key = (code, row["sector"])
+            if key in seen_keys:
                 continue
-            seen_codes.add(code)
+            seen_keys.add(key)
             resources = {
                 "MRD": row["mrd_2025"],
                 "SP&A": row["btl_2025"],
