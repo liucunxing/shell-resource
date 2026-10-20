@@ -502,6 +502,11 @@ function EditorContent({
               </div>
             )}
           </div>
+          {editable && (
+            <p className="work-caption">
+              经销商列表已包含在下载模板的「经销商列表」工作表中，含 Sector 业务线。
+            </p>
+          )}
           <div className="table-scroll">
             <table className="allocation-table allocation-table-simple">
               <thead>
