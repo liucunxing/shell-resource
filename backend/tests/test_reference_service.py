@@ -34,5 +34,6 @@ def test_reference_results_are_unique_by_distributor_code():
 
         dealers = await service.get_dealers(2027)
         assert [item["id"] for item in dealers] == ["D-DUPLICATE"]
+        assert dealers[0]["sector"] == "PCMO"
 
     asyncio.run(run())

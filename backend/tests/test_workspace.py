@@ -140,9 +140,9 @@ async def test_role_read_boundaries() -> None:
 
 
 @pytest.mark.asyncio
-async def test_admin_and_global_lead_receive_all_distributor_history() -> None:
+async def test_admin_and_management_receive_all_distributor_history() -> None:
     session = await _session()
-    for role in ("admin", "lead"):
+    for role in ("admin", "management"):
         service = _workspace_service(
             session,
             WorkbenchUser(f"{role}@example.com", role, "MKT", role.title()),

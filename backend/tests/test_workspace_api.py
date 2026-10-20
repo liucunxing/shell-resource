@@ -22,10 +22,12 @@ from test_workspace import _session
 @pytest_asyncio.fixture
 async def api(monkeypatch):
     async def list_distributors(_self, _sectors):
-        return [
-            {"distributor_code": "d1", "distributor_name": "Dealer 1"},
-            {"distributor_code": "d2", "distributor_name": "Dealer 2"},
+        rows = [
+            {"distributor_code": "d1", "distributor_name": "Dealer 1", "sector": "PCMO"},
+            {"distributor_code": "d2", "distributor_name": "Dealer 2", "sector": "PCMO"},
+            {"distributor_code": "d3", "distributor_name": "Dealer 3", "sector": "CRTO"},
         ]
+        return [row for row in rows if _sectors is None or row["sector"] in _sectors]
 
     monkeypatch.setattr(DatabricksDistributorRepository, "list_distributors", list_distributors)
     seed = await _session()
@@ -71,6 +73,40 @@ async def api(monkeypatch):
 
 def headers(email="a@example.com"):
     return {"X-User-Email": email}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("role,sectors,expected", [
+    ("owner", ["PCMO"], ["d1", "d2"]),
+    ("lead", ["CRTO"], ["d3"]),
+    ("lead", ["PCMO", "CRTO"], ["d1", "d2", "d3"]),
+    ("lead", ["B2B"], []),
+    ("owner", [], []),
+    ("lead", [], []),
+    ("admin", [], ["d1", "d2", "d3"]),
+    ("management", [], ["d1", "d2", "d3"]),
+])
+async def test_dealer_sector_scope_for_history_and_directory(api, role, sectors, expected):
+    client, engine = api
+    email = "a@example.com" if role == "owner" else f"{role}@example.com"
+    async with AsyncSession(engine) as session:
+        permission = await session.scalar(
+            select(UserPermissionDO).where(UserPermissionDO.email == email)
+        )
+        permission.sector = sectors
+        await session.commit()
+
+    # Request parameters must never override the authenticated user's sector scope.
+    response = await client.get("workspace?planning_year=2027&sector=OEM", headers=headers(email))
+    assert response.status_code == 200
+    dealers = response.json()["data"]["data"]["dealers"]
+    assert [dealer["id"] for dealer in dealers] == expected
+    response = await client.get("distributors?sector=OEM", headers=headers(email))
+    if role in {"owner", "lead"} and not sectors:
+        assert response.status_code == 403
+    else:
+        assert response.status_code == 200
+        assert [dealer["id"] for dealer in response.json()["data"]] == expected
 
 
 @pytest.mark.asyncio
@@ -141,8 +177,8 @@ async def test_owner_loads_sector_history_and_distributor_directory_separately(a
     response = await client.get("distributors", headers=headers())
     assert response.status_code == 200
     assert response.json()["data"] == [
-        {"id": "d1", "name": "Dealer 1"},
-        {"id": "d2", "name": "Dealer 2"},
+        {"id": "d1", "name": "Dealer 1", "sector": "PCMO"},
+        {"id": "d2", "name": "Dealer 2", "sector": "PCMO"},
     ]
     assert (
         await client.get("distributors", headers=headers("lead@example.com"))

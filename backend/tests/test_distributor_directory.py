@@ -11,8 +11,10 @@ from app.services.distributor_directory_service import DistributorDirectoryServi
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("sectors", [("PCMO",), ("PCMO", "CRTO"), None])
 async def test_databricks_directory_uses_oauth_and_statement_api(
     monkeypatch: pytest.MonkeyPatch,
+    sectors: tuple[str, ...] | None,
 ) -> None:
     settings = get_settings().model_copy(
         update={
@@ -31,7 +33,13 @@ async def test_databricks_directory_uses_oauth_and_statement_api(
             return httpx.Response(200, json={"access_token": "short-lived-token"})
         assert request.url.path == "/api/2.0/sql/statements"
         assert request.headers["authorization"] == "Bearer short-lived-token"
-        assert "WHERE sector IN ('PCMO')" in request.content.decode()
+        statement = request.content.decode()
+        if sectors is None:
+            assert "sector IN" not in statement
+        else:
+            expected = "'CRTO', 'PCMO'" if len(sectors) == 2 else "'PCMO'"
+            assert f"AND sector IN ({expected})" in statement
+        assert "SELECT distributor_code, distributor_name, sector " in request.content.decode()
         assert "FROM prod.resource_planning.dim_distributor " in request.content.decode()
         return httpx.Response(
             200,
@@ -39,9 +47,9 @@ async def test_databricks_directory_uses_oauth_and_statement_api(
                 "status": {"state": "SUCCEEDED"},
                 "result": {
                     "data_array": [
-                        ["D1", "Dealer One"],
-                        ["D1", "Duplicate ignored"],
-                        ["D2", None],
+                        ["D1", "Dealer One", "PCMO"],
+                        ["D1", "Duplicate ignored", "PCMO"],
+                        ["D2", None, None],
                     ]
                 },
             },
@@ -56,11 +64,17 @@ async def test_databricks_directory_uses_oauth_and_statement_api(
         ),
     )
 
-    result = await DatabricksDistributorRepository(settings).list_distributors(("PCMO",))
+    result = await DatabricksDistributorRepository(settings).list_distributors(sectors)
 
     assert result == [
-        {"distributor_code": "D1", "distributor_name": "Dealer One"},
-        {"distributor_code": "D2", "distributor_name": None},
+        {"distributor_code": "D1", "distributor_name": "Dealer One", "sector": "PCMO"},
+        {"distributor_code": "D2", "distributor_name": None, "sector": None},
+    ]
+
+    service = DistributorDirectoryService(settings)
+    assert await service.list_distributors(sectors) == [
+        {"id": "D1", "name": "Dealer One", "sector": "PCMO"},
+        {"id": "D2", "name": None, "sector": None},
     ]
 
 

@@ -198,7 +198,7 @@ export function RawPage() {
                 <tr key={`${model.tab}-${current}-${n}`}>
                   {model.columns.map((c) => (
                     <td key={c.key}>
-                      {typeof r[c.key] === "number" ? fmt(r[c.key]) : r[c.key]}
+                      {typeof r[c.key] === "number" ? (c.key === "yield" ? r[c.key].toFixed(1) : fmt(r[c.key])) : r[c.key]}
                     </td>
                   ))}
                 </tr>

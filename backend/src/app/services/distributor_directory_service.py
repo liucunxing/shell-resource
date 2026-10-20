@@ -18,11 +18,11 @@ class DistributorDirectoryService:
     ) -> None:
         self.repository = repository or DatabricksDistributorRepository(settings)
 
-    async def list_distributors(self, sectors: tuple[str, ...]) -> list[dict]:
-        if not sectors:
+    async def list_distributors(self, sectors: tuple[str, ...] | None) -> list[dict]:
+        if sectors is not None and not sectors:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="当前 Owner 未配置业务线",
+                detail="当前用户未配置业务线",
             )
         try:
             rows = await self.repository.list_distributors(sectors)
@@ -40,6 +40,7 @@ class DistributorDirectoryService:
             {
                 "id": row["distributor_code"],
                 "name": row["distributor_name"],
+                "sector": row["sector"],
             }
             for row in rows
         ]

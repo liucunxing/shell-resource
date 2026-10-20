@@ -145,7 +145,7 @@ function checkWidth(out, s, max) {
   );
 }
 function dealerDirectory(data = {}) {
-  const rows = Array.isArray(data.distributorDirectory) && data.distributorDirectory.length
+  const rows = Array.isArray(data.distributorDirectory)
     ? data.distributorDirectory
     : Array.isArray(data.dealers)
       ? data.dealers
@@ -201,16 +201,24 @@ async function exportWorkbook(state, id, identity, data = {}) {
       showErrorMessage: true,
       error: "请选择管理员配置的预算安排原因。",
     };
-  const directory = book.addWorksheet("经销商列表");
-  directory.addRow(["经销商编码", "经销商名称"]);
-  dealerDirectory(data).forEach((dealer) =>
-    directory.addRow([String(dealer.id), String(dealer.name || "")]),
-  );
-  style(directory, [24, 48]);
+  addDealerDirectory(book, data);
   const reasonReference = book.addWorksheet("原因类型参考");
   reasonReference.addRow(["原因类型"]);
   reasons(state).forEach((reason) => reasonReference.addRow([reason.label]));
   style(reasonReference, [32]);
+  return book.xlsx.writeBuffer();
+}
+function addDealerDirectory(book, data) {
+  const directory = book.addWorksheet("经销商列表");
+  directory.addRow(["经销商编码", "经销商名称", "Sector 业务线"]);
+  dealerDirectory(data).forEach((dealer) =>
+    directory.addRow([String(dealer.id), String(dealer.name || ""), String(dealer.sector || "")]),
+  );
+  style(directory, [24, 48, 20]);
+}
+async function exportDealerDirectory(data) {
+  const book = new (await excelLibrary()).Workbook();
+  addDealerDirectory(book, data);
   return book.xlsx.writeBuffer();
 }
 function parseOtherV14(sheet, state, out, read) {
@@ -486,4 +494,4 @@ function confirmImport(preview, state, identity, data) {
   return result;
 }
 
-export default { exportWorkbook, previewImport, confirmImport };
+export default { exportWorkbook, exportDealerDirectory, previewImport, confirmImport };

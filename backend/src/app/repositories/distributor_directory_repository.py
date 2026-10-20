@@ -21,14 +21,19 @@ class DatabricksDistributorRepository:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
 
-    async def list_distributors(self, sectors: tuple[str, ...]) -> list[dict[str, str | None]]:
+    async def list_distributors(
+        self, sectors: tuple[str, ...] | None
+    ) -> list[dict[str, str | None]]:
         host, warehouse_id, client_id, client_secret = self._connection()
-        sector_values = sorted({sector.strip().upper() for sector in sectors if sector.strip()})
-        if not sector_values:
+        sector_values = sorted(
+            {sector.strip().upper() for sector in sectors or () if sector.strip()}
+        )
+        if sectors is not None and not sector_values:
             return []
         quoted_sectors = ", ".join(
             "'" + sector.replace("'", "''") + "'" for sector in sector_values
         )
+        sector_filter = f"AND sector IN ({quoted_sectors}) " if sectors is not None else ""
         timeout = httpx.Timeout(self.settings.databricks_timeout_seconds)
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
@@ -49,10 +54,10 @@ class DatabricksDistributorRepository:
                     json={
                         "warehouse_id": warehouse_id,
                         "statement": (
-                            "SELECT distributor_code, distributor_name "
+                            "SELECT distributor_code, distributor_name, sector "
                             f"FROM {self.settings.databricks_view_name} "
-                            "WHERE sector IN (" + quoted_sectors + ") "
-                            "AND distributor_code IS NOT NULL "
+                            "WHERE distributor_code IS NOT NULL "
+                            f"{sector_filter}"
                             "ORDER BY distributor_code"
                         ),
                         "format": "JSON_ARRAY",
@@ -87,7 +92,8 @@ class DatabricksDistributorRepository:
                 continue
             seen_codes.add(code)
             name = None if len(row) < 2 or row[1] is None else str(row[1]).strip() or None
-            result.append({"distributor_code": code, "distributor_name": name})
+            sector = None if len(row) < 3 or row[2] is None else str(row[2]).strip() or None
+            result.append({"distributor_code": code, "distributor_name": name, "sector": sector})
         return result
 
     def _connection(self) -> tuple[str, str, str, str]:

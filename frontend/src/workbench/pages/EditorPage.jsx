@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
 import X from "../domain/excel.js";
+import { allocateByHistory } from "../domain/history-allocation";
 import { previewExcelInWorker } from "../file-import.js";
 const fmt = (n) =>
   Number(n || 0).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
@@ -238,19 +239,19 @@ function EditorContent({
       ),
     });
   const close = () => setModal(null);
-  const download = async () => {
-    if (!guard()) return;
+  const download = async (directoryOnly = false) => {
+    if (!directoryOnly && !guard()) return;
     setBusy(true);
     try {
       const directory = apiMode
         ? await loadDistributorDirectory()
         : data.dealers;
       if (!Array.isArray(directory))
-        throw Error("经销商目录加载失败，暂不能生成导入模板。");
-      const bytes = await X.exportWorkbook(state, i.id, identity, {
-        ...data,
-        distributorDirectory: directory,
-      });
+        throw Error("经销商目录加载失败，暂不能下载，请稍后重试。");
+      const exportData = { ...data, distributorDirectory: directory };
+      const bytes = directoryOnly
+        ? await X.exportDealerDirectory(exportData)
+        : await X.exportWorkbook(state, i.id, identity, exportData);
       const url = URL.createObjectURL(
         new Blob([bytes], {
           type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -258,7 +259,7 @@ function EditorContent({
       );
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${i.department}_${i.name}_${i.id}_分配模板.xlsx`;
+      a.download = directoryOnly ? "经销商列表.xlsx" : `${i.department}_${i.name}_${i.id}_分配模板.xlsx`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
@@ -292,40 +293,12 @@ function EditorContent({
           throw Error("其他预算安排超过总预算，无法辅助填充。");
         const field = metric === "vol" ? "vol2025" : "c32025";
         const label = metric === "vol" ? "2025 Vol" : "2025 C3";
-        const weightedDealers = i.rows.map((row) => {
-          const dealer = (data.dealers || []).find(
-            (item) => String(item.id) === String(row.dealerId),
-          );
-          const value = Number(dealer?.history?.[field]);
-          return {
-            row,
-            name: dealer?.name || String(row.dealerId),
-            value,
-            valid: Number.isFinite(value) && value > 0 && value / 1000 >= 0.005,
-          };
-        });
-        const unavailable = weightedDealers.filter((dealer) => !dealer.valid);
-        if (unavailable.length) {
-          throw Error(
-            `无法按 ${label} 比例分配：${unavailable.map((dealer) => `「${dealer.name}」`).join("、")} 缺少有效的 2025 Sell-in 数据（无记录、非正数或展示值为 0.00）。请移除相关经销商、补充历史数据，或选择另一项指标。`,
-          );
-        }
-        const weights = weightedDealers.map((dealer) => dealer.value);
-        const sum = weights.reduce((s, w) => s + w, 0);
-        if (!weights.length || !sum)
-          throw Error(`当前范围没有有效的 ${label} 占比，不能自动填充。`);
-        const exact = weights.map((w) => (available * w) / sum),
-          cents = exact.map(Math.floor);
-        let left = available - cents.reduce((s, n) => s + n, 0);
-        const order = exact
-          .map((v, index) => ({ index, fraction: v - cents[index] }))
-          .sort((a, b) => b.fraction - a.fraction || a.index - b.index);
-        for (let n = 0; n < left; n++) cents[order[n % order.length].index]++;
+        const allocation = allocateByHistory(i.rows, data.dealers || [], available, field);
         setModal({
           type: "fill",
           revision: i.revision,
           metricLabel: label,
-          rows: i.rows.map((r, n) => ({ ...r, amount: cents[n] / 100 })),
+          ...allocation,
         });
       } catch (e) {
         notify(e.message, true);
@@ -485,7 +458,7 @@ function EditorContent({
                 <button
                   className="button small"
                   disabled={busy}
-                  onClick={download}
+                  onClick={() => download()}
                 >
                   下载模板
                 </button>
@@ -610,19 +583,24 @@ function EditorContent({
                 : "经销商分配明细 · 只读"}
             </span>
             {editable && (
-              <button
-                className="button link"
-                onClick={() =>
-                  doGuard(() => {
-                    setNewDealers([]);
-                    setDealerCodeSearch("");
-                    setDealerNameSearch("");
-                    setModal({ type: "add" });
-                  })
-                }
-              >
-                + 添加经销商
-              </button>
+              <div className="actions">
+                <button className="button link" disabled={busy} onClick={() => download(true)}>
+                  下载经销商
+                </button>
+                <button
+                  className="button link"
+                  onClick={() =>
+                    doGuard(() => {
+                      setNewDealers([]);
+                      setDealerCodeSearch("");
+                      setDealerNameSearch("");
+                      setModal({ type: "add" });
+                    })
+                  }
+                >
+                  + 添加经销商
+                </button>
+              </div>
             )}
           </div>
         </section>
@@ -945,6 +923,7 @@ function EditorContent({
                       <th aria-label="选择经销商" />
                       <th>经销商编码</th>
                       <th>经销商名称</th>
+                      <th>Sector 业务线</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -962,11 +941,12 @@ function EditorContent({
                         </td>
                         <td>{dealer.id}</td>
                         <td>{dealer.name || "—"}</td>
+                        <td>{dealer.sector || "—"}</td>
                       </tr>
                     ))}
                     {!searchedDealers.length && (
                       <tr>
-                        <td colSpan={3}>
+                        <td colSpan={4}>
                           {directoryStatus === "loading"
                             ? "正在加载 Databricks 经销商目录…"
                             : directoryStatus === "error"
@@ -1006,6 +986,14 @@ function EditorContent({
                 以当前经销商范围的 {modal.metricLabel}
                 占比拆分预算，保留其他预算安排。此操作不代表投资推荐。
               </p>
+              {modal.unavailable.length > 0 && (
+                <p role="status" className="notice">
+                  以下经销商无有效的 {modal.metricLabel} 数据，本次分配默认为 0：
+                  {modal.unavailable.join("、")}。
+                  {!modal.hasHistory && "全部经销商均无量，可分配预算保留为未分配差额。"}
+                </p>
+              )}
+              {!modal.rows.length && <p role="status">尚未添加经销商，可分配预算保留为未分配差额。</p>}
               <div className="table-scroll">
                 <table>
                   <thead>

@@ -291,6 +291,7 @@ function rawData(state, identity, data, tab) {
       ["c32026Ytd", "2026 1–8月 C3 (K$)"],
     ];
     model.columns = cols([
+      ["sector", "Sector 业务线"],
       ["dealerCode", "经销商编码"],
       ["dealerName", "经销商名称"],
       ...history,
@@ -299,7 +300,7 @@ function rawData(state, identity, data, tab) {
     ]);
     model.rows = data.dealers.map((d) => {
       const h = d.history || {},
-        row = { dealerCode: d.id, dealerName: d.name || "—", dealerId: d.id };
+        row = { sector: d.sector || "—", dealerCode: d.id, dealerName: d.name || "—", dealerId: d.id };
       history.forEach(([k]) => (row[k] = toDisplayUnit(h[k])));
       resources.forEach(
         (r) =>
@@ -308,18 +309,19 @@ function rawData(state, identity, data, tab) {
       row.yield = Number.isFinite(h.yield) ? h.yield : null;
       return row;
     });
-    const ownerSectors = (identity.sectors || []).join(" / ");
+    const userSectors = (identity.sectors || []).join(" / ");
+    const scopedDealers = ["owner", "lead"].includes(identity.role);
     model.scopeLabel =
-      identity.role === "owner"
-        ? `业务线 ${ownerSectors || "未配置"} · 全部经销商历史`
+      scopedDealers
+        ? `业务线 ${userSectors || "未配置"} · 全部经销商历史`
         : `共享经销商 Vol / C3 · ${all ? "全业务线" : E.departments(identity).join("、") + " 授权资源"}`;
     model.basisLabel = `源历史数据 · 共 ${data.dealers.length} 家经销商`;
     model.notes.push(
       "2024、2025 为全年；2026 为 1–8 月累计，不默认同比或年化。",
       "Yield 向所有角色只读开放，取源数据中的 2025 C3 / 资源原始比值，不转换为百分比。",
-      identity.role === "owner"
+      scopedDealers
         ? "只展示当前用户所在业务线的经销商数据。"
-        : "Lead 与管理员展示全部业务线的经销商数据。",
+        : "管理员与总负责人展示全部业务线的经销商数据。",
       all
         ? "全资源历史仅供只读参考。"
         : "资源明细仅显示本部门授权范围；整体 Yield 为授权共享指标，不额外展示跨部门资源总额或资源明细。",
@@ -428,7 +430,7 @@ function csv(model, search = "") {
     [
       model.columns.map((c) => quote(c.label)).join(","),
       ...filterRows(model, search).map((r) =>
-        model.columns.map((c) => quote(r[c.key])).join(","),
+        model.columns.map((c) => quote(c.key === "yield" && typeof r[c.key] === "number" ? r[c.key].toFixed(1) : r[c.key])).join(","),
       ),
     ].join("\r\n")
   );
@@ -443,7 +445,7 @@ function renderRaw(model, { search = "", page = 1, pageSize = 15 } = {}) {
       .slice((page - 1) * size, page * size)
       .map(
         (r) =>
-          `<tr>${model.columns.map((c) => `<td>${typeof r[c.key] === "number" ? num(r[c.key]) : esc(r[c.key])}</td>`).join("")}</tr>`,
+          `<tr>${model.columns.map((c) => `<td>${typeof r[c.key] === "number" ? (c.key === "yield" ? r[c.key].toFixed(1) : num(r[c.key])) : esc(r[c.key])}</td>`).join("")}</tr>`,
       )
       .join("") ||
     `<tr><td colspan="${model.columns.length}">暂无匹配数据</td></tr>`

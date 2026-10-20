@@ -66,19 +66,12 @@ class WorkspaceService:
                 )
                 publications.extend(history)
         budget_ids = [int(item["id"]) for item in initiatives if str(item.get("id", "")).isdigit()]
-        dealer_ids = [row["dealerId"] for item in initiatives for row in item.get("rows", [])]
-        dealers = []
         reference_service = ReferenceService(self.session)
-        if self.user.role in {"admin", "lead"}:
-            # Leads and administrators receive all business lines' historical records.
-            dealers = await reference_service.get_dealers(planning_year)
-        elif self.user.role == "owner":
-            # An Owner can review every dealer in the single business line assigned to them.
-            dealers = await reference_service.get_dealers(
-                planning_year, self.user.departments, sectors=self.user.sectors
-            )
-        elif self.user.role == "management":
-            dealers = await reference_service.get_dealers(planning_year, None, dealer_ids)
+        dealers = await reference_service.get_dealers(
+            planning_year,
+            self.user.departments if self.user.role == "owner" else None,
+            sectors=self.user.dealer_sectors,
+        )
         audit = []
         if self.user.role != "management":
             audit = [

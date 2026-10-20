@@ -60,6 +60,7 @@ class ReferenceService:
                 {
                     "id": code,
                     "name": row["distributor_name"],
+                    "sector": row["sector"],
                     "history": history,
                 }
             )

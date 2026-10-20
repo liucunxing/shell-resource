@@ -74,9 +74,11 @@ async def get_distributors(
     user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> ApiResponse[list[dict]]:
-    if user.role not in {"owner", "lead"}:
-        raise HTTPException(status_code=403, detail="当前角色不能添加经销商")
-    return success(await DistributorDirectoryService(settings).list_distributors(user.sectors))
+    if user.role not in {"owner", "lead", "admin", "management"}:
+        raise HTTPException(status_code=403, detail="当前角色不能查看经销商目录")
+    return success(
+        await DistributorDirectoryService(settings).list_distributors(user.dealer_sectors)
+    )
 
 
 @router.get(

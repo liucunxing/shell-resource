@@ -25,6 +25,11 @@ class WorkbenchUser:
         return tuple(departments(self.department))
 
     @property
+    def dealer_sectors(self) -> tuple[str, ...] | None:
+        """None allows all dealer sectors; an empty tuple allows none."""
+        return None if self.role in {"admin", "management"} else self.sectors
+
+    @property
     def owner_id(self) -> str:
         return self.email
 
