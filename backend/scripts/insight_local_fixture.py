@@ -27,6 +27,7 @@ from app.models.do import BaseDO, BudgetDO
 from app.models.do.budget_distributor import BudgetDistributorDO
 from app.models.do.distributor_history import distributor_sellin_resource_history
 from app.models.do.workspace import OtherBudgetDO, UserPermissionDO, WorkspaceConfigDO
+from app.repositories.distributor_directory_repository import DatabricksDistributorRepository
 
 CACHE = Path(
     os.environ.get("INSIGHT_FIXTURE_DIR", str(ROOT / ".cache/insight-integration"))
@@ -46,6 +47,23 @@ def attach_database(connection, _) -> None:
 async def local_session():
     async with factory() as session:
         yield session
+
+
+async def synthetic_directory(_repository, sectors):
+    """Keep local browser edits and template downloads off the live directory."""
+    async with factory() as session:
+        query = select(
+            distributor_sellin_resource_history.c.distributor_code,
+            distributor_sellin_resource_history.c.distributor_name,
+            distributor_sellin_resource_history.c.sector,
+        )
+        if sectors is not None:
+            query = query.where(distributor_sellin_resource_history.c.sector.in_(sectors))
+        rows = await session.execute(query)
+        return [dict(row) for row in rows.mappings()]
+
+
+DatabricksDistributorRepository.list_distributors = synthetic_directory
 
 
 @asynccontextmanager
@@ -159,7 +177,15 @@ if (ROOT / "config/settings.toml").exists():
     if os.environ.get("INSIGHT_LIVE") == "1":
         settings.ai_api_key = SecretStr(development.get("ai_api_key") or "")
         settings.ai_base_url = development.get("ai_base_url") or ""
-        settings.ai_timeout_seconds = 120
+        settings.ai_timeout_seconds = development.get("ai_timeout_seconds", 60)
+        settings.insight_timeout_seconds = development.get("insight_timeout_seconds", 60)
+        for field in (
+            "insight_investment_increase_multiple",
+            "insight_investment_decrease_multiple",
+            "insight_investment_absolute_change",
+        ):
+            if field in development:
+                setattr(settings, field, development[field])
 app = create_app()
 app.router.lifespan_context = lifespan
 app.dependency_overrides[get_db_session] = local_session

@@ -80,6 +80,14 @@ class Settings(BaseModel):
     ai_model: str = "qwen-plus"
     ai_timeout_seconds: float = Field(default=60, gt=0, le=180)
     insight_timeout_seconds: float = Field(default=60, gt=0, le=60)
+    # Review signals, not approval rules; amounts use the source currency unit (CNY).
+    insight_investment_increase_multiple: float = Field(default=2, gt=1, allow_inf_nan=False)
+    insight_investment_decrease_multiple: float = Field(
+        default=0.5, ge=0, lt=1, allow_inf_nan=False
+    )
+    insight_investment_absolute_change: float = Field(
+        default=50000, ge=0, allow_inf_nan=False
+    )
 
     azure_blob_test_upload_enabled: bool = False
     azure_blob_account_url: str | None = None

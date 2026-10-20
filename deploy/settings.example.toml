@@ -17,6 +17,11 @@ ai_base_url = ""
 ai_model = "qwen-plus"
 ai_api_key = ""
 ai_timeout_seconds = 60
+insight_timeout_seconds = 60
+# Review signals in CNY; not automatic approval/rejection rules.
+insight_investment_increase_multiple = 2.0
+insight_investment_decrease_multiple = 0.5
+insight_investment_absolute_change = 50000
 
 azure_blob_test_upload_enabled = false
 azure_blob_account_url = ""
@@ -56,6 +61,11 @@ ai_base_url = ""
 ai_model = "qwen-plus"
 ai_api_key = ""
 ai_timeout_seconds = 60
+insight_timeout_seconds = 60
+# Review signals in CNY; not automatic approval/rejection rules.
+insight_investment_increase_multiple = 2.0
+insight_investment_decrease_multiple = 0.5
+insight_investment_absolute_change = 50000
 
 azure_blob_test_upload_enabled = false
 azure_blob_account_url = ""

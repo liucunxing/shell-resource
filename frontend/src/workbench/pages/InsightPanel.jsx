@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
 import * as api from "../api.js";
-import { InsightCapabilityResult } from "./InsightCapabilityResult";
+import {
+  InsightCapabilityResult,
+  InvestmentReview,
+} from "./InsightCapabilityResult";
 const defaultPresets = [
   { id: "comprehensive", label: "综合体检" },
   { id: "quadrant", label: "历史 Yield × 计划投入四象限" },
@@ -16,6 +19,20 @@ const titles = [
   "投入与业绩趋势匹配",
   "预算完整性",
 ];
+export function updateInsightGeneration(current, action) {
+  if (action.type === "start") return { ...current, failure: "" };
+  if (action.type === "failed")
+    return {
+      ...current,
+      failure: action.message || "Insight 生成失败，请重试。",
+    };
+  return {
+    ...current,
+    record: action.record,
+    failure: "",
+    basis: action.basis,
+  };
+}
 export function InsightPanel({ scope }) {
   const { state, data, identity, view, mutate, apiMode, notify } =
     useWorkbench();
@@ -46,7 +63,9 @@ export function InsightPanel({ scope }) {
     readOnly = identity.role === "management";
   const incoming =
     scope ||
-    (own ? "owner:" + identity.ownerId : E.departments(identity)[0] || "global");
+    (own
+      ? "owner:" + identity.ownerId
+      : E.departments(identity)[0] || "global");
   const effective = readOnly
     ? "global"
     : selection?.source === incoming && selection?.identity === identity.key
@@ -120,9 +139,24 @@ export function InsightPanel({ scope }) {
   return (
     <div className="insight-panel">
       {identity.role === "lead" && E.departments(identity).length > 1 && (
-        <label className="form-field insight-scope-select">分析部门
-          <select aria-label="分析部门" value={effective} onChange={(event) => setSelection({ source: incoming, identity: identity.key, value: event.target.value })}>
-            {E.departments(identity).map((dep) => <option key={dep} value={dep}>{dep}</option>)}
+        <label className="form-field insight-scope-select">
+          分析部门
+          <select
+            aria-label="分析部门"
+            value={effective}
+            onChange={(event) =>
+              setSelection({
+                source: incoming,
+                identity: identity.key,
+                value: event.target.value,
+              })
+            }
+          >
+            {E.departments(identity).map((dep) => (
+              <option key={dep} value={dep}>
+                {dep}
+              </option>
+            ))}
           </select>
         </label>
       )}
@@ -202,22 +236,28 @@ export function InsightPanel({ scope }) {
               if (busyRef.current) return;
               busyRef.current = true;
               setBusy(true);
+              setRemote((current) =>
+                updateInsightGeneration(current, { type: "start" }),
+              );
               const epoch = requestEpoch.current;
               try {
                 const value = await api.generateInsights(effective, preset);
                 if (epoch !== requestEpoch.current) return;
-                setRemote((current) => ({
-                  ...current,
-                  record: value.record || value,
-                  failure: "",
-                  basis,
-                }));
+                setRemote((current) =>
+                  updateInsightGeneration(current, {
+                    type: "succeeded",
+                    record: value.record || value,
+                    basis,
+                  }),
+                );
                 notify("Insight 已更新。");
               } catch (error) {
                 if (epoch === requestEpoch.current)
-                  notify(
-                    error.message || "Insight 生成失败，现有分析未覆盖。",
-                    true,
+                  setRemote((current) =>
+                    updateInsightGeneration(current, {
+                      type: "failed",
+                      message: error.message,
+                    }),
                   );
               } finally {
                 if (epoch === requestEpoch.current) {
@@ -227,7 +267,13 @@ export function InsightPanel({ scope }) {
               }
             }}
           >
-            {busy ? "正在处理…" : record ? "更新分析" : "生成分析"}
+            {busy
+              ? "正在处理…"
+              : failure
+                ? "重试分析"
+                : record
+                  ? "更新分析"
+                  : "生成分析"}
           </button>
         )}
       </div>
@@ -236,8 +282,9 @@ export function InsightPanel({ scope }) {
         {record?.basisLabel && " · " + record.basisLabel}
       </p>
       {failure && (
-        <div className="note-box" role="status">
+        <div className="note-box warn" role="alert">
           {failure}
+          {record && <p>下方保留上次成功结果，本次分析未更新。</p>}
         </div>
       )}
       {apiMode && remote.loading && (
@@ -257,11 +304,26 @@ export function InsightPanel({ scope }) {
           分配或分析依据已变化，请更新后查看最新结论。
         </div>
       )}
+      {!record?.result &&
+        record?.evidence?.datasets
+          ?.filter(
+            (dataset) =>
+              dataset.id === "investment-review" &&
+              dataset.scope_id === record.evidence.scope?.id,
+          )
+          .map((dataset) => (
+            <InvestmentReview
+              key={`${record.evidence.data_version}:${dataset.scope_id}`}
+              dataset={dataset}
+              scopeLabel={scopeLabel}
+            />
+          ))}
       {record ? (
         record.result && record.evidence ? (
           <InsightCapabilityResult
             result={record.result}
             evidence={record.evidence}
+            scopeLabel={scopeLabel}
           />
         ) : (
           (record.items || []).map((item, n) => (

@@ -203,20 +203,20 @@ class InsightPack:
         datasets = {row["id"]: row for row in evidence["datasets"]}
         unique_index(result["blocks"], "id", "内容块")
 
-        def check_refs(item):
+        def check_refs(item, path):
             if not set(item["fact_ids"]).issubset(facts):
                 raise PackError("结果引用了不存在的事实")
             if item["status"] != "limited" and not item["fact_ids"]:
-                raise PackError("已观察事实、正常或需关注结论必须引用证据")
+                raise PackError(f"{path}.fact_ids: {item['status']} 必须引用至少一个本次事实ID；请为该结论绑定具体证据")
             if item["status"] != "limited" and not any(facts[key]["value"] is not None for key in item["fact_ids"]):
                 raise PackError("不能仅凭缺失值作出已核对结论")
 
         for check in checks.values():
             if check["status"] not in constraints[check["dimension_id"]]["allowed_statuses"]:
                 raise PackError("六维状态超出宿主证据允许的判断范围")
-            check_refs(check)
+            check_refs(check, "checks." + check["dimension_id"])
         for block in result["blocks"]:
-            check_refs(block)
+            check_refs(block, "blocks." + block["id"])
             if not any(block["status"] in constraints[key]["allowed_statuses"] for key in block["dimension_ids"]):
                 raise PackError("内容块状态不受所关联维度的证据支持")
             dataset_id = block["dataset_id"]
@@ -237,7 +237,12 @@ class InsightPack:
 
     def validate_consistency(self, result, evidence, preset_id=None):
         self.validate_result(result, evidence, preset_id)
-        problems = _consistency.issues(result, evidence)
+        selected_preset = preset_id or result["preset_id"]
+        self.validate_model_references(result, evidence, selected_preset)
+        projected = self.model_evidence(evidence, selected_preset)
+        problems = _consistency.issues(result, projected)
+        if not problems and projected is not evidence:
+            problems = _consistency.issues(result, evidence)
         if problems:
             raise PackError("consistency: " + "; ".join(problems[:12]))
         return result
@@ -252,8 +257,143 @@ class InsightPack:
     def bind_named_facts(self, result, evidence):
         return _consistency.bind_named_facts(result, evidence)
 
+    def model_evidence(self, evidence, preset_id="comprehensive"):
+        """Bound model reasoning, while preserving complete server-side chart populations.
+
+        This is a deliberate projection, not a lossless replacement for evidence.
+        Dataset rows remain intact here for validation; transport previews are separate.
+        """
+        if len(evidence["facts"]) <= 350:
+            return evidence
+        selected = self.preset(preset_id)
+        entities = []
+        comparison_ids = []
+
+        def add(entity):
+            if entity not in entities and len(entities) < 16:
+                entities.append(entity)
+
+        review = next((d for d in evidence["datasets"] if d["id"] == "investment-review"), None)
+        if review:
+            ordered = sorted(review["rows"], key=lambda r: (
+                r.get("status") != "review", -abs(r.get("delta") or 0), r["id"]))
+            classes = set()
+            for row in ordered:
+                category = (row.get("status"), row.get("reason_code", row.get("reason")))
+                if category not in classes:
+                    classes.add(category)
+                    if len(comparison_ids) < 10:
+                        comparison_ids.append(row["id"])
+                        add(row.get("dealer_id", row["id"]))
+            for row in ordered:
+                if len(comparison_ids) >= 10:
+                    break
+                if row["id"] not in comparison_ids:
+                    comparison_ids.append(row["id"])
+                    add(row.get("dealer_id", row["id"]))
+        # Include extrema and each quadrant before filling remaining example slots.
+        for prefix in ("plan:", "yield:"):
+            values = [f for f in evidence["facts"] if f["id"].startswith(prefix) and numeric(f["value"])]
+            if values:
+                for fact in (min(values, key=lambda f: f["value"]), max(values, key=lambda f: f["value"])):
+                    add(fact["id"].split(":", 1)[1])
+        for dataset in evidence["datasets"]:
+            if dataset["kind"] == "quadrant":
+                groups = set()
+                for row in dataset["rows"]:
+                    if row.get("group") not in groups:
+                        groups.add(row.get("group"))
+                        add(row["id"])
+        for fact in evidence["facts"]:
+            if ":" in fact["id"] and not fact["id"].startswith("investment:"):
+                add(fact["id"].split(":", 1)[1])
+        projected = copy.deepcopy(evidence)
+        projected["facts"] = [f for f in projected["facts"]
+                              if ":" not in f["id"] or (f["id"].split(":", 1)[1] in comparison_ids
+                                  if f["id"].startswith("investment:") else f["id"].split(":", 1)[1] in entities)]
+        ids = {f["id"] for f in projected["facts"]}
+        projected["datasets"] = [d for d in projected["datasets"] if d["kind"] in selected["allowed_visuals"]]
+        for dataset in projected["datasets"]:
+            dataset["fact_ids"] = [key for key in dataset["fact_ids"] if key in ids]
+        projected["datasets"] = [d for d in projected["datasets"] if d["fact_ids"]]
+        return projected
+
+    def validate_model_references(self, result, evidence, preset_id="comprehensive"):
+        projected = self.model_evidence(evidence, preset_id)
+        allowed = {f["id"] for f in projected["facts"]}
+        datasets = {d["id"] for d in projected["datasets"]}
+        for collection in ("checks", "blocks"):
+            for item in result.get(collection, []):
+                if not set(item.get("fact_ids", [])).issubset(allowed):
+                    raise PackError("模型引用了本次未发送的事实")
+                if item.get("dataset_id") is not None and item["dataset_id"] not in datasets:
+                    raise PackError("模型引用了本次未发送的数据集")
+        # Tokens are resolved later; reject unseen IDs before that stage as well.
+        import re
+        for token in re.findall(r"\{\{([^{}]+)\}\}", json.dumps(result, ensure_ascii=False)):
+            if token not in allowed:
+                raise PackError("模型占位符引用了本次未发送的事实")
+        if projected is not evidence:
+            known = {f["id"].split(":", 1)[1] for f in evidence["facts"] if ":" in f["id"]}
+            sent = {f["id"].split(":", 1)[1] for f in projected["facts"] if ":" in f["id"]}
+            for dataset in evidence["datasets"]:
+                for row in dataset["rows"]:
+                    if row["id"] in sent or row.get("dealer_id") in sent:
+                        name = row.get("dealer") or row.get("label")
+                        if name:
+                            sent.add(str(name))
+            omitted = known - sent
+            # Names shown in row labels are also entity identifiers, not permission
+            # to discuss a row whose facts were omitted from the model invocation.
+            for dataset in evidence["datasets"]:
+                for row in dataset["rows"]:
+                    if row["id"] in omitted:
+                        name = row.get("dealer") or row.get("label")
+                        if name and name not in sent:
+                            omitted.add(str(name))
+            prose = [result.get("headline", ""), result.get("summary", "")]
+            prose.extend(result.get("limitations", []))
+            for collection in ("checks", "blocks"):
+                for item in result.get(collection, []):
+                    prose.extend(item.get(key, "") for key in ("title", "body", "summary"))
+            text = re.sub(r"\s+", "", "。".join(prose))
+            sent = {re.sub(r"\s+", "", name) for name in sent}
+            omitted = {re.sub(r"\s+", "", name) for name in omitted} - sent
+            # Longest known sent names win, including CJK names with shared prefixes.
+            for name in sorted(sent, key=len, reverse=True):
+                text = re.sub(r"(?<![A-Za-z0-9_])" + re.escape(name) + r"(?![A-Za-z0-9_])", "【已发送对象】", text)
+            for entity in omitted:
+                if re.search(r"(?<![A-Za-z0-9_])" + re.escape(entity) + r"(?![A-Za-z0-9_])", text):
+                    raise PackError("模型正文提及了本次未发送的对象")
+        return result
+
+    def model_transport(self, full, projected):
+        if projected is full:
+            return _consistency.compact_evidence(full), {"mode": "complete", "total_facts": len(full["facts"]), "selected_facts": len(full["facts"]), "omitted_facts": 0}
+        transport = copy.deepcopy(projected)
+        entities = {f["id"].split(":", 1)[1] for f in projected["facts"] if ":" in f["id"]}
+        datasets = []
+        for dataset in transport["datasets"]:
+            total = len(dataset["rows"])
+            if total > 16:
+                # Only the investment checklist and quadrant need example rows.
+                dataset["rows"] = ([r for r in dataset["rows"] if r["id"] in entities][:16]
+                                   if dataset["id"] == "investment-review" or dataset["kind"] == "quadrant" else [])
+            datasets.append({"id": dataset["id"], "total_rows": total,
+                             "selected_rows": len(dataset["rows"]), "omitted_rows": total - len(dataset["rows"]),
+                             "render_scope": "complete_authorized_population"})
+        coverage = {"mode": "representative_projection", "total_facts": len(full["facts"]),
+                    "selected_facts": len(projected["facts"]),
+                    "omitted_facts": len(full["facts"]) - len(projected["facts"]),
+                    "datasets": datasets,
+                    "selection": "risk classes and largest absolute changes, then extrema and quadrant examples; not a statistical sample"}
+        return _consistency.compact_evidence(transport), coverage
+
     def compile(self, evidence, preset_id="comprehensive", model=None, thinking=False, response_format="schema"):
         self.validate_evidence(evidence)
+        full_evidence = evidence
+        evidence = self.model_evidence(full_evidence, preset_id)
+        encoded, coverage = self.model_transport(full_evidence, evidence)
         manifest = self.manifest()
         selected = self.preset(preset_id)
         # No prompt cache: edits are read on every invocation, including this same instance.
@@ -268,7 +408,7 @@ class InsightPack:
             "enable_thinking": bool(thinking),
             "messages": [
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": json.dumps({"task": {"preset_id": selected["id"], "preset_version": selected["version"], "output": "JSON", "allowed_visuals": selected["allowed_visuals"]}, "evidence": _consistency.compact_evidence(evidence)}, ensure_ascii=False, allow_nan=False, separators=(",", ":"))},
+                {"role": "user", "content": json.dumps({"task": {"preset_id": selected["id"], "preset_version": selected["version"], "output": "JSON", "allowed_visuals": selected["allowed_visuals"]}, "coverage": coverage, "evidence": encoded}, ensure_ascii=False, allow_nan=False, separators=(",", ":"))},
             ],
         }
         if response_format == "schema":
@@ -295,6 +435,8 @@ class InsightPack:
                 branch = copy.deepcopy(checks_schema)
                 branch["properties"]["dimension_id"]["enum"] = [constraint["dimension_id"]]
                 branch["properties"]["status"]["enum"] = constraint["allowed_statuses"]
+                if "limited" not in constraint["allowed_statuses"]:
+                    branch["properties"]["fact_ids"]["minItems"] = 1
                 check_branches.append(branch)
             api_schema["properties"]["checks"]["items"] = {"anyOf": check_branches}
             block_branches = []
@@ -304,6 +446,8 @@ class InsightPack:
                 if dimensions:
                     branch = copy.deepcopy(blocks_schema)
                     branch["properties"]["status"]["enum"] = [status]
+                    if status != "limited":
+                        branch["properties"]["fact_ids"]["minItems"] = 1
                     branch["properties"]["dimension_ids"]["items"]["enum"] = dimensions
                     branch["properties"]["dimension_ids"]["maxItems"] = min(6, len(dimensions))
                     text_branch = copy.deepcopy(branch)
@@ -339,10 +483,11 @@ class InsightPack:
             "schema_sha256": hashlib.sha256(json.dumps(schema, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest(),
             "model": payload["model"], "thinking": bool(thinking), "response_format": response_format,
             "scope_id": evidence["scope"]["id"], "data_version": evidence["data_version"],
-            "evidence_sha256": hashlib.sha256(json.dumps(evidence, ensure_ascii=False, sort_keys=True, allow_nan=False).encode("utf-8")).hexdigest(),
+            "evidence_sha256": hashlib.sha256(json.dumps(full_evidence, ensure_ascii=False, sort_keys=True, allow_nan=False).encode("utf-8")).hexdigest(),
             "provenance": evidence["provenance"],
             "api_schema_projection": "authorized-anyOf-deduplicated-defs-v2",
-            "input_encoding": "lossless-columnar-annotations-v2",
+            "input_encoding": "bounded-columnar-projection-v3",
+            "model_coverage": coverage,
             "consistency_version": "1.0",
             "consistency_sha256": hashlib.sha256(Path(__file__).with_name("consistency.py").read_bytes()).hexdigest(),
         }

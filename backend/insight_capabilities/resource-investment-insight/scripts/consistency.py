@@ -116,6 +116,8 @@ def bind_named_facts(result, evidence):
                         for year in (2024, 2025):
                             if str(year) in text:
                                 add(f"{metric}{year}:" + entity)
+            if re.search(r"\d+\s*项[^。；;]{0,12}(?:复核|确认)|(?:复核|确认)[^。；;\d]{0,8}\d+\s*项", text):
+                add("investment-review-count")
             if all_objects:
                 add("cohort")
                 if re.search(r"Yield", text, re.I):
@@ -260,12 +262,55 @@ def issues(result, evidence):
         r"\bVol\b|\bC3\b|销量|同比|变化率|经营.{0,5}(?:上升|下降|增长|下滑)", re.I
     )
     entities = {key.split(":", 1)[1] for key in facts if ":" in key}
+    investment_rows = {}
+    for key, fact in facts.items():
+        if key.startswith("investment:") and isinstance(fact.get("value"), str):
+            try:
+                row = json.loads(fact["value"])
+                if isinstance(row, dict):
+                    investment_rows[key] = row
+            except (ValueError, TypeError):
+                pass
+    entities.update(str(row["dealer_id"]) for row in investment_rows.values() if row.get("dealer_id"))
+    aliases = {re.sub(r"\s+", "", e): {e} for e in entities}
+    for row in list(investment_rows.values()) + [r for d in datasets.values() for r in d["rows"]]:
+        name = row.get("dealer") or row.get("label")
+        entity = str(row.get("dealer_id") or row["id"])
+        if name and entity in entities:
+            aliases.setdefault(re.sub(r"\s+", "", str(name)), set()).add(entity)
+    object_names = set(aliases)
+
+    def alias_pattern(name):
+        left = r"(?<![A-Za-z0-9_,.])" if name[0].isascii() and name[0].isalnum() else ""
+        right = r"(?![A-Za-z0-9_]|[,.]\d)" if name.isdigit() else (r"(?![A-Za-z0-9_])" if name[-1].isascii() and name[-1].isalnum() else "")
+        return left + re.escape(name) + right
+
+    def mentions(text):
+        normalized = re.sub(r"\s+", "", text)
+        found, occupied = [], set()
+        for name in sorted(aliases, key=len, reverse=True):
+            for match in re.finditer(alias_pattern(name), normalized):
+                span = set(range(match.start(), match.end()))
+                if not occupied.intersection(span):
+                    found.append((match.start(), match.end(), aliases[name]))
+                    occupied.update(span)
+        return normalized, sorted(found, key=lambda hit: hit[0])
+
+    def belongs_to(fact_id, entity):
+        return fact_id.endswith(":" + entity) or investment_rows.get(fact_id, {}).get("dealer_id") == entity
+
     quadrants = [d for d in datasets.values() if d["kind"] == "quadrant"]
 
     def numbers(value):
         if isinstance(value, (int, float)) and not isinstance(value, bool):
             return [float(value)]
         if isinstance(value, dict):
+            if str(value.get("id", "")).startswith("investment:") and isinstance(value.get("value"), str):
+                try:
+                    row = json.loads(value["value"])
+                except (ValueError, TypeError):
+                    row = {}
+                return numbers(row)
             return [n for v in value.values() for n in numbers(v)]
         if isinstance(value, list):
             return [n for v in value for n in numbers(v)]
@@ -284,11 +329,9 @@ def issues(result, evidence):
                 values.extend(
                     float(n) for n in re.findall(r"\d+(?:\.\d+)?", source.get("note", ""))
                 )
-        cleaned = text
-        for entity in sorted(entities, key=len, reverse=True):
-            cleaned = re.sub(
-                r"(?<![A-Za-z0-9_])" + re.escape(entity) + r"(?![A-Za-z0-9_])", "对象", cleaned
-            )
+        cleaned = re.sub(r"\s+", "", text)
+        for entity in sorted(object_names, key=len, reverse=True):
+            cleaned = re.sub(alias_pattern(entity), "对象", cleaned)
         cleaned = re.sub(r"C3|Top\d+|SYN\d+", "指标", cleaned, flags=re.I)
         for m in re.finditer(
             r"(?<![A-Za-z\d])([+\-−]?\d[\d,]*(?:\.\d+)?)\s*(万元|万|千|[kK]|[%％])?", cleaned
@@ -340,6 +383,15 @@ def issues(result, evidence):
                         errors.append(f"{path}:{code}:仅陈述事实，不增加复核或效率判断")
                         break
         numeric_claims(text, path, referenced + ([dataset] if dataset else []))
+        review_counts = re.findall(r"(\d+)\s*项[^。；;]{0,12}(?:复核|确认)|(?:复核|确认)[^。；;\d]{0,8}(\d+)\s*项", text)
+        if review_counts and "investment-review-count" in facts:
+            expected = facts["investment-review-count"]["value"]
+            if any(int(first or second) != expected for first, second in review_counts):
+                errors.append(f"{path}:review_count_contradiction:复核项数必须等于系统统计")
+        maximum_counts = re.findall(r"Initiative.{0,8}?(?:最大值|最大|最多)[^0-9]{0,5}(\d+)", text, re.I)
+        if maximum_counts and "max-initiative-count" in facts:
+            if any(int(value) != facts["max-initiative-count"]["value"] for value in maximum_counts):
+                errors.append(f"{path}:initiative_count_contradiction:最大项目数必须等于系统统计")
         if _whole_cohort(text, facts) and re.search(r"Yield.{0,8}(?:均为|相同|一致)", text, re.I):
             yields = [f["value"] for key, f in facts.items() if key.startswith("yield:")]
             if not yields or None in yields or len(set(yields)) != 1:
@@ -348,6 +400,32 @@ def issues(result, evidence):
             maximum = facts.get("max-initiative-count", {}).get("value")
             if maximum != 1:
                 errors.append(f"{path}:overlap_contradiction:并非每个对象都只有一个Initiative")
+        # Names and IDs share the same ownership check, including overview text.
+        if not dataset:
+            for clause in clauses:
+                normalized, found = mentions(clause)
+                for index, (start, end, owners) in enumerate(found):
+                    if len(owners) != 1:
+                        errors.append(f"{path}:ambiguous_object:同名对象需明确经销商编号")
+                        continue
+                    entity = next(iter(owners))
+                    sources = [f for f in referenced if belongs_to(f["id"], entity)]
+                    if not sources:
+                        errors.append(f"{path}:unbound_object:所述对象必须绑定其事实")
+                    # Adjacent display name and ID refer to one object; the last
+                    # mention checks its following numbers using only that object.
+                    stop = found[index + 1][0] if index + 1 < len(found) else len(normalized)
+                    segment = normalized[start:stop]
+                    # Explicit count phrases bind only their global count, not money.
+                    count_keys = set()
+                    if re.search(r"\d+家经销商", segment):
+                        count_keys.add("cohort")
+                    if re.search(r"\d+项[^。；;]{0,12}(?:复核|确认)", segment):
+                        count_keys.add("investment-review-count")
+                    if re.search(r"Initiative.{0,8}(?:最大|最多)|(?:最大|最多).{0,8}Initiative", segment, re.I):
+                        count_keys.add("max-initiative-count")
+                    sources += [f for f in referenced if f["id"] in count_keys]
+                    numeric_claims(segment, path, sources)
         if dimensions is None:
             return
         prefixes = {m[1] for e in entities if (m := re.fullmatch(r"([A-Za-z]+)\d+", e))}
@@ -385,23 +463,10 @@ def issues(result, evidence):
         for entity in entities:
             if not re.search(r"(?<![A-Za-z0-9_])" + re.escape(entity) + r"(?![A-Za-z0-9_])", text):
                 continue
-            if not any(k.endswith(":" + entity) for k in refs) and not (
+            if not any(belongs_to(k, entity) for k in refs) and not (
                 dataset and any(str(r["id"]) == entity for r in dataset["rows"])
             ):
                 errors.append(f"{path}:unbound_object:所述对象必须绑定其事实或图表行")
-        for clause in clauses:
-            mentioned = [
-                e
-                for e in entities
-                if re.search(r"(?<![A-Za-z0-9_])" + re.escape(e) + r"(?![A-Za-z0-9_])", clause)
-            ]
-            if len(mentioned) == 1 and not dataset:
-                sources = [
-                    f
-                    for f in referenced
-                    if ":" not in f["id"] or f["id"].endswith(":" + mentioned[0])
-                ]
-                numeric_claims(clause, path, sources)
         # Check relative labels against the system's full-cohort classification.
         for q in quadrants:
             # A single group claim applies to every explicitly named object in

@@ -3,6 +3,7 @@
 import asyncio
 import hashlib
 import json
+import logging
 from collections import defaultdict
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -19,6 +20,7 @@ from app.dependencies.workbench_user import WorkbenchUser
 from app.models.do.insight import InsightPromptDO, InsightRecordDO
 from app.repositories.insight_repository import InsightRepository
 from app.services.dealer_history import scoped_dealer_histories
+from app.services.insight_investment import InvestmentRules
 from app.services.insight_pack_adapter import (
     PACK_ROOT,
     InsightPack,
@@ -32,6 +34,7 @@ DEFAULT_PROMPT = (
     "多 Initiative 叠加、Vol/C3 趋势、预算完整性。只使用给定证据，不推断因果。"
 )
 ITEM_KEYS = ("low_yield", "high_yield", "concentration", "overlap", "trend", "completeness")
+logger = logging.getLogger(__name__)
 
 
 class InsightService:
@@ -66,6 +69,10 @@ class InsightService:
                 evidence,
                 "各项最新同步快照",
                 {key: "请结合以上已同步事实复核；此处为只读计算预览。" for key in ITEM_KEYS},
+            )
+            record["evidence"] = build_evidence(
+                workspace, descriptor, self.user.role, planning_year,
+                investment_rules=self._investment_rules(),
             )
             record["status"] = "preview"
             record["disclaimer"] = (
@@ -104,15 +111,40 @@ class InsightService:
         self, *, scope: str, planning_year: int, preset_id: str = "comprehensive"
     ) -> dict[str, Any]:
         deadline = float(getattr(self.settings, "insight_timeout_seconds", 60))
+        started = perf_counter()
+        self._deadline_at = started + deadline
         try:
             async with asyncio.timeout(deadline):
-                return await self._generate(
+                record = await self._generate(
                     scope=scope, planning_year=planning_year, preset_id=preset_id
                 )
+                logger.info(
+                    "insight.generate_complete preset=%s elapsed=%.3f attempts=%d",
+                    preset_id, perf_counter() - started,
+                    len(record.get("metadata", {}).get("attempts", [])),
+                )
+                return record
         except TimeoutError as exc:
+            logger.warning(
+                "insight.generate_timeout preset=%s elapsed=%.3f deadline=%.3f",
+                preset_id, perf_counter() - started, deadline,
+            )
             raise HTTPException(
                 status_code=504, detail="分析等待超时，原记录已保留，请稍后重试"
             ) from exc
+        except HTTPException as exc:
+            logger.warning(
+                "insight.generate_failed preset=%s status=%d elapsed=%.3f",
+                preset_id, exc.status_code, perf_counter() - started,
+            )
+            raise
+
+    def _investment_rules(self) -> InvestmentRules:
+        return InvestmentRules(
+            increase_multiple=getattr(self.settings, "insight_investment_increase_multiple", 2),
+            decrease_multiple=getattr(self.settings, "insight_investment_decrease_multiple", 0.5),
+            absolute_change=getattr(self.settings, "insight_investment_absolute_change", 50000),
+        )
 
     async def _generate(self, *, scope: str, planning_year: int, preset_id: str) -> dict[str, Any]:
         started = perf_counter()
@@ -123,7 +155,10 @@ class InsightService:
         prompt = await self._prompt(planning_year, scope, descriptor)
         signature = self._signature(workspace, scope, prompt, preset_id)
         access = self._access(descriptor)
-        evidence = build_evidence(workspace, descriptor, self.user.role, planning_year)
+        evidence = build_evidence(
+            workspace, descriptor, self.user.role, planning_year,
+            investment_rules=self._investment_rules(),
+        )
         pack = InsightPack(PACK_ROOT)
         body, metadata = pack.compile(
             evidence, preset_id, model=self.settings.ai_model, thinking=False
@@ -143,14 +178,20 @@ class InsightService:
             }
             attempts.append(diagnostic)
             try:
+                pack.validate_model_references(result, evidence, preset_id)
                 result, bindings = pack.resolve_fact_tokens(result, evidence)
                 result, citation_bindings = pack.bind_named_facts(result, evidence)
+                pack.validate_model_references(result, evidence, preset_id)
                 pack.validate_consistency(result, evidence, preset_id)
                 diagnostic["validation"] = "passed"
                 break
             except PackError as exc:
                 diagnostic["validation"] = "rejected"
                 diagnostic["reason"] = str(exc)
+                logger.warning(
+                    "insight.validation_failed preset=%s attempt=%d reason=%s",
+                    preset_id, attempt + 1, str(exc),
+                )
                 if attempt:
                     raise HTTPException(
                         status_code=502, detail="分析与证据不一致，原记录已保留，请稍后重试"
@@ -348,7 +389,10 @@ class InsightService:
             ((workspace.get("data") or {}).get("metadata") or {}).get("planningYear")
             or prompt.planning_year
         )
-        evidence = build_evidence(workspace, descriptor, self.user.role, year)
+        evidence = build_evidence(
+            workspace, descriptor, self.user.role, year,
+            investment_rules=self._investment_rules(),
+        )
         _, metadata = InsightPack(PACK_ROOT).compile(
             evidence, preset_id, model=getattr(self.settings, "ai_model", "qwen3.8-flash")
         )
@@ -555,6 +599,44 @@ class InsightService:
         }
 
     async def _call_model(self, body: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Retry one transient connection/provider failure within the shared deadline."""
+        started = perf_counter()
+        for attempt in range(2):
+            try:
+                result, usage = await self._call_model_once(body)
+                usage["transport_attempts"] = attempt + 1
+                return result, usage
+            except HTTPException as exc:
+                cause = exc.__cause__
+                status = (
+                    cause.response.status_code if isinstance(cause, httpx.HTTPStatusError) else 0
+                )
+                retryable = isinstance(cause, httpx.TransportError) or (
+                    isinstance(cause, httpx.HTTPStatusError)
+                    and status in {429, 502, 503, 504}
+                )
+                request_id = (
+                    cause.response.headers.get("x-request-id", "")
+                    if isinstance(cause, httpx.HTTPStatusError) else ""
+                )
+                safe_request_id = "".join(
+                    char for char in request_id[:128] if char.isalnum() or char in "-_"
+                )
+                remaining = getattr(self, "_deadline_at", started + 60) - perf_counter()
+                retry = attempt == 0 and retryable and remaining > 5
+                logger.warning(
+                    "insight.model_failed category=%s provider_status=%d request_id=%s "
+                    "attempt=%d elapsed=%.3f retry=%s",
+                    type(cause).__name__ if cause else "configuration",
+                    status, safe_request_id or "-", attempt + 1,
+                    perf_counter() - started, retry,
+                )
+                if not retry:
+                    raise
+                await asyncio.sleep(0.25)
+        raise RuntimeError("unreachable model retry state")
+
+    async def _call_model_once(self, body: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
         key = getattr(self.settings, "ai_api_key", None)
         secret = key.get_secret_value() if key else ""
         base = str(getattr(self.settings, "ai_base_url", "")).rstrip("/")

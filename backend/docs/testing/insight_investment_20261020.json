@@ -1,0 +1,50 @@
+{
+  "data": "synthetic only; isolated SQLite, no production writes",
+  "checks": [
+    {
+      "preset": "comprehensive",
+      "dealers": 300,
+      "request_bytes": 73739,
+      "model": "qwen3.8-flash",
+      "status": 200,
+      "seconds": 42.71,
+      "persisted": true,
+      "headline": "2027预算已全额安排，4项投入变化需确认",
+      "summary": "负责预算32687000元已全部分配至经销商。有4项投入变化需要确认。例如合成经销商1的2025实际投入100,000元，2027计划1,000,000元，增加900,000元，请确认增投原因。",
+      "attempts": 1,
+      "validated_against_final_code": true,
+      "all_investment_rows": 300
+    },
+    {
+      "preset": "quadrant",
+      "dealers": 300,
+      "request_bytes": 73175,
+      "model": "qwen3.8-flash",
+      "status": 200,
+      "seconds": 55.875,
+      "persisted": true,
+      "headline": "2027年计划投入32,687,000元，4项投入变化需确认",
+      "summary": "负责预算32,687,000元已全部安排至经销商。有4项投入变化需要确认。例如合成经销商 1的2025实际投入100,000元，2027计划1,000,000元，增加900,000元。请确认增投原因。",
+      "attempts": 2,
+      "validated_against_final_code": true,
+      "all_investment_rows": 300
+    },
+    {
+      "preset": "structure",
+      "dealers": 300,
+      "request_bytes": 74117,
+      "model": "qwen3.8-flash",
+      "status": 200,
+      "seconds": 40.895,
+      "persisted": true,
+      "headline": "2027年预算全额分配至经销商，4项投入变化需确认",
+      "summary": "负责预算32,687,000元全部安排给299家经销商，无其他预留。有4项投入变化需要确认。例如SYN001的2025实际投入100,000元，2027计划1,000,000元，增加900,000元，请确认增投原因。",
+      "attempts": 1,
+      "validated_against_final_code": true,
+      "all_investment_rows": 300
+    }
+  ],
+  "deadline_seconds": 60,
+  "browser": "Edge: template hint, management preview, pagination, filters, search, null/zero, persistent failure, controlled retry recovery, 390px layout",
+  "notes": "Earlier runs exposed validation defects and one deadline expiry; final outputs were revalidated after the last guard fix. This is not a production latency SLA."
+}

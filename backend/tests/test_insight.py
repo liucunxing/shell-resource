@@ -136,6 +136,39 @@ def test_management_reads_snapshot_preview_without_calling_model() -> None:
     assert repository.records == []
 
 
+def test_management_preview_includes_authorized_investment_table_without_ai(monkeypatch) -> None:
+    insight, repository = service(role="management")
+    published = workspace()
+    published["state"]["initiatives"][0].update(
+        sector="B2B", resourceType="MRD", rows=[{"dealerId": "D1", "amount": 1000000}]
+    )
+    published["data"]["dealers"] = [
+        {"id": code, "sector": sector,
+         "history": {"resources2025": {"MRD": 100000, "Capex": 987654321}}}
+        for code, sector in [("D1", "B2B"), ("D2", "B2B"), ("OUTSIDE", "B2C")]
+    ]
+
+    async def published_workspace(_):
+        return published
+
+    def forbid_client(*args, **kwargs):
+        raise AssertionError("Management preview must not call a model")
+
+    insight._workspace = published_workspace
+    monkeypatch.setattr(httpx, "AsyncClient", forbid_client)
+    result = asyncio.run(insight.get_insight(scope="global", planning_year=2027))
+    record = result["record"]
+    assert record["status"] == "preview"
+    assert "result" not in record
+    assert repository.records == []
+    dataset = next(d for d in record["evidence"]["datasets"] if d["id"] == "investment-review")
+    assert {r["dealer_id"] for r in dataset["rows"]} == {"D1", "D2"}
+    assert {r["reason_code"] for r in dataset["rows"]} == {"increase", "unallocated"}
+    assert "987654321" not in json.dumps(record["evidence"])
+    assert "OUTSIDE" not in json.dumps(record["evidence"])
+    assert record["evidence"]["scope"]["role"] == "management"
+
+
 def test_old_analysis_is_hidden_after_permission_scope_changes() -> None:
     insight, repository = service(role="lead")
     descriptor = insight._scope(workspace(), "MKT")

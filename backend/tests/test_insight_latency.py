@@ -78,15 +78,24 @@ async def test_deadline_cancels_remote_wait_and_keeps_old_records():
 @pytest.mark.asyncio
 async def test_deadline_is_shared_with_repair():
     insight, repository = service()
-    insight.settings.insight_timeout_seconds = 0.5
+    # Allow evidence/schema preparation to finish even on a loaded CI worker.
+    # The repair then waits indefinitely and must be cancelled by the same deadline.
+    insight.settings.insight_timeout_seconds = 2
     evidence = build_evidence(
         workspace(), insight._scope(workspace(), "initiative:1"), "owner", 2027
     )
     calls = []
+    deadlines = []
+    repair_cancelled = asyncio.Event()
 
     async def model(_):
         calls.append(1)
-        await asyncio.sleep(0.3)
+        deadlines.append(insight._deadline_at)
+        if len(calls) == 2:
+            try:
+                await asyncio.Event().wait()
+            finally:
+                repair_cancelled.set()
         candidate = valid_result(evidence)
         candidate["checks"][0]["summary"] = "建议核对低效投入。"
         return candidate, {}
@@ -96,6 +105,8 @@ async def test_deadline_is_shared_with_repair():
         await insight.generate(scope="initiative:1", planning_year=2027)
     assert exc.value.status_code == 504
     assert len(calls) == 2
+    assert deadlines[0] == deadlines[1]
+    assert repair_cancelled.is_set()
     assert repository.records == []
 
 

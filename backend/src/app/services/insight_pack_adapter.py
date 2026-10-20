@@ -9,6 +9,7 @@ from statistics import median
 from typing import Any
 
 from app.services.dealer_history import scoped_dealer_histories
+from app.services.insight_investment import InvestmentRules, investment_comparisons
 
 PACK_ROOT = Path(__file__).resolve().parents[3] / "insight_capabilities/resource-investment-insight"
 _spec = importlib.util.spec_from_file_location(
@@ -30,7 +31,14 @@ def number(value: Any) -> float | None:
         return None
 
 
-def build_evidence(workspace: dict, descriptor: dict, role: str, year: int) -> dict:
+def build_evidence(
+    workspace: dict,
+    descriptor: dict,
+    role: str,
+    year: int,
+    *,
+    investment_rules: InvestmentRules | None = None,
+) -> dict:
     state = workspace.get("state") or {}
     facts, datasets = [], []
     period = f"{year}计划"
@@ -387,6 +395,69 @@ def build_evidence(workspace: dict, descriptor: dict, role: str, year: int) -> d
                 ]
             ],
         )
+    investment_rules = investment_rules or InvestmentRules()
+    investment_rows = investment_comparisons(
+        (workspace.get("data") or {}).get("dealers") or [], descriptor["items"], investment_rules
+    )
+    investment_alerts = sum(row["status"] == "review" for row in investment_rows)
+    investment_missing = sum(row["status"] == "limited" for row in investment_rows)
+    investment_note = (
+        "2025全年实际与计划年跨年参考，非同比；历史为同 Sector 同资源类型全年总额，"
+        "计划仅含本授权范围 Initiative 合计，非精确单项目历史。范围差异需业务复核，"
+        "不代表违规或未来收益判断；未分配对象仅覆盖已授权工作台参考名单。"
+    )
+    investment_ids = []
+    for key, label, value in [
+        ("investment-review-count", "投入复核项数", investment_alerts),
+        ("investment-missing-count", "投入比较数据不足项数", investment_missing),
+        ("investment-comparison-count", "授权投入比较项数", len(investment_rows)),
+    ]:
+        investment_ids.append(fact(key, label, value, "count", note=investment_note))
+    investment_ids.append(
+        fact(
+            "investment-rules",
+            "当前投入复核规则",
+            investment_rules.description(),
+            note="规则版本及默认阈值为系统复核配置，不代表业务审批结论。",
+        )
+    )
+    for row in investment_rows:
+        investment_ids.append(
+            fact(
+                f"investment:{row['id']}",
+                f"{row['dealer_id']} {row['sector']} {row['resource_type']} 投入比较",
+                json.dumps(row, ensure_ascii=False),
+                at=f"2025全年实际 / {period}",
+                note=investment_note,
+            )
+        )
+    if investment_rows:
+        dataset(
+            "investment-review",
+            "table",
+            "全量授权投入比较与复核",
+            investment_rows,
+            investment_ids,
+            investment_note,
+            at=f"2025全年实际 / {period}",
+            columns=[
+                dict(key=k, label=label, unit=u)
+                for k, label, u in [
+                    ("dealer", "经销商", ""),
+                    ("sector", "Sector", ""),
+                    ("resource_type", "资源类型", ""),
+                    ("dealer_id", "经销商代码", ""),
+                    ("reason_code", "规则分类", ""),
+                    ("historical_actual", "2025全年实际", "CNY"),
+                    ("plan", period, "CNY"),
+                    ("delta", "计划减历史实际", "CNY"),
+                    ("abs_delta", "计划与历史实际差额绝对值", "CNY"),
+                    ("multiple", "计划/历史实际", "multiple"),
+                    ("status", "复核状态", ""),
+                    ("reason", "复核说明", ""),
+                ]
+            ],
+        )
     constraints = []
     for dim in _module.DIMENSIONS:
         statuses, reason = (
@@ -417,6 +488,18 @@ def build_evidence(workspace: dict, descriptor: dict, role: str, year: int) -> d
                 if comparable
                 else "待补充2024及2025全年 Vol 或 C3；补充同指标完整年度对后可分析经营变化。"
             )
+        if dim == "trend" and investment_rows:
+            if investment_alerts:
+                statuses = ["review"]
+                reason = (
+                    "系统投入比较触发复核规则；必须引用 investment-review-count 和投入比较事实。"
+                    + investment_note
+                )
+            elif any(row["status"] == "observed" for row in investment_rows):
+                statuses = ["observed"]
+                reason = (
+                    "可陈述投入比较事实及新增投入，不把未触发规则等同合理性确认。" + investment_note
+                )
         if dim == "completeness":
             statuses = ["clear", "observed"] if gap == 0 and not missing_other_notes else ["review"]
             reason = (
@@ -430,7 +513,8 @@ def build_evidence(workspace: dict, descriptor: dict, role: str, year: int) -> d
                 dimension_id=dim,
                 allowed_statuses=statuses,
                 reason=reason,
-                required_focus=dim == "completeness" and (gap != 0 or missing_other_notes > 0),
+                required_focus=(dim == "completeness" and (gap != 0 or missing_other_notes > 0))
+                or (dim == "trend" and investment_alerts > 0),
             )
         )
     evidence = dict(

@@ -477,6 +477,7 @@ def test_distributor_history_field_mapping_and_department_scope():
         assert dealer == {
             "id": "D-HISTORY",
             "name": "History Dealer",
+            "sector": "PCMO",
             "history": {
                 "vol2024": 1.0,
                 "c32024": 2.0,

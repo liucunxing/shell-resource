@@ -92,6 +92,178 @@ export function formatEvidence(value: Cell | undefined, unit = ""): string {
     return `${(value * 100).toLocaleString("zh-CN", { maximumFractionDigits: 2 })}%`;
   return `${value.toLocaleString("zh-CN", { maximumFractionDigits: 2 })}${unit === "CNY" ? " 元" : unit === "multiple" ? " 倍" : unit === "count" ? "" : unit ? ` ${unit}` : ""}`;
 }
+const investmentPageSize = 20;
+export function investmentPage(
+  dataset: Dataset,
+  status: string,
+  query: string,
+  requestedPage: number,
+) {
+  const search = query.trim().toLocaleLowerCase();
+  const rank: Record<string, number> = { review: 0, limited: 1, observed: 2 };
+  const filtered = dataset.rows
+    .filter(
+      (row) =>
+        (status === "all" || row.status === status) &&
+        (!search ||
+          [row.dealer, row.dealer_id, row.sector, row.resource_type].some(
+            (value) =>
+              String(value ?? "")
+                .toLocaleLowerCase()
+                .includes(search),
+          )),
+    )
+    .sort(
+      (a, b) => (rank[String(a.status)] ?? 3) - (rank[String(b.status)] ?? 3),
+    );
+  const pages = Math.max(1, Math.ceil(filtered.length / investmentPageSize));
+  const page = Math.min(Math.max(1, requestedPage), pages);
+  return {
+    rows: filtered.slice(
+      (page - 1) * investmentPageSize,
+      page * investmentPageSize,
+    ),
+    total: filtered.length,
+    pages,
+    page,
+  };
+}
+export function InvestmentReview({
+  dataset,
+  scopeLabel,
+}: {
+  dataset: Dataset;
+  scopeLabel: string;
+}) {
+  const [status, setStatus] = useState("all");
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const shown = investmentPage(dataset, status, query, page);
+  const count = (value: string) =>
+    dataset.rows.filter((row) => row.status === value).length;
+  return (
+    <section className="ic-investment" aria-label="历史实际投入与计划核对">
+      <h3>历史实际投入与计划核对</h3>
+      <p>
+        {scopeLabel} · {dataset.period}
+      </p>
+      <p className="ic-caption">
+        按金额和复核规则计算，完整名单不受分析摘要篇幅影响。标记仅供复核，不代表分配错误。
+      </p>
+      <p className="ic-caption">{dataset.note}</p>
+      <p>
+        共 {dataset.rows.length} 项 · 建议复核 {count("review")} 项 · 待补充信息{" "}
+        {count("limited")} 项
+      </p>
+      <div className="ic-review-controls">
+        <label className="form-field">
+          核对状态
+          <select
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="all">全部</option>
+            <option value="review">建议复核</option>
+            <option value="limited">待补充信息</option>
+            <option value="observed">已核对事实</option>
+          </select>
+        </label>
+        <label className="form-field">
+          查找经销商名称、代码、Sector 或资源类型
+          <input
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setPage(1);
+            }}
+            placeholder="输入关键词"
+          />
+        </label>
+      </div>
+      <div
+        className="ic-review-scroll"
+        tabIndex={0}
+        role="region"
+        aria-label="投入核对明细，可横向滚动"
+      >
+        <table className="ic-review-table">
+          <thead>
+            <tr>
+              {[
+                "经销商",
+                "Sector",
+                "资源类型",
+                "2025 实际投入",
+                "本次计划",
+                "差额",
+                "计划 / 实际",
+                "核对状态",
+                "复核说明",
+              ].map((label) => (
+                <th key={label} scope="col">
+                  {label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {shown.rows.map((row) => (
+              <tr key={row.id}>
+                <th scope="row">
+                  {row.dealer}
+                  {row.dealer_id && row.dealer_id !== row.dealer && (
+                    <small className="ic-dealer-code">{row.dealer_id}</small>
+                  )}
+                </th>
+                <td>{row.sector || "未指定"}</td>
+                <td>{row.resource_type}</td>
+                <td>{formatEvidence(row.historical_actual, "CNY")}</td>
+                <td>{formatEvidence(row.plan, "CNY")}</td>
+                <td>{formatEvidence(row.delta, "CNY")}</td>
+                <td>
+                  {row.multiple == null
+                    ? row.historical_actual === 0
+                      ? "不适用（实际为 0）"
+                      : "缺失"
+                    : formatEvidence(row.multiple, "multiple")}
+                </td>
+                <td>
+                  <span className={`ic-status ${row.status}`}>
+                    {statuses[row.status as Status] || row.status}
+                  </span>
+                </td>
+                <td>{row.reason}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {shown.total === 0 && <p>没有匹配的核对记录。</p>}
+      <nav className="ic-review-pagination" aria-label="投入核对分页">
+        <button
+          className="button small"
+          disabled={shown.page === 1}
+          onClick={() => setPage(shown.page - 1)}
+        >
+          上一页
+        </button>
+        <span aria-live="polite">
+          第 {shown.page} / {shown.pages} 页 · 筛选后 {shown.total} 项
+        </span>
+        <button
+          className="button small"
+          disabled={shown.page === shown.pages}
+          onClick={() => setPage(shown.page + 1)}
+        >
+          下一页
+        </button>
+      </nav>
+    </section>
+  );
+}
 function EvidenceRows({ dataset }: { dataset: Dataset }) {
   const columns =
     dataset.columns ||
@@ -302,6 +474,60 @@ export function InsightChart({ dataset }: { dataset: Dataset }) {
     </figure>
   );
 }
+export function investmentFactText(
+  fact: Evidence["facts"][number],
+): string | null {
+  if (fact.id !== "investment-rules" && !fact.id.startsWith("investment:"))
+    return null;
+  let values: Record<string, Cell>;
+  try {
+    const parsed: unknown = JSON.parse(String(fact.value));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+      throw new Error("invalid");
+    values = parsed as Record<string, Cell>;
+  } catch {
+    return "投入核对详情暂不可用，请查看完整核对名单。";
+  }
+  if (fact.id === "investment-rules") {
+    return `当前投入复核规则：计划达到历史实际的 ${formatEvidence(values.increase_multiple, "multiple")}及以上，且增加至少 ${formatEvidence(values.absolute_change, "CNY")}；或计划降至历史实际的 ${formatEvidence(values.decrease_multiple, "ratio")}及以下，且减少至少 ${formatEvidence(values.absolute_change, "CNY")}，建议复核。历史有投入、本范围未分配时也建议复核。阈值用于提示，不代表审批结论。`;
+  }
+  const multiple =
+    values.multiple == null
+      ? values.historical_actual === 0
+        ? "不适用（实际为 0）"
+        : "缺失"
+      : formatEvidence(values.multiple, "multiple");
+  return `${values.dealer || "经销商名称缺失"} · ${values.sector || "Sector 未明确"} · ${values.resource_type || "资源类型未明确"}：2025 实际投入 ${formatEvidence(values.historical_actual, "CNY")}；本次计划 ${formatEvidence(values.plan, "CNY")}；差额 ${formatEvidence(values.delta, "CNY")}；计划 / 实际 ${multiple}。${statuses[values.status as Status] || "待补充信息"}：${values.reason || "暂无说明"}`;
+}
+export function formatFactSource(source: string): string {
+  const marker = "历史批次：";
+  const index = source.indexOf(marker);
+  if (index < 0) return source;
+  const suffix = source.slice(index + marker.length).trim();
+  if (!suffix.startsWith("{")) return source;
+  const prefix = source.slice(0, index).replace(/[；;\s]+$/, "");
+  try {
+    const parsed: unknown = JSON.parse(suffix);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+      throw new Error("invalid");
+    const values = parsed as Record<string, unknown>;
+    const scalar = (value: unknown) =>
+      typeof value === "string" || typeof value === "number"
+        ? String(value)
+        : "";
+    const asOf = scalar(values.asOf);
+    const year = scalar(values.planningYear);
+    return [
+      prefix,
+      asOf ? `历史参考截至 ${asOf}` : "历史参考日期未提供",
+      year ? `规划年度 ${year}` : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  } catch {
+    return [prefix, "历史参考信息暂不可用"].filter(Boolean).join(" · ");
+  }
+}
 function FactReferences({
   ids,
   evidence,
@@ -317,10 +543,11 @@ function FactReferences({
       {facts.map((fact) => (
         <p key={fact.id}>
           <strong>
-            {fact.label}：{formatEvidence(fact.value, fact.unit)}
+            {investmentFactText(fact) ??
+              `${fact.label}：${formatEvidence(fact.value, fact.unit)}`}
           </strong>
           <br />
-          {fact.period} · {fact.source}
+          {fact.period} · {formatFactSource(fact.source)}
           {fact.note && ` · ${fact.note}`}
         </p>
       ))}
@@ -330,10 +557,17 @@ function FactReferences({
 export function InsightCapabilityResult({
   result,
   evidence,
+  scopeLabel,
 }: {
   result: CapabilityResult;
   evidence: Evidence;
+  scopeLabel?: string;
 }) {
+  const investment = evidence.datasets.find(
+    (dataset) =>
+      dataset.id === "investment-review" &&
+      dataset.scope_id === evidence.scope.id,
+  );
   return (
     <section className="ic-result">
       <h3>{result.headline}</h3>
@@ -341,18 +575,45 @@ export function InsightCapabilityResult({
       {evidence.provenance.kind === "synthetic" && (
         <p className="note-box">合成数据：{evidence.provenance.description}</p>
       )}
+      {investment && (
+        <InvestmentReview
+          key={`${evidence.data_version}:${investment.scope_id}`}
+          dataset={investment}
+          scopeLabel={
+            scopeLabel ||
+            (evidence.scope.label.startsWith("owner:")
+              ? "本人全部 Initiative"
+              : evidence.scope.label.startsWith("initiative:")
+                ? "当前 Initiative"
+                : evidence.scope.label)
+          }
+        />
+      )}
+      {investment && <h3>分析解读</h3>}
       <ul className="ic-checks" aria-label="六维检查摘要">
-        {result.checks.map((check) => (
-          <li key={check.dimension_id}>
-            <div>
-              <strong>{dimensions[check.dimension_id]}</strong>
-              <span className={`ic-status ${check.status}`}>
-                {statuses[check.status]}
-              </span>
-            </div>
-            <p>{check.summary}</p>
-          </li>
-        ))}
+        {[...result.checks]
+          .sort(
+            (a, b) =>
+              Number(b.status === "review") - Number(a.status === "review"),
+          )
+          .map((check) => (
+            <li key={check.dimension_id}>
+              <div>
+                <strong>{dimensions[check.dimension_id]}</strong>
+                <span className={`ic-status ${check.status}`}>
+                  {statuses[check.status]}
+                </span>
+              </div>
+              {investment && ["clear", "observed"].includes(check.status) ? (
+                <details>
+                  <summary>查看本项说明</summary>
+                  <p>{check.summary}</p>
+                </details>
+              ) : (
+                <p>{check.summary}</p>
+              )}
+            </li>
+          ))}
       </ul>
       {result.blocks.map((block) => {
         const dataset = evidence.datasets.find(
@@ -367,6 +628,7 @@ export function InsightCapabilityResult({
             {block.title && <h3>{block.title}</h3>}
             <p className="ic-body">{block.body}</p>
             {block.kind === "visual" &&
+              dataset?.id !== "investment-review" &&
               (dataset ? (
                 <InsightChart dataset={dataset} />
               ) : (
