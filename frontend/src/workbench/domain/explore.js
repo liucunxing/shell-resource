@@ -272,7 +272,7 @@ function rawData(state, identity, data, tab) {
       ["c32026Ytd", "2026 1–8月 C3 (K$)"],
     ];
     model.columns = cols([
-      ["sector", "Sector 业务线"],
+      ["sector", "业务线"],
       ["dealerCode", "经销商编码"],
       ["dealerName", "经销商名称"],
       ...history,

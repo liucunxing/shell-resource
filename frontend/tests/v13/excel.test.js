@@ -64,11 +64,11 @@ vitestTest(
         book.getWorksheet("其他预算安排").getRow(1).values.slice(1),
         ["原因类型", "分配金额", "说明"],
       );
-      assert.equal(book.getWorksheet("经销商列表").getCell("A2").value, "D001");
+      assert.equal(book.getWorksheet("经销商列表").getCell("B2").value, "D001");
       assert.deepEqual(book.getWorksheet("经销商列表").getRow(1).values.slice(1),
-        ["经销商编码", "经销商名称", "Sector 业务线"]);
-      assert.equal(book.getWorksheet("经销商列表").getCell("C2").value, "PCMO");
-      assert.equal(book.getWorksheet("经销商列表").getCell("C3").value, "CRTO");
+        ["业务线", "经销商编码", "经销商名称"]);
+      assert.equal(book.getWorksheet("经销商列表").getCell("A2").value, "PCMO");
+      assert.equal(book.getWorksheet("经销商列表").getCell("A3").value, "CRTO");
       const directory = new ExcelJS.Workbook();
       await directory.xlsx.load(await X.exportDealerDirectory({
         ...data, distributorDirectory: [
@@ -79,9 +79,9 @@ vitestTest(
       }));
       assert.equal(directory.worksheets.length, 1);
       assert.deepEqual(directory.getWorksheet("经销商列表").getRow(2).values.slice(1),
-        ["NEW", "New Dealer", "OEM"]);
+        ["OEM", "NEW", "New Dealer"]);
       assert.equal(directory.getWorksheet("经销商列表").rowCount, 3);
-      assert.equal(directory.getWorksheet("经销商列表").getCell("C3").value, "CRTO");
+      assert.equal(directory.getWorksheet("经销商列表").getCell("A3").value, "CRTO");
       assert.equal(book.getWorksheet("原因类型参考").getCell("A2").value, "新增经销商预留");
       assert.equal(book.getWorksheet("其他预算安排").rowCount, 4);
       assert.equal(

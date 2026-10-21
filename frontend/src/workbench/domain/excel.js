@@ -210,11 +210,11 @@ async function exportWorkbook(state, id, identity, data = {}) {
 }
 function addDealerDirectory(book, data) {
   const directory = book.addWorksheet("经销商列表");
-  directory.addRow(["经销商编码", "经销商名称", "Sector 业务线"]);
+  directory.addRow(["业务线", "经销商编码", "经销商名称"]);
   dealerDirectory(data).forEach((dealer) =>
-    directory.addRow([String(dealer.id), String(dealer.name || ""), String(dealer.sector || "")]),
+    directory.addRow([String(dealer.sector || ""), String(dealer.id), String(dealer.name || "")]),
   );
-  style(directory, [24, 48, 20]);
+  style(directory, [20, 24, 48]);
 }
 async function exportDealerDirectory(data) {
   const book = new (await excelLibrary()).Workbook();

@@ -11,7 +11,8 @@ it("puts Sector first and displays/exports Yield with one decimal without roundi
   expect(model.rows[0].yield).toBe(6.769);
   expect(X.renderRaw(model)).toContain("6.8</td>");
   expect(X.csv(model)).toContain('"6.8"');
-  expect(X.csv(model)).toContain('"Sector 业务线"');
+  expect(model.columns[0].label).toBe("业务线");
+  expect(X.csv(model)).toContain('"业务线"');
 });
 
 it("labels multi-sector Lead history and global administrator/management history correctly", () => {

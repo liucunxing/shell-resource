@@ -8,6 +8,22 @@ const dealers = (values: (number | null)[]) => values.map((value, index) => ({
 }));
 
 describe("historical proportional allocation", () => {
+  it("uses directory names for dealers missing B2B history without borrowing another sector's weights", () => {
+    const result = allocateByHistory(rows.slice(0, 3), [
+      { id: "A", sector: "B2B", history: { c32025: 1 } },
+      { id: "C", name: "旧名称", sector: "PCMO", history: { c32025: 100 } },
+    ], 10000, "c32025", "B2B", [
+      { id: "B", name: "目录经销商甲", sector: "B2B" },
+      { id: "C", name: "目录经销商乙", sector: "B2B" },
+    ]);
+    expect(result.rows.map((row) => row.amount)).toEqual([100, 0, 0]);
+    expect(result.unavailable).toEqual(["目录经销商甲（B）", "目录经销商乙（C）"]);
+  });
+
+  it("does not repeat the code as a name when no source provides a name", () => {
+    const result = allocateByHistory(rows.slice(0, 1), [], 10000, "c32025", "B2B");
+    expect(result.unavailable).toEqual(["名称未提供（A）"]);
+  });
   it("uses the Initiative sector instead of overwriting with another sector's history", () => {
     const source = [
       { id: "A", sector: "PCMO", history: { c32025: 1 } },

@@ -41,6 +41,19 @@ export function toggleDealerSelection(selectedDealers, dealerId) {
     : [...selectedDealers, dealerId];
 }
 
+export function MissingHistoryNotice({ metricLabel, unavailable, hasHistory }) {
+  if (!unavailable.length) return null;
+  return (
+    <div role="status" className="notice">
+      <p>以下经销商无有效的 {metricLabel} 数据，本次分配默认为 0：</p>
+      <ul>
+        {unavailable.map((name) => <li key={name}>{name}</li>)}
+      </ul>
+      {!hasHistory && <p>全部经销商均无量，可分配预算保留为未分配差额。</p>}
+    </div>
+  );
+}
+
 export function canSynchronizeLatest({
   savedForSync,
   hasUnsavedChanges,
@@ -297,7 +310,9 @@ function EditorContent({
           throw Error("其他预算安排超过总预算，无法辅助填充。");
         const field = metric === "vol" ? "vol2025" : "c32025";
         const label = metric === "vol" ? "2025 Vol" : "2025 C3";
-        const allocation = allocateByHistory(i.rows, data.dealers || [], available, field, i.sector);
+        const allocation = allocateByHistory(
+          i.rows, data.dealers || [], available, field, i.sector, directoryDealers,
+        );
         setModal({
           type: "fill",
           revision: i.revision,
@@ -353,7 +368,7 @@ function EditorContent({
       </div>
       <div className="editor-meta">
         <span>{i.id.replace("initiative-", "I-")}</span>
-        <span>Sector {i.sector}</span>
+        <span>业务线 {i.sector}</span>
         <span>{i.resourceType}</span>
         <span>{i.ownerId}</span>
         <span>
@@ -504,7 +519,7 @@ function EditorContent({
           </div>
           {editable && (
             <p className="work-caption">
-              经销商列表已包含在下载模板的「经销商列表」工作表中，含 Sector 业务线。
+              经销商列表已包含在下载模板的「经销商列表」工作表中，业务线为第一列。
             </p>
           )}
           <div className="table-scroll">
@@ -930,9 +945,9 @@ function EditorContent({
                   <thead>
                     <tr>
                       <th aria-label="选择经销商" />
+                      <th>业务线</th>
                       <th>经销商编码</th>
                       <th>经销商名称</th>
-                      <th>Sector 业务线</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -948,9 +963,9 @@ function EditorContent({
                             )}
                           />
                         </td>
+                        <td>{dealer.sector || "—"}</td>
                         <td>{dealer.id}</td>
                         <td>{dealer.name || "—"}</td>
-                        <td>{dealer.sector || "—"}</td>
                       </tr>
                     ))}
                     {!searchedDealers.length && (
@@ -995,13 +1010,11 @@ function EditorContent({
                 以当前经销商范围的 {modal.metricLabel}
                 占比拆分预算，保留其他预算安排。此操作不代表投资推荐。
               </p>
-              {modal.unavailable.length > 0 && (
-                <p role="status" className="notice">
-                  以下经销商无有效的 {modal.metricLabel} 数据，本次分配默认为 0：
-                  {modal.unavailable.join("、")}。
-                  {!modal.hasHistory && "全部经销商均无量，可分配预算保留为未分配差额。"}
-                </p>
-              )}
+              <MissingHistoryNotice
+                metricLabel={modal.metricLabel}
+                unavailable={modal.unavailable}
+                hasHistory={modal.hasHistory}
+              />
               {!modal.rows.length && <p role="status">尚未添加经销商，可分配预算保留为未分配差额。</p>}
               <div className="table-scroll">
                 <table>

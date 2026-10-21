@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
 import {
   filterDealers,
   toggleDealerSelection,
   uniqueDealersByCode,
+  MissingHistoryNotice,
 } from "../src/workbench/pages/EditorPage.jsx";
 import E from "../src/workbench/domain/engine.js";
 
@@ -16,6 +18,19 @@ const dealers = [
 ];
 
 describe("dealer picker search", () => {
+  it("renders zero-allocation dealer names as a vertical list", () => {
+    const html = renderToStaticMarkup(<MissingHistoryNotice metricLabel="2025 C3"
+      unavailable={["经销商甲（10392457）", "经销商乙（11146913）"]} hasHistory={true} />);
+    expect(html).toContain("<li>经销商甲（10392457）</li><li>经销商乙（11146913）</li>");
+    expect(html).not.toContain("全部经销商均无量");
+  });
+
+  it("keeps the all-zero warning and hides the notice when everyone has history", () => {
+    expect(renderToStaticMarkup(<MissingHistoryNotice metricLabel="2025 C3"
+      unavailable={["经销商甲（10392457）"]} hasHistory={false} />)).toContain("全部经销商均无量");
+    expect(renderToStaticMarkup(<MissingHistoryNotice metricLabel="2025 C3"
+      unavailable={[]} hasHistory={true} />)).toBe("");
+  });
   it("deduplicates source rows by distributor code", () => {
     expect(uniqueDealersByCode(dealers)).toHaveLength(5);
   });
