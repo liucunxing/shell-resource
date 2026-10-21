@@ -229,6 +229,47 @@ def schema_body():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("recover", [False, True])
+@pytest.mark.parametrize("status", [200, 400])
+async def test_json_object_abort_retries_once_without_dropping_contract(
+    monkeypatch, recover, status
+):
+    insight, repository = service()
+    insight.settings.ai_api_key = SimpleNamespace(get_secret_value=lambda: "test")
+    insight.settings.ai_base_url = "https://example.test/v1"
+    calls = []
+    body = {
+        "messages": [{"role": "system", "content": "JSON contract"}],
+        "response_format": {"type": "json_object"},
+        "stream": False,
+    }
+
+    def respond(request):
+        calls.append(json.loads(request.content))
+        if recover and len(calls) == 2:
+            return httpx.Response(
+                200,
+                json={
+                    "choices": [{"message": {"content": '{"ok":true}'}, "finish_reason": "stop"}]
+                },
+            )
+        return httpx.Response(status, json=structured_abort_payload())
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx, "AsyncClient", lambda **kw: original(transport=httpx.MockTransport(respond), **kw)
+    )
+    if recover:
+        result, usage = await insight._call_model(body)
+        assert result == {"ok": True} and usage["transport_attempts"] == 2
+    else:
+        with pytest.raises(HTTPException):
+            await insight._call_model(body)
+    assert calls == [body, body]
+    assert repository.records == []
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("mode", ["sse", "json", "http"])
 async def test_verified_structured_abort_falls_back_once_and_preserves_contract(
     monkeypatch, caplog, mode

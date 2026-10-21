@@ -319,6 +319,16 @@ class InsightService:
         body, metadata = pack.compile(
             evidence, preset_id, model=self.settings.ai_model, thinking=False
         )
+        self._log(
+            logging.INFO,
+            "insight.request_compiled package=%s response_format=%s evidence_sha256=%s "
+            "prompt_sha256=%s schema_sha256=%s",
+            metadata["package_version"],
+            metadata["response_format"],
+            metadata["evidence_sha256"],
+            metadata["prompt_sha256"],
+            metadata["schema_sha256"],
+        )
         if prompt.version:
             body["messages"].append(
                 {
@@ -343,26 +353,32 @@ class InsightService:
                 "request_bytes": len(json.dumps(body, ensure_ascii=False).encode("utf-8")),
             }
             attempts.append(diagnostic)
+            validation_phase = "structure"
             try:
                 result, normalizations = normalize_result(pack.unpack_model_result(candidate))
                 pack.validate_schema(result, "output_schema")
                 pack.validate_model_references(result, evidence, preset_id)
+                validation_phase = "fact_tokens"
                 result, bindings = pack.resolve_fact_tokens(result, evidence)
                 result, citation_bindings = pack.bind_named_facts(result, evidence)
                 pack.validate_model_references(result, evidence, preset_id)
+                validation_phase = "raw_facts"
                 pack.validate_consistency(result, evidence, preset_id)
                 result = pack.format_result_display(result)
+                validation_phase = "display_facts"
                 pack.validate_consistency(result, evidence, preset_id)
                 diagnostic["validation"] = "passed"
                 break
             except PackError as exc:
                 diagnostic["validation"] = "rejected"
+                diagnostic["validation_phase"] = validation_phase
                 diagnostic["reason"] = str(exc)
                 self._log(
                     logging.WARNING,
-                    "insight.validation_failed preset=%s attempt=%d reason=%s",
+                    "insight.validation_failed preset=%s attempt=%d phase=%s reason=%s",
                     preset_id,
                     attempt + 1,
+                    validation_phase,
                     str(exc),
                 )
                 if attempt:
@@ -377,8 +393,13 @@ class InsightService:
                             "content": "上次候选未通过校验。修复这些问题，返回完整JSON；"
                             "不增加事实或改变允许状态。用task.execution_anchor中对应维度的"
                             "完整句子重写报错字段；删除无证据的分组数量、合计占比及对象名称，"
-                            "不能只把原句的错误数字换成占位符。必显复核正文仍需完整保留："
-                            + str(exc),
+                            "不能只把原句的错误数字换成占位符。"
+                            "错误路径overview指顶层headline和summary，不是checks。"
+                            "overview报错时必须重写顶层summary，不能原样保留；"
+                            "有summary_anchor时以其summary为起点。每家经销商单独一行、"
+                            "一句只含一家经销商及其数值，禁止把多家经销商和多组数值写成"
+                            "‘分别为’。checks.N和blocks.N仅表示对应数组下标。"
+                            "必显复核正文仍需完整保留：" + str(exc),
                         },
                     ]
                 )
@@ -881,6 +902,13 @@ class InsightService:
                 )
                 retryable = (
                     fallback
+                    # Qwen can abort JSON-object generation too. It is the same
+                    # verified transient provider error, even without a schema
+                    # decoder to fall back from. Keep the two-call/deadline bound.
+                    or (
+                        structured_abort
+                        and request_body.get("response_format", {}).get("type") == "json_object"
+                    )
                     or incomplete
                     or isinstance(cause, httpx.TransportError)
                     or (isinstance(cause, httpx.HTTPStatusError) and status in {429, 502, 503, 504})

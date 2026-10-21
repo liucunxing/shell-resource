@@ -40,7 +40,7 @@ def example(scene="overspend", preset="comprehensive"):
 def test_provider_requires_independent_review_finding_even_when_overview_mentions_it():
     pack = InsightPack(PACK_ROOT)
     evidence, result = example()
-    body, _ = pack.compile(evidence)
+    body, _ = pack.compile(evidence, response_format="schema")
     validator = Draft202012Validator(body["response_format"]["json_schema"]["schema"])
     assert list(validator.iter_errors(result))
     finding = next(b for b in result["blocks"] if b["status"] == "review")
@@ -77,7 +77,7 @@ def test_display_values_do_not_change_source_amounts_yield_or_grouping():
     pack = InsightPack(PACK_ROOT)
     evidence, _ = example("baseline")
     frozen = copy.deepcopy(evidence)
-    body, _ = pack.compile(evidence)
+    body, _ = pack.compile(evidence, response_format="schema")
     request = json.loads(body["messages"][1]["content"])
     money = next(f for f in evidence["facts"] if f["unit"] == "CNY")
     assert request["display_values"][money["id"]].endswith("万元")
@@ -85,11 +85,12 @@ def test_display_values_do_not_change_source_amounts_yield_or_grouping():
     assert "required_findings" not in body["response_format"]["json_schema"]["schema"]["required"]
 
 
-def test_quadrant_object_mode_keeps_the_same_authorized_schema_and_required_findings():
+@pytest.mark.parametrize("preset", ["comprehensive", "quadrant"])
+def test_object_mode_keeps_the_same_authorized_schema_and_required_findings(preset):
     pack = InsightPack(PACK_ROOT)
     evidence, _ = example()
-    body, metadata = pack.compile(evidence, "quadrant")
-    strict, _ = pack.compile(evidence, "quadrant", response_format="schema")
+    body, metadata = pack.compile(evidence, preset)
+    strict, _ = pack.compile(evidence, preset, response_format="schema")
     assert body["response_format"] == {"type": "json_object"}
     assert body["stream"] is False
     assert metadata["response_format"] == "object"
@@ -103,7 +104,7 @@ def test_nonlimited_schema_cannot_only_cite_a_missing_rule_value():
     pack = InsightPack(PACK_ROOT)
     evidence, result = example("baseline")
     evidence["facts"].append({**evidence["facts"][0], "id": "absent-rule", "value": None})
-    body, _ = pack.compile(evidence)
+    body, _ = pack.compile(evidence, response_format="schema")
     validator = Draft202012Validator(body["response_format"]["json_schema"]["schema"])
     result["checks"][2].update(status="observed", fact_ids=["absent-rule"])
     assert list(validator.iter_errors(result))

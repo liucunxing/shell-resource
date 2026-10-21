@@ -11,6 +11,42 @@ from test_insight import service
 
 
 @pytest.mark.asyncio
+async def test_overview_repair_targets_summary_and_logs_validation_phase(caplog):
+    import copy
+
+    from app.services.insight_pack_adapter import build_evidence
+    from test_insight import valid_result, workspace
+
+    insight, repository = service()
+    data = workspace()
+    evidence = build_evidence(data, insight._scope(data, "initiative:1"), "owner", 2027)
+    valid = valid_result(evidence)
+    calls = 0
+
+    async def model(body):
+        nonlocal calls
+        calls += 1
+        candidate = copy.deepcopy(valid)
+        if calls == 1:
+            candidate["summary"] = "本次计划987654321万元。"
+        else:
+            instruction = body["messages"][-1]["content"]
+            assert "overview指顶层headline和summary" in instruction
+            assert "必须重写顶层summary" in instruction
+            assert "overview:unbound_number" in instruction
+        return candidate, {}
+
+    insight._call_model = model
+    with caplog.at_level(logging.INFO):
+        record = await insight.generate(scope="initiative:1", planning_year=2027)
+    assert calls == 2 and len(repository.records) == 1
+    assert record["metadata"]["attempts"][0]["validation_phase"] == "raw_facts"
+    assert "phase=raw_facts" in caplog.text
+    assert "insight.request_compiled" in caplog.text
+    assert "987654321" not in caplog.text
+
+
+@pytest.mark.asyncio
 async def test_concurrent_failures_have_distinct_safe_ids_and_response_headers(caplog):
     app = FastAPI()
     register_exception_handlers(app)

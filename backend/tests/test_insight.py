@@ -549,7 +549,7 @@ def test_request_schema_binds_authorized_references_and_states():
     insight, _ = service()
     data = workspace()
     evidence = build_evidence(data, insight._scope(data, "initiative:1"), "owner", 2027)
-    body, _ = InsightPack(PACK_ROOT).compile(evidence)
+    body, _ = InsightPack(PACK_ROOT).compile(evidence, response_format="schema")
     schema = body["response_format"]["json_schema"]["schema"]
     validator = Draft202012Validator(schema)
     def wire_valid():
@@ -701,7 +701,7 @@ def test_api_visual_schema_binds_dataset_title_and_facts():
     data = workspace()
     data["state"]["initiatives"][0]["otherBudgets"][0]["note"] = "用途已明确"
     evidence = build_evidence(data, insight._scope(data, "initiative:1"), "owner", 2027)
-    body, _ = InsightPack(PACK_ROOT).compile(evidence)
+    body, _ = InsightPack(PACK_ROOT).compile(evidence, response_format="schema")
     validator = Draft202012Validator(body["response_format"]["json_schema"]["schema"])
     dataset = next(row for row in evidence["datasets"] if row["id"] == "budget-mix")
     candidate = valid_result(evidence)

@@ -517,11 +517,11 @@ class InsightPack:
         anchor = {"checks": checks, "review_dimensions": review_dimensions}
         if preset_id == "quadrant" and not review_dimensions:
             anchor["headline_anchor"] = "历史投入产出比与计划投入"
-        if preset_id == "quadrant" and not review_dimensions and known("budget") and known("cohort"):
+        if preset_id in {"quadrant", "comprehensive"} and not review_dimensions and known("budget") and known("cohort"):
             example = next((item for item in checks if item["dimension_id"] == "low_yield" and item.get("entity_id")), None)
             if example:
                 anchor["summary_anchor"] = {
-                    "summary": "负责预算" + token("budget") + "，计划分配经销商总数为" + token("cohort") + "。" + example["summary"],
+                    "summary": "负责预算" + token("budget") + "，计划分配经销商总数为" + token("cohort") + "。\n" + example["summary"],
                     "fact_ids": ["budget", "cohort", *example["fact_ids"]],
                 }
         return anchor

@@ -1,6 +1,6 @@
 {
   "name": "resource-investment-insight",
-  "version": "0.3.2-engineering",
+  "version": "0.3.3-engineering",
   "schema_version": "1.0",
   "default_model": "qwen3.8-flash",
   "common_prompt": "prompts/common.md",
@@ -9,6 +9,7 @@
   "presets": [
     {
       "id": "comprehensive",
+      "response_format": "object",
       "label": "综合体检",
       "version": "1.2.2",
       "prompt": "prompts/comprehensive.md",
