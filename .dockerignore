@@ -14,6 +14,7 @@
 frontend/node_modules
 frontend/dist
 frontend/output
+/output
 frontend/tsconfig.tsbuildinfo
 
 backend/config/settings.toml

@@ -215,7 +215,26 @@ print("运行配置可读取，环境：" + s.app_env)
 "${COMPOSE[@]}" run --rm --no-deps -T app python scripts/check_database.py
 done_step
 
-step "启动或更新应用容器"
+step "归档旧应用日志并更新容器"
+# Keep retained runtime logs before Compose removes/replaces the old container.
+# Query stopped containers too; first installation legitimately has no prior app.
+OLD_APPS=$("${COMPOSE[@]}" ps -a -q app) || fail "无法查询旧应用容器；尚未替换应用"
+if [[ -n "$OLD_APPS" ]]; then
+    mkdir -p "$ROOT/logs/runtime" || fail "无法创建运行日志归档目录；尚未替换应用"
+    chmod 0700 "$ROOT/logs/runtime" || fail "无法限制运行日志目录权限；尚未替换应用"
+    while IFS= read -r old_app; do
+        [[ -n "$old_app" ]] || continue
+        [[ "$old_app" =~ ^[a-f0-9]{12,64}$ ]] || fail "旧应用容器 ID 无效；尚未替换应用"
+        ARCHIVE=$(mktemp "$ROOT/logs/runtime/$(date '+%Y%m%d-%H%M%S')-${old_app:0:12}-XXXXXX.partial") || fail "无法创建日志归档文件；尚未替换应用"
+        if ! docker logs --timestamps "$old_app" > "$ARCHIVE" 2>&1; then
+            fail "旧应用日志归档失败；尚未替换应用。受限诊断文件：$ARCHIVE"
+        fi
+        mv -- "$ARCHIVE" "${ARCHIVE%.partial}.log" || fail "无法完成运行日志归档；尚未替换应用"
+        log "旧应用运行日志已归档：${ARCHIVE%.partial}.log"
+    done <<< "$OLD_APPS"
+else
+    log "无旧应用容器，跳过运行日志归档"
+fi
 "${COMPOSE[@]}" up -d --no-build app
 done_step
 

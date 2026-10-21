@@ -372,6 +372,11 @@ def issues(result, evidence):
                     float(n) for n in re.findall(r"\d+(?:\.\d+)?", source.get("note", ""))
                 )
         cleaned = re.sub(r"\s+", "", text)
+        # Removing spaces joins "Yield 5.6倍" into "Yield5.6倍". The
+        # explicit unit identifies a metric, including when a dealer ID happens
+        # to be "Yield5.6"; names/IDs without that unit remain entity aliases.
+        cleaned = re.sub(r"(?<![A-Za-z0-9_])Yield(?=[+\-−]?\d+(?:\.\d+)?倍)",
+                         "指标", cleaned, flags=re.I)
         for entity in sorted(object_names, key=len, reverse=True):
             cleaned = re.sub(alias_pattern(entity), "对象", cleaned)
         cleaned = re.sub(r"C3|Top\d+|SYN\d+", "指标", cleaned, flags=re.I)
@@ -397,6 +402,55 @@ def issues(result, evidence):
                 errors.append(f"{path}:unbound_number:数字须来自关联事实或图表，不能自行补算")
                 break
 
+    def ordered_claim(clause, path, referenced):
+        """Bind an explicit 'respectively' list in order, never as a value pool."""
+        normalized = re.sub(r"\s+", "", clause)
+        cohort_prefix = re.match(r"在\d+家(?:计划分配|已分配)?经销商中[，,]", normalized)
+        if cohort_prefix:
+            normalized = normalized[cohort_prefix.end():]
+        normalized, found = mentions(normalized)
+        marker = normalized.find("分别")
+        if marker < 0:
+            return False
+        owners, end = [], 0
+        separator = re.compile(r"(?:、|和|与|及|以及|，|,)")
+        for start, stop, candidates in found:
+            if stop > marker or len(candidates) != 1:
+                return False
+            gap = normalized[end:start]
+            if (not owners and gap) or (owners and not separator.fullmatch(gap)):
+                return False
+            owners.append(next(iter(candidates)))
+            end = stop
+        if len(owners) < 2 or len(set(owners)) != len(owners) or end != marker:
+            return False
+        match = re.fullmatch(
+            r"分别(?:占经销商分配(?:的比例)?(?:的|为)?|计划投入(?:为|是)?)"
+            r"(.+)", normalized[marker:]
+        )
+        if not match:
+            return False
+        prefix = "share:" if normalized[marker:].startswith("分别占") else "plan:"
+        unit = r"[%％]" if prefix == "share:" else r"(?:万元|元)"
+        values = list(re.finditer(r"[+\-−]?\d[\d,]*(?:\.\d+)?" + unit, match[1]))
+        if len(values) != len(owners):
+            return False
+        end = 0
+        for index, value in enumerate(values):
+            gap = match[1][end:value.start()]
+            if (index == 0 and gap) or (index and not separator.fullmatch(gap)):
+                return False
+            end = value.end()
+        if end != len(match[1]):
+            return False
+        if cohort_prefix:
+            numeric_claims(cohort_prefix[0], path,
+                           [f for f in referenced if f["id"] == "cohort"])
+        for owner, value in zip(owners, values, strict=True):
+            numeric_claims(value[0], path,
+                           [f for f in referenced if f["id"] == prefix + owner])
+        return True
+
     def check(text, path, refs, dataset_id=None, dimensions=None, status=None):
         # Numbered-list markers are layout, not unbound business quantities.
         # Require a line start and separator whitespace so decimals stay numeric.
@@ -419,8 +473,19 @@ def issues(result, evidence):
         permitted = review_dims if dimensions is None else review_dims.intersection(dimensions)
         for clause in clauses:
             # Negation applies only to the following claim, not a later request.
+            zero_review_spans = []
+            if ("investment-review-count" in refs
+                    and facts.get("investment-review-count", {}).get("value") == 0):
+                zero_review_spans = [m.span() for m in re.finditer(
+                    r"(?<![\d.])0\s*项投入变化(?:需要|需)(?:确认|复核)", clause
+                )]
             for pattern, code in [(risk, "unsupported_review"), (judgment, "unsupported_judgment")]:
                 for match in pattern.finditer(clause):
+                    if pattern is risk and any(
+                        start <= match.start() and match.end() <= end
+                        for start, end in zero_review_spans
+                    ):
+                        continue
                     prefix = clause[max(0, match.start() - 12) : match.start()]
                     if negation.search(prefix):
                         continue
@@ -428,6 +493,29 @@ def issues(result, evidence):
                         errors.append(f"{path}:{code}:仅陈述事实，不增加复核或效率判断")
                         break
         numeric_claims(text, path, referenced + ([dataset] if dataset else []))
+        yield_facts = [f for key, f in facts.items() if key.startswith("yield:")]
+        if (yield_facts and len(yield_facts) == facts.get("cohort", {}).get("value")
+                and all(f["value"] is not None for f in yield_facts)):
+            for clause in re.split(r"[，,。；;！\n]", text):
+                # Only the supplied 2025 historical metric is covered. A
+                # projected subset, future targets or another year prove no
+                # contradiction about missing data outside this population.
+                if any(year != "2025" for year in re.findall(r"20\d{2}", clause)):
+                    continue
+                for missing in re.finditer(
+                    r"(?:无|没有|未提供|缺少|缺失)(?:2025(?:年|全年)?)?"
+                    r"历史(?:整体)?\s*Yield(?:数据)?", clause, re.I
+                ):
+                    prefix = clause[max(0, missing.start() - 12):missing.start()]
+                    if re.search(r"并非|不是|不代表|不意味着|不能说|未来|目标", prefix):
+                        continue
+                    errors.append(f"{path}:historical_yield_absence_contradiction:完整范围已有历史Yield，零值不是缺失")
+                    break
+        if re.search(r"未触发投入变化复核规则", text) and (
+            "investment-review-count" not in refs
+            or facts.get("investment-review-count", {}).get("value") != 0
+        ):
+            errors.append(f"{path}:review_count_contradiction:未触发复核须绑定为零的复核项数事实")
         review_counts = re.findall(r"(\d+)\s*项[^。；;]{0,12}(?:复核|确认)|(?:复核|确认)[^。；;\d]{0,8}(\d+)\s*项", text)
         if review_counts and "investment-review-count" in facts:
             expected = facts["investment-review-count"]["value"]
@@ -448,6 +536,8 @@ def issues(result, evidence):
         # Names and IDs share the same ownership check, including overview text.
         if not dataset:
             for clause in clauses:
+                if ordered_claim(clause, path, referenced):
+                    continue
                 normalized, found = mentions(clause)
                 for index, (start, end, owners) in enumerate(found):
                     if len(owners) != 1:
@@ -470,7 +560,22 @@ def issues(result, evidence):
                     if re.search(r"Initiative.{0,8}(?:最大|最多)|(?:最大|最多).{0,8}Initiative", segment, re.I):
                         count_keys.add("max-initiative-count")
                     sources += [f for f in referenced if f["id"] in count_keys]
-                    numeric_claims(segment, path, sources)
+                    # An explicitly named global metric after a comma belongs to
+                    # that metric, not to the preceding dealer. Keep unnamed
+                    # continuations under the dealer guard to prevent cross-binding.
+                    dealer_parts = []
+                    for part in re.split(r"[，,](?!\d{3}(?:\D|$))", segment):
+                        global_metric = re.fullmatch(
+                            r"(负责预算|总预算|已安排金额|预算差额)(?:为|是|共|合计)?"
+                            r"[+\-−]?\d[\d,]*(?:\.\d+)?(?:万元|元)", part
+                        )
+                        if global_metric:
+                            key = {"负责预算": "budget", "总预算": "budget",
+                                   "已安排金额": "arranged", "预算差额": "gap"}[global_metric[1]]
+                            numeric_claims(part, path, [f for f in referenced if f["id"] == key])
+                        else:
+                            dealer_parts.append(part)
+                    numeric_claims("，".join(dealer_parts), path, sources)
         if dimensions is None:
             return
         prefixes = {m[1] for e in entities if (m := re.fullmatch(r"([A-Za-z]+)\d+", e))}
@@ -496,6 +601,22 @@ def issues(result, evidence):
                 errors.append(f"{path}:chart_topic_trend:此图不包含经营趋势；换对应图或文字块")
         else:
             asserted = re.sub(r"历史(?:整体)?\s*Yield不代表未来(?:回报|收益)", "", text, flags=re.I)
+            # A limited check may state that Yield is absent without a numeric
+            # citation. Exempt only the exact absence clause, and only when the
+            # authorized facts actually contain no known Yield. Other claims,
+            # numbers and object references still pass through all normal guards.
+            if (status == "limited" and dimensions
+                    and all("limited" in constraints[d]["allowed_statuses"] for d in dimensions)
+                    and not any(f["value"] is not None for k, f in facts.items()
+                                if k.startswith("yield:"))):
+                missing_yield = re.compile(
+                    r"(?:未提供|缺少|缺失)(?:20\d{2}(?:年|全年)?)?"
+                    r"(?:历史)?(?:整体)?\s*(?:Yield|投入产出比)(?:数据)?", re.I
+                )
+                asserted = "。".join(
+                    clause for clause in re.split(r"[。；;！\n]", asserted)
+                    if not missing_yield.fullmatch(clause.strip())
+                )
             if yield_words.search(asserted) and not re.search(r"yield|position", ref_text, re.I):
                 errors.append(f"{path}:missing_yield_reference:绑定具体Yield或position事实")
             if group_words.search(text) and not any(k.startswith("position:") for k in refs):

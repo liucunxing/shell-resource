@@ -11,6 +11,122 @@ from insight_pack import InsightPack, PackError, load_json, _consistency, normal
 
 
 class ProjectionTests(unittest.TestCase):
+    def test_execution_anchor_uses_only_projected_facts_and_keeps_zero_yield(self):
+        evidence = self.small_current_with_large_missing_history()
+        next(f for f in evidence["facts"] if f["id"] == "yield:current0")["value"] = 0
+        evidence["datasets"][1]["rows"][0]["label"] = "匿名完整公司名"
+        projected = self.pack.model_evidence(evidence, "quadrant")
+        anchor = self.pack.execution_anchor(projected, "quadrant")
+        self.assertEqual(anchor["headline_anchor"], "历史投入产出比与计划投入")
+        ids = {f["id"] for f in projected["facts"]}
+        low = next(c for c in anchor["checks"] if c["dimension_id"] == "low_yield")
+        self.assertEqual(low["entity_id"], "current0")
+        self.assertEqual(low["entity_name"], "匿名完整公司名")
+        self.assertIn("{{yield:current0}}", low["summary"])
+        self.assertIn("匿名完整公司名（current0）", low["summary"])
+        import re
+        for item in [*anchor["checks"], anchor["summary_anchor"]]:
+            self.assertTrue(set(item["fact_ids"]).issubset(ids))
+            self.assertEqual(set(re.findall(r"\{\{([^{}]+)\}\}", item["summary"])), set(item["fact_ids"]))
+
+    def test_execution_anchor_does_not_override_required_review(self):
+        evidence = self.small_current_with_large_missing_history()
+        for constraint in evidence["check_constraints"]:
+            if constraint["dimension_id"] == "trend":
+                constraint.update(allowed_statuses=["review"], required_focus=True)
+        anchor = self.pack.execution_anchor(self.pack.model_evidence(evidence), "quadrant")
+        self.assertIn("trend", anchor["review_dimensions"])
+        self.assertNotIn("trend", [item["dimension_id"] for item in anchor["checks"]])
+        self.assertNotIn("summary_anchor", anchor)
+        self.assertNotIn("headline_anchor", anchor)
+
+    def test_execution_anchor_missing_yield_is_limited(self):
+        evidence = self.small_current_with_large_missing_history()
+        for fact in evidence["facts"]:
+            if fact["id"].startswith("yield:"):
+                fact["value"] = None
+        for constraint in evidence["check_constraints"]:
+            if constraint["dimension_id"] in {"low_yield", "high_yield"}:
+                constraint["allowed_statuses"] = ["limited"]
+        anchor = self.pack.execution_anchor(self.pack.model_evidence(evidence), "quadrant")
+        low = next(c for c in anchor["checks"] if c["dimension_id"] == "low_yield")
+        self.assertEqual(low["status"], "limited")
+        self.assertEqual(low["summary"], "未提供历史Yield。")
+        self.assertEqual(low["fact_ids"], [])
+        result = {"headline": "事实摘要", "summary": "", "checks": [low], "blocks": [], "limitations": []}
+        self.assertEqual(_consistency.issues(result, self.pack.model_evidence(evidence)), [])
+
+    def small_current_with_large_missing_history(self):
+        evidence = load_json(ROOT / "examples/baseline.evidence.json")
+        for constraint in evidence["check_constraints"]:
+            constraint.update(allowed_statuses=["observed"], required_focus=False)
+        next(f for f in evidence["facts"] if f["id"] == "cohort").update(value=7, unit="count")
+        template = deepcopy(evidence["facts"][0])
+        quadrant_template = deepcopy(next(d for d in evidence["datasets"] if d["kind"] == "quadrant"))
+        quadrant_template["x"].update(cutoff=4, cutoff_method="median")
+        quadrant_template["y"].update(cutoff=1003, cutoff_method="median")
+        evidence["facts"] = [f for f in evidence["facts"] if ":" not in f["id"]]
+        evidence["datasets"] = [d for d in evidence["datasets"] if d["id"] == "budget-mix"]
+        rows = []
+        for index in range(7):
+            entity = f"current{index}"
+            rows.append({"id": entity, "label": entity, "x": index + 1, "y": 1000 + index,
+                         "group": "synthetic"})
+            for metric in ("plan", "yield"):
+                evidence["facts"].append({**template, "id": f"{metric}:{entity}", "value": index + 1})
+        evidence["datasets"].append({**quadrant_template, "id": "yield-plan", "kind": "quadrant", "title": "Synthetic",
+            "scope_id": evidence["scope"]["id"], "unit": "CNY", "period": "2025/2027", "note": "Synthetic",
+            "fact_ids": [f["id"] for f in evidence["facts"] if ":" in f["id"]], "rows": rows,
+            "population_count": 7, "excluded_count": 0})
+        comparisons = []
+        for index in range(410):
+            row = {"id": f"comparison{index:03}", "dealer_id": f"history{index:03}",
+                   "dealer": f"history{index:03}", "status": "limited", "reason_code": "missing",
+                   "historical_actual": None, "plan": None, "delta": None}
+            comparisons.append(row)
+            evidence["facts"].append({**template, "id": "investment:" + row["id"], "value": json.dumps(row)})
+        evidence["datasets"].append({"id": "investment-review", "kind": "table", "title": "Synthetic",
+            "scope_id": evidence["scope"]["id"], "unit": "CNY", "period": "2025/2027", "note": "Synthetic",
+            "fact_ids": ["investment:" + r["id"] for r in comparisons], "rows": comparisons,
+            "columns": [{"key": key, "label": key, "unit": ""} for key in comparisons[0] if key != "id"]})
+        return evidence
+
+    def test_small_current_cohort_survives_large_missing_history(self):
+        evidence = self.small_current_with_large_missing_history()
+        before = deepcopy(evidence)
+        self.pack.validate_evidence(evidence)
+        projected = self.pack.model_evidence(evidence, "quadrant")
+        ids = {f["id"] for f in projected["facts"]}
+        for index in range(7):
+            self.assertIn(f"plan:current{index}", ids)
+            self.assertIn(f"yield:current{index}", ids)
+        payload, _ = self.pack.compile(evidence, "quadrant")
+        sent = json.loads(payload["messages"][1]["content"])["evidence"]["data"]
+        quadrant = next(d for d in sent["datasets"] if d["id"] == "yield-plan")
+        self.assertEqual(len(quadrant["rows"]), 7)
+        self.assertEqual(evidence, before)
+
+    def test_small_cohort_also_keeps_external_review(self):
+        evidence = self.small_current_with_large_missing_history()
+        row = evidence["datasets"][-1]["rows"][-1]
+        row.update(status="review", reason_code="unallocated", delta=-100000)
+        projected = self.pack.model_evidence(evidence)
+        ids = {f["id"] for f in projected["facts"]}
+        self.assertIn("investment:" + row["id"], ids)
+        self.assertTrue(all(f"plan:current{i}" in ids for i in range(7)))
+
+    def test_small_dataset_does_not_expose_omitted_entity(self):
+        evidence = self.small_current_with_large_missing_history()
+        projected = self.pack.model_evidence(evidence, "quadrant")
+        projected["facts"] = [f for f in projected["facts"] if not f["id"].endswith(":current6")]
+        for dataset in projected["datasets"]:
+            dataset["fact_ids"] = [key for key in dataset["fact_ids"] if not key.endswith(":current6")]
+        encoded, _ = self.pack.model_transport(evidence, projected)
+        sent = next(d for d in encoded["data"]["datasets"] if d["id"] == "yield-plan")
+        self.assertEqual(len(sent["rows"]), 6)
+        self.assertNotIn("current6", json.dumps(sent["rows"]))
+        self.assertEqual(len(evidence["datasets"][1]["rows"]), 7)
+
     def setUp(self):
         self.pack = InsightPack(ROOT)
         self.evidence = load_json(ROOT / "examples/baseline.evidence.json")

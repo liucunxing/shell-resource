@@ -195,3 +195,185 @@ async def test_near_deadline_does_not_start_another_transport_attempt(monkeypatc
 def test_investment_config_rejects_undefined_thresholds(field, value):
     with pytest.raises(ValidationError):
         Settings(app_env="test", database_url="sqlite+aiosqlite://", **{field: value})
+
+
+def structured_abort_payload(message=None):
+    from app.services.insight_service import STRUCTURED_OUTPUT_ABORT_MESSAGE
+
+    return {
+        "id": "abort-request-123",
+        "error": {
+            "code": "invalid_parameter_error",
+            "type": "invalid_request_error",
+            "message": message if message is not None else STRUCTURED_OUTPUT_ABORT_MESSAGE,
+        },
+    }
+
+
+def schema_body():
+    return {
+        "messages": [{"role": "system", "content": "PRIVATE_PROMPT"}],
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "test",
+                "schema": {
+                    "type": "object",
+                    "required": ["ok"],
+                    "properties": {"ok": {"const": True}},
+                    "additionalProperties": False,
+                },
+            },
+        },
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["sse", "json", "http"])
+async def test_verified_structured_abort_falls_back_once_and_preserves_contract(
+    monkeypatch, caplog, mode
+):
+    insight, repository = service()
+    insight.settings.ai_api_key = SimpleNamespace(get_secret_value=lambda: "PRIVATE_KEY")
+    insight.settings.ai_base_url = "https://example.test/v1"
+    calls = []
+    body = schema_body()
+    schema = body["response_format"]["json_schema"]["schema"]
+
+    def respond(request):
+        calls.append(json.loads(request.content))
+        if len(calls) == 1:
+            error = structured_abort_payload()
+            if mode == "sse":
+                partial = {"choices": [{"delta": {"content": "PRIVATE_PARTIAL"}}]}
+                return httpx.Response(
+                    200,
+                    text="data: "
+                    + json.dumps(partial)
+                    + "\n\n"
+                    + "data: "
+                    + json.dumps(error)
+                    + "\n\n",
+                    headers={"content-type": "text/event-stream"},
+                )
+            return httpx.Response(400 if mode == "http" else 200, json=error)
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": '{"ok":true}'}, "finish_reason": "stop"}]},
+        )
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx, "AsyncClient", lambda **kw: original(transport=httpx.MockTransport(respond), **kw)
+    )
+    with caplog.at_level(logging.WARNING):
+        result, usage = await insight._call_model(body)
+    assert result == {"ok": True} and usage["transport_attempts"] == 2
+    fallback = calls[1]
+    assert fallback["response_format"] == {"type": "json_object"}
+    assert fallback["stream"] is False and "stream_options" not in fallback
+    embedded = fallback["messages"][0]["content"].split("JSON Schema: ")[1]
+    assert json.loads(embedded) == schema
+    assert "structured_output_aborted" in caplog.text and "abort-request-123" in caplog.text
+    assert "invalid_parameter_error" in caplog.text and "invalid_request_error" in caplog.text
+    assert all(
+        value not in caplog.text
+        for value in [
+            "PRIVATE_KEY",
+            "PRIVATE_PROMPT",
+            "PRIVATE_PARTIAL",
+            structured_abort_payload()["error"]["message"],
+        ]
+    )
+    assert repository.records == []
+    # A validation repair reuses this same body without returning to json_schema.
+    body["messages"].append({"role": "user", "content": "Repair required fields"})
+    await insight._call_model(body)
+    assert calls[2]["response_format"] == {"type": "json_object"}
+    assert calls[2]["stream"] is False
+    assert len([m for m in calls[2]["messages"] if "JSON Schema: " in m["content"]]) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["sse", "json", "http"])
+@pytest.mark.parametrize("known", [False, True])
+async def test_unknown_parameter_or_exhausted_deadline_never_falls_back(
+    monkeypatch, caplog, mode, known
+):
+    insight, _ = service()
+    insight.settings.ai_api_key = SimpleNamespace(get_secret_value=lambda: "PRIVATE_KEY")
+    insight.settings.ai_base_url = "https://example.test/v1"
+    if known:
+        insight._deadline_at = perf_counter() + 4
+    calls = []
+
+    def respond(request):
+        calls.append(request)
+        error = structured_abort_payload(None if known else "PRIVATE_OTHER_PARAMETER_ERROR")
+        if mode == "sse":
+            return httpx.Response(
+                200,
+                text="data: " + json.dumps(error) + "\n\n",
+                headers={"content-type": "text/event-stream"},
+            )
+        return httpx.Response(400 if mode == "http" else 200, json=error)
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx, "AsyncClient", lambda **kw: original(transport=httpx.MockTransport(respond), **kw)
+    )
+    body = schema_body()
+    with caplog.at_level(logging.WARNING), pytest.raises(HTTPException):
+        await insight._call_model(body)
+    assert len(calls) == 1
+    assert body["response_format"]["type"] == "json_schema"
+    assert "PRIVATE_OTHER_PARAMETER_ERROR" not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_repeated_structured_abort_stops_after_one_fallback(monkeypatch):
+    insight, _ = service()
+    insight.settings.ai_api_key = SimpleNamespace(get_secret_value=lambda: "test")
+    insight.settings.ai_base_url = "https://example.test/v1"
+    calls = []
+
+    def respond(request):
+        calls.append(request)
+        return httpx.Response(200, json=structured_abort_payload())
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx, "AsyncClient", lambda **kw: original(transport=httpx.MockTransport(respond), **kw)
+    )
+    with pytest.raises(HTTPException):
+        await insight._call_model(schema_body())
+    assert len(calls) == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "malformed",
+    [
+        {"blocks": None},
+        {"blocks": [], "checks": 2},
+        {"blocks": [], "checks": [{"fact_ids": [None]}]},
+    ],
+)
+async def test_object_fallback_invalid_shape_uses_validation_repair_not_500(monkeypatch, malformed):
+    from app.services.insight_pack_adapter import build_evidence
+    from test_insight import valid_result, workspace
+
+    insight, repository = service()
+    data = workspace()
+    evidence = build_evidence(data, insight._scope(data, "initiative:1"), "owner", 2027)
+    calls = []
+
+    async def model(body):
+        calls.append(body)
+        return (malformed if len(calls) == 1 else valid_result(evidence)), {}
+
+    monkeypatch.setattr(insight, "_call_model", model)
+    record = await insight.generate(scope="initiative:1", planning_year=2027)
+    assert len(calls) == 2 and len(repository.records) == 1
+    assert record["metadata"]["attempts"][0]["validation"] == "rejected"
+    assert record["metadata"]["attempts"][1]["validation"] == "passed"

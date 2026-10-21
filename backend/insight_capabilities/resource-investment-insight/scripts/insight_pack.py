@@ -259,11 +259,16 @@ class InsightPack:
 
     def unpack_model_result(self, candidate):
         """Move mandatory model-written findings into the stable public blocks API."""
+        if not isinstance(candidate, dict):
+            raise PackError("模型结果必须为对象")
         result = copy.deepcopy(candidate)
         findings = result.pop("required_findings", {})
-        if not isinstance(findings, dict):
-            raise PackError("required_findings 必须为对象")
-        result["blocks"] = list(findings.values()) + result.get("blocks", [])
+        if not isinstance(findings, dict) or not all(isinstance(item, dict) for item in findings.values()):
+            raise PackError("required_findings 必须为内容块对象组成的对象")
+        blocks = result.get("blocks")
+        if not isinstance(blocks, list) or not all(isinstance(item, dict) for item in blocks):
+            raise PackError("blocks 必须为内容块对象数组")
+        result["blocks"] = list(findings.values()) + blocks
         return result
 
     def format_result_display(self, result):
@@ -280,29 +285,41 @@ class InsightPack:
         selected = self.preset(preset_id)
         entities = []
         comparison_ids = []
+        current = list(dict.fromkeys(f["id"].split(":", 1)[1] for f in evidence["facts"]
+                                    if f["id"].startswith("plan:")))
+        # Reserve up to ten additional review objects for a small current cohort.
+        entity_limit = len(current) + 10 if len(current) <= 16 else 16
 
         def add(entity):
-            if entity not in entities and len(entities) < 16:
+            if entity not in entities and len(entities) < entity_limit:
                 entities.append(entity)
 
+        if len(current) <= 16:
+            for entity in current:
+                add(entity)
         review = next((d for d in evidence["datasets"] if d["id"] == "investment-review"), None)
+        ordered = []
         if review:
             ordered = sorted(review["rows"], key=lambda r: (
                 r.get("status") != "review", -abs(r.get("delta") or 0), r["id"]))
             classes = set()
             for row in ordered:
+                if row.get("status") != "review":
+                    continue
                 category = (row.get("status"), row.get("reason_code", row.get("reason")))
                 if category not in classes:
                     classes.add(category)
                     if len(comparison_ids) < 10:
-                        comparison_ids.append(row["id"])
                         add(row.get("dealer_id", row["id"]))
+                        if row.get("dealer_id", row["id"]) in entities:
+                            comparison_ids.append(row["id"])
             for row in ordered:
                 if len(comparison_ids) >= 10:
                     break
-                if row["id"] not in comparison_ids:
-                    comparison_ids.append(row["id"])
+                if row.get("status") == "review" and row["id"] not in comparison_ids:
                     add(row.get("dealer_id", row["id"]))
+                    if row.get("dealer_id", row["id"]) in entities:
+                        comparison_ids.append(row["id"])
         # Include extrema and each quadrant before filling remaining example slots.
         for prefix in ("plan:", "yield:"):
             values = [f for f in evidence["facts"] if f["id"].startswith(prefix) and numeric(f["value"])]
@@ -316,6 +333,16 @@ class InsightPack:
                     if row.get("group") not in groups:
                         groups.add(row.get("group"))
                         add(row["id"])
+        for entity in current:
+            add(entity)
+        # Missing-history examples must not displace current allocations or risks.
+        for row in ordered:
+            if len(comparison_ids) >= 10:
+                break
+            if row["id"] not in comparison_ids:
+                add(row.get("dealer_id", row["id"]))
+                if row.get("dealer_id", row["id"]) in entities:
+                    comparison_ids.append(row["id"])
         for fact in evidence["facts"]:
             if ":" in fact["id"] and not fact["id"].startswith("investment:"):
                 add(fact["id"].split(":", 1)[1])
@@ -386,13 +413,19 @@ class InsightPack:
         transport = copy.deepcopy(projected)
         if projected is full:
             return _consistency.compact_evidence(transport), {"mode": "complete", "total_facts": len(full["facts"]), "selected_facts": len(full["facts"]), "omitted_facts": 0}
-        entities = {f["id"].split(":", 1)[1] for f in projected["facts"] if ":" in f["id"]}
         datasets = []
         for dataset in transport["datasets"]:
             total = len(dataset["rows"])
+            full_dataset = next(d for d in full["datasets"] if d["id"] == dataset["id"])
+            full_row_ids = {key.split(":", 1)[1] for key in full_dataset["fact_ids"] if ":" in key}
+            if any(row["id"] in full_row_ids for row in full_dataset["rows"]):
+                # A visible row must have a fact the model is permitted to cite,
+                # including small datasets within a projected large evidence set.
+                row_ids = {key.split(":", 1)[1] for key in dataset["fact_ids"] if ":" in key}
+                dataset["rows"] = [r for r in dataset["rows"] if r["id"] in row_ids]
             if total > 16:
                 # Only the investment checklist and quadrant need example rows.
-                dataset["rows"] = ([r for r in dataset["rows"] if r["id"] in entities][:16]
+                dataset["rows"] = (dataset["rows"][:16]
                                    if dataset["id"] == "investment-review" or dataset["kind"] == "quadrant" else [])
             datasets.append({"id": dataset["id"], "total_rows": total,
                              "selected_rows": len(dataset["rows"]), "omitted_rows": total - len(dataset["rows"]),
@@ -401,16 +434,101 @@ class InsightPack:
                     "selected_facts": len(projected["facts"]),
                     "omitted_facts": len(full["facts"]) - len(projected["facts"]),
                     "datasets": datasets,
-                    "selection": "risk classes and largest absolute changes, then extrema and quadrant examples; not a statistical sample"}
+                    "selection": "complete small current cohort; otherwise review risks, extrema and quadrants, then current allocations; missing-history examples use remaining slots; not a statistical sample"}
         return _consistency.compact_evidence(transport), coverage
 
-    def compile(self, evidence, preset_id="comprehensive", model=None, thinking=False, response_format="schema"):
+    def execution_anchor(self, evidence, preset_id):
+        """Give the model safe starting sentences, never generated-result replacements."""
+        facts = {fact["id"]: fact for fact in evidence["facts"]}
+        names = {}
+        for dataset in evidence["datasets"]:
+            for row in dataset["rows"]:
+                entity = row.get("dealer_id", row["id"])
+                name = row.get("dealer") or row.get("label")
+                if name and (entity not in names or names[entity] == entity):
+                    names[entity] = name
+
+        def token(key):
+            return "{{" + key + "}}"
+
+        def name(entity):
+            return f"{names.get(entity, entity)}（{entity}）" if names.get(entity, entity) != entity else entity
+
+        def known(key):
+            return key in facts and numeric(facts[key]["value"])
+
+        def values(prefix):
+            return [fact for key, fact in facts.items() if key.startswith(prefix + ":") and numeric(fact["value"])]
+
+        checks = []
+        review_dimensions = []
+        for constraint in evidence["check_constraints"]:
+            dimension = constraint["dimension_id"]
+            statuses = constraint["allowed_statuses"]
+            if constraint.get("required_focus") or "review" in statuses:
+                review_dimensions.append(dimension)
+                continue
+            status = "observed" if "observed" in statuses else statuses[0]
+            refs, summary, entity = [], "", None
+            if dimension in {"low_yield", "high_yield"}:
+                candidates = [f for f in values("yield") if known("plan:" + f["id"].split(":", 1)[1])]
+                if candidates and status != "limited":
+                    selected = (min if dimension == "low_yield" else max)(candidates, key=lambda f: f["value"])
+                    entity = selected["id"].split(":", 1)[1]
+                    refs = [selected["id"], "plan:" + entity]
+                    summary = f"{name(entity)}历史Yield为{token(refs[0])}倍，计划投入{token(refs[1])}。"
+                elif not values("yield") and "limited" in statuses:
+                    status, summary = "limited", "未提供历史Yield。"
+            elif dimension == "concentration" and values("share"):
+                selected = max(values("share"), key=lambda f: f["value"])
+                entity = selected["id"].split(":", 1)[1]
+                refs = [selected["id"]]
+                summary = f"{name(entity)}占经销商分配的{token(refs[0])}。"
+            elif dimension == "trend":
+                candidates = values("vol-change") + values("c3-change")
+                if candidates and status != "limited":
+                    selected = max(candidates, key=lambda f: (
+                        known("vol-change:" + f["id"].split(":", 1)[1]) and known("c3-change:" + f["id"].split(":", 1)[1]),
+                        abs(f["value"])))
+                    entity = selected["id"].split(":", 1)[1]
+                    clauses = []
+                    for metric, label in (("vol-change", "Vol变化量"), ("c3-change", "C3变化量")):
+                        key = metric + ":" + entity
+                        if known(key):
+                            refs.append(key)
+                            clauses.append(label + "为" + token(key))
+                    summary = name(entity) + "历史" + "，".join(clauses) + "。"
+                elif "limited" in statuses:
+                    status, summary = "limited", "缺少可比的完整年度经营数据，需补充后判断变化。"
+            elif dimension == "overlap" and known("overlap") and known("max-initiative-count"):
+                refs = ["overlap", "max-initiative-count"]
+                summary = "涉及多个Initiative的经销商数为" + token("overlap") + "，单家经销商关联Initiative数最多为" + token("max-initiative-count") + "。"
+            elif dimension == "completeness" and all(known(key) for key in ("budget", "arranged", "gap", "missing-other-notes")):
+                refs = ["budget", "arranged", "gap", "missing-other-notes"]
+                summary = "负责预算" + token("budget") + "，已安排金额" + token("arranged") + "，预算差额" + token("gap") + "。非零其他预算说明缺失数为" + token("missing-other-notes") + "。"
+            if summary:
+                checks.append({"dimension_id": dimension, "status": status, "summary": summary, "fact_ids": refs,
+                               **({"entity_id": entity, "entity_name": names.get(entity, entity)} if entity else {})})
+        anchor = {"checks": checks, "review_dimensions": review_dimensions}
+        if preset_id == "quadrant" and not review_dimensions:
+            anchor["headline_anchor"] = "历史投入产出比与计划投入"
+        if preset_id == "quadrant" and not review_dimensions and known("budget") and known("cohort"):
+            example = next((item for item in checks if item["dimension_id"] == "low_yield" and item.get("entity_id")), None)
+            if example:
+                anchor["summary_anchor"] = {
+                    "summary": "负责预算" + token("budget") + "，计划分配经销商总数为" + token("cohort") + "。" + example["summary"],
+                    "fact_ids": ["budget", "cohort", *example["fact_ids"]],
+                }
+        return anchor
+
+    def compile(self, evidence, preset_id="comprehensive", model=None, thinking=False, response_format=None):
         self.validate_evidence(evidence)
         full_evidence = evidence
         evidence = self.model_evidence(full_evidence, preset_id)
         encoded, coverage = self.model_transport(full_evidence, evidence)
         manifest = self.manifest()
         selected = self.preset(preset_id)
+        response_format = response_format or selected.get("response_format", "schema")
         # No prompt cache: edits are read on every invocation, including this same instance.
         common = self.path(manifest["common_prompt"]).read_text(encoding="utf-8-sig")
         method = self.path(selected["prompt"]).read_text(encoding="utf-8-sig")
@@ -429,6 +547,8 @@ class InsightPack:
         focus_dimensions = [c["dimension_id"] for c in evidence["check_constraints"] if c.get("required_focus")]
         task = json.loads(payload["messages"][1]["content"])
         task["task"]["required_focus_dimensions"] = focus_dimensions
+        task["task"]["execution_instruction"] = "checks和summary优先以execution_anchor为基础，完整保留对象名称及ID，直接复制标量占位符和精准fact_ids，不自算分组家数、不改写公司名。有headline_anchor时headline直接使用该标题，不自行总结高低或缺失。锚点不替代review维度和required_findings；图表及需复核事项仍按完整任务规则生成。"
+        task["task"]["execution_anchor"] = self.execution_anchor(evidence, preset_id)
         display_values = {}
         for fact in evidence["facts"]:
             if fact["unit"] == "CNY" and numeric(fact["value"]):
@@ -441,7 +561,7 @@ class InsightPack:
         task["display_values"] = display_values
         task["task"]["display"] = "金额使用display_values中的万元，Yield保留一位小数；原始值仅用于校验，不能改变判断和分组"
         payload["messages"][1]["content"] = json.dumps(task, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
-        if response_format == "schema":
+        if response_format in {"schema", "object"}:
             # $schema is for local tooling; the API receives the actual object schema.
             def api_projection(value):
                 # Qwen's API schema subset rejects uniqueItems; local validation retains it.
@@ -522,10 +642,15 @@ class InsightPack:
                 api_schema["required"].append("required_findings")
                 api_schema["properties"]["blocks"]["maxItems"] = max(0, api_schema["properties"]["blocks"].get("maxItems", 12) - len(focus_dimensions))
 
-            payload["response_format"] = {"type": "json_schema", "json_schema": {"name": "resource_investment_insight", "strict": True, "schema": _consistency.compact_schema(api_schema)}}
-        elif response_format == "object":
-            payload["response_format"] = {"type": "json_object"}
-            payload["messages"][0]["content"] += "\n\n返回的 JSON 须符合此结构：\n" + json.dumps(schema, ensure_ascii=False)
+            wire_schema = _consistency.compact_schema(api_schema)
+            if response_format == "schema":
+                payload["response_format"] = {"type": "json_schema", "json_schema": {"name": "resource_investment_insight", "strict": True, "schema": wire_schema}}
+            else:
+                # Qwen's constrained decoder repeatedly aborts on quadrant output.
+                # Keep the same authorized wire contract; host validation is mandatory.
+                payload["response_format"] = {"type": "json_object"}
+                payload["stream"] = False
+                payload["messages"][0]["content"] += "\n\n返回的 JSON 须符合此结构：\n" + json.dumps(wire_schema, ensure_ascii=False, separators=(",", ":"))
         else:
             raise PackError("response_format 只能为 schema 或 object")
         meta = {
@@ -538,7 +663,7 @@ class InsightPack:
             "evidence_sha256": hashlib.sha256(json.dumps(full_evidence, ensure_ascii=False, sort_keys=True, allow_nan=False).encode("utf-8")).hexdigest(),
             "provenance": evidence["provenance"],
             "api_schema_projection": "authorized-anyOf-required-focus-v3",
-            "input_encoding": "bounded-columnar-projection-v3",
+            "input_encoding": "bounded-columnar-projection-v4",
             "model_coverage": coverage,
             "consistency_version": "1.0",
             "consistency_sha256": hashlib.sha256(Path(__file__).with_name("consistency.py").read_bytes()).hexdigest(),
@@ -587,7 +712,7 @@ def main():
     parser.add_argument("--output")
     parser.add_argument("--model", default=os.environ.get("INSIGHT_MODEL"))
     parser.add_argument("--thinking", action="store_true")
-    parser.add_argument("--response-format", choices=["schema", "object"], default="schema")
+    parser.add_argument("--response-format", choices=["schema", "object"], default=None)
     args = parser.parse_args()
     pack = InsightPack()
     try:

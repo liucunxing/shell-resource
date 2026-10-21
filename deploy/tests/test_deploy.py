@@ -20,7 +20,7 @@ import json, os, pathlib, sys
 a = sys.argv[1:]
 is_compose = bool(a and a[0] == "compose")
 if a and a[0] == "compose": a = a[1:]
-command = next((item for item in a if item in {"build", "config", "inspect", "ps", "run", "up", "version"}), "")
+command = next((item for item in a if item in {"build", "config", "inspect", "ps", "run", "up", "version", "logs"}), "")
 scenario = os.environ.get("SCENARIO", "success")
 p = pathlib.Path("calls.log")
 with p.open("a") as f: f.write(" ".join(a) + "\n")
@@ -28,8 +28,11 @@ values = dict(line.split("=", 1) for line in pathlib.Path("deploy/.env").read_te
               if "=" in line and not line.startswith("#"))
 if command == "ps" and not is_compose:
     print("other-container" if scenario == "docker-conflict" else
-          "current-container" if scenario == "upgrade" or pathlib.Path("started").exists() else "")
+          "abcdef1234567890" if scenario in {"upgrade", "archive-failure"} or pathlib.Path("started").exists() else "")
     sys.exit(0)
+if command == "logs":
+    print("2026-10-21T01:00:00Z PRIVATE_RUNTIME_SENTINEL")
+    sys.exit(44 if scenario == "archive-failure" else 0)
 if command == "inspect":
     print("running starting" if scenario == "timeout" else "running healthy")
     sys.exit(0)
@@ -41,7 +44,7 @@ elif command == "build" and scenario == "build-failure": sys.exit(42)
 elif command == "run" and scenario == "db-failure" and "scripts/check_database.py" in a: sys.exit(43)
 elif command == "up": pathlib.Path("started").touch()
 elif command == "ps":
-    print("current-container" if scenario == "upgrade" or pathlib.Path("started").exists() else "")
+    print("abcdef1234567890" if scenario in {"upgrade", "archive-failure"} or pathlib.Path("started").exists() else "")
 '''
 
 
@@ -114,6 +117,32 @@ class DeployTests(unittest.TestCase):
         result = self.run_deploy("upgrade")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("允许原地更新", result.stdout)
+
+    def test_upgrade_archives_retained_logs_without_printing_them(self):
+        result = self.run_deploy("upgrade")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        archives = list((self.root / "logs/runtime").glob("*.log"))
+        self.assertEqual(len(archives), 1)
+        self.assertIn("PRIVATE_RUNTIME_SENTINEL", archives[0].read_text())
+        self.assertIn("abcdef123456", archives[0].name)
+        self.assertNotIn("PRIVATE_RUNTIME_SENTINEL", result.stdout + result.stderr)
+        self.assertLess(self.calls().index("logs --timestamps"), self.calls().index("up -d"))
+
+    def test_archive_failure_stops_before_replacement_and_retains_partial(self):
+        result = self.run_deploy("archive-failure")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("[6/8] 失败", result.stdout)
+        self.assertNotIn("up -d", self.calls())
+        self.assertEqual(len(list((self.root / "logs/runtime").glob("*.partial"))), 1)
+        self.assertEqual(list((self.root / "logs/runtime").glob("*.log")), [])
+        self.assertNotIn("PRIVATE_RUNTIME_SENTINEL", result.stdout + result.stderr)
+
+    def test_first_deployment_skips_runtime_archive(self):
+        result = self.run_deploy()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn("logs --timestamps", self.calls())
+        self.assertFalse((self.root / "logs/runtime").exists())
+        self.assertIn("up -d", self.calls())
 
     def test_build_failure_preserves_exit_code(self):
         result = self.run_deploy("build-failure")

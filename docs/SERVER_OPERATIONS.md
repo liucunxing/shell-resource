@@ -146,6 +146,25 @@ curl --noproxy '*' --fail --resolve resource.digitalshell.com.cn:443:127.0.0.1 h
 ls -lt logs/deploy | head
 ```
 
+### Insight 问题编号与日志保留
+
+Insight 生成失败会显示“问题编号”。用该编号查询应用日志，可关联分析方案、规划年度、范围/用户哈希、处理阶段、模型供应商请求号及安全诊断；日志不记录邮箱、请求正文或模型正文。
+
+```bash
+# 将示例值替换为页面显示的 32 位问题编号
+INSIGHT_REQUEST_ID=页面显示的问题编号
+sudo docker compose --env-file deploy/.env logs --no-color app | grep -F -- "$INSIGHT_REQUEST_ID"
+# 查询部署前保存的旧容器日志（只在有归档后执行）
+sudo grep -F -- "$INSIGHT_REQUEST_ID" logs/runtime/*.log
+sudo ls -lt logs/runtime
+```
+
+应用容器使用 Docker `json-file`，每份日志最多约 10 MB、最多 5 份。这是按大小轮转，**不是按天保留**；超出窗口的旧日志会被 Docker 轮转淘汰。该设置在本次容器更新后生效，不会恢复已经丢失的日志。
+
+部署脚本在替换旧应用容器前，将 Docker 当时仍保留的完整 stdout/stderr 日志连同时间戳归档到 `logs/runtime/`。归档失败会在替换应用前终止；首次部署无旧容器时正常跳过。归档是替换前的快照，快照完成到旧容器退出之间新产生的少量日志不保证包含在内。直接手动删除或重建容器会绕过这一步，应使用部署脚本。
+
+归档目录权限为 0700、文件遵循脚本的 `umask 077`，不打印日志正文到部署日志。目录已被 Git 和 Docker 构建上下文排除。脚本不自动删除历史归档；运维应按组织保留要求审核磁盘容量和归档清理。`.partial` 表示归档未成功，保留以便受控排查，不能当作完整历史记录。
+
 若新代码导致应用异常，且数据库没有不兼容变更，可回滚应用代码和镜像：
 
 ```bash

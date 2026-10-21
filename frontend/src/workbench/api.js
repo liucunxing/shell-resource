@@ -3,10 +3,11 @@ const planningYear = Number(import.meta.env.VITE_PLANNING_YEAR || 2027);
 export const DEV_EMAIL_KEY = "shell-resource-dev-email";
 
 export class ApiError extends Error {
-  constructor(message, status) {
+  constructor(message, status, requestId = "") {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.requestId = /^[a-f0-9]{32}$/.test(requestId) ? requestId : "";
   }
 }
 
@@ -67,7 +68,10 @@ export async function request(path, options = {}) {
     throw new ApiError("服务返回格式无效，请稍后重试。", response.status);
   }
   if (!response.ok || body.code !== 200) {
-    throw new ApiError(body.msg || "请求未完成，请重试。", response.status);
+    throw new ApiError(
+      body.msg || "请求未完成，请重试。", response.status,
+      response.headers?.get("X-Insight-Request-ID") || "",
+    );
   }
   return body.data;
 }

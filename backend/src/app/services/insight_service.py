@@ -9,9 +9,11 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from time import perf_counter
 from typing import Any, NoReturn, cast
+from uuid import uuid4
 
 import httpx
 from fastapi import HTTPException
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
@@ -49,6 +51,37 @@ def _safe_request_id(value: Any) -> str:
     return "".join(char for char in str(value or "")[:128] if char.isalnum() or char in "-_")
 
 
+STRUCTURED_OUTPUT_ABORT_MESSAGE = (
+    "Model output became abnormal while generating a JSON response for response_format. "
+    "The generation was aborted because the partial output may be incomplete or invalid JSON. "
+    "Please retry the request or adjust your prompt or JSON schema."
+)
+
+
+def _provider_error(payload: dict[str, Any], diagnostics: dict[str, Any]) -> ModelResponseError:
+    """Classify only the verified provider abort; never retain its raw message."""
+    diagnostics["request_id"] = _safe_request_id(payload.get("id")) or diagnostics.get(
+        "request_id", ""
+    )
+    error = payload.get("error")
+    error = error if isinstance(error, dict) else {}
+    # Keep known enum values only, rather than arbitrary provider-controlled text.
+    code, kind = error.get("code"), error.get("type")
+    diagnostics["error_code"] = (
+        "invalid_parameter_error" if code == "invalid_parameter_error" else "other"
+    )
+    diagnostics["error_type"] = (
+        "invalid_request_error" if kind == "invalid_request_error" else "other"
+    )
+    if (
+        code == "invalid_parameter_error"
+        and kind == "invalid_request_error"
+        and error.get("message") == STRUCTURED_OUTPUT_ABORT_MESSAGE
+    ):
+        return ModelResponseError("structured_output_aborted")
+    return ModelResponseError("provider_error_frame")
+
+
 class InsightService:
     def __init__(
         self,
@@ -61,6 +94,24 @@ class InsightService:
         self.user = user
         self.settings = settings
         self.repository = repository or InsightRepository(session)
+
+    def _log(self, level: int, message: str, *args: Any) -> None:
+        context = getattr(self, "_log_context", {})
+        logger.log(
+            level,
+            message + " context=%s stage=%s",
+            *args,
+            json.dumps(
+                {
+                    **context,
+                    "provider_request_id": _safe_request_id(
+                        getattr(self, "_model_diagnostics", {}).get("request_id")
+                    ),
+                },
+                ensure_ascii=True,
+            ),
+            getattr(self, "_stage", "unknown"),
+        )
 
     async def get_insight(
         self, *, scope: str, planning_year: int, preset_id: str = "comprehensive"
@@ -128,36 +179,73 @@ class InsightService:
         deadline = float(getattr(self.settings, "insight_timeout_seconds", 60))
         started = perf_counter()
         self._deadline_at = started + deadline
+        self._request_id = uuid4().hex
+        self._structured_fallback_used = False
+        self._stage = "prepare"
+        self._model_diagnostics: dict[str, Any] = {}
+        self._log_context = {
+            "request_id": self._request_id,
+            "preset": _safe_request_id(preset_id),
+            "year": planning_year,
+            "scope_hash": hashlib.sha256(scope.encode()).hexdigest()[:16],
+            "user_hash": hashlib.sha256(str(self.user.email).lower().encode()).hexdigest()[:16],
+        }
+        self._log(logging.INFO, "insight.generate_started")
         try:
             async with asyncio.timeout(deadline):
                 record = await self._generate(
                     scope=scope, planning_year=planning_year, preset_id=preset_id
                 )
-                logger.info(
+                self._log(
+                    logging.INFO,
                     "insight.generate_complete preset=%s elapsed=%.3f attempts=%d",
-                    preset_id,
+                    _safe_request_id(preset_id),
                     perf_counter() - started,
                     len(record.get("metadata", {}).get("attempts", [])),
                 )
                 return record
         except TimeoutError as exc:
-            logger.warning(
-                "insight.generate_timeout preset=%s elapsed=%.3f deadline=%.3f",
-                preset_id,
+            self._log(
+                logging.WARNING,
+                "insight.generate_timeout preset=%s elapsed=%.3f deadline=%.3f diagnostics=%s",
+                _safe_request_id(preset_id),
                 perf_counter() - started,
                 deadline,
+                json.dumps(self._model_diagnostics, ensure_ascii=True),
             )
             raise HTTPException(
-                status_code=504, detail="分析等待超时，原记录已保留，请稍后重试"
+                status_code=504,
+                detail="分析等待超时，原记录已保留，请稍后重试",
+                headers={"X-Insight-Request-ID": self._request_id},
             ) from exc
         except HTTPException as exc:
-            logger.warning(
+            exc.headers = {**(exc.headers or {}), "X-Insight-Request-ID": self._request_id}
+            self._log(
+                logging.WARNING,
                 "insight.generate_failed preset=%s status=%d elapsed=%.3f",
-                preset_id,
+                _safe_request_id(preset_id),
                 exc.status_code,
                 perf_counter() - started,
             )
             raise
+        except SQLAlchemyError as exc:
+            self._log(
+                logging.WARNING, "insight.database_unavailable category=%s", type(exc).__name__
+            )
+            raise HTTPException(
+                status_code=503,
+                detail="数据库暂不可用，请检查连接与表结构后重试",
+                headers={"X-Insight-Request-ID": self._request_id},
+            ) from None
+        except Exception as exc:
+            self._log(logging.ERROR, "insight.generate_unexpected category=%s", type(exc).__name__)
+            # A handled HTTPException prevents ServerErrorMiddleware from re-raising
+            # the original exception into Uvicorn's potentially sensitive traceback.
+            raise HTTPException(
+                status_code=500,
+                detail="Insight 生成失败，原记录已保留",
+                headers={"X-Insight-Request-ID": self._request_id},
+            ) from None
 
     def _investment_rules(self) -> InvestmentRules:
         return InvestmentRules(
@@ -191,9 +279,11 @@ class InsightService:
         attempts = []
         for attempt in range(2):
             call_started = perf_counter()
+            self._stage = "model"
+            self._log_context["validation_attempt"] = attempt + 1
             candidate, usage = await self._call_model(body)
+            self._stage = "validate"
             call_seconds = perf_counter() - call_started
-            result, normalizations = normalize_result(pack.unpack_model_result(candidate))
             diagnostic: dict[str, Any] = {
                 "model_seconds": round(call_seconds, 3),
                 "usage": usage,
@@ -201,6 +291,8 @@ class InsightService:
             }
             attempts.append(diagnostic)
             try:
+                result, normalizations = normalize_result(pack.unpack_model_result(candidate))
+                pack.validate_schema(result, "output_schema")
                 pack.validate_model_references(result, evidence, preset_id)
                 result, bindings = pack.resolve_fact_tokens(result, evidence)
                 result, citation_bindings = pack.bind_named_facts(result, evidence)
@@ -213,7 +305,8 @@ class InsightService:
             except PackError as exc:
                 diagnostic["validation"] = "rejected"
                 diagnostic["reason"] = str(exc)
-                logger.warning(
+                self._log(
+                    logging.WARNING,
                     "insight.validation_failed preset=%s attempt=%d reason=%s",
                     preset_id,
                     attempt + 1,
@@ -229,7 +322,10 @@ class InsightService:
                         {
                             "role": "user",
                             "content": "上次候选未通过校验。修复这些问题，返回完整JSON；"
-                            "不增加事实或改变允许状态：" + str(exc),
+                            "不增加事实或改变允许状态。用task.execution_anchor中对应维度的"
+                            "完整句子重写报错字段；删除无证据的分组数量、合计占比及对象名称，"
+                            "不能只把原句的错误数字换成占位符。必显复核正文仍需完整保留："
+                            + str(exc),
                         },
                     ]
                 )
@@ -237,6 +333,9 @@ class InsightService:
             key: sum(a["usage"].get(key, 0) for a in attempts)
             for key in ("prompt_tokens", "completion_tokens", "total_tokens")
         }
+        if perf_counter() >= self._deadline_at:
+            raise TimeoutError
+        self._stage = "recheck_authorization"
         await self._refresh_user()
         current_workspace = await self._workspace(planning_year)
         current_descriptor = self._scope(current_workspace, scope)
@@ -263,6 +362,7 @@ class InsightService:
             "evidence": evidence,
             "metadata": {
                 **metadata,
+                "request_id": self._request_id,
                 "usage": usage,
                 "normalizations": normalizations,
                 "fact_bindings": bindings,
@@ -285,6 +385,9 @@ class InsightService:
         }
         await self._finish_read_transaction()
 
+        self._stage = "save"
+        if perf_counter() >= self._deadline_at:
+            raise TimeoutError
         async with self.session.begin():
             saved = InsightRecordDO(
                 planning_year=planning_year,
@@ -297,6 +400,7 @@ class InsightService:
                 record=record,
             )
             await self.repository.add_record(saved)
+        self._stage = "complete"
         return record
 
     async def _refresh_user(self) -> None:
@@ -633,6 +737,8 @@ class InsightService:
         started = perf_counter()
         request_body = body
         for attempt in range(2):
+            if hasattr(self, "_log_context"):
+                self._log_context["transport_attempt"] = attempt + 1
             try:
                 result, usage = await self._call_model_once(request_body)
                 usage["transport_attempts"] = attempt + 1
@@ -651,8 +757,20 @@ class InsightService:
                         and str(cause) in {"incomplete model stream", "incomplete model response"}
                     )
                 )
+                structured_abort = (
+                    isinstance(cause, ModelResponseError)
+                    and str(cause) == "structured_output_aborted"
+                )
+                schema = (body.get("response_format", {}).get("json_schema") or {}).get("schema")
+                fallback = (
+                    structured_abort
+                    and isinstance(schema, dict)
+                    and body.get("response_format", {}).get("type") == "json_schema"
+                    and not getattr(self, "_structured_fallback_used", False)
+                )
                 retryable = (
-                    incomplete
+                    fallback
+                    or incomplete
                     or isinstance(cause, httpx.TransportError)
                     or (isinstance(cause, httpx.HTTPStatusError) and status in {429, 502, 503, 504})
                 )
@@ -666,7 +784,8 @@ class InsightService:
                 safe_request_id = _safe_request_id(request_id or diagnostics.get("request_id"))
                 remaining = getattr(self, "_deadline_at", started + 60) - perf_counter()
                 retry = attempt == 0 and retryable and remaining > 5
-                logger.warning(
+                self._log(
+                    logging.WARNING,
                     "insight.model_failed category=%s provider_status=%d request_id=%s "
                     "attempt=%d elapsed=%.3f retry=%s diagnostics=%s",
                     str(cause)
@@ -685,6 +804,24 @@ class InsightService:
                 )
                 if not retry:
                     raise
+                if fallback:
+                    # Persist this transport choice so a later validation repair does not
+                    # return to the same provider schema decoder that just aborted.
+                    self._structured_fallback_used = True
+                    body["messages"].insert(
+                        0,
+                        {
+                            "role": "system",
+                            "content": "Return a complete JSON object matching this JSON Schema. "
+                            "Required properties, authorized references and constraints apply. "
+                            "Do not return partial content or Markdown. JSON Schema: "
+                            + json.dumps(schema, ensure_ascii=False, separators=(",", ":")),
+                        },
+                    )
+                    body["response_format"] = {"type": "json_object"}
+                    body["stream"] = False
+                    body.pop("stream_options", None)
+                    request_body = body
                 # A second connection using ordinary JSON avoids repeating a broken
                 # SSE framing/stream. It still needs the same schema and fact checks.
                 if incomplete or isinstance(cause, httpx.TransportError):
@@ -709,6 +846,7 @@ class InsightService:
             request_body.pop("stream_options", None)
         diagnostics: dict[str, Any] = {
             "mode": "sse" if streaming else "json",
+            "response_format": request_body.get("response_format", {}).get("type", "unspecified"),
             "stage": "connect",
             "chunks": 0,
             "data_bytes": 0,
@@ -716,6 +854,7 @@ class InsightService:
             "finish_reason": None,
             "done_received": False,
         }
+        self._model_diagnostics = diagnostics
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
                 async with client.stream(
@@ -728,7 +867,17 @@ class InsightService:
                         response.headers.get("x-request-id")
                     )
                     diagnostics["provider_status"] = response.status_code
-                    response.raise_for_status()
+                    if response.is_error:
+                        await response.aread()
+                        try:
+                            error_payload = response.json()
+                        except ValueError:
+                            error_payload = None
+                        if isinstance(error_payload, dict) and error_payload.get("error"):
+                            classified = _provider_error(error_payload, diagnostics)
+                            if str(classified) == "structured_output_aborted":
+                                raise classified
+                        response.raise_for_status()
                     diagnostics["stage"] = "receive"
                     if "text/event-stream" in response.headers.get("content-type", ""):
                         parts: list[str] = []
@@ -754,7 +903,7 @@ class InsightService:
                             if not isinstance(chunk, dict):
                                 raise ModelResponseError("invalid_sse_frame", retryable=True)
                             if chunk.get("error"):
-                                raise ModelResponseError("provider_error_frame")
+                                raise _provider_error(chunk, diagnostics)
                             request_id = chunk.get("id") or request_id
                             diagnostics["request_id"] = (
                                 _safe_request_id(request_id) or diagnostics["request_id"]
@@ -804,7 +953,10 @@ class InsightService:
                         if not isinstance(payload, dict):
                             raise ModelResponseError("invalid_response_object")
                         if payload.get("error"):
-                            raise ModelResponseError("provider_error_frame")
+                            raise _provider_error(payload, diagnostics)
+            diagnostics["request_id"] = (
+                _safe_request_id(payload.get("id")) or diagnostics["request_id"]
+            )
             choice = payload["choices"][0]
             finish = choice.get("finish_reason")
             diagnostics["finish_reason"] = (

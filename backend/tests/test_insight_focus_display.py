@@ -9,6 +9,26 @@ from jsonschema import Draft202012Validator
 from app.services.insight_pack_adapter import PACK_ROOT, InsightPack
 
 
+@pytest.mark.parametrize(
+    "candidate",
+    [
+        None,
+        [],
+        {},
+        {"blocks": None},
+        {"blocks": {}},
+        {"blocks": [3]},
+        {"blocks": [], "required_findings": []},
+        {"blocks": [], "required_findings": {"completeness": None}},
+    ],
+)
+def test_malformed_wire_result_uses_controlled_validation_error(candidate):
+    from app.services.insight_pack_adapter import PackError
+
+    with pytest.raises(PackError):
+        InsightPack(PACK_ROOT).unpack_model_result(candidate)
+
+
 def example(scene="overspend", preset="comprehensive"):
     evidence = json.loads(
         (PACK_ROOT / f"examples/{scene}.evidence.json").read_text(encoding="utf-8")
@@ -63,6 +83,20 @@ def test_display_values_do_not_change_source_amounts_yield_or_grouping():
     assert request["display_values"][money["id"]].endswith("万元")
     assert evidence == frozen
     assert "required_findings" not in body["response_format"]["json_schema"]["schema"]["required"]
+
+
+def test_quadrant_object_mode_keeps_the_same_authorized_schema_and_required_findings():
+    pack = InsightPack(PACK_ROOT)
+    evidence, _ = example()
+    body, metadata = pack.compile(evidence, "quadrant")
+    strict, _ = pack.compile(evidence, "quadrant", response_format="schema")
+    assert body["response_format"] == {"type": "json_object"}
+    assert body["stream"] is False
+    assert metadata["response_format"] == "object"
+    schema = json.loads(body["messages"][0]["content"].split("返回的 JSON 须符合此结构：\n")[1])
+    assert schema == strict["response_format"]["json_schema"]["schema"]
+    assert "required_findings" in schema["required"]
+    assert pack.compile(evidence, "structure")[0]["response_format"]["type"] == "json_schema"
 
 
 def test_nonlimited_schema_cannot_only_cite_a_missing_rule_value():

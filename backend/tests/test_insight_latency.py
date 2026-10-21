@@ -10,6 +10,39 @@ from test_insight import service, valid_result, workspace
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("phase", ["validation", "authorization"])
+async def test_expired_deadline_before_persistence_is_rejected(monkeypatch, phase):
+    from app.services.insight_pack_adapter import InsightPack
+
+    insight, repository = service()
+    evidence = build_evidence(
+        workspace(), insight._scope(workspace(), "initiative:1"), "owner", 2027
+    )
+
+    async def model(_):
+        return valid_result(evidence), {}
+
+    insight._call_model = model
+    if phase == "validation":
+        original = InsightPack.format_result_display
+
+        def expire(pack, result):
+            insight._deadline_at = 0
+            return original(pack, result)
+
+        monkeypatch.setattr(InsightPack, "format_result_display", expire)
+    else:
+        async def expire_user():
+            insight._deadline_at = 0
+
+        insight._refresh_user = expire_user
+    with pytest.raises(HTTPException) as caught:
+        await insight.generate(scope="initiative:1", planning_year=2027)
+    assert caught.value.status_code == 504
+    assert repository.records == []
+
+
+@pytest.mark.asyncio
 async def test_semantic_failure_gets_one_repair_before_persistence():
     insight, repository = service()
     evidence = build_evidence(

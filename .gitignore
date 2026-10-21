@@ -49,6 +49,7 @@ Desktop.ini
 *~
 
 # Runtime data and logs
+/output/
 **/data/*
 !**/data/.gitkeep
 logs/

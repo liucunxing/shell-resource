@@ -25,7 +25,9 @@ export function updateInsightGeneration(current, action) {
   if (action.type === "failed")
     return {
       ...current,
-      failure: action.message || "Insight 生成失败，请重试。",
+      failure:
+        (action.message || "Insight 生成失败，请重试。") +
+        (action.requestId ? `（问题编号：${action.requestId}）` : ""),
     };
   return {
     ...current,
@@ -258,6 +260,7 @@ export function InsightPanel({ scope }) {
                     updateInsightGeneration(current, {
                       type: "failed",
                       message: error.message,
+                      requestId: error.requestId,
                     }),
                   );
               } finally {
