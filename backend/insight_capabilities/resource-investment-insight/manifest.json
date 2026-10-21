@@ -1,6 +1,6 @@
 {
   "name": "resource-investment-insight",
-  "version": "0.3.1-engineering",
+  "version": "0.3.2-engineering",
   "schema_version": "1.0",
   "default_model": "qwen3.8-flash",
   "common_prompt": "prompts/common.md",
@@ -10,8 +10,9 @@
     {
       "id": "comprehensive",
       "label": "综合体检",
-      "version": "1.2.1",
+      "version": "1.2.2",
       "prompt": "prompts/comprehensive.md",
+      "excluded_datasets": ["budget-compare"],
       "description": "完整检查六个维度，优先展开值得讨论的发现。",
       "allowed_visuals": [
         "comparison",
@@ -24,7 +25,7 @@
       "id": "quadrant",
       "response_format": "object",
       "label": "历史 Yield × 计划投入",
-      "version": "1.2.1",
+      "version": "1.2.2",
       "prompt": "prompts/quadrant.md",
       "description": "在同一可比群体中观察历史 Yield 与未来投入安排。",
       "allowed_visuals": [
@@ -36,7 +37,7 @@
     {
       "id": "structure",
       "label": "分配结构分析",
-      "version": "1.2.1",
+      "version": "1.2.2",
       "prompt": "prompts/structure.md",
       "description": "查看资金去向、集中对象、多项叠加与其他预算安排。",
       "allowed_visuals": [

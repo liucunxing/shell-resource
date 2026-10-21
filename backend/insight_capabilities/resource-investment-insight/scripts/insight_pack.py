@@ -280,9 +280,12 @@ class InsightPack:
         This is a deliberate projection, not a lossless replacement for evidence.
         Dataset rows remain intact here for validation; transport previews are separate.
         """
-        if len(evidence["facts"]) <= 350:
-            return evidence
         selected = self.preset(preset_id)
+        excluded_datasets = set(selected.get("excluded_datasets", []))
+        if len(evidence["facts"]) <= 350:
+            if not excluded_datasets:
+                return evidence
+            return {**evidence, "datasets": [d for d in evidence["datasets"] if d["id"] not in excluded_datasets]}
         entities = []
         comparison_ids = []
         current = list(dict.fromkeys(f["id"].split(":", 1)[1] for f in evidence["facts"]
@@ -351,7 +354,8 @@ class InsightPack:
                               if ":" not in f["id"] or (f["id"].split(":", 1)[1] in comparison_ids
                                   if f["id"].startswith("investment:") else f["id"].split(":", 1)[1] in entities)]
         ids = {f["id"] for f in projected["facts"]}
-        projected["datasets"] = [d for d in projected["datasets"] if d["kind"] in selected["allowed_visuals"]]
+        projected["datasets"] = [d for d in projected["datasets"]
+                                 if d["kind"] in selected["allowed_visuals"] and d["id"] not in excluded_datasets]
         for dataset in projected["datasets"]:
             dataset["fact_ids"] = [key for key in dataset["fact_ids"] if key in ids]
         projected["datasets"] = [d for d in projected["datasets"] if d["fact_ids"]]
@@ -411,7 +415,7 @@ class InsightPack:
 
     def model_transport(self, full, projected):
         transport = copy.deepcopy(projected)
-        if projected is full:
+        if {f["id"] for f in projected["facts"]} == {f["id"] for f in full["facts"]}:
             return _consistency.compact_evidence(transport), {"mode": "complete", "total_facts": len(full["facts"]), "selected_facts": len(full["facts"]), "omitted_facts": 0}
         datasets = []
         for dataset in transport["datasets"]:
@@ -471,7 +475,8 @@ class InsightPack:
             status = "observed" if "observed" in statuses else statuses[0]
             refs, summary, entity = [], "", None
             if dimension in {"low_yield", "high_yield"}:
-                candidates = [f for f in values("yield") if known("plan:" + f["id"].split(":", 1)[1])]
+                candidates = [f for f in values("yield") if known("plan:" + f["id"].split(":", 1)[1])
+                              and facts["plan:" + f["id"].split(":", 1)[1]]["value"] > 0]
                 if candidates and status != "limited":
                     selected = (min if dimension == "low_yield" else max)(candidates, key=lambda f: f["value"])
                     entity = selected["id"].split(":", 1)[1]
@@ -502,7 +507,7 @@ class InsightPack:
                     status, summary = "limited", "缺少可比的完整年度经营数据，需补充后判断变化。"
             elif dimension == "overlap" and known("overlap") and known("max-initiative-count"):
                 refs = ["overlap", "max-initiative-count"]
-                summary = "涉及多个Initiative的经销商数为" + token("overlap") + "，单家经销商关联Initiative数最多为" + token("max-initiative-count") + "。"
+                summary = "在多个项目中获配的经销商有" + token("overlap") + "家，单家经销商最多在" + token("max-initiative-count") + "个项目中获配。"
             elif dimension == "completeness" and all(known(key) for key in ("budget", "arranged", "gap", "missing-other-notes")):
                 refs = ["budget", "arranged", "gap", "missing-other-notes"]
                 summary = "负责预算" + token("budget") + "，已安排金额" + token("arranged") + "，预算差额" + token("gap") + "。非零其他预算说明缺失数为" + token("missing-other-notes") + "。"

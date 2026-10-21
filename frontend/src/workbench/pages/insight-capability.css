@@ -30,6 +30,7 @@
   justify-content: space-between;
 }
 .ic-checks p {
+  white-space: pre-wrap;
   margin: 3px 0 0;
   color: #555;
 }
@@ -52,6 +53,9 @@
   border-top: 1px solid #e3e3e3;
 }
 .ic-body {
+  white-space: pre-wrap;
+}
+.insight-copy {
   white-space: pre-wrap;
 }
 .ic-chart {

@@ -43,7 +43,7 @@ describe("capability result", () => {
     expect(html.match(/待补充信息/g)).toHaveLength(6);
     expect(html).not.toContain("依据不足");
     expect(html).toContain("高 Yield 投入复核");
-    expect(html).toContain("本范围多项安排");
+    expect(html).toContain("同一经销商的多项目投入");
     expect(html).toContain("按证据组织的标题");
     expect(html.indexOf("按证据组织的标题")).toBeLessThan(
       html.indexOf("六维检查摘要"),

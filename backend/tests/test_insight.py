@@ -162,8 +162,8 @@ def test_management_preview_includes_authorized_investment_table_without_ai(monk
     assert "result" not in record
     assert repository.records == []
     dataset = next(d for d in record["evidence"]["datasets"] if d["id"] == "investment-review")
-    assert {r["dealer_id"] for r in dataset["rows"]} == {"D1", "D2"}
-    assert {r["reason_code"] for r in dataset["rows"]} == {"increase", "unallocated"}
+    assert {r["dealer_id"] for r in dataset["rows"]} == {"D1"}
+    assert {r["reason_code"] for r in dataset["rows"]} == {"increase"}
     assert "987654321" not in json.dumps(record["evidence"])
     assert "OUTSIDE" not in json.dumps(record["evidence"])
     assert record["evidence"]["scope"]["role"] == "management"
@@ -558,7 +558,9 @@ def test_request_schema_binds_authorized_references_and_states():
         for constraint in evidence["check_constraints"]:
             if constraint.get("required_focus"):
                 dimension = constraint["dimension_id"]
-                finding = next(block for block in value["blocks"] if dimension in block["dimension_ids"])
+                finding = next(
+                    block for block in value["blocks"] if dimension in block["dimension_ids"]
+                )
                 finding["id"] = "focus-" + dimension
                 value["required_findings"][dimension] = finding
         value["blocks"] = []

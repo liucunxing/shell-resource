@@ -135,7 +135,9 @@ def test_lossless_request_keeps_every_object_null_note_and_scope():
     assert _module._consistency.expand_evidence(encoded) == evidence
     request, _ = InsightPack(PACK_ROOT).compile(source())
     encoded = json.loads(request["messages"][1]["content"])["evidence"]
-    assert _module._consistency.expand_evidence(encoded) == source()
+    expected = source()
+    expected["datasets"] = [d for d in expected["datasets"] if d["id"] != "budget-compare"]
+    assert _module._consistency.expand_evidence(encoded) == expected
 
 
 def test_new_gate_cannot_be_bypassed_by_lending_other_review_dimension():

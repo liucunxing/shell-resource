@@ -36,12 +36,14 @@ def _number(value: Any) -> Decimal | None:
 
 
 def investment_comparisons(
-    records: list[dict], items: list[dict], rules: InvestmentRules
+    records: list[dict], items: list[dict], rules: InvestmentRules, *, assigned_only: bool = False
 ) -> list[dict]:
     """Resource-type baselines are never multiplied by the number of Initiatives.
 
     Missing Sector cannot establish a like-for-like baseline. Reference records are
     already permission-filtered by the workspace; no new data lookup is performed.
+    Assigned-only Insight treats blank drafts as zero and keeps positive totals
+    per dealer/Sector/resource, without adding historical-only objects.
     """
     plans: dict[tuple[str, str, str], Decimal | None] = {}
     scope_pairs = set()
@@ -52,6 +54,8 @@ def investment_comparisons(
         for allocation in item.get("rows") or []:
             key = (str(allocation.get("dealerId") or "UNKNOWN"), sector, resource)
             amount = _number(allocation.get("amount"))
+            if assigned_only and allocation.get("amount") is None:
+                amount = Decimal(0)
             previous = plans.get(key, Decimal(0))
             plans[key] = previous + amount if previous is not None and amount is not None else None
     by_id: dict[str, list[dict]] = {}
@@ -59,10 +63,12 @@ def investment_comparisons(
         dealer_id = str(record["id"])
         by_id.setdefault(dealer_id, []).append(record)
         for sector, resource in scope_pairs:
-            if record.get("sector") == sector:
+            if not assigned_only and record.get("sector") == sector:
                 plans.setdefault((dealer_id, sector, resource), Decimal(0))
     output = []
     for (dealer_id, sector, resource), plan in sorted(plans.items()):
+        if assigned_only and (plan is None or plan <= 0):
+            continue
         candidates = [r for r in by_id.get(dealer_id, []) if r.get("sector") == sector]
         # A sector-less record alongside an exact record makes the source ambiguous.
         ambiguous = any(not r.get("sector") for r in by_id.get(dealer_id, []))

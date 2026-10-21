@@ -11,6 +11,37 @@ from insight_pack import InsightPack, PackError, load_json, _consistency, normal
 
 
 class ProjectionTests(unittest.TestCase):
+    def replay_fixture(self):
+        fixture = load_json(ROOT / "tests/fixtures/synthetic_model_replay.json")
+        # Keep captured responses immutable; the current comprehensive preset
+        # intentionally no longer offers this visual. Retain all prose checks.
+        for result in fixture["results"]:
+            if result["preset_id"] == "comprehensive":
+                result["blocks"] = [b for b in result["blocks"] if b.get("dataset_id") != "budget-compare"]
+        return fixture
+
+    def test_execution_anchor_excludes_zero_plan_even_when_yield_is_lowest(self):
+        evidence = self.small_current_with_large_missing_history()
+        next(f for f in evidence["facts"] if f["id"] == "plan:current0")["value"] = 0
+        next(f for f in evidence["facts"] if f["id"] == "yield:current0")["value"] = -100
+        anchor = self.pack.execution_anchor(evidence, "comprehensive")
+        low = next(c for c in anchor["checks"] if c["dimension_id"] == "low_yield")
+        self.assertEqual(low["entity_id"], "current1")
+        self.assertNotIn("yield:current0", low["fact_ids"])
+
+    def test_comprehensive_omits_budget_visual_without_losing_budget_facts(self):
+        for evidence in (self.evidence, load_json(ROOT / "examples/baseline.evidence.json")):
+            with self.subTest(size=len(evidence["facts"])):
+                evidence = deepcopy(evidence)
+                evidence["datasets"].append({**deepcopy(evidence["datasets"][0]), "id": "budget-compare"})
+                before = deepcopy(evidence)
+                projected = self.pack.model_evidence(evidence, "comprehensive")
+                self.assertNotIn("budget-compare", [d["id"] for d in projected["datasets"]])
+                self.assertIn("budget", [f["id"] for f in projected["facts"]])
+                with self.assertRaisesRegex(PackError, "未发送的数据集"):
+                    self.pack.validate_model_references({"blocks": [{"dataset_id": "budget-compare"}]}, evidence)
+                self.assertEqual(evidence, before)
+
     def test_execution_anchor_uses_only_projected_facts_and_keeps_zero_yield(self):
         evidence = self.small_current_with_large_missing_history()
         next(f for f in evidence["facts"] if f["id"] == "yield:current0")["value"] = 0
@@ -225,7 +256,7 @@ class ProjectionTests(unittest.TestCase):
             self.pack.validate_model_references({"headline": "成都投入变化"}, self.evidence)
 
     def test_real_synthetic_model_candidates(self):
-        fixture = load_json(ROOT / "tests/fixtures/synthetic_model_replay.json")
+        fixture = self.replay_fixture()
         for index, candidate in enumerate(fixture["results"]):
             with self.subTest(candidate=index):
                 result, _ = normalize_result(candidate)
@@ -274,7 +305,7 @@ class ProjectionTests(unittest.TestCase):
             self.pack.validate_result(result, evidence)
 
     def test_review_count_auto_binding_and_wrong_count_rejection(self):
-        fixture = load_json(ROOT / "tests/fixtures/synthetic_model_replay.json")
+        fixture = self.replay_fixture()
         evidence = fixture["evidence"]
         result, _ = self.pack.resolve_fact_tokens(fixture["results"][0], evidence)
         block = result["blocks"][0]
@@ -289,7 +320,7 @@ class ProjectionTests(unittest.TestCase):
             self.pack.validate_consistency(bound, evidence)
 
     def test_explicit_global_maximum_count_with_dealer_share(self):
-        fixture = load_json(ROOT / "tests/fixtures/synthetic_model_replay.json")
+        fixture = self.replay_fixture()
         evidence = fixture["evidence"]
         result, _ = self.pack.resolve_fact_tokens(fixture["results"][0], evidence)
         check = next(c for c in result["checks"] if c["dimension_id"] == "concentration")

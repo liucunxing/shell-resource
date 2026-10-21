@@ -75,7 +75,7 @@ const dimensions: Record<Dimension, string> = {
   low_yield: "低 Yield 投入复核",
   high_yield: "高 Yield 投入复核",
   concentration: "投入集中度",
-  overlap: "本范围多项安排",
+  overlap: "同一经销商的多项目投入",
   trend: "投入与业绩趋势匹配",
   completeness: "预算完整性",
 };
@@ -103,6 +103,18 @@ export function formatInsightCopy(value: Cell | undefined): string {
     .replace(/((?:Yield|投入产出比)[^。；;，\n]{0,24}?)([+\-]?\d+(?:\.\d+)?)\s*倍/gi, (_, prefix, value) => `${prefix}${Number(value).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false })}倍`);
 }
 const investmentPageSize = 20;
+const investmentStatuses: Record<string, string> = {
+  review: "建议复核",
+  limited: "历史信息不足",
+  observed: "已核对",
+  clear: "已核对",
+};
+const isAllocated = (row: Dataset["rows"][number]) =>
+  typeof row.plan === "number" && Number.isFinite(row.plan) && row.plan > 0;
+function formatPlan(value: Cell | undefined): string {
+  if (typeof value !== "number") return formatEvidence(value, "CNY");
+  return `${(value / 10000).toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} 万元`;
+}
 export function investmentPage(
   dataset: Dataset,
   status: string,
@@ -114,7 +126,8 @@ export function investmentPage(
   const filtered = dataset.rows
     .filter(
       (row) =>
-        (status === "all" || row.status === status) &&
+        isAllocated(row) &&
+        (status === "all" || row.status === status || (status === "observed" && row.status === "clear")) &&
         (!search ||
           [row.dealer, row.dealer_id, row.sector, row.resource_type].some(
             (value) =>
@@ -149,8 +162,9 @@ export function InvestmentReview({
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const shown = investmentPage(dataset, status, query, page);
+  const allocatedRows = dataset.rows.filter(isAllocated);
   const count = (value: string) =>
-    dataset.rows.filter((row) => row.status === value).length;
+    allocatedRows.filter((row) => row.status === value).length;
   return (
     <section className="ic-investment" aria-label="历史实际投入与计划核对">
       <h3>历史实际投入与计划核对</h3>
@@ -158,11 +172,11 @@ export function InvestmentReview({
         {scopeLabel} · {dataset.period}
       </p>
       <p className="ic-caption">
-        按金额和复核规则计算，完整名单不受分析摘要篇幅影响。标记仅供复核，不代表分配错误。
+        仅展示本次计划金额大于 0 的已分配记录，完整名单不受分析摘要篇幅影响。标记仅供复核，不代表分配错误。
       </p>
       <p className="ic-caption">{formatInsightCopy(dataset.note)}</p>
       <p>
-        共 {dataset.rows.length} 项 · 建议复核 {count("review")} 项 · 待补充信息{" "}
+        共 {allocatedRows.length} 项 · 建议复核 {count("review")} 项 · 历史信息不足{" "}
         {count("limited")} 项
       </p>
       <div className="ic-review-controls">
@@ -177,8 +191,8 @@ export function InvestmentReview({
           >
             <option value="all">全部</option>
             <option value="review">建议复核</option>
-            <option value="limited">待补充信息</option>
-            <option value="observed">已核对事实</option>
+            <option value="limited">历史信息不足</option>
+            <option value="observed">已核对</option>
           </select>
         </label>
         <label className="form-field">
@@ -206,12 +220,11 @@ export function InvestmentReview({
                 "经销商",
                 "Sector",
                 "资源类型",
-                "2025 实际投入（万元）",
+                "2025 实际（万元）",
                 "本次计划（万元）",
                 "差额（万元）",
                 "计划 / 实际",
                 "核对状态",
-                "复核说明",
               ].map((label) => (
                 <th key={label} scope="col">
                   {label}
@@ -231,7 +244,9 @@ export function InvestmentReview({
                 <td>{row.sector || "未指定"}</td>
                 <td>{row.resource_type}</td>
                 <td>{formatEvidence(row.historical_actual, "CNY")}</td>
-                <td>{formatEvidence(row.plan, "CNY")}</td>
+                <td title={`未四舍五入的本次计划：${formatEvidence(row.plan, "CNY")}`}>
+                  {formatPlan(row.plan)}
+                </td>
                 <td>{formatEvidence(row.delta, "CNY")}</td>
                 <td>
                   {row.multiple == null
@@ -242,10 +257,9 @@ export function InvestmentReview({
                 </td>
                 <td>
                   <span className={`ic-status ${row.status}`}>
-                    {statuses[row.status as Status] || row.status}
+                    {investmentStatuses[String(row.status)] || row.status}
                   </span>
                 </td>
-                <td>{formatInsightCopy(row.reason)}</td>
               </tr>
             ))}
           </tbody>
@@ -600,6 +614,10 @@ export function InsightCapabilityResult({
         />
       )}
       {investment && <h3>分析解读</h3>}
+      <p className="ic-caption">
+        文中列举的经销商是分析样例：优先关注需要复核的投入变化，再结合高低 Yield、投入占比及不同投入与 Yield 象限选取代表对象，并非固定前几名或全部经销商排名。
+        {investment && "已分配明细可在上方表格查阅。"}
+      </p>
       <ul className="ic-checks" aria-label="六维检查摘要">
         {[...result.checks]
           .sort(
@@ -615,7 +633,7 @@ export function InsightCapabilityResult({
                 </span>
               </div>
               {investment && ["clear", "observed"].includes(check.status) ? (
-                <details>
+                <details open>
                   <summary>查看本项说明</summary>
                   <p>{formatInsightCopy(check.summary)}</p>
                 </details>
@@ -626,6 +644,7 @@ export function InsightCapabilityResult({
           ))}
       </ul>
       {result.blocks.map((block) => {
+        if (result.preset_id === "comprehensive" && block.dataset_id === "budget-compare") return null;
         const dataset = evidence.datasets.find(
           (item) =>
             item.id === block.dataset_id && item.scope_id === evidence.scope.id,

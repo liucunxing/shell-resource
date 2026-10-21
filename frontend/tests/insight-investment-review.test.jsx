@@ -31,6 +31,46 @@ const dataset = {
   })),
 };
 describe("full investment comparison", () => {
+  it("excludes unallocated saved rows from counts, filters and paging without rounding source amounts", () => {
+    const saved = { ...dataset, rows: [
+      { ...dataset.rows[0], dealer: "未分配对象", plan: 0 },
+      { ...dataset.rows[1], dealer: "已分配对象", plan: 125678, status: "limited" },
+      { ...dataset.rows[2], dealer: "极小金额对象", plan: 1, status: "observed" },
+      { ...dataset.rows[3], dealer: "缺失计划对象", plan: null },
+    ] };
+    expect(investmentPage(saved, "all", "", 15)).toMatchObject({ total: 2, page: 1, pages: 1 });
+    expect(investmentPage(saved, "review", "", 1).total).toBe(0);
+    expect(investmentPage(saved, "all", "未分配对象", 1).total).toBe(0);
+    const html = renderToString(<InvestmentReview dataset={saved} scopeLabel="本人范围" />);
+    expect(html).not.toContain("未分配对象");
+    expect(html).not.toContain("缺失计划对象");
+    expect(html).toContain("极小金额对象");
+    expect(html).toContain('title="未四舍五入的本次计划：0.0001 万元">0.0 万元</td>');
+    expect(html).toContain("12.6 万元");
+    expect(html).toContain("2025 实际（万元）");
+    expect(html).toContain("历史信息不足");
+    expect(html).toContain("已核对");
+    expect(html).not.toContain("复核说明");
+    expect(html).not.toContain("待补充信息");
+    expect(html).not.toContain("已核对事实");
+    expect(saved.rows[1].plan).toBe(125678);
+    expect(saved.rows).toHaveLength(4);
+  });
+  it("opens interpretation by default and removes the comprehensive budget chart while keeping the budget check", () => {
+    const evidence = { scope: { id: "owner:a", label: "本人范围" }, provenance: { kind: "source" }, data_version: "v1", facts: [], datasets: [dataset] };
+    const result = {
+      headline: "分析", summary: "", preset_id: "comprehensive",
+      checks: [{ dimension_id: "completeness", status: "clear", summary: "经销商甲预算已核对。\n经销商乙预算已核对。", fact_ids: [] }],
+      blocks: [{ id: "b", kind: "visual", dataset_id: "budget-compare", title: "负责预算与已安排", body: "重复图表", status: "clear", fact_ids: [] }], limitations: [],
+    };
+    const html = renderToString(<InsightCapabilityResult evidence={evidence} result={result} />);
+    expect(html).toContain('<details open="">');
+    expect(html).toContain("预算完整性");
+    expect(html).toContain("经销商甲预算已核对。\n经销商乙预算已核对。");
+    expect(html).not.toContain("负责预算与已安排");
+    expect(html).not.toContain("重复图表");
+    expect(html).toContain("并非固定前几名或全部经销商排名");
+  });
   it("keeps all 300 entries reachable with review entries first", () => {
     const all = Array.from(
       { length: 15 },
@@ -56,7 +96,7 @@ describe("full investment comparison", () => {
     );
     for (const text of [
       "10 万元",
-      "100 万元",
+      "100.0 万元",
       "90 万元",
       "10.0 倍",
       "2025 实际 / 2027 计划",

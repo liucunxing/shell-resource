@@ -133,6 +133,9 @@ def test_real_qwen_required_findings_with_numbered_list_and_wan_amounts():
         (PACK_ROOT / "tests/fixtures/mandatory-focus-money.json").read_text(encoding="utf-8")
     )
     result = pack.unpack_model_result(wire)
+    # The captured response predates removal of the comprehensive budget visual.
+    # Keep its financial prose regression while adapting the retired visual only.
+    result["blocks"] = [b for b in result["blocks"] if b.get("dataset_id") != "budget-compare"]
     result, _ = pack.resolve_fact_tokens(result, evidence)
     result, _ = pack.bind_named_facts(result, evidence)
     pack.validate_consistency(result, evidence)

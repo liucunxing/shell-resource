@@ -83,16 +83,24 @@ def build_evidence(
 
     budget = allocated = other = Decimal(0)
     dealers: dict[str, dict] = {}
+    assigned_items: list[dict] = []
     other_rows: list[dict[str, Any]] = []
     for item in descriptor["items"]:
         budget += Decimal(str(item.get("budget") or 0))
+        item_amounts: dict[str, Decimal] = {}
         for row in item.get("rows") or []:
             amount = Decimal(str(row.get("amount") or 0))
             allocated += amount
             dealer_id = str(row.get("dealerId") or "UNKNOWN")
             dealer = dealers.setdefault(dealer_id, {"amount": Decimal(0), "initiatives": set()})
             dealer["amount"] += amount
-            dealer["initiatives"].add(str(item["id"]))
+            item_amounts[dealer_id] = item_amounts.get(dealer_id, Decimal(0)) + amount
+        assigned_rows = []
+        for dealer_id, amount in item_amounts.items():
+            if amount > 0:
+                dealers[dealer_id]["initiatives"].add(str(item["id"]))
+                assigned_rows.append({"dealerId": dealer_id, "amount": amount})
+        assigned_items.append({**item, "rows": assigned_rows})
         for index, row in enumerate(item.get("otherBudgets") or []):
             amount = Decimal(str(row.get("amount") or 0))
             other += amount
@@ -105,6 +113,9 @@ def build_evidence(
                     "note": str(row.get("note") or row.get("remark") or ""),
                 }
             )
+    # Zero-valued draft rows are not an allocation. Budget reconciliation above
+    # still includes every source amount; only dealer analysis uses this cohort.
+    dealers = {key: value for key, value in dealers.items() if value["amount"] > 0}
     gap = budget - allocated - other
     missing_other_notes = sum(row["amount"] != 0 and not row["note"].strip() for row in other_rows)
     for key, label, total_value in [
@@ -132,7 +143,7 @@ def build_evidence(
         "计划分配经销商总数",
         len(dealers),
         "count",
-        note="完整当前范围分配队列；未分配的历史对象不属于此队列。",
+        note="本范围计划合计大于0的经销商；零金额及未分配历史对象不属于此队列。",
     )
     fact(
         "overlap",
@@ -199,7 +210,7 @@ def build_evidence(
                 denominator=float(budget),
             )
     histories = scoped_dealer_histories(
-        (workspace.get("data") or {}).get("dealers") or [], descriptor["items"]
+        (workspace.get("data") or {}).get("dealers") or [], assigned_items
     )
     detail: list[dict[str, Any]] = []
     quadrant: list[dict[str, Any]] = []
@@ -237,7 +248,7 @@ def build_evidence(
             )
         )
         ranked.append(dict(id=dealer_id, label=label, value=plan))
-        if yld is not None and plan >= 0:
+        if yld is not None and plan > 0:
             quadrant.append(dict(id=dealer_id, label=label, x=yld, y=plan))
         values = {
             key: number(history.get(key))
@@ -397,14 +408,17 @@ def build_evidence(
         )
     investment_rules = investment_rules or InvestmentRules()
     investment_rows = investment_comparisons(
-        (workspace.get("data") or {}).get("dealers") or [], descriptor["items"], investment_rules
+        (workspace.get("data") or {}).get("dealers") or [],
+        descriptor["items"],
+        investment_rules,
+        assigned_only=True,
     )
     investment_alerts = sum(row["status"] == "review" for row in investment_rows)
     investment_missing = sum(row["status"] == "limited" for row in investment_rows)
     investment_note = (
         "2025全年实际与计划年跨年参考，非同比；历史为同 Sector 同资源类型全年总额，"
         "计划仅含本授权范围 Initiative 合计，非精确单项目历史。范围差异需业务复核，"
-        "不代表违规或未来收益判断；未分配对象仅覆盖已授权工作台参考名单。"
+        "不代表违规或未来收益判断；仅核对本范围同经销商、Sector及资源类型计划合计大于0的项目。"
     )
     investment_ids = []
     for key, label, value in [
@@ -435,7 +449,7 @@ def build_evidence(
         dataset(
             "investment-review",
             "table",
-            "全量授权投入比较与复核",
+            "已分配经销商投入比较与复核",
             investment_rows,
             investment_ids,
             investment_note,

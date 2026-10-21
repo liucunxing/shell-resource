@@ -21,7 +21,7 @@ vi.mock("../src/workbench/domain/engine.js", () => ({ default: {
 } }));
 it("renders evidence-only management comparison alongside existing preview without an AI result", () => {
   const html = renderToString(<InsightPanel />);
-  for (const value of ["各项最新同步结果", "历史实际投入与计划核对", "测试经销商", "10 万元", "100 万元", "已发布汇总事实"]) expect(html).toContain(value);
+  for (const value of ["各项最新同步结果", "历史实际投入与计划核对", "测试经销商", "10 万元", "100.0 万元", "已发布汇总事实"]) expect(html).toContain(value);
   expect(html).not.toContain("分析解读");
   expect(html).not.toContain("生成分析");
 });

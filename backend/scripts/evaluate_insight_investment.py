@@ -144,9 +144,11 @@ async def evaluate(args: argparse.Namespace) -> int:
             )
             comparison = next(d for d in evidence["datasets"] if d["id"] == "investment-review")
             rows = {r["dealer_id"]: r for r in comparison["rows"]}
-            assert len(rows) == args.dealers
+            assert len(rows) == args.dealers - 1
             assert rows["SYN001"]["multiple"] == 10 and rows["SYN001"]["status"] == "review"
-            assert rows["SYN002"]["reason_code"] == "unallocated"
+            assert "SYN002" not in rows
+            assert all(row["plan"] > 0 for row in rows.values())
+            assert not any(f["id"].endswith(":SYN002") for f in evidence["facts"])
             assert rows["SYN003"]["historical_actual"] == 0
             assert rows["SYN005"]["historical_actual"] is None
             if args.live and args.probe_output_limit:
@@ -247,7 +249,12 @@ async def evaluate(args: argparse.Namespace) -> int:
                             for d in record["evidence"]["datasets"]
                             if d["id"] == "investment-review"
                         )["rows"]
-                        assert len(stored_rows) == args.dealers
+                        assert len(stored_rows) == args.dealers - 1
+                        if preset == "comprehensive":
+                            assert not any(
+                                b.get("dataset_id") == "budget-compare"
+                                for b in record["result"]["blocks"]
+                            )
                         persisted = await client.get(
                             "/api/v1/workbench/insights",
                             params={"scope": scope, "planning_year": 2027, "preset_id": preset},
