@@ -88,6 +88,7 @@ async def test_configured_resource_union_is_enforced_for_owner_and_lead_without_
             assert {row["id"] for row in ws["data"]["dealers"]} == {"d1", "d2", "d3"}
             for row in ws["data"]["dealers"]:
                 assert set(row["history"]["resources2025"]) == {"MRD", "SP&A"}
+                assert row["history"]["restrictedResources2025"] == ["Capex", "ICE Rebate"]
                 assert "yield" in row["history"]
                 assert "resource_total" not in row["history"]
         # Empty scope never grants every column; custom departments work without code changes.

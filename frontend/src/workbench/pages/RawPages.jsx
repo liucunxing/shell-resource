@@ -13,6 +13,7 @@ export function RawPage() {
     [search, setSearch] = useState(""),
     [dealerCodeSearch, setDealerCodeSearch] = useState(""),
     [dealerNameSearch, setDealerNameSearch] = useState(""),
+    [sectorFilter, setSectorFilter] = useState(""),
     [initiativeSearch, setInitiativeSearch] = useState(""),
     [departmentSearch, setDepartmentSearch] = useState(""),
     [ownerSearch, setOwnerSearch] = useState(""),
@@ -26,6 +27,7 @@ export function RawPage() {
         rawRequest.tab === "history" ? rawRequest.search || "" : "",
       );
       setDealerNameSearch("");
+      setSectorFilter("");
       setInitiativeSearch(
         rawRequest.tab === "budgets" ? rawRequest.search || "" : "",
       );
@@ -37,7 +39,7 @@ export function RawPage() {
   const model = A.rawData(state, identity, data, tab || undefined),
     filters =
       model.tab === "history"
-        ? { dealerCode: dealerCodeSearch, dealerName: dealerNameSearch }
+        ? { dealerCode: dealerCodeSearch, dealerName: dealerNameSearch, sector: sectorFilter }
         : model.tab === "budgets"
           ? {
               initiative: initiativeSearch,
@@ -94,6 +96,7 @@ export function RawPage() {
                 setSearch("");
                 setDealerCodeSearch("");
                 setDealerNameSearch("");
+                setSectorFilter("");
                 setInitiativeSearch("");
                 setDepartmentSearch("");
                 setOwnerSearch("");
@@ -105,6 +108,18 @@ export function RawPage() {
           ))}
           {model.tab === "history" ? (
             <div className="raw-history-search">
+              <label>
+                Sector 业务线
+                <select value={sectorFilter} onChange={(event) => {
+                  setSectorFilter(event.target.value);
+                  setPage(1);
+                }}>
+                  <option value="">全部业务线</option>
+                  {["PCMO", "CRTO", "B2B", "OEM"].map((sector) => (
+                    <option key={sector} value={sector}>{sector}</option>
+                  ))}
+                </select>
+              </label>
               <label>
                 经销商编码
                 <input

@@ -59,3 +59,19 @@ it("uses the matching sector in calculated Insight instead of the last history r
   expect(low.evidence).toContain("为 7");
   expect(low.evidence).not.toContain("999,999");
 });
+
+it("combines the four-sector filter with code/name and exports only matches", () => {
+  const model = { tab: "history", columns: [{ key: "sector", label: "Sector" }, { key: "dealerName", label: "名称" }], rows: [
+    { sector: "PCMO", dealerCode: "12088918", dealerName: "成都中润" },
+    { sector: "CRTO", dealerCode: "12088918", dealerName: "成都中润" },
+    { sector: "B2B", dealerCode: "222", dealerName: "乙" },
+    { sector: "OEM", dealerCode: "333", dealerName: "丙" },
+  ] };
+  const filters = { sector: "PCMO", dealerCode: "889", dealerName: " 中润 " };
+  expect(X.filterRows(model, filters)).toEqual([model.rows[0]]);
+  expect(X.csv(model, filters)).toContain("PCMO");
+  expect(X.csv(model, filters)).not.toContain("CRTO");
+  for (const sector of ["PCMO", "CRTO", "B2B", "OEM"]) expect(X.filterRows(model, { sector })).toHaveLength(1);
+  expect(X.filterRows(model, { sector: "" })).toHaveLength(4);
+  expect(X.filterRows(model, { ...filters, sector: "OEM" })).toHaveLength(0);
+});

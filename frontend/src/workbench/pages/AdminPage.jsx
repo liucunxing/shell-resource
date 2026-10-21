@@ -14,6 +14,10 @@ const money = (value) =>
         maximumFractionDigits: 2,
       })
     : "无效值";
+export function filterAdminInitiatives(items, query) {
+  const term = String(query || "").trim().toLocaleLowerCase();
+  return items.filter((item) => String(item.name || "").toLocaleLowerCase().includes(term));
+}
 const time = (value) => (value ? new Date(value).toLocaleString("zh-CN") : "—");
 const tabs = [
   ["budgets", "预算与归属"],
@@ -124,6 +128,7 @@ export function AdminPage() {
   const [busy, setBusy] = useState(false);
   const [savingBudgets, setSavingBudgets] = useState(false);
   const [budgetError, setBudgetError] = useState("");
+  const [initiativeSearch, setInitiativeSearch] = useState("");
   useEffect(() => setBudgetError(""), [modal?.kind, modal?.item?.id]);
   const upload = useRef(null);
   const referenceUpload = useRef(null);
@@ -148,6 +153,7 @@ export function AdminPage() {
     setSavingBudgets(false);
   }, [identity]);
   const items = (typeof view === "function" ? view() : view).initiatives;
+  const matchedItems = filterAdminInitiatives(items, initiativeSearch);
   const close = () => {
     sequence.current += 1;
     setModal(null);
@@ -405,6 +411,18 @@ export function AdminPage() {
             导出当前配置后，可修改已有项目的预算或 Owner，也可在表尾补充新
             Initiative；导入时统一预览新增与修改。未列出的已有项目保持不变。
           </div>
+          <div className="toolbar">
+            <label className="form-field">
+              Initiative
+              <input
+                type="search"
+                value={initiativeSearch}
+                placeholder="模糊搜索 Initiative"
+                onChange={(event) => setInitiativeSearch(event.target.value)}
+              />
+            </label>
+            <span className="small-text muted">显示 {matchedItems.length} / {items.length} 项</span>
+          </div>
           <div
             className={`admin-config-list ${budgetPending ? "is-loading" : ""}`}
           >
@@ -421,7 +439,7 @@ export function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item) => (
+                  {matchedItems.map((item) => (
                     <tr key={item.id}>
                       <td>
                         {item.name}
@@ -453,6 +471,9 @@ export function AdminPage() {
                       </td>
                     </tr>
                   ))}
+                  {matchedItems.length === 0 && (
+                    <tr><td colSpan={6}>没有匹配的 Initiative。</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>

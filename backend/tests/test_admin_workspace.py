@@ -487,6 +487,7 @@ def test_distributor_history_field_mapping_and_department_scope():
                 "c32026Ytd": 6.0,
                 "yield": 11.0,
                 "resources2025": {"MRD": 7.0, "SP&A": 9.0},
+                "restrictedResources2025": ["Capex", "ICE Rebate"],
             },
         }
         ice = (await ReferenceService(session).get_dealers(2027, "ICE"))[0]

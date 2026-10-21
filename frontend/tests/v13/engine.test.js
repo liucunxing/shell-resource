@@ -689,8 +689,9 @@ vitestTest(
       const zero = E.generateInsight(E.createState(data), "MKT", lead, {
         data: fixture,
       });
-      assert(zero.items.slice(0, 2).every((i) => i.status === "review"));
-      assert.match(zero.items[0].text, /为 0/);
+      assert(zero.items.slice(0, 2).every((i) => i.status === "limited"));
+      assert.match(zero.items[0].text, /零值不参与分析/);
+      assert.doesNotMatch(zero.items[0].text, /缺少源数据提供的 Yield/);
     });
     check(
       "全局同年 Yield 排序有证据与限制，管理层使用已提交而非后续草稿",

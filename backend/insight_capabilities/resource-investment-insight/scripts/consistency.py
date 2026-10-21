@@ -133,6 +133,8 @@ def bind_named_facts(result, evidence):
             all_objects = _whole_cohort(text, facts)
 
             def add(key, refs=refs, path=f"{collection}.{i}.fact_ids"):
+                if key.startswith("yield:") and facts.get(key, {}).get("value") == 0:
+                    return
                 if key in facts and key not in refs:
                     refs.append(key)
                     changes.append({"path": path, "fact_id": key})
@@ -470,6 +472,18 @@ def issues(result, evidence):
         referenced = [facts[k] for k in refs if k in facts]
         ref_text = " ".join(f["id"] + " " + f["label"] for f in referenced)
         clauses = re.split(r"[。；;！\n]|但|然而", text)
+        for clause in clauses:
+            absent = re.search(r"(?:无|没有|缺少|缺失|未提供)(?:2025年?)?历史数据", clause)
+            if not absent or negation.search(clause[max(0, absent.start() - 8):absent.start()]):
+                continue
+            _, named = mentions(clause)
+            for _, _, owners in named:
+                if len(owners) == 1 and any(
+                    f["value"] is not None and belongs_to(key, next(iter(owners)))
+                    and key.split(":", 1)[0] in {"yield", "vol2024", "vol2025", "c32024", "c32025"}
+                    for key, f in facts.items()
+                ):
+                    errors.append(f"{path}:history_absence_contradiction:该对象已有经营历史；请明确缺失或未授权的具体资源金额，不能称无历史数据")
         permitted = review_dims if dimensions is None else review_dims.intersection(dimensions)
         for clause in clauses:
             # Negation applies only to the following claim, not a later request.

@@ -2904,6 +2904,7 @@ tbody tr:hover {
   margin-left: 0;
 }
 .raw-history-search input,
+.raw-history-search select,
 .raw-budget-search input {
   width: 210px;
   font-size: 12px;
@@ -3463,6 +3464,7 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
   .raw-history-search input,
+  .raw-history-search select,
   .raw-budget-search input {
     width: 100%;
   }

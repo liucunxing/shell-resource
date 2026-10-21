@@ -336,3 +336,12 @@ it("renders a readable fact source while preserving the stored evidence", () => 
     "授权工作台 · 历史参考信息暂不可用",
   );
 });
+
+it("distinguishes protected resource amounts from missing history", () => {
+  const restricted = { ...dataset, rows: [{ ...dataset.rows[0], historical_actual: null, delta: null, multiple: null, status: "limited", reason_code: "resource_restricted" }] };
+  const html = renderToString(<InvestmentReview dataset={restricted} scopeLabel="本人范围" />);
+  expect(html).toContain("历史金额未授权");
+  expect(html).toContain("<td>未授权</td>");
+  expect(html).toContain("不能据此判断销量或 Yield 缺失");
+  expect(html).toContain("无法比较");
+});

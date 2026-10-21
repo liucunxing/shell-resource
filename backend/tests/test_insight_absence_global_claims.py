@@ -203,3 +203,9 @@ def test_complete_known_yield_population_rejects_missing_history_claim(text):
 def test_historical_absence_guard_does_not_infer_missing_population_or_other_periods(text, facts):
     errors = check(text, facts, overview=True)
     assert not any("historical_yield_absence_contradiction" in error for error in errors)
+
+@pytest.mark.parametrize("metric", ["yield:D1", "vol2025:D1", "c32025:D1"])
+def test_restricted_amount_does_not_mean_no_history(metric):
+    errors = check("D1无历史数据。", {metric: 5.59}, overview=True)
+    assert any("history_absence_contradiction" in error for error in errors)
+    assert not check("D1的MRD历史投入金额未授权，不代表无历史数据。", {metric: 5.59}, overview=True)

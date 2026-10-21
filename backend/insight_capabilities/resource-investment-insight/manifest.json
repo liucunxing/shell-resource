@@ -1,6 +1,6 @@
 {
   "name": "resource-investment-insight",
-  "version": "0.3.3-engineering",
+  "version": "0.3.4-engineering",
   "schema_version": "1.0",
   "default_model": "qwen3.8-flash",
   "common_prompt": "prompts/common.md",

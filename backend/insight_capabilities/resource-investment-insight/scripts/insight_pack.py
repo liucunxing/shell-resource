@@ -215,10 +215,11 @@ class InsightPack:
             if check["status"] not in constraints[check["dimension_id"]]["allowed_statuses"]:
                 raise PackError("六维状态超出宿主证据允许的判断范围")
             check_refs(check, "checks." + check["dimension_id"])
-        for block in result["blocks"]:
+        for index, block in enumerate(result["blocks"]):
             check_refs(block, "blocks." + block["id"])
             if not any(block["status"] in constraints[key]["allowed_statuses"] for key in block["dimension_ids"]):
-                raise PackError("内容块状态不受所关联维度的证据支持")
+                allowed = sorted({status for key in block["dimension_ids"] for status in constraints[key]["allowed_statuses"]})
+                raise PackError(f"blocks.{index}.status: 内容块状态不受所关联维度的证据支持；该块仅允许{allowed}。资源金额未授权属于limitations，不能把已有经营趋势降级为limited；将权限限制说明移到limitations后删除仅有该说明的块。")
             dataset_id = block["dataset_id"]
             if block["kind"] == "visual" and dataset_id is None:
                 raise PackError("可视化内容块必须引用数据集")
@@ -282,6 +283,15 @@ class InsightPack:
         """
         selected = self.preset(preset_id)
         excluded_datasets = set(selected.get("excluded_datasets", []))
+        zero_yields = {f["id"] for f in evidence["facts"]
+                       if f["id"].startswith("yield:") and f["value"] == 0}
+        if zero_yields:
+            # Keep original zeros in stored evidence, but do not offer them as
+            # model examples or authorized Yield citations.
+            evidence = copy.deepcopy(evidence)
+            evidence["facts"] = [f for f in evidence["facts"] if f["id"] not in zero_yields]
+            for dataset in evidence["datasets"]:
+                dataset["fact_ids"] = [key for key in dataset["fact_ids"] if key not in zero_yields]
         if len(evidence["facts"]) <= 350:
             if not excluded_datasets:
                 return evidence
@@ -483,7 +493,7 @@ class InsightPack:
                     refs = [selected["id"], "plan:" + entity]
                     summary = f"{name(entity)}历史Yield为{token(refs[0])}倍，计划投入{token(refs[1])}。"
                 elif not values("yield") and "limited" in statuses:
-                    status, summary = "limited", "未提供历史Yield。"
+                    status, summary = "limited", "本范围没有可参与比较的历史投入产出比，零值不参与分析。"
             elif dimension == "concentration" and values("share"):
                 selected = max(values("share"), key=lambda f: f["value"])
                 entity = selected["id"].split(":", 1)[1]

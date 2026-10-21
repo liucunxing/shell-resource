@@ -135,11 +135,10 @@ def test_assigned_evidence_excludes_drafts_and_retains_zero_yield_and_budget():
     assert facts["investment-comparison-count"] == 4
     assert facts["investment-missing-count"] == 0
     assert facts["investment-review-count"] == 3
-    for dataset_id in ("yield-table", "trend-table", "ranked-dealers", "yield-plan"):
+    for dataset_id in ("trend-table", "ranked-dealers"):
         assert {row["id"] for row in datasets[dataset_id]["rows"]} == {"D0", "D1", "D2", "D3"}
-    assert next(r for r in datasets["yield-plan"]["rows"] if r["id"] == "D0")["x"] == 0
-    assert datasets["yield-plan"]["x"]["cutoff"] == 1.5
-    assert datasets["yield-plan"]["population_count"] == 4
+    assert {row["id"] for row in datasets["yield-table"]["rows"]} == {"D1", "D2", "D3"}
+    assert "yield-plan" not in datasets  # Only three eligible points remain.
     assert len(datasets["investment-review"]["rows"]) == 4
     assert not any(key.endswith((":ZERO", ":NULL", ":UNASSIGNED")) for key in facts)
     completeness = next(c for c in data["check_constraints"] if c["dimension_id"] == "completeness")

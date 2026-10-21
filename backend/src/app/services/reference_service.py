@@ -61,6 +61,9 @@ class ReferenceService:
                 for key, value in resources.items()
                 if key in visible
             }
+            # Absence due to authorization is different from a null source cell.
+            # Expose resource names only, never the protected amounts.
+            history["restrictedResources2025"] = sorted(set(resources) - visible)
             result.append(
                 {
                     "id": code,

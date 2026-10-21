@@ -1411,7 +1411,7 @@ function generateInsight(state, scope, identity, options) {
     .map((d) => {
       const h = history(d.id);
       const value = h.yield;
-      return numeric(value) ? { ...d, yield: value } : null;
+      return numeric(value) && value !== 0 ? { ...d, yield: value } : null;
     })
     .filter(Boolean)
     .sort(
@@ -1428,7 +1428,9 @@ function generateInsight(state, scope, identity, options) {
         key,
         finding,
         top ? top.id : scope,
-        "缺少源数据提供的 Yield，暂不能进行历史 Yield 对比。" + topFact,
+        (ranked.some((dealer) => history(dealer.id).yield === 0)
+          ? "本范围没有可参与比较的历史 Yield；零值不参与分析。"
+          : "缺少源数据提供的 Yield，暂不能进行历史 Yield 对比。") + topFact,
         "请补齐同年历史依据后结合未来业务计划复核，不能仅凭投入金额认定投入过高或不足。",
         "limited",
       );

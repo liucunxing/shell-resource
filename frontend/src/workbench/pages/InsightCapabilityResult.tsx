@@ -165,6 +165,7 @@ export function InvestmentReview({
   const allocatedRows = dataset.rows.filter(isAllocated);
   const count = (value: string) =>
     allocatedRows.filter((row) => row.status === value).length;
+  const restrictedCount = allocatedRows.filter((row) => row.reason_code === "resource_restricted").length;
   return (
     <section className="ic-investment" aria-label="历史实际投入与计划核对">
       <h3>历史实际投入与计划核对</h3>
@@ -175,9 +176,12 @@ export function InvestmentReview({
         仅展示本次计划金额大于 0 的已分配记录，完整名单不受分析摘要篇幅影响。标记仅供复核，不代表分配错误。
       </p>
       <p className="ic-caption">{formatInsightCopy(dataset.note)}</p>
+      {allocatedRows.some((row) => row.reason_code === "resource_restricted") && (
+        <p className="ic-caption">“历史金额未授权”仅指对应资源类型的历史投入金额，不能据此判断销量或 Yield 缺失。</p>
+      )}
       <p>
         共 {allocatedRows.length} 项 · 建议复核 {count("review")} 项 · 历史信息不足{" "}
-        {count("limited")} 项
+        {count("limited") - restrictedCount} 项 · 历史金额未授权 {restrictedCount} 项
       </p>
       <div className="ic-review-controls">
         <label className="form-field">
@@ -191,7 +195,7 @@ export function InvestmentReview({
           >
             <option value="all">全部</option>
             <option value="review">建议复核</option>
-            <option value="limited">历史信息不足</option>
+            <option value="limited">历史信息不足 / 金额未授权</option>
             <option value="observed">已核对</option>
           </select>
         </label>
@@ -243,7 +247,7 @@ export function InvestmentReview({
                 </th>
                 <td>{row.sector || "未指定"}</td>
                 <td>{row.resource_type}</td>
-                <td>{formatEvidence(row.historical_actual, "CNY")}</td>
+                <td>{row.reason_code === "resource_restricted" ? "未授权" : formatEvidence(row.historical_actual, "CNY")}</td>
                 <td title={`未四舍五入的本次计划：${formatEvidence(row.plan, "CNY")}`}>
                   {formatPlan(row.plan)}
                 </td>
@@ -252,12 +256,12 @@ export function InvestmentReview({
                   {row.multiple == null
                     ? row.historical_actual === 0
                       ? "不适用（实际为 0）"
-                      : "缺失"
+                      : row.reason_code === "resource_restricted" ? "无法比较" : "缺失"
                     : formatEvidence(row.multiple, "multiple")}
                 </td>
                 <td>
                   <span className={`ic-status ${row.status}`}>
-                    {investmentStatuses[String(row.status)] || row.status}
+                    {row.reason_code === "resource_restricted" ? "历史金额未授权" : investmentStatuses[String(row.status)] || row.status}
                   </span>
                 </td>
               </tr>
@@ -514,6 +518,9 @@ export function investmentFactText(
   }
   if (fact.id === "investment-rules") {
     return `当前投入复核规则：计划达到历史实际的 ${formatEvidence(values.increase_multiple, "multiple")}及以上，且增加至少 ${formatEvidence(values.absolute_change, "CNY")}；或计划降至历史实际的 ${formatEvidence(values.decrease_multiple, "ratio")}及以下，且减少至少 ${formatEvidence(values.absolute_change, "CNY")}，建议复核。历史有投入、本范围未分配时也建议复核。阈值用于提示，不代表审批结论。`;
+  }
+  if (values.reason_code === "resource_restricted") {
+    return `${values.dealer} · ${values.sector} · ${values.resource_type}：2025 历史投入金额未授权；本次计划 ${formatEvidence(values.plan, "CNY")}。${values.reason}`;
   }
   const multiple =
     values.multiple == null

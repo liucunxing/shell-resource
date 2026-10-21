@@ -248,7 +248,7 @@ def build_evidence(
             )
         )
         ranked.append(dict(id=dealer_id, label=label, value=plan))
-        if yld is not None and plan > 0:
+        if yld is not None and yld != 0 and plan > 0:
             quadrant.append(dict(id=dealer_id, label=label, x=yld, y=plan))
         values = {
             key: number(history.get(key))
@@ -291,14 +291,16 @@ def build_evidence(
                 "仅正数基期计算变化率；零或负基期仍可陈述原值及变化量，不能称数据缺失。",
             )
         trend.append(dict(id=dealer_id, dealer=label, **values))
-    if detail:
+    yield_detail = [row for row in detail if row["yield_value"] != 0]
+    if yield_detail:
         dataset(
             "yield-table",
             "table",
-            "全部已分配对象历史与计划",
-            detail,
+            "已分配对象历史Yield与计划",
+            yield_detail,
             ["cohort", "targets"],
-            "历史整体 Yield 与本范围计划的资金范围不同；跨年参考，非未来 ROI。",
+            "历史整体 Yield 与本范围计划的资金范围不同；跨年参考，非未来 ROI。"
+            "Yield为0的对象不参与Yield分析。",
             at=f"2025全年 / {period}",
             columns=[
                 dict(key=k, label=label, unit=u)
@@ -310,6 +312,7 @@ def build_evidence(
                 ]
             ],
         )
+    if trend:
         dataset(
             "trend-table",
             "table",
@@ -368,7 +371,7 @@ def build_evidence(
             "历史整体 Yield × 本范围计划投入",
             quadrant,
             ["cohort", "targets"],
-            "跨年参考，非未来收益预测；范围可含多种业务，应结合资源构成复核。",
+            "跨年参考，非未来收益预测；Yield为0的对象不入图、不参与中位数计算。",
             at=f"2025全年 / {period}",
             x=dict(
                 label="历史整体 Yield",
@@ -488,7 +491,7 @@ def build_evidence(
                     "未来目标仅影响未来收益或合理性判断。"
                 )
                 if quadrant
-                else "待补充已分配对象的2025历史 Yield；补充后可分析历史与计划相对位置。"
+                else "本范围没有可参与比较的历史Yield；零值不参与Yield分析，缺失值需补充。"
             )
         if dim == "trend":
             comparable = any(

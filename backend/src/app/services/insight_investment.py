@@ -84,7 +84,14 @@ def investment_comparisons(
         )
         code = "within_threshold"
         status, reason = "observed", "未触发当前投入复核规则；不代表投入合理性已获确认"
-        if baseline is None or plan is None or baseline < 0 or plan < 0:
+        if resource in (record.get("history") or {}).get("restrictedResources2025", []):
+            code = "resource_restricted"
+            status, reason = (
+                "limited",
+                f"当前账号未获授权查看2025年{resource}历史投入金额，无法比较实际与计划；"
+                "这不表示销量或Yield历史缺失",
+            )
+        elif baseline is None or plan is None or baseline < 0 or plan < 0:
             code = "missing"
             status, reason = (
                 "limited",

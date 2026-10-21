@@ -100,3 +100,14 @@ it("validates full edits, preserves allocations, and supports explicit deletion"
   expect(state.publications[current.id]).toBeUndefined();
   expect(state.audit.at(-1).action).toBe("delete_admin_budget");
 });
+
+it("searches administrator Initiative names without changing the full configuration", async () => {
+  const { filterAdminInitiatives } = await import("../src/workbench/pages/AdminPage.jsx");
+  const items = [{ id: "1", name: "PCMO Launch A", budget: 100 }, { id: "2", name: "Launch B", budget: 200 }, { id: "3", name: "中文项目", budget: 300 }];
+  const before = structuredClone(items);
+  expect(filterAdminInitiatives(items, " launch ")).toEqual(items.slice(0, 2));
+  expect(filterAdminInitiatives(items, "项目")).toEqual([items[2]]);
+  expect(filterAdminInitiatives(items, "not found")).toEqual([]);
+  expect(filterAdminInitiatives(items, "")).toEqual(items);
+  expect(items).toEqual(before);
+});

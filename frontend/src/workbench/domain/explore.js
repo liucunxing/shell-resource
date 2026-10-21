@@ -341,11 +341,12 @@ function historyReference(state, identity, data, dealerId, sector) {
     allResources: ["management", "admin"].includes(identity.role),
   };
 }
-function filterHistoryRows(rows, { dealerCode = "", dealerName = "" } = {}) {
+function filterHistoryRows(rows, { dealerCode = "", dealerName = "", sector = "" } = {}) {
   const codeQuery = String(dealerCode).trim().toLocaleLowerCase();
   const nameQuery = String(dealerName).trim().toLocaleLowerCase();
   return rows.filter(
     (row) =>
+      (!sector || row.sector === sector) &&
       (!codeQuery ||
         String(row.dealerCode ?? "")
           .toLocaleLowerCase()
