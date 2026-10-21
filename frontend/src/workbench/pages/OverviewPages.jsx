@@ -194,7 +194,7 @@ function InitiativeTable({ items, owner = false }) {
                     <div className="table-sub">
                       {pending(i)
                         ? "本地有新调整，待同步"
-                        : "已同步最新分配 · 可继续修改"}
+                        : E.canEdit(state, i.id, identity) ? "已同步最新分配 · 可继续修改" : "已同步最新分配"}
                     </div>
                   </>
                 ) : (
@@ -447,8 +447,12 @@ export function DepartmentPage() {
   );
 }
 export function ManagementPage() {
-  const { view } = useWorkbench(),
-    items = view.initiatives,
+  const { view, state, identity } = useWorkbench();
+  const admin = identity.role === "admin";
+  const [basis, setBasis] = useState("draft");
+  const items = admin && basis === "synced"
+      ? Object.values(state.publications || {}).map((versions) => versions.at(-1)?.initiative).filter(Boolean)
+      : view.initiatives,
     t = E.totals(items);
   const [filters, setFilters] = useState({
       department: "all",
@@ -457,26 +461,27 @@ export function ManagementPage() {
       name: "all",
     }),
     [sort, setSort] = useState({ key: "budget", direction: "desc" });
+  const departmentNames = [...new Set([...E.DEPARTMENTS, ...view.initiatives.map((item) => item.department)])];
   const totals = Object.fromEntries(
-    E.DEPARTMENTS.map((dep) => [
+    departmentNames.map((dep) => [
       dep,
       E.totals(items.filter((i) => i.department === dep)),
     ]),
   );
   const cards = [
-    ...E.DEPARTMENTS.map((dep) => ({
+    ...departmentNames.map((dep) => ({
       label: dep,
       name: names[dep],
       items: items.filter((i) => i.department === dep),
       total: totals[dep],
-      count: view.departments[dep]?.totalInitiativeCount || 0,
+      count: view.departments[dep]?.totalInitiativeCount || view.initiatives.filter((item) => item.department === dep).length,
     })),
     {
       label: "全部部门",
-      name: "最新同步汇总",
+      name: admin && basis === "draft" ? "当前工作稿汇总" : "最新同步汇总",
       items,
       total: t,
-      count: E.DEPARTMENTS.reduce(
+      count: departmentNames.reduce(
         (n, d) => n + (view.departments[d]?.totalInitiativeCount || 0),
         0,
       ),
@@ -515,12 +520,18 @@ export function ManagementPage() {
   return (
     <>
       <PageHead
-        title="管理层统览"
-        description="汇总各 Marketer 最新同步的数据；如需调整，请线下联系管理员。"
+        title={admin ? "分配总览" : "管理层统览"}
+        description={admin ? "只读查看项目分配、其他预算及同步进度。" : "汇总各 Marketer 最新同步的数据；如需调整，请线下联系管理员。"}
       />
+      {admin && <label className="form-field">数据版本
+        <select aria-label="数据版本" value={basis} onChange={(event) => setBasis(event.target.value)}>
+          <option value="draft">当前工作稿（含未同步调整）</option>
+          <option value="synced">各项目最新同步版本</option>
+        </select>
+      </label>}
       <div className="management-caption">
         最新更新时间：<strong>{time(latest(items))}</strong>
-        <span>{items.length} 项已同步 Initiative · 未同步草稿不纳入</span>
+        <span>{items.length} 项 Initiative · {admin && basis === "draft" ? "当前工作稿，含未同步调整" : "最新同步版本，未同步草稿不纳入"}</span>
       </div>
       <section className="management-metrics" aria-label="部门预算汇总">
         {cards.map((c) => (
@@ -532,7 +543,7 @@ export function ManagementPage() {
               <h2>{c.label}</h2>
               <span>{c.name}</span>
             </div>
-            <label>已同步预算</label>
+            <label>{admin && basis === "draft" ? "当前预算" : "已同步预算"}</label>
             <strong>{fmt(c.total.budget)}</strong>
             <div className="management-card-detail">
               <span>分配到经销商 · {pct(c.total.allocated, c.total.budget)}%</span>
@@ -564,11 +575,14 @@ export function ManagementPage() {
               <span><i className="management-progress-other" />其他预算</span>
             </div>
             <small>
-              已同步 {c.items.length} / {c.count} 项 · {time(latest(c.items))}
+              {admin && basis === "draft" ? "已同步最新" : "已同步"} {admin && basis === "draft" ? c.items.filter((item) => !pending(item)).length : c.items.length} / {c.count} 项 · {time(latest(c.items))}
             </small>
           </article>
         ))}
       </section>
+      {admin && basis === "draft" && <section className="panel"><div className="panel-header"><h2>当前工作稿明细 · 只读</h2></div>
+        <InitiativeTable items={view.initiatives} owner />
+      </section>}
       <section className="panel management-detail">
         <div className="panel-header">
           <h2>
@@ -603,7 +617,7 @@ export function ManagementPage() {
         <div className="management-distribution">
           <Composition
             total={E.totals(rows)}
-            label="当前筛选 · 已同步预算分布"
+            label={admin && basis === "draft" ? "当前筛选 · 工作稿预算分布" : "当前筛选 · 已同步预算分布"}
           />
         </div>
         <div className="table-scroll">

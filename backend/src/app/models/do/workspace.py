@@ -18,6 +18,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from app.core.departments import departments
+from app.core.resource_access import default_department_resources
 from app.models.do.base import BaseDO, TimestampMixin
 
 
@@ -99,6 +100,9 @@ class WorkspaceConfigDO(TimestampMixin, BaseDO):
         },
     )
     reference: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    department_resources: Mapped[dict] = mapped_column(
+        JSON, nullable=False, default=default_department_resources
+    )
 
 
 class WorkspaceReferenceDO(TimestampMixin, BaseDO):

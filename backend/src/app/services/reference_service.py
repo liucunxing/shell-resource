@@ -3,12 +3,15 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.departments import departments
+from app.core.resource_access import default_department_resources
 from app.repositories.reference_repository import ReferenceRepository
+from app.repositories.workspace_repository import WorkspaceRepository
 
 
 class ReferenceService:
     def __init__(self, session: AsyncSession) -> None:
         self.repository = ReferenceRepository(session)
+        self.workspace_repository = WorkspaceRepository(session)
 
     async def get_dealers(
         self,
@@ -21,7 +24,8 @@ class ReferenceService:
         rows = await self.repository.list_dealers(dealer_ids, sectors)
         result = []
         seen_keys: set[tuple[str, str | None]] = set()
-        allowed = {"MKT": {"MRD", "SP&A"}, "ICE": {"ICE Rebate"}, "CAPEX": {"Capex"}}
+        config = await self.workspace_repository.config() if department is not None else None
+        allowed = config.department_resources if config else default_department_resources()
         for row in rows:
             code = str(row["distributor_code"])
             key = (code, row["sector"])

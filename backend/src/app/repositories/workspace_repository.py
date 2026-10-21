@@ -192,22 +192,6 @@ class WorkspaceRepository:
         statement = select(BudgetChangeLogDO)
         if not admin:
             statement = statement.where(BudgetChangeLogDO.budget_id.in_(allowed_ids))
-        if admin:
-            statement = statement.where(
-                BudgetChangeLogDO.operation_type.in_(
-                    [
-                        "ADMIN_UPDATE",
-                        "ADMIN_CREATE",
-                        "CONFIG_UPDATE",
-                        "REFERENCE_IMPORT",
-                        "USER_CREATE",
-                        "USER_UPDATE",
-                        "USER_DELETE",
-                        "ADMIN_EDIT",
-                        "ADMIN_DELETE",
-                    ]
-                )
-            )
         return list(
             (
                 await self.session.scalars(statement.order_by(BudgetChangeLogDO.changed_at.desc()))

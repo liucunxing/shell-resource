@@ -101,7 +101,7 @@ vitestTest(
       assert.ok(m.rows.every((r) => r.ownerId === "MKT-1"));
       assert.equal(X.filterRows(m, "MKT-2").length, 0);
     });
-    test("admin has configuration rows without unprovided spend details", () => {
+    test("admin can read configuration and allocation details", () => {
       const m = X.rawData(working, admin, D);
       assert.equal(m.tab, "budgets");
       assert.equal(m.rows.length, 75);
@@ -110,10 +110,10 @@ vitestTest(
         "预算 ($)",
       );
       assert.ok(
-        m.rows.every((r) => !("allocated" in r) && !("otherBudgetTotal" in r)),
+        m.rows.every((r) => "allocated" in r && "otherBudgetTotal" in r),
       );
-      assert.throws(() => X.rawData(working, admin, D, "allocations"));
-      assert.throws(() => X.rawData(working, admin, D, "other-budgets"));
+      assert.ok(X.rawData(working, admin, D, "allocations").rows.length);
+      assert.ok(X.rawData(working, admin, D, "other-budgets"));
     });
     test("budget filters initiative, department and Owner with intersection", () => {
       const state = structuredClone(working);
@@ -146,7 +146,7 @@ vitestTest(
     });
     for (const department of ["MKT", "ICE", "CAPEX"])
       test(
-        department + " lead history includes all resources and shared Yield",
+        department + " lead history includes department resources and shared Yield",
         () => {
           const m = X.rawData(
             working,
@@ -155,7 +155,7 @@ vitestTest(
             "history",
           );
           assert.equal(m.rows.length, 60);
-          const allowed = ["MRD", "SP&A", "ICE Rebate", "Capex"];
+          const allowed = { MKT: ["MRD", "SP&A"], ICE: ["ICE Rebate", "SP&A"], CAPEX: ["Capex"] }[department];
           for (const row of m.rows) {
             assert.ok("yield" in row);
             assert.ok(!("resource2025" in row));
@@ -234,9 +234,9 @@ vitestTest(
       assert.equal(row.resource_MRD, source.resources2025.MRD / 1000);
       assert.equal(row.yield, source.yield);
     });
-    test("owner history notes state the sector scope", () => {
+    test("owner history notes distinguish history from allocation directory", () => {
       const model = X.rawData(working, { ...owner, sectors: ["PCMO"] }, D, "history");
-      assert.ok(model.notes.includes("只展示当前用户所在业务线的经销商数据。"));
+      assert.ok(model.notes.includes("Vol、C3、Yield 展示全部经销商；可分配经销商仍按业务线授权。历史总资源列不展示。"));
     });
     test("Yield missing or non-finite source value remains null", () => {
       for (const value of [undefined, null, Infinity, NaN]) {
@@ -274,7 +274,7 @@ vitestTest(
           [true, true, false],
         );
         assert.equal(m.periods[2].label, "2026 1–8月");
-        const all = ["management", "admin", "lead"].includes(identity.role);
+        const all = ["management", "admin"].includes(identity.role);
         assert.equal(m.allResources, all);
         const labels = all
           ? [
@@ -286,7 +286,7 @@ vitestTest(
           : identity.department === "MKT"
             ? ["2025 MRD (K$)", "2025 SP&A (K$)"]
             : identity.department === "ICE"
-              ? ["2025 ICE Rebate (K$)"]
+              ? ["2025 ICE Rebate (K$)", "2025 SP&A (K$)"]
               : ["2025 Capex (K$)"];
         assert.deepEqual(
           m.resources.map((r) => r.label),

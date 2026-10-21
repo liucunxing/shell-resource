@@ -165,8 +165,8 @@ export default function WorkbenchApp() {
   if (identity.role === "owner") nav.push(["home", SquaresFour, "我的工作台"]);
   if (["owner", "lead"].includes(identity.role))
     nav.push(["department", Buildings, "部门总览"]);
-  if (identity.role === "management")
-    nav.push(["management", Stack, "管理层统览"]);
+  if (["management", "admin"].includes(identity.role))
+    nav.push(["management", Stack, identity.role === "admin" ? "分配总览" : "管理层统览"]);
   if (identity.role === "admin")
     nav.push(["admin", SlidersHorizontal, "管理后台"]);
   nav.push(

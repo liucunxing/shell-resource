@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.departments import departments
+from app.core.resource_access import default_department_resources
 from app.dependencies.workbench_user import WorkbenchUser
 from app.models.do.budget import BudgetDO
 from app.models.do.workspace import (
@@ -38,21 +39,15 @@ class WorkspaceService:
         self.repository = WorkspaceRepository(session)
         self.directory_service = directory_service or DistributorDirectoryService(get_settings())
 
-    async def get_workspace(self, planning_year: int) -> dict:
+    async def get_workspace(self, planning_year: int, *, synced_only: bool = False) -> dict:
         department, sector, owner = self._scope()
         config = await self.repository.config()
         users = await self.repository.list_users() if self.user.role == "admin" else []
-        if self.user.role == "management":
+        if self.user.role == "management" or synced_only:
             publications = await self.repository.latest_publications(
                 planning_year, department, sector, owner
             )
             initiatives = [self._publication(item)["initiative"] for item in publications]
-        elif self.user.role == "admin":
-            initiatives = [
-                self._budget_projection(item, [], [])
-                for item in await self.repository.list_budgets(planning_year, None, None, None)
-            ]
-            publications = []
         else:
             budgets = await self.repository.list_budgets(planning_year, department, sector, owner)
             initiatives = []
@@ -69,8 +64,7 @@ class WorkspaceService:
         reference_service = ReferenceService(self.session)
         dealers = await reference_service.get_dealers(
             planning_year,
-            self.user.departments if self.user.role == "owner" else None,
-            sectors=self.user.dealer_sectors,
+            self.user.departments if self.user.role in {"owner", "lead"} else None,
         )
         audit = []
         if self.user.role != "management":
@@ -82,6 +76,10 @@ class WorkspaceService:
             ]
         state = {
             "schemaVersion": 2,
+            "departmentResources": config.department_resources
+            if config
+            else default_department_resources(),
+            "dataBasis": "synced" if self.user.role == "management" or synced_only else "draft",
             "scenario": "api",
             "initiatives": initiatives,
             "departments": {
@@ -220,6 +218,8 @@ class WorkspaceService:
         publications: bool = False,
     ) -> BudgetDO:
         allowed = {"owner", "lead"}
+        if not writable:
+            allowed.add("admin")
         if publications:
             allowed.add("management")
         if self.user.role not in allowed:
@@ -391,6 +391,7 @@ class WorkspaceService:
             "USER_CREATE": "create_user",
             "USER_UPDATE": "update_user",
             "USER_DELETE": "delete_user",
+            "PROMPT_UPDATE": "set_analysis_prompt",
         }
         return {
             "id": str(item.id),

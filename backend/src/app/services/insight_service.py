@@ -8,7 +8,7 @@ from collections import defaultdict
 from datetime import UTC, datetime
 from decimal import Decimal
 from time import perf_counter
-from typing import Any, NoReturn, cast
+from typing import Any, cast
 from uuid import uuid4
 
 import httpx
@@ -122,7 +122,16 @@ class InsightService:
         self._assert_read(descriptor)
         prompt = await self._prompt(planning_year, scope, descriptor)
         record: dict[str, Any] | None
-        if self.user.role == "management":
+        record = None
+        saved = await self.repository.latest_record(
+            planning_year, scope, self.user.email, preset_id
+        )
+        if saved and self._record_access_matches(saved.record.get("access"), descriptor):
+            record = dict(saved.record)
+            record["stale"] = record.get("signature") != self._signature(
+                workspace, scope, prompt, preset_id
+            )
+        if record is None and self.user.role in {"management", "admin"}:
             evidence, _ = self._evidence(workspace, descriptor)
             record = self._record(
                 scope,
@@ -150,15 +159,6 @@ class InsightService:
                 "presets": self.presets(),
                 "presetId": preset_id,
             }
-        record = None
-        saved = await self.repository.latest_record(
-            planning_year, scope, self.user.email, preset_id
-        )
-        if saved and saved.record.get("access") == self._access(descriptor):
-            record = dict(saved.record)
-            record["stale"] = record.get("signature") != self._signature(
-                workspace, scope, prompt, preset_id
-            )
         return {
             "record": record,
             "prompt": self._prompt_vo(prompt, descriptor),
@@ -172,6 +172,51 @@ class InsightService:
         workspace = await self._workspace(planning_year)
         descriptor = self._scope(workspace, scope)
         self._assert_prompt_edit(descriptor)
+        from app.repositories.workspace_repository import WorkspaceRepository
+        from app.services.admin_service import AdminService
+
+        # The config row also serializes first creation (there is no prompt row to lock yet).
+        await AdminService(self.session, self.user)._locked_config()
+        prompt = await self.repository.get_prompt_for_update(planning_year, scope)
+        if (prompt.version if prompt else 0) != expected_version:
+            raise HTTPException(status_code=409, detail="提示词已更新，请刷新后再保存")
+        clean_text = text.strip()
+        if not clean_text:
+            raise HTTPException(status_code=422, detail="请填写分析关注点")
+        if prompt is None:
+            prompt = await self.repository.add_prompt(
+                InsightPromptDO(
+                    planning_year=planning_year,
+                    scope=scope,
+                    text=clean_text,
+                    version=0,
+                    versions=[],
+                )
+            )
+        versions = list(prompt.versions or [])
+        if prompt.version and not versions:
+            versions.append({"version": prompt.version, "text": prompt.text})
+        prompt.version += 1
+        prompt.text = clean_text
+        prompt.versions = [
+            *versions,
+            {
+                "version": prompt.version,
+                "text": clean_text,
+                "updatedAt": datetime.now(UTC).isoformat(),
+                "updatedBy": self.user.email,
+            },
+        ]
+        WorkspaceRepository(self.session).add_log(
+            0,
+            "PROMPT_UPDATE",
+            self.user.email,
+            None,
+            {"scope": scope, "planningYear": planning_year, "version": prompt.version},
+        )
+        result = self._prompt_vo(prompt, descriptor)
+        await self.session.commit()
+        return result
 
     async def generate(
         self, *, scope: str, planning_year: int, preset_id: str = "comprehensive"
@@ -274,6 +319,14 @@ class InsightService:
         body, metadata = pack.compile(
             evidence, preset_id, model=self.settings.ai_model, thinking=False
         )
+        if prompt.version:
+            body["messages"].append(
+                {
+                    "role": "user",
+                    "content": "以下是管理员设置的业务关注点，仅调整解读重点和表达。"
+                    "不得修改系统规定的事实、金额、权限范围、输出结构或校验规则：\n" + prompt.text,
+                }
+            )
         await self._finish_read_transaction()
         prepared = perf_counter()
         attempts = []
@@ -352,11 +405,21 @@ class InsightService:
             "reference": self._reference(workspace),
             "guideVersion": int(guide.get("version") or 0),
             "createdAt": datetime.now(UTC).isoformat(),
-            "basisLabel": "当前授权工作稿",
+            "basisLabel": "各项最新同步快照"
+            if self.user.role in {"management", "admin"}
+            else "当前授权工作稿",
+            "dataVersions": [
+                {
+                    "initiativeId": item["id"],
+                    "revision": item.get("publishedRevision"),
+                    "publishedAt": item.get("publishedAt"),
+                }
+                for item in descriptor["items"]
+            ],
             "guideText": str(guide.get("text") or ""),
-            "promptText": "",
-            "promptVersion": 0,
-            "promptScope": scope,
+            "promptText": prompt.text,
+            "promptVersion": prompt.version,
+            "promptScope": prompt.scope,
             "presetId": preset_id,
             "result": result,
             "evidence": evidence,
@@ -415,12 +478,16 @@ class InsightService:
         # the workbench service is assembled by the backend owner.
         from app.services.workspace_service import WorkspaceService
 
-        return await WorkspaceService(self.session, self.user).get_workspace(planning_year)
+        return await WorkspaceService(self.session, self.user).get_workspace(
+            planning_year, synced_only=self.user.role in {"management", "admin"}
+        )
 
     async def _prompt(
         self, planning_year: int, scope: str, descriptor: dict[str, Any]
     ) -> InsightPromptDO:
-        prompt = await self.repository.get_prompt(planning_year, scope)
+        prompt = await self.repository.get_prompt(planning_year, "global")
+        if prompt is None and scope != "global":
+            prompt = await self.repository.get_prompt(planning_year, scope)
         if prompt is not None:
             return prompt
         return InsightPromptDO(
@@ -433,6 +500,16 @@ class InsightService:
 
     def _scope(self, workspace: dict[str, Any], scope: str) -> dict[str, Any]:
         state = workspace.get("state") or {}
+        from app.core.resource_access import default_department_resources
+
+        mapping = state.get("departmentResources", default_department_resources())
+        self._visible_resources = sorted(
+            {
+                resource
+                for dep in departments(self.user.department)
+                for resource in mapping.get(dep, [])
+            }
+        )
         items = list(state.get("initiatives") or [])
         role = str(getattr(self.user, "role", ""))
         email = str(getattr(self.user, "email", ""))
@@ -468,23 +545,32 @@ class InsightService:
             return
         if role == "lead" and descriptor["kind"] == "department":
             return
-        if role == "management" and descriptor["kind"] == "global":
+        if role in {"management", "admin"} and descriptor["kind"] == "global":
             return
         raise HTTPException(status_code=403, detail="无权读取此 Insight")
 
     def _assert_generate(self, descriptor: dict[str, Any]) -> None:
         self._assert_read(descriptor)
-        if getattr(self.user, "role", "") in {"owner", "lead"}:
+        if self.user.role in {"management", "admin"} and not descriptor["items"]:
+            raise HTTPException(
+                status_code=422, detail="当前还没有已同步项目，请先由 Owner 同步分配"
+            )
+        if getattr(self.user, "role", "") in {"owner", "lead", "management", "admin"}:
             return
         raise HTTPException(status_code=403, detail="当前角色无权生成 Insight")
 
-    def _assert_prompt_edit(self, descriptor: dict[str, Any]) -> NoReturn:
-        raise HTTPException(
-            status_code=403, detail="分析提示词由版本化能力包维护，用户只能选择已发布方案"
-        )
+    def _assert_prompt_edit(self, descriptor: dict[str, Any]) -> None:
+        if self.user.role != "admin" or descriptor["kind"] != "global":
+            raise HTTPException(status_code=403, detail="仅管理员可编辑全局业务分析提示词")
 
     def _prompt_vo(self, prompt: InsightPromptDO, descriptor: dict[str, Any]) -> dict[str, Any]:
-        return {"scope": prompt.scope, "text": "", "version": 0, "editable": False}
+        return {
+            "scope": prompt.scope,
+            "text": prompt.text if self.user.role == "admin" else "",
+            "version": prompt.version,
+            "editable": self.user.role == "admin",
+            "versions": list(prompt.versions or []) if self.user.role == "admin" else [],
+        }
 
     def presets(self) -> list[dict[str, Any]]:
         return [
@@ -541,10 +627,35 @@ class InsightService:
         return {
             "email": self.user.email,
             "role": self.user.role,
+            "historicalResources": getattr(self, "_visible_resources", [])
+            if self.user.role in {"owner", "lead"}
+            else "all",
             "department": sorted(departments(self.user.department)),
             "sectors": sorted(getattr(self.user, "sectors", ()) or ()),
             "initiativeIds": sorted(str(item["id"]) for item in descriptor["items"]),
         }
+
+    def _record_access_matches(self, saved: Any, descriptor: dict[str, Any]) -> bool:
+        current = self._access(descriptor)
+        if not isinstance(saved, dict):
+            return False
+        if "historicalResources" in saved:
+            return saved == current
+        # Preserve compatible pre-upgrade records; never expose an old Lead analysis
+        # with unrestricted amounts after the new department restriction takes effect.
+        if saved != {key: value for key, value in current.items() if key != "historicalResources"}:
+            return False
+        if self.user.role not in {"owner", "lead"}:
+            return True
+        old_mapping = {"MKT": {"MRD", "SP&A"}, "ICE": {"ICE Rebate"}, "CAPEX": {"Capex"}}
+        previous = (
+            {"MRD", "SP&A", "ICE Rebate", "Capex"}
+            if self.user.role == "lead"
+            else set().union(
+                *(old_mapping.get(dep, set()) for dep in departments(self.user.department))
+            )
+        )
+        return previous.issubset(current["historicalResources"])
 
     @staticmethod
     def _reference(workspace: dict[str, Any]) -> dict[str, Any]:

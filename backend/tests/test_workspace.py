@@ -133,9 +133,12 @@ async def test_role_read_boundaries() -> None:
         service = _workspace_service(
             session, WorkbenchUser("x@example.com", role, "MKT", "X")
         )
-        with pytest.raises(HTTPException) as denied:
-            await service.get_draft(1)
-        assert denied.value.status_code == 403
+        if role == "admin":
+            assert (await service.get_draft(1))["id"] == "1"
+        else:
+            with pytest.raises(HTTPException) as denied:
+                await service.get_draft(1)
+            assert denied.value.status_code == 403
     await session.close()
 
 
@@ -161,10 +164,10 @@ async def test_admin_and_management_receive_all_distributor_history() -> None:
 
 
 @pytest.mark.asyncio
-async def test_owner_receives_all_history_within_assigned_sector() -> None:
+async def test_owner_receives_all_history_across_sectors() -> None:
     session = await _session()
     dealers = (await _workspace_service(session, _owner()).get_workspace(2027))["data"]["dealers"]
-    assert [dealer["id"] for dealer in dealers] == ["d1", "d2"]
+    assert [dealer["id"] for dealer in dealers] == ["d1", "d2", "d3"]
     await session.close()
 
 

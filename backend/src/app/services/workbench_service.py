@@ -245,12 +245,14 @@ class WorkbenchService:
 
     async def _get_scoped_budget(self, budget_id: int, writable: bool = False) -> BudgetDO:
         allowed = {"owner", "lead"}
+        if not writable:
+            allowed.add("admin")
         if self.user.role not in allowed:
             raise HTTPException(status_code=403, detail="当前角色无此操作权限")
         budget = await self.budget_repository.get_scoped(
             budget_id=budget_id,
             planning_year=None,
-            department=list(self.user.departments),
+            department=None if self.user.role == "admin" else list(self.user.departments),
             sector=None,
             owner_email=self.user.email if self.user.role == "owner" else None,
             for_update=writable,

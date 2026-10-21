@@ -37,7 +37,7 @@ function scope(state, identity) {
     identity.role === "management"
       ? `各部门最新发布版本 · ${published}/3 部门已发布`
       : identity.role === "admin"
-        ? "当前预算配置 · 2027 规划"
+        ? "全部项目当前工作稿 · 只读"
         : "当前工作方案 · 2027 规划";
   return {
     items,
@@ -46,7 +46,7 @@ function scope(state, identity) {
       identity.role === "management"
         ? "全公司最新发布范围"
         : identity.role === "admin"
-          ? "全公司预算配置"
+          ? "全公司当前分配"
           : identity.role === "owner"
             ? `${E.departments(identity).join("、")} / ${identity.ownerId} 本人方案`
             : E.departments(identity).join("、") + " 本部门",
@@ -173,19 +173,10 @@ function rawData(state, identity, data, tab) {
   const s = scope(state, identity),
     admin = identity.role === "admin";
   tab = tab || (admin ? "budgets" : "allocations");
-  const tabs = (
-    admin
-      ? [
-          ["budgets", "预算配置"],
-          ["history", "历史数据"],
-        ]
-      : [
-          ["allocations", "分配明细"],
-          ["budgets", "预算明细"],
-          ["other-budgets", "其他预算明细"],
-          ["history", "历史数据"],
-        ]
-  ).map(([id, label]) => ({ id, label }));
+  const tabs = [
+    ["allocations", "分配明细"], ["budgets", "预算明细"],
+    ["other-budgets", "其他预算明细"], ["history", "历史数据"],
+  ].map(([id, label]) => ({ id, label }));
   if (!tabs.some((t) => t.id === tab))
     throw Error("当前角色无权查看该数据表。");
   const model = {
@@ -241,25 +232,14 @@ function rawData(state, identity, data, tab) {
     model.columns = cols([
       ...common,
       ["budget", "预算 ($)"],
-      ...(!admin
-        ? [
-            ["allocated", "已分配到经销商"],
-            ["otherBudgetTotal", "其他预算合计"],
-          ]
-        : []),
+      ["allocated", "已分配到经销商"],
+      ["otherBudgetTotal", "其他预算合计"],
     ]);
     model.rows = s.items.map((i) => ({
       ...base(i),
       budget: i.budget,
-      ...(!admin
-        ? {
-            allocated: sum([i]),
-            otherBudgetTotal: otherBudgetRows(i).reduce(
-              (total, row) => total + Number(row.amount || 0),
-              0,
-            ),
-          }
-        : {}),
+      allocated: sum([i]),
+      otherBudgetTotal: otherBudgetRows(i).reduce((total, row) => total + Number(row.amount || 0), 0),
     }));
   } else if (tab === "other-budgets") {
     model.columns = cols([
@@ -278,10 +258,11 @@ function rawData(state, identity, data, tab) {
     );
     model.notes.push("每一行对应一条其他预算安排；同一 Initiative 可有多条。");
   } else {
-    const all = ["management", "admin", "lead"].includes(identity.role);
+    const all = ["management", "admin"].includes(identity.role);
+    const mapping = state.departmentResources || { MKT: ["MRD", "SP&A"], ICE: ["ICE Rebate", "SP&A"], CAPEX: ["Capex"] };
     const resources = all
       ? ["MRD", "SP&A", "ICE Rebate", "Capex"]
-      : Object.entries(E.RESOURCE_DEPARTMENT).filter(([, dep]) => E.hasDepartment(identity, dep)).map(([resource]) => resource);
+      : [...new Set(E.departments(identity).flatMap((dep) => mapping[dep] || []))];
     const history = [
       ["vol2024", "2024 Vol (KL)"],
       ["c32024", "2024 C3 (K$)"],
@@ -309,19 +290,13 @@ function rawData(state, identity, data, tab) {
       row.yield = Number.isFinite(h.yield) ? h.yield : null;
       return row;
     });
-    const userSectors = (identity.sectors || []).join(" / ");
-    const scopedDealers = ["owner", "lead"].includes(identity.role);
-    model.scopeLabel =
-      scopedDealers
-        ? `业务线 ${userSectors || "未配置"} · 全部经销商历史`
-        : `共享经销商 Vol / C3 · ${all ? "全业务线" : E.departments(identity).join("、") + " 授权资源"}`;
+    model.scopeLabel = `全部经销商历史 · ${all ? "全部资源列" : E.departments(identity).join("、") + " 授权资源列"}`;
     model.basisLabel = `源历史数据 · 共 ${new Set(data.dealers.map((d) => String(d.id))).size} 家经销商 / ${data.dealers.length} 条业务线记录`;
     model.notes.push(
       "2024、2025 为全年；2026 为 1–8 月累计，不默认同比或年化。",
       "Yield 向所有角色只读开放，取源数据中的 2025 C3 / 资源原始比值，不转换为百分比。",
-      scopedDealers
-        ? "只展示当前用户所在业务线的经销商数据。"
-        : "管理员与总负责人展示全部业务线的经销商数据。",
+      "Vol、C3、Yield 展示全部经销商；可分配经销商仍按业务线授权。历史总资源列不展示。",
+      "SP&A 使用全部历史合计，暂不按部门拆分。",
       all
         ? "全资源历史仅供只读参考。"
         : "资源明细仅显示本部门授权范围；整体 Yield 为授权共享指标，不额外展示跨部门资源总额或资源明细。",
@@ -363,7 +338,7 @@ function historyReference(state, identity, data, dealerId, sector) {
     resources: model.columns
       .filter((c) => c.key.startsWith("resource_"))
       .map((c) => ({ label: c.label, amount: row[c.key] })),
-    allResources: ["management", "admin", "lead"].includes(identity.role),
+    allResources: ["management", "admin"].includes(identity.role),
   };
 }
 function filterHistoryRows(rows, { dealerCode = "", dealerName = "" } = {}) {

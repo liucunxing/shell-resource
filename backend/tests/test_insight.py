@@ -120,11 +120,11 @@ def test_owner_scope_is_limited_to_current_email() -> None:
         asyncio.run(insight.get_insight(scope="owner:other@example.com", planning_year=2027))
 
 
-def test_management_cannot_generate() -> None:
+def test_management_can_generate_but_reports_missing_model_configuration() -> None:
     insight, _ = service(role="management")
     with pytest.raises(HTTPException) as error:
         asyncio.run(insight.generate(scope="global", planning_year=2027))
-    assert error.value.status_code == 403
+    assert error.value.status_code == 503
 
 
 def test_management_reads_snapshot_preview_without_calling_model() -> None:

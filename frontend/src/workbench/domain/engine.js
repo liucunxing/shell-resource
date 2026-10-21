@@ -482,7 +482,6 @@ function latestPublicationInternal(state, id) {
 function latestPublication(state, id, identity) {
   identityCheck(identity);
   const item = initiative(state, id);
-  if (identity.role === "admin") fail("管理员无权读取分配发布内容。");
   if (identity.role === "owner" && item.ownerId !== identity.ownerId)
     fail("无权读取其它 Owner 的发布版本。");
   if (identity.role === "lead" && !hasDepartment(identity, item.department))
@@ -695,19 +694,9 @@ function selectView(state, identity) {
     });
     result.managementReadOnly = true;
   } else {
-    result.initiatives = state.initiatives.map((i) => ({
-      id: i.id,
-      name: i.name,
-      resourceType: i.resourceType,
-      sector: i.sector,
-      department: i.department,
-      ownerId: i.ownerId,
-      budget: i.budget,
-      status: i.status,
-      revision: i.revision,
-    }));
+    result.initiatives = clone(state.initiatives);
     DEPARTMENTS.forEach((dep) => {
-      result.departments[dep] = progress(dep);
+      result.departments[dep] = { ...progress(dep), totalInitiativeCount: itemsFor(state, dep).length };
     });
   }
   return result;

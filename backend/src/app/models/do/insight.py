@@ -18,6 +18,7 @@ class InsightPromptDO(TimestampMixin, BaseDO):
     scope: Mapped[str] = mapped_column(String(300), nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    versions: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
 
 
 class InsightRecordDO(TimestampMixin, BaseDO):

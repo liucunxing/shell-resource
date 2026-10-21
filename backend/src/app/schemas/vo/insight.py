@@ -8,6 +8,7 @@ class InsightPromptVO(BaseModel):
     text: str
     version: int
     editable: bool
+    versions: list[dict[str, Any]] = []
 
 
 class InsightReadVO(BaseModel):

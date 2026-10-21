@@ -324,7 +324,7 @@ vitestTest(
       assert.throws(() => E.finalize(s, management), /只读/);
     });
     check(
-      "发布版本读权限：Owner 本人、Lead 本部门、管理层全局；管理员不读分配内容",
+      "发布版本读权限：Owner 本人、Lead 本部门、管理层全局；管理员只读分配内容",
       () => {
         const s = E.createState(data, "submitted");
         assert.throws(() => E.latestPublication(s, "M1"), /身份无效/);
@@ -337,7 +337,7 @@ vitestTest(
           E.latestPublication(s, "S1", management).initiativeId,
           "S1",
         );
-        assert.throws(() => E.latestPublication(s, "M1", admin), /无权/);
+        assert.ok(E.latestPublication(s, "M1", admin));
       },
     );
     check("Owner 重新归属后，旧部门快照也按当前归属过滤", () => {
@@ -502,7 +502,7 @@ vitestTest(
       },
     );
     check(
-      "Management selector 只取已发布版本，草稿不泄漏给管理层或管理员",
+      "Management selector 只取已发布版本，草稿不泄漏给管理层，管理员可读工作稿",
       () => {
         const s = E.createState(data);
         s.initiatives[0].rows[0].note = "PRIVATE-COLLECTING-DRAFT";
@@ -521,8 +521,8 @@ vitestTest(
         );
         const adminView = E.selectView(s, admin);
         assert.equal(adminView.initiatives.length, 4);
-        assert(!JSON.stringify(adminView).includes('"rows"'));
-        assert(!JSON.stringify(adminView).includes("PRIVATE-"));
+        assert(JSON.stringify(adminView).includes('"rows"'));
+        assert(JSON.stringify(adminView).includes("PRIVATE-NEW-DRAFT"));
       },
     );
     check("旧部门版本迁移为项目发布档案，反复迁移不重复或改变基线", () => {

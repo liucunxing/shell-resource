@@ -250,6 +250,23 @@ class AdminConfigDTO(BaseModel):
     expected_revision: int = Field(ge=0)
     budgetReasons: list[dict] | None = Field(default=None, min_length=1, max_length=30)
     guide: dict | None = None
+    departmentResources: dict[str, list[str]] | None = None
+
+    @field_validator("departmentResources")
+    @classmethod
+    def validate_department_resources(cls, value: dict | None) -> dict | None:
+        if value is None:
+            return None
+        from app.core.resource_access import RESOURCE_TYPES
+        normalized = {}
+        for department, resources in value.items():
+            name = department.strip().upper()
+            if not name or len(name) > 32 or name in normalized:
+                raise ValueError("部门名称无效或重复")
+            if len(resources) != len(set(resources)) or set(resources) - set(RESOURCE_TYPES):
+                raise ValueError("历史资源类型无效或重复")
+            normalized[name] = resources
+        return normalized
 
     @field_validator("budgetReasons")
     @classmethod

@@ -63,13 +63,14 @@ export function InsightPanel({ scope }) {
     basis: null,
   });
   const own = identity.role === "owner",
-    readOnly = identity.role === "management";
+    readOnly = !apiMode && identity.role === "management",
+    synced = ["management", "admin"].includes(identity.role);
   const incoming =
     scope ||
     (own
       ? "owner:" + identity.ownerId
       : E.departments(identity)[0] || "global");
-  const effective = readOnly
+  const effective = synced
     ? "global"
     : selection?.source === incoming && selection?.identity === identity.key
       ? selection.value
@@ -92,7 +93,7 @@ export function InsightPanel({ scope }) {
     state.guide,
   ]);
   useEffect(() => {
-    if (!apiMode || !identity || identity.role === "admin") return;
+    if (!apiMode || !identity) return;
     let active = true;
     requestEpoch.current += 1;
     busyRef.current = false;
@@ -187,7 +188,7 @@ export function InsightPanel({ scope }) {
           </select>
         </label>
       )}
-      {apiMode && identity.role !== "admin" && (
+      {apiMode && (
         <label className="form-field insight-preset">
           分析方案
           <select
@@ -211,12 +212,20 @@ export function InsightPanel({ scope }) {
           </select>
         </label>
       )}
+      {synced && <p className="small-text muted">范围：全部已同步项目；每项取最新同步版本，不包含未同步草稿。</p>}
+      {apiMode && remote.prompt?.editable && <BusinessPromptEditor
+        key={`${identityKey}-${remote.prompt.version}`} prompt={remote.prompt}
+        disabled={busy} onSaved={(prompt) => {
+          setRemote((current) => ({ ...current, prompt, record: current.record ? { ...current.record, stale: true } : null }));
+          notify("关注点已保存，下次生成生效。");
+        }}
+      />}
       <div className="insight-toolbar">
         <div>
           <span className="badge">
             {apiMode
-              ? readOnly
-                ? "同步结果只读预览"
+              ? synced
+                ? "百炼 Insight · 最新同步数据"
                 : "百炼 Insight"
               : "模拟分析"}
           </span>
@@ -226,7 +235,7 @@ export function InsightPanel({ scope }) {
             </span>
           )}
         </div>
-        {!readOnly && identity.role !== "admin" && (
+        {!readOnly && (apiMode || identity.role !== "admin") && (
           <button
             className="button primary small"
             disabled={busy || remote.loading}
@@ -355,9 +364,7 @@ export function InsightPanel({ scope }) {
         <>
           <div className="empty">
             <strong>
-              {identity.role === "admin"
-                ? "分析方案由能力包维护"
-                : "围绕六个问题查看资源分配"}
+              围绕六个问题查看资源分配
             </strong>
             <p>
               {own
@@ -367,7 +374,7 @@ export function InsightPanel({ scope }) {
                   : "选择分析方案，查看事实依据和复核建议。"}
             </p>
           </div>
-          {identity.role !== "admin" && (
+          {(apiMode || identity.role !== "admin") && (
             <ol className="insight-outline">
               {titles.map((t) => (
                 <li key={t}>{t}</li>
@@ -384,13 +391,16 @@ export function InsightPanel({ scope }) {
             <br />
             参考批次：{record.reference?.batchId || "—"}
             <br />
-            指南 v{record.guideVersion} · 提示词 v{record.promptVersion || 1}
+            指南 v{record.guideVersion} · 业务提示词 v{record.promptVersion || 0}
             <br />
             {readOnly
               ? "根据最新同步结果即时展示"
               : new Date(record.createdAt).toLocaleString("zh-CN")}
           </p>
-          <p>{record.disclaimer}</p>
+          <p>{record.basisLabel} · {record.disclaimer}</p>
+          {synced && record.dataVersions?.map((item) => <p key={item.initiativeId}>
+            项目 {item.initiativeId} · 同步修订 {item.revision ?? "—"} · {item.publishedAt ? new Date(item.publishedAt).toLocaleString("zh-CN") : "—"}
+          </p>)}
           {record.metadata && (
             <p>
               方案：
@@ -412,4 +422,33 @@ export function InsightPanel({ scope }) {
       )}
     </div>
   );
+}
+
+export function BusinessPromptEditor({ prompt, disabled, onSaved }) {
+  const [text, setText] = useState(prompt.version ? prompt.text : "");
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  return <details className="insight-basis-details">
+    <summary>调整分析关注点 · v{prompt.version}</summary>
+    <p>用于本年度各范围的后续分析。保存后下次生成生效，已有摘要保留原版本；金额计算和事实核对规则保持不变。</p>
+    <label className="form-field">业务关注点与表达要求
+      <textarea rows={5} maxLength={12000} value={text} disabled={disabled || saving}
+        onChange={(event) => setText(event.target.value)} />
+    </label>
+    <button className="button small" disabled={disabled || saving || !text.trim()}
+      onClick={async () => {
+        setSaving(true); setMessage("");
+        try {
+          const updated = await api.saveInsightPrompt("global", text, prompt.version);
+          onSaved(updated);
+        } catch (error) { setMessage(error.message); }
+        finally { setSaving(false); }
+      }}>{saving ? "保存中…" : "保存，下次生成生效"}</button>
+    {message && <p role="alert">{message}</p>}
+    {prompt.versions?.length > 0 && <details><summary>历史版本（{prompt.versions.length}）</summary>
+      {[...prompt.versions].reverse().map((version) => <div key={version.version}>
+        <strong>v{version.version}</strong><p style={{ whiteSpace: "pre-wrap" }}>{version.text}</p>
+      </div>)}
+    </details>}
+  </details>;
 }

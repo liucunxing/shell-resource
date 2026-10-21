@@ -43,6 +43,7 @@ export function WorkPanel({ overlay, panelSize }) {
     page,
     initiativeId,
     view,
+    apiMode,
   } = useWorkbench();
   const config = buildYiwenUrl(import.meta.env.VITE_YIWEN_IFRAME_URL, identity.email);
   const panel = useRef(null);
@@ -179,7 +180,7 @@ export function WorkPanel({ overlay, panelSize }) {
           aria-label="Insight 分析"
           hidden={!auxiliary.open || auxiliary.tab !== "insight"}
         >
-          {identity.role === "admin" && (
+          {identity.role === "admin" && !apiMode && (
             <label className="form-field">
               分析范围
               <select

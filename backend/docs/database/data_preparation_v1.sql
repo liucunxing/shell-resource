@@ -172,6 +172,7 @@ CREATE TABLE data.workspace_config (
     budget_reason_version INTEGER NOT NULL,
     guide JSON NOT NULL,
     reference JSON NOT NULL,
+    department_resources JSON NOT NULL DEFAULT '{"MKT":["MRD","SP&A"],"ICE":["ICE Rebate","SP&A"],"CAPEX":["Capex"]}',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -235,6 +236,7 @@ CREATE TABLE data.insight_prompts (
     scope VARCHAR(300) NOT NULL,
     text TEXT NOT NULL,
     version INTEGER NOT NULL,
+    versions JSON NOT NULL DEFAULT '[]',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_insight_prompt_year_scope UNIQUE (planning_year, scope)

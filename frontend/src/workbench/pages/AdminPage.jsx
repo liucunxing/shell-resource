@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
 import AX from "../domain/admin-excel.js";
+import { HistoricalResourceSettings } from "./HistoricalResourceSettings.jsx";
 import { parseReferenceInWorker, previewExcelInWorker } from "../file-import.js";
 import { AdminUsersPanel } from "./AdminUsersPanel.jsx";
 import { AdminBudgetFields, budgetForm, budgetPayload } from "./AdminBudgetFields.jsx";
@@ -712,6 +713,10 @@ export function AdminPage() {
           </div>
         </section>
       )}
+      {tab === "permissions" && apiMode && <HistoricalResourceSettings
+        key={state.configRevision} mapping={state.departmentResources || {}}
+        departments={[...new Set([...state.initiatives.map((item) => item.department), ...roles.flatMap((user) => E.departments(user))])]}
+        saveConfig={saveConfig} />}
       {tab === "guide" && (
         <section className="panel">
           <div className="panel-header">

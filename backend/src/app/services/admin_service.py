@@ -523,6 +523,7 @@ class AdminService(WorkspaceService):
             config = await self._locked_config()
             if config.revision != payload.expected_revision:
                 raise HTTPException(status_code=409, detail="配置已被修改，请刷新后重试")
+            previous_resource_mapping = config.department_resources
             if payload.budgetReasons is not None:
                 ids = [reason["id"] for reason in payload.budgetReasons]
                 if await self.admin_repository.has_removed_reason_in_use(ids):
@@ -534,16 +535,26 @@ class AdminService(WorkspaceService):
                     "text": payload.guide["text"],
                     "version": config.guide.get("version", 0) + 1,
                 }
+            if payload.departmentResources is not None:
+                config.department_resources = payload.departmentResources
             config.revision += 1
             result = {
                 "revision": config.revision,
                 "budgetReasons": config.budget_reasons,
                 "budgetReasonVersion": config.budget_reason_version,
+                "departmentResources": config.department_resources,
                 "guide": config.guide,
                 "reference": config.reference,
             }
             self.repository.add_log(
-                0, "CONFIG_UPDATE", self.user.email, None, {"revision": config.revision}
+                0,
+                "CONFIG_UPDATE",
+                self.user.email,
+                {"departmentResources": previous_resource_mapping}
+                if payload.departmentResources is not None else None,
+                {"revision": config.revision, "departmentResources": config.department_resources}
+                if payload.departmentResources is not None else {"revision": config.revision},
+                "更新历史资源列权限" if payload.departmentResources is not None else None,
             )
             await self.session.commit()
         except Exception:
