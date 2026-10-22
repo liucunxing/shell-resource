@@ -45,9 +45,12 @@ describe("full investment comparison", () => {
     expect(html).not.toContain("未分配对象");
     expect(html).not.toContain("缺失计划对象");
     expect(html).toContain("极小金额对象");
-    expect(html).toContain('title="未四舍五入的本次计划：0.0001 万元">0.0 万元</td>');
-    expect(html).toContain("12.6 万元");
-    expect(html).toContain("2025 实际（万元）");
+    expect(html).toContain("<td>0.00</td>");
+    expect(html).toContain("<td>125.68</td>");
+    expect(html).toContain("2025资源投入(K$)");
+    expect(html).toContain("本次计划(K$)");
+    expect(html).toContain("差额(K$)");
+    expect(html).not.toContain("万元");
     expect(html).toContain("历史信息不足");
     expect(html).toContain("已核对");
     expect(html).not.toContain("复核说明");
@@ -95,9 +98,9 @@ describe("full investment comparison", () => {
       <InvestmentReview dataset={dataset} scopeLabel="本人范围" />,
     );
     for (const text of [
-      "10 万元",
-      "100.0 万元",
-      "90 万元",
+      "<td>100.00</td>",
+      "<td>1,000.00</td>",
+      "<td>900.00</td>",
       "10.0 倍",
       "2025 实际 / 2027 计划",
       "本人范围",
@@ -125,7 +128,7 @@ describe("full investment comparison", () => {
       />,
     );
     expect(html).toContain("缺失");
-    expect(html).toContain("0 万元");
+    expect(html).toContain("<td>0.00</td>");
     expect(html).toContain("不适用（实际为 0）");
   });
   it("shows comparison even if the model returns no blocks, and rejects other scopes", () => {
@@ -147,7 +150,7 @@ describe("full investment comparison", () => {
       renderToString(
         <InsightCapabilityResult result={result} evidence={evidence} />,
       ),
-    ).toContain("10 万元");
+    ).toContain("<td>100.00</td>");
     expect(
       renderToString(
         <InsightCapabilityResult
@@ -155,7 +158,7 @@ describe("full investment comparison", () => {
           evidence={{ ...evidence, scope: { id: "other" } }}
         />,
       ),
-    ).not.toContain("10 万元");
+    ).not.toContain("<td>100.00</td>");
   });
 });
 describe("generation failure persistence", () => {

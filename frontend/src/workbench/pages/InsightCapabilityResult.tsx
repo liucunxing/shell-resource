@@ -91,16 +91,19 @@ export function formatEvidence(value: Cell | undefined, unit = ""): string {
   if (unit === "ratio")
     return `${(value * 100).toLocaleString("zh-CN", { maximumFractionDigits: 2 })}%`;
   if (unit === "CNY")
-    return `${(value / 10000).toLocaleString("zh-CN", { maximumFractionDigits: 6 })} 万元`;
+    return `${(value / 10000).toLocaleString("zh-CN", { maximumFractionDigits: 2 })} 万元`;
   return `${value.toLocaleString("zh-CN", { minimumFractionDigits: unit === "multiple" ? 1 : 0, maximumFractionDigits: unit === "multiple" ? 1 : 2 })}${unit === "multiple" ? " 倍" : unit === "count" ? "" : unit ? ` ${unit}` : ""}`;
 }
 export function formatInsightCopy(value: Cell | undefined): string {
   const text = String(value ?? "");
   return text
     .replace(/([+\-−]?\d[\d,]*(?:\.\d+)?)\s*(万元|元)/g, (_, value, unit) =>
-      `${(Number(value.replaceAll(",", "").replace("−", "-")) / (unit === "元" ? 10000 : 1)).toLocaleString("zh-CN", { maximumFractionDigits: 6 })}万元`,
+      `${(Number(value.replaceAll(",", "").replace("−", "-")) / (unit === "元" ? 10000 : 1)).toLocaleString("zh-CN", { maximumFractionDigits: 2 })}万元`,
     )
-    .replace(/((?:Yield|投入产出比)[^。；;，\n]{0,24}?)([+\-]?\d+(?:\.\d+)?)\s*倍/gi, (_, prefix, value) => `${prefix}${Number(value).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false })}倍`);
+    .replace(/((?:Yield|投入产出比)[^。；;，\n]{0,24}?)([+\-]?\d+(?:\.\d+)?)\s*倍/gi, (_, prefix, value) => `${prefix}${Number(value).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false })}倍`)
+    .replace(/(?<![\w./])([+\-−]?\d[\d,]*\.\d{3,})(\s*(?:%|％|倍|K\$|KL|吨|升))(?![A-Za-z])/g, (_, value, unit) =>
+      `${Number(value.replaceAll(",", "").replace("−", "-")).toLocaleString("zh-CN", { maximumFractionDigits: 2 })}${unit}`,
+    );
 }
 const investmentPageSize = 20;
 const investmentStatuses: Record<string, string> = {
@@ -111,9 +114,13 @@ const investmentStatuses: Record<string, string> = {
 };
 const isAllocated = (row: Dataset["rows"][number]) =>
   typeof row.plan === "number" && Number.isFinite(row.plan) && row.plan > 0;
-function formatPlan(value: Cell | undefined): string {
-  if (typeof value !== "number") return formatEvidence(value, "CNY");
-  return `${(value / 10000).toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} 万元`;
+function formatInvestmentAmount(value: Cell | undefined): string {
+  if (value == null) return "缺失";
+  if (typeof value !== "number") return value;
+  return (value / 1000).toLocaleString("zh-CN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 export function investmentPage(
   dataset: Dataset,
@@ -224,9 +231,9 @@ export function InvestmentReview({
                 "经销商",
                 "Sector",
                 "资源类型",
-                "2025 实际（万元）",
-                "本次计划（万元）",
-                "差额（万元）",
+                "2025资源投入(K$)",
+                "本次计划(K$)",
+                "差额(K$)",
                 "计划 / 实际",
                 "核对状态",
               ].map((label) => (
@@ -247,11 +254,9 @@ export function InvestmentReview({
                 </th>
                 <td>{row.sector || "未指定"}</td>
                 <td>{row.resource_type}</td>
-                <td>{row.reason_code === "resource_restricted" ? "未授权" : formatEvidence(row.historical_actual, "CNY")}</td>
-                <td title={`未四舍五入的本次计划：${formatEvidence(row.plan, "CNY")}`}>
-                  {formatPlan(row.plan)}
-                </td>
-                <td>{formatEvidence(row.delta, "CNY")}</td>
+                <td>{row.reason_code === "resource_restricted" ? "未授权" : formatInvestmentAmount(row.historical_actual)}</td>
+                <td>{formatInvestmentAmount(row.plan)}</td>
+                <td>{formatInvestmentAmount(row.delta)}</td>
                 <td>
                   {row.multiple == null
                     ? row.historical_actual === 0
