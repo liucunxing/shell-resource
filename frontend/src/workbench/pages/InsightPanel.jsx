@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
 import * as api from "../api.js";
+import { AdminInsightPreview } from "./AdminInsightPreview.jsx";
 import {
   InsightCapabilityResult,
   InvestmentReview,
@@ -37,6 +38,12 @@ export function updateInsightGeneration(current, action) {
   };
 }
 export function InsightPanel({ scope }) {
+  const { identity, apiMode } = useWorkbench();
+  if (apiMode && identity.role === "admin")
+    return <AdminInsightPreview key={identity.email} PromptEditor={BusinessPromptEditor} />;
+  return <StandardInsightPanel scope={scope} />;
+}
+function StandardInsightPanel({ scope }) {
   const { state, data, identity, view, mutate, apiMode, notify } =
     useWorkbench();
   const requestEpoch = useRef(0);

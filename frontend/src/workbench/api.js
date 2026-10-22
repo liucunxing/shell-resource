@@ -143,13 +143,16 @@ export const uploadReference = (value) => request("/admin/reference", {
   method: "POST", body: JSON.stringify(value),
 });
 export const getInsights = (scope, presetId = "comprehensive") => request(`/insights?scope=${encodeURIComponent(scope)}&planning_year=${planningYear}&preset_id=${encodeURIComponent(presetId)}`);
-export async function generateInsights(scope, presetId = "comprehensive") {
+export const getInsightPreviewContext = (email) => request(`/insights/preview?user_email=${encodeURIComponent(email)}&planning_year=${planningYear}`);
+export const generateInsightPreview = (email, scope, presetId) => generateInsights(scope, presetId, email);
+export async function generateInsights(scope, presetId = "comprehensive", previewEmail = null) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 65000);
   try {
-    return await request("/insights/generate", {
+    return await request(previewEmail ? "/insights/preview" : "/insights/generate", {
       method: "POST", signal: controller.signal,
-      body: JSON.stringify({ scope, planning_year: planningYear, preset_id: presetId }),
+      body: JSON.stringify({ scope, planning_year: planningYear, preset_id: presetId,
+        ...(previewEmail ? { user_email: previewEmail } : {}) }),
     });
   } catch (error) {
     if (controller.signal.aborted)

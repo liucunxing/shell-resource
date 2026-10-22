@@ -89,11 +89,14 @@ class InsightService:
         user: WorkbenchUser,
         settings: Settings,
         repository: InsightRepository | None = None,
+        *,
+        persist_results: bool = True,
     ) -> None:
         self.session = session
         self.user = user
         self.settings = settings
         self.repository = repository or InsightRepository(session)
+        self.persist_results = persist_results
 
     def _log(self, level: int, message: str, *args: Any) -> None:
         context = getattr(self, "_log_context", {})
@@ -469,6 +472,9 @@ class InsightService:
         }
         await self._finish_read_transaction()
 
+        if not self.persist_results:
+            self._stage = "complete"
+            return record
         self._stage = "save"
         if perf_counter() >= self._deadline_at:
             raise TimeoutError

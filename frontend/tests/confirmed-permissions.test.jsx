@@ -19,11 +19,16 @@ beforeEach(() => {
     editorOperations: {}, directoryStatus: {}, notify: vi.fn(), loadDistributorDirectory: vi.fn() };
 });
 
-it.each(["management", "admin"])("%s has a real API generation button and clear synced-only label", (role) => {
+it.each(["management", "admin"])("%s has the appropriate generation perspective", (role) => {
   shared.context.identity.role = role;
   const html = renderToStaticMarkup(<InsightPanel />);
-  expect(html).toContain("生成分析");
-  expect(html).toContain("最新同步版本，不包含未同步草稿");
+  if (role === "admin") {
+    expect(html).toContain("模拟用户视角");
+    expect(html).toContain("试用分析");
+  } else {
+    expect(html).toContain("生成分析");
+    expect(html).toContain("最新同步版本，不包含未同步草稿");
+  }
   expect(html).not.toContain("分析方案由能力包维护");
 });
 

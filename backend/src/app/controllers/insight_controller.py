@@ -7,11 +7,37 @@ from app.core.config import Settings, get_settings
 from app.core.responses import ApiResponse, success
 from app.db.session import get_db_session
 from app.dependencies.workbench_user import WorkbenchUser, get_current_workbench_user
-from app.schemas.dto.insight import InsightGenerateDTO, InsightPromptUpdateDTO
+from app.schemas.dto.insight import InsightGenerateDTO, InsightPreviewDTO, InsightPromptUpdateDTO
 from app.schemas.vo.insight import InsightPromptVO, InsightReadVO
+from app.services.insight_preview_service import InsightPreviewService
 from app.services.insight_service import InsightService
 
 router = APIRouter()
+
+
+@router.get("/insights/preview", response_model=ApiResponse[dict], summary="管理员读取试用视角")
+async def insight_preview_context(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    user_email: Annotated[str, Query(min_length=1, max_length=254)],
+    planning_year: Annotated[int, Query(ge=2000, le=2100)],
+) -> ApiResponse[dict]:
+    service = await InsightPreviewService.create(session, user, user_email, settings)
+    return success(await service.context(planning_year))
+
+
+@router.post("/insights/preview", response_model=ApiResponse[dict], summary="管理员试用用户Insight")
+async def generate_insight_preview(
+    payload: InsightPreviewDTO,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> ApiResponse[dict]:
+    service = await InsightPreviewService.create(session, user, payload.user_email, settings)
+    return success(await service.generate(
+        scope=payload.scope, planning_year=payload.planning_year, preset_id=payload.preset_id
+    ), msg="试用分析已生成，未保存到用户记录")
 
 
 def _service(session: AsyncSession, user: WorkbenchUser, settings: Settings) -> InsightService:
