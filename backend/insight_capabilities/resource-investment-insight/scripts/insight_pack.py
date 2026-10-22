@@ -219,7 +219,7 @@ class InsightPack:
             check_refs(block, "blocks." + block["id"])
             if not any(block["status"] in constraints[key]["allowed_statuses"] for key in block["dimension_ids"]):
                 allowed = sorted({status for key in block["dimension_ids"] for status in constraints[key]["allowed_statuses"]})
-                raise PackError(f"blocks.{index}.status: 内容块状态不受所关联维度的证据支持；该块仅允许{allowed}。资源金额未授权属于limitations，不能把已有经营趋势降级为limited；将权限限制说明移到limitations后删除仅有该说明的块。")
+                raise PackError(f"blocks.{index}.status: 内容块状态不受所关联维度的证据支持；该块仅允许{allowed}。没有投入比较事实时跳过该部分，不输出权限或历史投入缺失说明，也不能把已有经营趋势降级为limited。")
             dataset_id = block["dataset_id"]
             if block["kind"] == "visual" and dataset_id is None:
                 raise PackError("可视化内容块必须引用数据集")

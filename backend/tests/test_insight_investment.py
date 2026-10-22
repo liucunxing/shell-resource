@@ -153,8 +153,8 @@ def test_unallocated_only_scope_has_no_dealer_analysis_but_checks_budget_gap():
         {"scope": "owner:test", "items": [only_item]}, "owner", 2027,
     )
     facts = {f["id"]: f["value"] for f in data["facts"]}
-    assert facts["cohort"] == facts["investment-comparison-count"] == 0
-    assert facts["investment-review-count"] == facts["investment-missing-count"] == 0
+    assert facts["cohort"] == 0
+    assert not any(key.startswith("investment") for key in facts)
     assert facts["gap"] == 100000
     assert not any(d["id"] == "investment-review" for d in data["datasets"])
     constraints = {c["dimension_id"]: c for c in data["check_constraints"]}

@@ -8,6 +8,8 @@ from pathlib import Path
 from statistics import median
 from typing import Any
 
+from app.core.departments import departments
+from app.core.resource_access import RESOURCE_TYPES, default_department_resources
 from app.services.dealer_history import scoped_dealer_histories
 from app.services.insight_investment import InvestmentRules, investment_comparisons
 
@@ -236,7 +238,7 @@ def build_evidence(
             yld,
             "multiple",
             "2025全年",
-            "只提供授权整体Yield值，不展示或反算其跨部门资源分母。",
+            "2025历史整体Yield，不代表单一资源类型的Yield或本次计划的未来收益。",
         )
         detail.append(
             dict(
@@ -410,11 +412,20 @@ def build_evidence(
             ],
         )
     investment_rules = investment_rules or InvestmentRules()
+    excluded_resources = set()
+    identity = workspace.get("identity") or {}
+    if role in {"owner", "lead"} and "department" in identity:
+        mapping = state.get("departmentResources", default_department_resources())
+        visible = set().union(
+            *(mapping.get(dep, []) for dep in departments(identity["department"]))
+        )
+        excluded_resources = set(RESOURCE_TYPES) - visible
     investment_rows = investment_comparisons(
         (workspace.get("data") or {}).get("dealers") or [],
         descriptor["items"],
         investment_rules,
         assigned_only=True,
+        excluded_resources=excluded_resources,
     )
     investment_alerts = sum(row["status"] == "review" for row in investment_rows)
     investment_missing = sum(row["status"] == "limited" for row in investment_rows)
@@ -424,20 +435,21 @@ def build_evidence(
         "不代表违规或未来收益判断；仅核对本范围同经销商、Sector及资源类型计划合计大于0的项目。"
     )
     investment_ids = []
-    for key, label, value in [
-        ("investment-review-count", "投入复核项数", investment_alerts),
-        ("investment-missing-count", "投入比较数据不足项数", investment_missing),
-        ("investment-comparison-count", "授权投入比较项数", len(investment_rows)),
-    ]:
-        investment_ids.append(fact(key, label, value, "count", note=investment_note))
-    investment_ids.append(
-        fact(
-            "investment-rules",
-            "当前投入复核规则",
-            investment_rules.description(),
-            note="规则版本及默认阈值为系统复核配置，不代表业务审批结论。",
+    if investment_rows:
+        for key, label, value in [
+            ("investment-review-count", "投入复核项数", investment_alerts),
+            ("investment-missing-count", "投入比较数据不足项数", investment_missing),
+            ("investment-comparison-count", "授权投入比较项数", len(investment_rows)),
+        ]:
+            investment_ids.append(fact(key, label, value, "count", note=investment_note))
+        investment_ids.append(
+            fact(
+                "investment-rules",
+                "当前投入复核规则",
+                investment_rules.description(),
+                note="规则版本及默认阈值为系统复核配置，不代表业务审批结论。",
+            )
         )
-    )
     for row in investment_rows:
         investment_ids.append(
             fact(
@@ -501,7 +513,7 @@ def build_evidence(
             )
             statuses = ["observed"] if comparable else ["limited"]
             reason = (
-                "可陈述完整可比经营历史；同范围历史投入基线只限制投入增长匹配判断，报告末尾说明。"
+                "可陈述完整可比经营历史。仅在存在投入比较事实时分析历史投入变化。"
                 if comparable
                 else "待补充2024及2025全年 Vol 或 C3；补充同指标完整年度对后可分析经营变化。"
             )

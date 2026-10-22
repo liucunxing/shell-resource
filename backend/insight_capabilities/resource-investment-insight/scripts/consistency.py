@@ -529,7 +529,12 @@ def issues(result, evidence):
             "investment-review-count" not in refs
             or facts.get("investment-review-count", {}).get("value") != 0
         ):
-            errors.append(f"{path}:review_count_contradiction:未触发复核须绑定为零的复核项数事实")
+            reason = (
+                "没有投入复核项数事实，不等于零；删除该处未触发复核的句子，不补权限或缺失说明，保留其他事实"
+                if "investment-review-count" not in facts
+                else "未触发复核须绑定为零的复核项数事实"
+            )
+            errors.append(f"{path}:review_count_contradiction:{reason}")
         review_counts = re.findall(r"(\d+)\s*项[^。；;]{0,12}(?:复核|确认)|(?:复核|确认)[^。；;\d]{0,8}(\d+)\s*项", text)
         if review_counts and "investment-review-count" in facts:
             expected = facts["investment-review-count"]["value"]

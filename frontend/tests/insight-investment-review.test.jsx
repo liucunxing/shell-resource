@@ -340,12 +340,14 @@ it("renders a readable fact source while preserving the stored evidence", () => 
   );
 });
 
-it("distinguishes protected resource amounts from missing history", () => {
+it("hides restricted comparisons without a permission notice", () => {
   const restricted = { ...dataset, rows: [{ ...dataset.rows[0], historical_actual: null, delta: null, multiple: null, status: "limited", reason_code: "resource_restricted" }] };
   const html = renderToString(<InvestmentReview dataset={restricted} scopeLabel="本人范围" />);
-  expect(html).toContain("历史金额未授权");
-  expect(html).toContain("<td>未授权</td>");
-  expect(html).toContain("无法进行这些资源的历史投入对比");
-  expect(html).toContain("历史整体 Yield 分析不受此权限限制");
-  expect(html).toContain("无法比较");
+  expect(html).toBe("");
+  const mixed = { ...dataset, rows: [...restricted.rows, { ...dataset.rows[1], dealer: "可分析对象" }] };
+  expect(investmentPage(mixed, "all", "", 1).total).toBe(1);
+  const mixedHtml = renderToString(<InvestmentReview dataset={mixed} scopeLabel="本人范围" />);
+  expect(mixedHtml).toContain("可分析对象");
+  expect(mixedHtml).not.toContain("经销商0");
+  expect(mixedHtml).not.toContain("未授权");
 });

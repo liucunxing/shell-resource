@@ -32,12 +32,13 @@ def test_sector_metrics_survive_restricted_resource_amount():
     facts = {f["id"]: f["value"] for f in data["facts"]}
     assert facts["yield:D1"] == 5.59
     assert facts["vol2025:D1"] == 821370.19
-    comparison = next(d for d in data["datasets"] if d["id"] == "investment-review")["rows"][0]
-    assert comparison["historical_actual"] is None
-    assert comparison["reason_code"] == "resource_restricted"
-    assert "无权查看2025年MRD历史投入金额" in comparison["reason"]
-    assert "无法进行MRD历史投入对比" in comparison["reason"]
-    assert "历史整体Yield分析不受此权限限制" in comparison["reason"]
+    assert not any(d["id"] == "investment-review" for d in data["datasets"])
+    assert not any(key.startswith("investment") for key in facts)
+    pack = InsightPack(PACK_ROOT)
+    for preset in ["comprehensive", "quadrant"]:
+        projected = pack.model_evidence(data, preset)
+        assert not any(f["id"].startswith("investment") for f in projected["facts"])
+        assert "resource_restricted" not in json.dumps(projected)
     # A visible source null remains missing, never mislabelled as a permission issue.
     pcmo["history"]["restrictedResources2025"] = ["Capex"]
     pcmo["history"]["resources2025"]["MRD"] = None
@@ -53,6 +54,38 @@ def test_sector_metrics_survive_restricted_resource_amount():
         ]
         == "missing"
     )
+
+
+def test_mixed_resources_only_compare_authorized_amounts():
+    dealer = record(actual=100000, **{"SP&A": 100000})
+    dealer["history"].update({"yield": 5.59, "restrictedResources2025": ["MRD"]})
+    data = build_evidence(
+        {"data": {"dealers": [dealer]}},
+        {"scope": "owner:test", "items": [item(), item(resource="SP&A", identifier="2")]},
+        "owner", 2027,
+    )
+    rows = next(d for d in data["datasets"] if d["id"] == "investment-review")["rows"]
+    assert len(rows) == 1 and rows[0]["resource_type"] == "SP&A"
+    facts = {f["id"]: f["value"] for f in data["facts"]}
+    assert facts["investment-comparison-count"] == facts["investment-review-count"] == 1
+    assert facts["allocated"] == 2000000 and facts["yield:D1"] == 5.59
+
+
+def test_department_permission_skips_resource_even_without_history_rows():
+    workspace = {"identity": {"department": ["ICE"]}, "data": {"dealers": []}}
+    descriptor = {"scope": "owner:test", "items": [item()]}
+    data = build_evidence(workspace, descriptor, "owner", 2027)
+    assert not any(f["id"].startswith("investment") for f in data["facts"])
+    # Configured multi-department union permits the comparison; source absence
+    # then remains genuine missing history rather than being silently skipped.
+    workspace["identity"]["department"].append("MKT")
+    data = build_evidence(workspace, descriptor, "owner", 2027)
+    rows = next(d for d in data["datasets"] if d["id"] == "investment-review")["rows"]
+    assert rows[0]["reason_code"] == "missing"
+    workspace["identity"]["department"] = ["ICE"]
+    workspace["state"] = {"departmentResources": {"ICE": ["MRD"]}}
+    data = build_evidence(workspace, descriptor, "owner", 2027)
+    assert any(d["id"] == "investment-review" for d in data["datasets"])
 
 
 def test_zero_yield_not_in_examples_or_quadrant_but_source_and_amounts_unchanged():

@@ -36,7 +36,8 @@ def _number(value: Any) -> Decimal | None:
 
 
 def investment_comparisons(
-    records: list[dict], items: list[dict], rules: InvestmentRules, *, assigned_only: bool = False
+    records: list[dict], items: list[dict], rules: InvestmentRules, *, assigned_only: bool = False,
+    excluded_resources: set[str] | None = None,
 ) -> list[dict]:
     """Resource-type baselines are never multiplied by the number of Initiatives.
 
@@ -45,10 +46,15 @@ def investment_comparisons(
     Assigned-only Insight treats blank drafts as zero and keeps positive totals
     per dealer/Sector/resource, without adding historical-only objects.
     """
+    restricted = set(excluded_resources or ())
+    for record in records:
+        restricted.update((record.get("history") or {}).get("restrictedResources2025", []))
     plans: dict[tuple[str, str, str], Decimal | None] = {}
     scope_pairs = set()
     for item in items:
         sector, resource = str(item.get("sector") or ""), str(item.get("resourceType") or "")
+        if resource in restricted:
+            continue
         if sector and resource:
             scope_pairs.add((sector, resource))
         for allocation in item.get("rows") or []:
@@ -84,14 +90,7 @@ def investment_comparisons(
         )
         code = "within_threshold"
         status, reason = "observed", "未触发当前投入复核规则；不代表投入合理性已获确认"
-        if resource in (record.get("history") or {}).get("restrictedResources2025", []):
-            code = "resource_restricted"
-            status, reason = (
-                "limited",
-                f"当前账号无权查看2025年{resource}历史投入金额，无法进行{resource}历史投入对比。"
-                "历史整体Yield分析不受此权限限制。",
-            )
-        elif baseline is None or plan is None or baseline < 0 or plan < 0:
+        if baseline is None or plan is None or baseline < 0 or plan < 0:
             code = "missing"
             status, reason = (
                 "limited",
