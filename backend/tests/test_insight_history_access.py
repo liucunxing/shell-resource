@@ -35,8 +35,9 @@ def test_sector_metrics_survive_restricted_resource_amount():
     comparison = next(d for d in data["datasets"] if d["id"] == "investment-review")["rows"][0]
     assert comparison["historical_actual"] is None
     assert comparison["reason_code"] == "resource_restricted"
-    assert "未获授权" in comparison["reason"]
-    assert "不表示销量或Yield历史缺失" in comparison["reason"]
+    assert "无权查看2025年MRD历史投入金额" in comparison["reason"]
+    assert "无法进行MRD历史投入对比" in comparison["reason"]
+    assert "历史整体Yield分析不受此权限限制" in comparison["reason"]
     # A visible source null remains missing, never mislabelled as a permission issue.
     pcmo["history"]["restrictedResources2025"] = ["Capex"]
     pcmo["history"]["resources2025"]["MRD"] = None

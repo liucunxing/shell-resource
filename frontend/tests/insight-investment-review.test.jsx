@@ -345,6 +345,7 @@ it("distinguishes protected resource amounts from missing history", () => {
   const html = renderToString(<InvestmentReview dataset={restricted} scopeLabel="本人范围" />);
   expect(html).toContain("历史金额未授权");
   expect(html).toContain("<td>未授权</td>");
-  expect(html).toContain("不能据此判断销量或 Yield 缺失");
+  expect(html).toContain("无法进行这些资源的历史投入对比");
+  expect(html).toContain("历史整体 Yield 分析不受此权限限制");
   expect(html).toContain("无法比较");
 });

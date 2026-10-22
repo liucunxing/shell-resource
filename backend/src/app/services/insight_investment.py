@@ -88,8 +88,8 @@ def investment_comparisons(
             code = "resource_restricted"
             status, reason = (
                 "limited",
-                f"当前账号未获授权查看2025年{resource}历史投入金额，无法比较实际与计划；"
-                "这不表示销量或Yield历史缺失",
+                f"当前账号无权查看2025年{resource}历史投入金额，无法进行{resource}历史投入对比。"
+                "历史整体Yield分析不受此权限限制。",
             )
         elif baseline is None or plan is None or baseline < 0 or plan < 0:
             code = "missing"

@@ -184,7 +184,7 @@ export function InvestmentReview({
       </p>
       <p className="ic-caption">{formatInsightCopy(dataset.note)}</p>
       {allocatedRows.some((row) => row.reason_code === "resource_restricted") && (
-        <p className="ic-caption">“历史金额未授权”仅指对应资源类型的历史投入金额，不能据此判断销量或 Yield 缺失。</p>
+        <p className="ic-caption">当前账号无权查看部分资源的历史投入金额，因此无法进行这些资源的历史投入对比。历史整体 Yield 分析不受此权限限制。</p>
       )}
       <p>
         共 {allocatedRows.length} 项 · 建议复核 {count("review")} 项 · 历史信息不足{" "}
@@ -525,7 +525,7 @@ export function investmentFactText(
     return `当前投入复核规则：计划达到历史实际的 ${formatEvidence(values.increase_multiple, "multiple")}及以上，且增加至少 ${formatEvidence(values.absolute_change, "CNY")}；或计划降至历史实际的 ${formatEvidence(values.decrease_multiple, "ratio")}及以下，且减少至少 ${formatEvidence(values.absolute_change, "CNY")}，建议复核。历史有投入、本范围未分配时也建议复核。阈值用于提示，不代表审批结论。`;
   }
   if (values.reason_code === "resource_restricted") {
-    return `${values.dealer} · ${values.sector} · ${values.resource_type}：2025 历史投入金额未授权；本次计划 ${formatEvidence(values.plan, "CNY")}。${values.reason}`;
+    return `${values.dealer} · ${values.sector} · ${values.resource_type}：当前账号无权查看2025年${values.resource_type}历史投入金额，无法进行${values.resource_type}历史投入对比。本次计划 ${formatEvidence(values.plan, "CNY")}。历史整体 Yield 分析不受此权限限制。`;
   }
   const multiple =
     values.multiple == null
