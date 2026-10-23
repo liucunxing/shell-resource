@@ -287,7 +287,7 @@ export default function WorkbenchApp() {
                   {identity.label}
                   <button
                     className="button subtle small"
-                    title={loginEmailEditable ? "退出后可输入测试邮箱重新登录" : "退出后须从帆软 Portal 重新进入"}
+                    title={loginEmailEditable ? "退出后可使用工作邮箱重新登录" : "退出后须从帆软 Portal 重新进入"}
                     onClick={() => setDevelopmentEmail("")}
                   >
                     退出工作台
@@ -487,7 +487,7 @@ export function PortalLogin({ email, loading, onSubmit, error, editable = loginE
         >
           <div className="login-card-heading">
             <h2 id="portal-login-title">登录资源投资工作台</h2>
-            <p>{editable ? "测试模式：可输入已配置工作台权限的邮箱登录。" : "邮箱由帆软 Portal 自动传入，不能手工修改。"}</p>
+            <p>{editable ? "请输入已获授权的工作邮箱登录。" : "邮箱由帆软 Portal 自动传入，不能手工修改。"}</p>
           </div>
 
           {error && (
@@ -509,7 +509,7 @@ export function PortalLogin({ email, loading, onSubmit, error, editable = loginE
                 aria-readonly={!editable}
                 disabled={loading}
                 required
-                placeholder={editable ? "请输入测试邮箱" : "请从帆软 Portal 进入"}
+                placeholder={editable ? "请输入工作邮箱" : "请从帆软 Portal 进入"}
               />
             </span>
           </label>
@@ -525,7 +525,7 @@ export function PortalLogin({ email, loading, onSubmit, error, editable = loginE
 
           <p className="login-session-note">
             <LockKey size={15} aria-hidden="true" />
-            {editable ? "当前已开放测试邮箱输入，访问权限仍由服务端校验。" : "请从已授权的帆软 Portal 链接跳转至本系统；直接访问不会建立登录身份。"}
+            {editable ? "仅限已获授权的内部用户使用。" : "请从已授权的帆软 Portal 链接跳转至本系统；直接访问不会建立登录身份。"}
           </p>
         </form>
         <p className="login-footer">壳牌资源投资规划工作台 · 内部系统</p>
