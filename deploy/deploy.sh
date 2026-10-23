@@ -199,7 +199,7 @@ step "构建前端和后端镜像"
 "${COMPOSE[@]}" --progress plain build --pull app
 done_step
 
-step "检查容器配置和数据库"
+step "检查容器配置、数据库和 Blob"
 # Validate with the image's Python 3.11 and actual runtime user before replacing the old app.
 "${COMPOSE[@]}" run --rm --no-deps -T app python -c '
 import sys
@@ -213,6 +213,7 @@ if s.app_env == "production":
 print("运行配置可读取，环境：" + s.app_env)
 '
 "${COMPOSE[@]}" run --rm --no-deps -T app python scripts/check_database.py
+"${COMPOSE[@]}" run --rm --no-deps -T app python scripts/check_blob.py
 done_step
 
 step "归档旧应用日志并更新容器"

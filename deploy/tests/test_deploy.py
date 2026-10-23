@@ -28,7 +28,7 @@ values = dict(line.split("=", 1) for line in pathlib.Path("deploy/.env").read_te
               if "=" in line and not line.startswith("#"))
 if command == "ps" and not is_compose:
     print("other-container" if scenario == "docker-conflict" else
-          "abcdef1234567890" if scenario in {"upgrade", "archive-failure"} or pathlib.Path("started").exists() else "")
+          "abcdef1234567890" if scenario in {"upgrade", "archive-failure", "blob-failure"} or pathlib.Path("started").exists() else "")
     sys.exit(0)
 if command == "logs":
     print("2026-10-21T01:00:00Z PRIVATE_RUNTIME_SENTINEL")
@@ -42,9 +42,10 @@ if command == "config" and "--format" in a:
     print(json.dumps({"services": services, "secrets": {"app_settings": {"file": "deploy/settings.toml"}}}))
 elif command == "build" and scenario == "build-failure": sys.exit(42)
 elif command == "run" and scenario == "db-failure" and "scripts/check_database.py" in a: sys.exit(43)
+elif command == "run" and scenario == "blob-failure" and "scripts/check_blob.py" in a: sys.exit(45)
 elif command == "up": pathlib.Path("started").touch()
 elif command == "ps":
-    print("abcdef1234567890" if scenario in {"upgrade", "archive-failure"} or pathlib.Path("started").exists() else "")
+    print("abcdef1234567890" if scenario in {"upgrade", "archive-failure", "blob-failure"} or pathlib.Path("started").exists() else "")
 '''
 
 
@@ -126,6 +127,8 @@ class DeployTests(unittest.TestCase):
         self.assertIn("PRIVATE_RUNTIME_SENTINEL", archives[0].read_text())
         self.assertIn("abcdef123456", archives[0].name)
         self.assertNotIn("PRIVATE_RUNTIME_SENTINEL", result.stdout + result.stderr)
+        self.assertLess(self.calls().index("scripts/check_blob.py"),
+                        self.calls().index("logs --timestamps"))
         self.assertLess(self.calls().index("logs --timestamps"), self.calls().index("up -d"))
 
     def test_archive_failure_stops_before_replacement_and_retains_partial(self):
@@ -161,6 +164,15 @@ class DeployTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("[7/8] 失败", result.stdout)
         self.assertFalse((self.root / "http.log").exists())
+
+    def test_blob_failure_does_not_archive_or_replace_old_app(self):
+        result = self.run_deploy("blob-failure")
+        self.assertEqual(result.returncode, 45, result.stdout + result.stderr)
+        self.assertIn("[5/8] 失败", result.stdout)
+        self.assertLess(self.calls().index("scripts/check_database.py"),
+                        self.calls().index("scripts/check_blob.py"))
+        self.assertNotIn("logs --timestamps", self.calls())
+        self.assertNotIn("up -d", self.calls())
 
     def test_init_preserves_existing_secrets(self):
         result = self.run_deploy(args=("--init", "--port", "8088"))

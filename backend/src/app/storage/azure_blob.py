@@ -1,4 +1,5 @@
 import logging
+import re
 from dataclasses import dataclass
 
 from azure.core.exceptions import AzureError, ResourceExistsError, ResourceNotFoundError
@@ -6,6 +7,44 @@ from azure.storage.blob import ContentSettings
 from azure.storage.blob.aio import BlobServiceClient
 
 logger = logging.getLogger(__name__)
+
+
+def safe_storage_error_metadata(exc: Exception) -> dict[str, str | int]:
+    """Keep Azure response bodies, signatures and URLs out of application logs."""
+    status_code = getattr(exc, "status_code", None)
+    error_code = getattr(exc, "error_code", None)
+    error_code = getattr(error_code, "value", error_code)
+    if not isinstance(error_code, str) or not re.fullmatch(
+        r"[A-Za-z][A-Za-z0-9]{0,79}", error_code
+    ):
+        error_code = "unknown"
+    response = getattr(exc, "response", None)
+    headers = getattr(response, "headers", {}) or {}
+    request_id = headers.get("x-ms-request-id", "")
+    if not isinstance(request_id, str) or not re.fullmatch(
+        r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", request_id
+    ):
+        request_id = "unknown"
+    return {
+        "error_type": type(exc).__name__,
+        "status": status_code
+        if type(status_code) is int and 100 <= status_code <= 599
+        else "unknown",
+        "error_code": error_code,
+        "request_id": request_id,
+    }
+
+
+def _log_storage_error(operation: str, exc: AzureError) -> None:
+    metadata = safe_storage_error_metadata(exc)
+    logger.error(
+        "Azure Blob %s failed error_type=%s status=%s error_code=%s request_id=%s",
+        operation,
+        metadata["error_type"],
+        metadata["status"],
+        metadata["error_code"],
+        metadata["request_id"],
+    )
 
 
 class BlobStorageError(RuntimeError):
@@ -65,15 +104,11 @@ class AzureBlobStorage:
                     overwrite=False,
                     content_settings=ContentSettings(content_type=content_type),
                 )
-        except ResourceExistsError as exc:
-            raise BlobAlreadyExistsError("Azure Blob already exists") from exc
+        except ResourceExistsError:
+            raise BlobAlreadyExistsError("Azure Blob already exists") from None
         except AzureError as exc:
-            logger.exception(
-                "Azure Blob upload failed for container=%s error_type=%s",
-                self.container_name,
-                type(exc).__name__,
-            )
-            raise BlobStorageError("Azure Blob upload failed") from exc
+            _log_storage_error("upload", exc)
+            raise BlobStorageError("Azure Blob upload failed") from None
 
         return BlobUploadResult(
             blob_name=blob_name,
@@ -96,15 +131,11 @@ class AzureBlobStorage:
                 stream = await blob_client.download_blob()
                 properties = await blob_client.get_blob_properties()
                 data = await stream.readall()
-        except ResourceNotFoundError as exc:
-            raise BlobNotFoundError("Azure Blob does not exist") from exc
+        except ResourceNotFoundError:
+            raise BlobNotFoundError("Azure Blob does not exist") from None
         except AzureError as exc:
-            logger.exception(
-                "Azure Blob download failed for container=%s error_type=%s",
-                self.container_name,
-                type(exc).__name__,
-            )
-            raise BlobStorageError("Azure Blob download failed") from exc
+            _log_storage_error("download", exc)
+            raise BlobStorageError("Azure Blob download failed") from None
 
         return BlobDownloadResult(
             blob_name=blob_name,

@@ -6,12 +6,18 @@
 Internet
   └─ 80/443  →  /opt/digitalshell-gateway (Nginx, host network)
                  ├─ resource.digitalshell.com.cn → 127.0.0.1:18080 (shell-forecast)
-                 └─ oneportal.digitalshell.com.cn → 127.0.0.1:18081 (future OnePortal)
+                 └─ oneportal.digitalshell.com.cn → 127.0.0.1:18081
+                      /opt/shell-oneportal frontend (Nginx, container 8080)
+                        └─ /api/ → backend:8080 (Java, Docker 内网)
 ```
 
-应用项目不得再监听公网 `80/443`，也不得各自启动 Nginx。这样增加新平台时只需分配一个本机端口和一个 `server_name` 路由，不会抢占入口端口。
+只有共享网关监听公网 `80/443`。应用可以使用内部 Nginx 提供静态文件和 API 代理，但必须只发布 `127.0.0.1` 端口；OnePortal 后端不发布宿主机端口。这样增加新平台时只需分配一个本机端口和一个 `server_name` 路由，不会抢占入口端口。
 
-## 首次迁移到共享网关
+本文是部署操作手册，不是线上验收完成记录。OnePortal 按受控 UAT 方式交付，使用现有管理员账号密码，保留会话、CSRF 和角色校验；企业 SSO 尚未接入，不能据此宣称生产身份接入已完成。
+
+## 首次迁移到共享网关（历史迁移流程）
+
+已经使用共享网关的服务器跳过本节，按下文日常维护和应用发布流程操作。
 
 以下命令在 ECS 中以 `ecs-user` 执行。先确认当前代码已包含 `gateway/` 目录，且 `resource` 应用已按新的 Compose 配置监听 `127.0.0.1:18080`。
 
@@ -73,7 +79,7 @@ sudo docker compose --env-file .env ps
 sudo docker compose --env-file .env logs --tail=100 nginx
 ```
 
-`oneportal` 尚未部署前，其根路径返回 502 是预期行为；`/nginx-health` 返回 200 说明域名路由和 TLS 已就绪。
+`/nginx-health` 返回 200 只说明网关路由和 TLS 可用，不代表应用已经运行。OnePortal 未部署时根路径可能返回 502；接入完成的验收必须检查 `/api/health`、页面和认证行为，不能接受 502 作为交付结果。网关脚本不会代替 OnePortal 业务验收。
 
 ## 网关日常维护
 
@@ -89,9 +95,9 @@ sudo bash deploy.sh
 
 `--check` 使用隔离网络的临时容器验证模板、证书及私钥，不占用 80/443。正式部署仅在预检成功后更新网关。保留原入口的 20MB 上传限制和 300 秒请求超时。现有镜像可用时直接复用；镜像版本升级时先修改 `.env` 中的 `GATEWAY_NGINX_IMAGE`。
 
-当前安全镜像为 `digitalshell-gateway:1.30.6-brotli1.2.1`。它由本目录的 `Dockerfile` 从固定 digest 的官方 Nginx 1.30.6 构建，并补充 Brotli 1.2.1（官方基础镜像仍含 1.2.0）。目标镜像不存在时，`deploy.sh` 在预检前自动构建。首次从旧网关升级时，`install.sh` 保留已有 `.env`，因此必须显式更新其中的 `GATEWAY_NGINX_IMAGE`。后续修改 Dockerfile 应使用新镜像标签；回滚时把该变量恢复为保留的旧镜像，再执行 `deploy.sh`。
+当前安全镜像为 `digitalshell-gateway:1.30.6-brotli1.2.1`。它由仓库 `gateway/Dockerfile`（安装后为 `/opt/digitalshell-gateway/Dockerfile`）从固定 digest 的官方 Nginx 1.30.6 构建，并补充 Brotli 1.2.1（该固定基础镜像仍含 1.2.0）。此默认目标镜像不存在时，`deploy.sh` 在预检前自动构建；其他显式镜像标签缺失时脚本尝试拉取，不会把新构建冒充为旧版本。首次从旧网关升级时，`install.sh` 保留已有 `.env`，因此必须显式更新其中的 `GATEWAY_NGINX_IMAGE`。后续修改 Dockerfile 应使用新镜像标签；回滚时把该变量恢复为保留的旧镜像，再执行 `deploy.sh`。
 
-旧项目 Nginx 在迁移后保持停止状态，可设为 `sudo docker update --restart=no shell-forecast-nginx-1` 避免误启动；需要回滚时仍可手动启动。
+旧项目公网 Nginx 在迁移后保持停止状态，可设为 `sudo docker update --restart=no shell-forecast-nginx-1` 避免重启宿主机后争抢入口。它仅保留为历史灾备，不是常规回滚方案。
 
 ## 之后发布 resource 项目
 
@@ -106,19 +112,62 @@ curl --noproxy '*' --fail http://127.0.0.1:18080/health
 curl --noproxy '*' --fail https://resource.digitalshell.com.cn/health
 ```
 
-## 接入未来 OnePortal
+## 发布 OnePortal 受控 UAT
 
-OnePortal 的 Compose 必须只发布 `127.0.0.1:18081:<container-port>`。部署并确认 `curl http://127.0.0.1:18081/health` 后，网关已经预留 `oneportal.digitalshell.com.cn → 127.0.0.1:18081`，只需验证：
+应用仓库位于 `/opt/shell-oneportal`，具体配置校验和发布流程以该仓库 `deploy/README.md` 为准。部署前准备权限受限的现有 `.env`，保留原管理数据库与管理员账号密码，不打印密钥或完整 Compose 配置。确认数据库 Flyway 历史满足应用 UAT 校验要求，不能通过跳过校验或切换空数据库绕过启动失败。
+
+OnePortal 的 Compose 只发布 `127.0.0.1:18081:8080`，由 frontend 容器提供 React 静态文件并将 `/api/` 转发到内部 `backend:8080`。下面命令在已检出并测试目标提交后执行；若 Docker 需要提权，保持 `ONEPORTAL_RELEASE` 传递给 Compose：
 
 ```bash
-curl --noproxy '*' --fail https://oneportal.digitalshell.com.cn/health
+cd /opt/shell-oneportal
+export ONEPORTAL_RELEASE="$(git rev-parse --short=12 HEAD)"
+python3 deploy/check-env.py
+docker compose -f deploy/compose.yaml build
+docker compose -f deploy/compose.yaml up -d --no-build --wait --wait-timeout 180
+docker compose -f deploy/compose.yaml ps
+curl --noproxy '*' --fail http://127.0.0.1:18081/api/health
+curl --noproxy '*' --fail https://oneportal.digitalshell.com.cn/api/health
+curl --noproxy '*' --fail https://oneportal.digitalshell.com.cn/
 ```
+
+已有运行网关预留 `oneportal.digitalshell.com.cn → 127.0.0.1:18081`，应用启动后即可接入，无需为此次接入重启网关。健康接口是 **`/api/health`，不是 `/health`**；后者可能命中前端页面回退，返回 200 也不能证明后端正常。
+
+验收还应覆盖静态资源、前端深层路由、匿名访问 `/api/admin/overview` 返回 401、现有管理员登录及只读管理页面、退出登录、缺少 CSRF 的写请求被拒绝。不要以验收为由发布 UC 变更、修改数据库账号或调用付费服务。保留 `shell-oneportal_evidence` 附件卷，发布和回滚都不得执行 `down -v`。
 
 若将来需要第三个应用，新增一个未占用的本机端口和一个 Nginx `server_name` 块，随后在 `/opt/digitalshell-gateway` 同步 `gateway/` 的程序文件并执行 `sudo bash deploy.sh`。不要给应用自身分配 80 或 443。
 
-## 故障恢复边界
+## 故障定位和重启后验收
 
-`gateway/deploy.sh` 从不停止其他项目。若新网关没有启动成功，旧私有 Nginx 容器仍在，只是已停止；确认问题后可使用上面输出并记录的旧容器 ID 恢复旧入口。恢复前先停止共享网关：
+先确认监听和容器状态，再逐层检查，避免把应用未运行误判成网关配置错误：
+
+```bash
+sudo ss -ltnp | grep -E ':(80|443|18080|18081)\b'
+sudo docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+curl --noproxy '*' --fail http://127.0.0.1:18080/health
+curl --noproxy '*' --fail http://127.0.0.1:18081/api/health
+curl --noproxy '*' --fail https://resource.digitalshell.com.cn/health
+curl --noproxy '*' --fail https://oneportal.digitalshell.com.cn/api/health
+```
+
+| 现象 | 优先检查 |
+| --- | --- |
+| `/nginx-health` 200，应用 502 | 本机上游是否监听、应用容器健康状态、网关 upstream 是否对应 18080/18081 |
+| OnePortal 根路径可用，`/api/health` 失败 | frontend 到 backend 的内网代理、后端启动日志、数据库连接及迁移校验 |
+| 本机应用健康，外部域名失败 | 网关日志、证书域名/有效期、DNS 和公网入口配置 |
+| 登录或管理接口 401/403 | 会话 Cookie、转发 HTTPS 信息、CSRF 和角色；不得直接取消安全校验 |
+| 宿主机重启后入口失败 | Docker 启动、容器 restart policy、旧公网 Nginx 是否抢占 80/443 |
+
+网关日志用 `/opt/digitalshell-gateway` 下 `sudo docker compose --env-file .env logs --tail=100 nginx`；OnePortal 日志在应用目录设置对应 `ONEPORTAL_RELEASE` 后用 `docker compose -f deploy/compose.yaml logs --tail=100 frontend backend`。日志对外分享前须脱敏。重启后还需从外部浏览器验证两个应用，不只检查容器进程存活。
+
+## 回滚边界
+
+常规回滚保留共享网关和两个域名路由，仅回退故障组件：
+
+- resource：恢复发布前保存的 `deploy/.env` 应用镜像配置，在 `/opt/shell-forecast` 执行 `sudo docker compose --env-file deploy/.env -f compose.yaml up -d --no-build --wait`，然后验证本机和公网 `/health`。
+- OnePortal：设置 `ONEPORTAL_RELEASE` 为保留的已验证旧镜像标签，在 `/opt/shell-oneportal` 执行 `docker compose -f deploy/compose.yaml up -d --no-build --wait --wait-timeout 180`，验证 `/api/health` 和认证行为。首次部署没有旧版本，停止该项目两个容器只会恢复为“上游缺失”，并不算可用服务恢复；保留数据库和附件卷。
+- 网关：恢复已备份的网关 `.env` 中镜像标签，以及本次变更前的模板/Compose 文件；执行 `sudo bash deploy.sh --check`，通过后执行 `sudo bash deploy.sh`，验证两个应用。不要只回退镜像却保留不兼容的新模板。
+
+`gateway/deploy.sh` 从不停止其他项目。只有共享网关无法恢复、明确接受失去 OnePortal 入口且已核对旧容器配置时，才考虑历史私有 Nginx 全入口灾备。使用事先记录的真实旧容器 ID；它的旧镜像可能不含最新安全修复：
 
 ```bash
 cd /opt/digitalshell-gateway
