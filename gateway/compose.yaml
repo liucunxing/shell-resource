@@ -2,7 +2,10 @@ name: ${COMPOSE_PROJECT_NAME:-digitalshell-gateway}
 
 services:
   nginx:
-    image: ${GATEWAY_NGINX_IMAGE:-nginx:1.30.5-alpine}
+    image: ${GATEWAY_NGINX_IMAGE:-digitalshell-gateway:1.30.6-brotli1.2.1}
+    build:
+      context: .
+      dockerfile: Dockerfile
     network_mode: host
     restart: unless-stopped
     init: true

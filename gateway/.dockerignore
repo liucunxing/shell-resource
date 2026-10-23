@@ -1,0 +1,4 @@
+# The deployed directory also holds .env and TLS private keys.
+**
+!Dockerfile
+!.dockerignore

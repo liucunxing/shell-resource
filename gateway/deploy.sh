@@ -37,7 +37,12 @@ PRIVATE_KEY=$(openssl pkey -in certs/private.key -pubout -outform DER | openssl 
 
 IMAGE=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["services"]["nginx"]["image"])' "$CONFIG")
 if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
-    "${COMPOSE[@]}" pull nginx
+    if [[ "$IMAGE" == 'digitalshell-gateway:1.30.6-brotli1.2.1' ]]; then
+        "${COMPOSE[@]}" build --pull nginx
+    else
+        # Preserve explicit upstream images and rollback tags; never relabel a new build as an old version.
+        "${COMPOSE[@]}" pull nginx
+    fi
 fi
 "${COMPOSE[@]}" run --rm --no-deps -T nginx-check nginx -t
 [[ "$MODE" != --check ]] || { printf '共享网关预检通过，现有入口未改动。\n'; exit 0; }

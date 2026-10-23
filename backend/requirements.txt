@@ -1,3 +1,5 @@
+-c constraints.txt
+
 fastapi>=0.115,<1.0
 uvicorn[standard]>=0.30,<1.0
 SQLAlchemy[asyncio]>=2.0,<3.0
@@ -9,3 +11,7 @@ python-multipart>=0.0.18,<1.0
 httpx>=0.27,<1.0
 
 jsonschema>=4.23,<5.0
+
+# Security floors for transitive HTTPS / Azure Blob client dependencies.
+certifi>=2026.10.19
+aiohttp>=3.14.4,<4.0

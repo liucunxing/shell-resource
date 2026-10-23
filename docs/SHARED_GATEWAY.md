@@ -89,6 +89,8 @@ sudo bash deploy.sh
 
 `--check` 使用隔离网络的临时容器验证模板、证书及私钥，不占用 80/443。正式部署仅在预检成功后更新网关。保留原入口的 20MB 上传限制和 300 秒请求超时。现有镜像可用时直接复用；镜像版本升级时先修改 `.env` 中的 `GATEWAY_NGINX_IMAGE`。
 
+当前安全镜像为 `digitalshell-gateway:1.30.6-brotli1.2.1`。它由本目录的 `Dockerfile` 从固定 digest 的官方 Nginx 1.30.6 构建，并补充 Brotli 1.2.1（官方基础镜像仍含 1.2.0）。目标镜像不存在时，`deploy.sh` 在预检前自动构建。首次从旧网关升级时，`install.sh` 保留已有 `.env`，因此必须显式更新其中的 `GATEWAY_NGINX_IMAGE`。后续修改 Dockerfile 应使用新镜像标签；回滚时把该变量恢复为保留的旧镜像，再执行 `deploy.sh`。
+
 旧项目 Nginx 在迁移后保持停止状态，可设为 `sudo docker update --restart=no shell-forecast-nginx-1` 避免误启动；需要回滚时仍可手动启动。
 
 ## 之后发布 resource 项目

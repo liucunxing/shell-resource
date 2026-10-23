@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim AS frontend-builder
+FROM node:22.23.4-bookworm-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d AS frontend-builder
 
 WORKDIR /build/frontend
 
@@ -20,7 +20,8 @@ ENV VITE_API_BASE_URL=${VITE_API_BASE_URL} \
 RUN npm run build
 
 
-FROM python:3.11-slim-bookworm AS runtime
+# Debian 13 includes the OpenSSL security backport (DSA-6531-1).
+FROM python:3.11.17-slim-trixie@sha256:cce12316475d7d56d605f76e1d811d0dc4e7227f2d4afd29951521264f504ff8 AS runtime
 
 ARG APP_REVISION=unknown
 
@@ -44,10 +45,12 @@ RUN sed -i \
     && groupadd --system --gid 10001 app \
     && useradd --system --uid 10001 --gid app --home-dir /nonexistent --shell /usr/sbin/nologin app
 
-COPY backend/requirements.txt ./requirements.txt
+COPY backend/requirements.txt backend/constraints.txt ./
 RUN python -m pip install --no-cache-dir \
-    --index-url http://mirrors.cloud.aliyuncs.com/pypi/simple/ \
-    --trusted-host mirrors.cloud.aliyuncs.com \
+    --index-url https://mirrors.aliyun.com/pypi/simple/ \
+    --upgrade pip==26.2 \
+    && python -m pip install --no-cache-dir \
+    --index-url https://mirrors.aliyun.com/pypi/simple/ \
     -r requirements.txt
 
 COPY --chown=app:app backend/src ./src

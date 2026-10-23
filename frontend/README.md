@@ -4,7 +4,7 @@
 
 ## 运行
 
-使用 Node.js 22.12+ 或 24：
+使用包含 2026-10 安全补丁的 Node.js 22.23.4+（22 分支）或 24.22.1+（24 分支）。仓库 `.nvmrc` 指定本地 24.22.1，Docker 构建固定 22.23.4 镜像 digest：
 
 ```powershell
 cd frontend

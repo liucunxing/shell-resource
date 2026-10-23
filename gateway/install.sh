@@ -11,6 +11,8 @@ OWNER_UID=${SUDO_UID:-$(id -u)}
 OWNER_GID=${SUDO_GID:-$(id -g)}
 install -d -m 0750 -o "$OWNER_UID" -g "$OWNER_GID" "$TARGET" "$TARGET/nginx" "$TARGET/certs"
 install -m 0644 -o "$OWNER_UID" -g "$OWNER_GID" "$SOURCE/compose.yaml" "$TARGET/compose.yaml"
+install -m 0644 -o "$OWNER_UID" -g "$OWNER_GID" "$SOURCE/Dockerfile" "$TARGET/Dockerfile"
+install -m 0644 -o "$OWNER_UID" -g "$OWNER_GID" "$SOURCE/.dockerignore" "$TARGET/.dockerignore"
 install -m 0755 -o "$OWNER_UID" -g "$OWNER_GID" "$SOURCE/deploy.sh" "$TARGET/deploy.sh"
 install -m 0644 -o "$OWNER_UID" -g "$OWNER_GID" "$SOURCE/nginx/default.conf.template" "$TARGET/nginx/default.conf.template"
 if [[ ! -f "$TARGET/.env" ]]; then
