@@ -8,7 +8,7 @@ FastAPI + SQLAlchemy Async + PostgreSQL。沿用 `Controller → Service → Rep
 
 ```powershell
 py -3.11 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install --index-url https://pypi.org/simple pip==26.2
+.\.venv\Scripts\python.exe -m pip install --index-url https://pypi.org/simple pip==26.2.2
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 # 仅在本地配置尚不存在时复制，避免覆盖已有密钥
 if (!(Test-Path config/settings.toml)) {
@@ -19,6 +19,8 @@ if (!(Test-Path config/settings.toml)) {
 `backend/.env` 仅保存 `APP_ENV=development`，可提交。真实 `config/settings.toml` 被 Git 忽略，配置分为 `[development]`、`[test]`、`[production]`。进程环境变量 `APP_ENV` 可以覆盖环境选择，`APP_SETTINGS_FILE` 可指定配置文件。改动配置后重启应用。
 
 `requirements.txt` 自动引用 `constraints.txt`，将运行依赖固定为 2026-10-23 核验的线上版本，并为 certifi / aiohttp 设置安全版本下限。更新约束时需重新运行后端测试、依赖审计和镜像预检；该文件是版本约束，不是带制品哈希的锁文件。开发工具仍按 `requirements-dev.txt` 管理。安装源必须使用 HTTPS 并保留证书校验；需要镜像时可使用 `--index-url https://mirrors.aliyun.com/pypi/simple/`。
+
+生产容器继续使用 Python 3.11；已有 Windows Python 3.13 开发环境应使用 3.13.17 或之后的安全补丁版本，并验证虚拟环境实际加载的解释器和 OpenSSL。pip 需使用 26.2.2，确保其内嵌 certifi 也已更新；仅更新项目独立 certifi 包不会更新 pip 内嵌证书库。
 
 编辑 `[development]`：
 

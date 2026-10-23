@@ -48,7 +48,7 @@ RUN sed -i \
 COPY backend/requirements.txt backend/constraints.txt ./
 RUN python -m pip install --no-cache-dir \
     --index-url https://mirrors.aliyun.com/pypi/simple/ \
-    --upgrade pip==26.2 \
+    --upgrade pip==26.2.2 \
     && python -m pip install --no-cache-dir \
     --index-url https://mirrors.aliyun.com/pypi/simple/ \
     -r requirements.txt
