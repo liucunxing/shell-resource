@@ -486,7 +486,6 @@ export function PortalLogin({ email, loading, onSubmit, error, editable = loginE
           }}
         >
           <div className="login-card-heading">
-            <span className="login-environment">开发环境</span>
             <h2 id="portal-login-title">登录资源投资工作台</h2>
             <p>{editable ? "测试模式：可输入已配置工作台权限的邮箱登录。" : "邮箱由帆软 Portal 自动传入，不能手工修改。"}</p>
           </div>
