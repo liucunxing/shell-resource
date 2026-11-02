@@ -11,6 +11,7 @@ python-multipart>=0.0.18,<1.0
 httpx>=0.27,<1.0
 
 jsonschema>=4.23,<5.0
+PyJWT>=2.15.1,<3.0
 
 # Security floors for transitive HTTPS / Azure Blob client dependencies.
 certifi>=2026.10.19

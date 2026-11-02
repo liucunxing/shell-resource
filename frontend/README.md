@@ -70,6 +70,31 @@ iframe 首次打开时加载，折叠、工具切换和业务切页保留实例�
 
 ## 工程与来源
 
+### Portal JWT 独立入口（2026-11-02）
+
+`/portal-embed/bootstrap/{instanceId}` 在后端验签并建立会话后加载，前端确认受保护的
+context 与 session，使用仓库随附的 `@oneportal/embed-browser-sdk/child` 发送 READY，
+再进入 `/portal-embed/workbench#portal-instance={instanceId}`。Hash 只保存非凭据的
+实例 ID，刷新/新标签页仍必须通过当前 Cookie 的 context/session 校验。
+
+新入口强制使用真实 API 模式（不受 `VITE_DATA_MODE=demo` 影响），请求固定走
+`/portal-embed/api/v1/workbench`，附带 `X-Portal-Instance`；写请求和退出另附
+内存中的 `X-Portal-CSRF`。不读取、修改或清空旧 `shell-resource-dev-email`，
+不接受 URL 邮箱或 `X-User-Email` 作为新身份。验证失败只提示从 Portal 重新进入。
+原帆软 URL/旧 API/手工测试邮箱入口保持原行为。
+
+Portal 入口在返回标签页、每 30 秒和生成 CSV/XLSX 下载前校验会话；后端拒绝
+过期、换账号或权限变化时卸载工作台。已下载或已读取到客户端的数据不能被撤回。
+退出只调用新入口的退出接口，不修改帆软缓存。关闭 iframe 不等于下游会话注销。
+本轮 Portal 页面不显示问数入口，原帆软入口的 Data Agent 行为保留。
+
+SDK 源码以 `vendor/embed-browser-sdk` 私有 file dependency 随工程构建，来源见其
+`PROVENANCE.md`。正常 `npm ci` / `npm run build` 不依赖旁边的 Portal 仓库。
+本机 HTTP 联调时显式设置 `VITE_PORTAL_ALLOW_LOOPBACK_HTTP=true`；部署 HTTPS
+保留默认 false。Vite 仅将 `/portal-embed/login`、`/portal-embed/api` 和
+`/portal-embed/logout` 转发至 8000 端口，页面由 Vite 提供；部署由后端提供已构建页面。
+Cookie/CSP 与真实用户权限仍需真实部署浏览器验收。
+
 - `src/workbench/pages/`：React 业务页面，按页面延迟加载。
 - `src/workbench/WorkbenchContext.jsx`：角色、状态、本机保存与导航。
 - `src/workbench/WorkPanel.jsx`：四个辅助工具与 iframe 接口。

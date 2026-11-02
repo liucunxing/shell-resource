@@ -10,10 +10,12 @@ import {
 import E from "./domain/engine.js";
 import DATA from "./domain/demo-data.json";
 import * as api from "./api.js";
+import { isPortalEntry, logoutPortalSession } from "../portal/session";
 
 export const STORAGE_KEY = "shell-resource-workbench-v13";
-const demoMode = import.meta.env.VITE_DATA_MODE === "demo";
-if (!demoMode) api.acceptPortalEmail();
+const portalMode = isPortalEntry();
+const demoMode = !portalMode && import.meta.env.VITE_DATA_MODE === "demo";
+if (!demoMode && !portalMode) api.acceptPortalEmail();
 
 export const roles = E.DEPARTMENTS.flatMap((department) => [
   ...[1, 2].map((number) => ({
@@ -144,7 +146,7 @@ export function WorkbenchProvider({ children }) {
   const [savedForSyncIds, setSavedForSyncIds] = useState(new Set());
   const [editorOperations, setEditorOperations] = useState({});
   const [devEmail, setDevEmailState] = useState(
-    demoMode ? "" : api.getDevelopmentEmail(),
+    demoMode || portalMode ? "" : api.getDevelopmentEmail(),
   );
   const [loading, setLoading] = useState(!demoMode);
   const [storageWarning, setStorageWarning] = useState("");
@@ -277,10 +279,10 @@ export function WorkbenchProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    // Portal hands off the immutable email before React mounts. Resolve server
-    // permissions automatically; keep the login form for missing or denied access.
+    // The new Portal entry has already confirmed its server session. FineReport
+    // still initializes from the existing email handoff before React mounts.
     if (demoMode) return;
-    if (api.getDevelopmentEmail()) refresh();
+    if (portalMode || api.getDevelopmentEmail()) refresh();
     else setLoading(false);
   }, []);
   useEffect(() => {
@@ -571,6 +573,12 @@ export function WorkbenchProvider({ children }) {
   };
 
   const setDevelopmentEmail = async (email) => {
+    if (portalMode) {
+      if (email) return;
+      try { await logoutPortalSession(); clearApiWorkspace(); }
+      catch { notify("退出未完成，请重试。", true); }
+      return;
+    }
     if (demoMode) return;
     api.setDevelopmentEmail(email);
     setDevEmailState(api.getDevelopmentEmail());
@@ -647,6 +655,7 @@ export function WorkbenchProvider({ children }) {
     identity,
     roles: demoMode ? roles : users,
     apiMode: !demoMode,
+    portalMode,
     devEmail,
     setDevelopmentEmail,
     loading,

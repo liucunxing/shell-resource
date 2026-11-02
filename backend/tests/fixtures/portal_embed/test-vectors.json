@@ -1,0 +1,1278 @@
+{
+  "version": "1.0",
+  "warning": "PUBLIC TEST KEY. NEVER USE IN DEPLOYMENTS.",
+  "now": 1793232030,
+  "config": {
+    "issuer": "https://portal.example.com",
+    "audience": "small-app",
+    "allowedEmbedderOrigins": [
+      "https://portal.example.com"
+    ],
+    "ttlSeconds": 60,
+    "clockSkewSeconds": 5,
+    "requiredClaims": [
+      "display_name"
+    ],
+    "keys": {
+      "small-test-01": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
+    }
+  },
+  "vectors": [
+    {
+      "name": "valid_unicode",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.QmlhBCPejNETGF9dswbfYzuWTWtldYu4NAba2jjdRAE",
+      "expected": "valid",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": "UTF-8 JSON and raw Base64-decoded key bytes"
+    },
+    {
+      "name": "valid_clock_skew_future",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMzUsImV4cCI6MTc5MzIzMjA5NSwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.4pKq5CRZ1vQYfGGGYoGaY5F1YSTW3nDrXZu3xoc1iUQ",
+      "expected": "valid",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232035,
+        "exp": 1793232095,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "valid_expiry_grace",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.QmlhBCPejNETGF9dswbfYzuWTWtldYu4NAba2jjdRAE",
+      "expected": "valid",
+      "now": 1793232064,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "expired_at_grace_boundary",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.QmlhBCPejNETGF9dswbfYzuWTWtldYu4NAba2jjdRAE",
+      "expected": "ASSERTION_EXPIRED",
+      "now": 1793232065,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "expired",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzE5MzAsImV4cCI6MTc5MzIzMTk5MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.jEwVcUZJjmAvCMVNsWL2kgq18vXRrKn0oYu-OKYb1Bw",
+      "expected": "ASSERTION_EXPIRED",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793231930,
+        "exp": 1793231990,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "future_iat",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMzYsImV4cCI6MTc5MzIzMjA5NiwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.L10oXRvsXorFEqiX5bgyAWPpOeJu8qEgZn70OcY0n88",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232036,
+        "exp": 1793232096,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "ttl_too_long",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MSwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.qwbIID-3PhSEUovCmswRmEZfCJkq3ZwEDiMVPtQZ3kY",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232061,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "nonpositive_ttl",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjAwMCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.kwadRavSIJQnauiVgJlWn1k8wTHikFJuGoRl0jburjk",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232000,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "wrong_issuer",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL2F0dGFja2VyLmV4YW1wbGUuY29tIiwic3ViIjoiZW1wbG95ZWUtMDAwMiIsImF1ZCI6InNtYWxsLWFwcCIsImlhdCI6MTc5MzIzMjAwMCwiZXhwIjoxNzkzMjMyMDYwLCJqdGkiOiJmZGY1MDdlMy0yMTY0LTRiOGUtYWY0NC01NDNmNjc0ZWE4YWIiLCJwdXJwb3NlIjoiZW1iZWRfbG9naW4iLCJzY2hlbWFWZXJzaW9uIjoiMS4wIiwicmVzb3VyY2VJZCI6ImhvbWUiLCJyZXF1ZXN0SWQiOiI4Zjc5NmY1Mi02YTNlLTQ0YzYtYmI2OC01ZjEwYmEzYzNiMTEiLCJpbnN0YW5jZUlkIjoiZmNiNzZkYzMtNTAzZS00YzcxLTgxNTQtNjA1MTMzNGU4OWE5IiwiZW1iZWRkZXJPcmlnaW4iOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsImNsYWltcyI6eyJkaXNwbGF5X25hbWUiOiLnpLrkvovnlKjmiLcg4oCUIM6UIiwiZGVwYXJ0bWVudF9jb2RlIjoiRDAwMSJ9fQ.ZHgVI85Knt8uJJlHhUd7bCLd1ZB4Pv_F4BMncpNTjhQ",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://attacker.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "wrong_audience",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJkaWZmZXJlbnQtYXBwIiwiaWF0IjoxNzkzMjMyMDAwLCJleHAiOjE3OTMyMzIwNjAsImp0aSI6ImZkZjUwN2UzLTIxNjQtNGI4ZS1hZjQ0LTU0M2Y2NzRlYThhYiIsInB1cnBvc2UiOiJlbWJlZF9sb2dpbiIsInNjaGVtYVZlcnNpb24iOiIxLjAiLCJyZXNvdXJjZUlkIjoiaG9tZSIsInJlcXVlc3RJZCI6IjhmNzk2ZjUyLTZhM2UtNDRjNi1iYjY4LTVmMTBiYTNjM2IxMSIsImluc3RhbmNlSWQiOiJmY2I3NmRjMy01MDNlLTRjNzEtODE1NC02MDUxMzM0ZTg5YTkiLCJlbWJlZGRlck9yaWdpbiI6Imh0dHBzOi8vcG9ydGFsLmV4YW1wbGUuY29tIiwiY2xhaW1zIjp7ImRpc3BsYXlfbmFtZSI6IuekuuS-i-eUqOaItyDigJQgzpQiLCJkZXBhcnRtZW50X2NvZGUiOiJEMDAxIn19._VN4BGeiOtEEwBzv5u5jRwWyiEvlCtvbUytBpOwgtBk",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "different-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "array_audience",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOlsic21hbGwtYXBwIl0sImlhdCI6MTc5MzIzMjAwMCwiZXhwIjoxNzkzMjMyMDYwLCJqdGkiOiJmZGY1MDdlMy0yMTY0LTRiOGUtYWY0NC01NDNmNjc0ZWE4YWIiLCJwdXJwb3NlIjoiZW1iZWRfbG9naW4iLCJzY2hlbWFWZXJzaW9uIjoiMS4wIiwicmVzb3VyY2VJZCI6ImhvbWUiLCJyZXF1ZXN0SWQiOiI4Zjc5NmY1Mi02YTNlLTQ0YzYtYmI2OC01ZjEwYmEzYzNiMTEiLCJpbnN0YW5jZUlkIjoiZmNiNzZkYzMtNTAzZS00YzcxLTgxNTQtNjA1MTMzNGU4OWE5IiwiZW1iZWRkZXJPcmlnaW4iOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsImNsYWltcyI6eyJkaXNwbGF5X25hbWUiOiLnpLrkvovnlKjmiLcg4oCUIM6UIiwiZGVwYXJ0bWVudF9jb2RlIjoiRDAwMSJ9fQ.X4YSWypUxUicr7xO6O6VvR_ToWmb1D2UNNOYP-1Ae60",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": [
+          "small-app"
+        ],
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "wrong_purpose",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImFwaV9hY2Nlc3MiLCJzY2hlbWFWZXJzaW9uIjoiMS4wIiwicmVzb3VyY2VJZCI6ImhvbWUiLCJyZXF1ZXN0SWQiOiI4Zjc5NmY1Mi02YTNlLTQ0YzYtYmI2OC01ZjEwYmEzYzNiMTEiLCJpbnN0YW5jZUlkIjoiZmNiNzZkYzMtNTAzZS00YzcxLTgxNTQtNjA1MTMzNGU4OWE5IiwiZW1iZWRkZXJPcmlnaW4iOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsImNsYWltcyI6eyJkaXNwbGF5X25hbWUiOiLnpLrkvovnlKjmiLcg4oCUIM6UIiwiZGVwYXJ0bWVudF9jb2RlIjoiRDAwMSJ9fQ.6yGJBHSwFk8SyBGIktCJ-2FV2mDxqLTabOeAAJlY1fY",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "api_access",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "wrong_version",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjIuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.gbcLgAsyJu8kgbMRfWwlevF9YbxjpzrHZG8wxb71eJE",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "2.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "unknown_key_id",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InVua25vd24ta2V5In0.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.nOyKdyXb34E1CF5O_ihQPcUo08IL1Vra8fwLdpnLdu4",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "unknown-key"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "wrong_algorithm",
+      "assertion": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.tLmarhOP-OjIIuJ71UpnxXO-Ki4eKxAdRUZX87BdJJs",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS512",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": "HS256 bytes with disallowed alg; reject before algorithm selection"
+    },
+    {
+      "name": "wrong_type",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.BlP6y_pSy9kUPfM1s_xtrYbudFbV9HzBgq-umN9k_Os",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "at+jwt",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "wrong_key",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.w5EqBGwFi6lxh3ppflsH2uTAd9Qwl_c-IWx4JELa4Xs",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "base64_text_used_as_key",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.LzEBZSbTtbVPHLt-5t7R2W0swg7wzXrMY1Rw6stwaEU",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "claims_not_object",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOltdfQ.5plnM2Xot1L1foyeKbjy46Qqq2gZyUWpPkLXAJEZkPs",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": []
+      },
+      "note": ""
+    },
+    {
+      "name": "missing_claims",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20ifQ.U9wvKH913dYgcn2CopzTFSSGJQSWbwUtslDQqcT_Zzc",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com"
+      },
+      "note": ""
+    },
+    {
+      "name": "blank_subject",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6IiAiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.K-HsuYMmaaYQpD1NNxzG_YsmwevqCjFltJfZM7-Pk84",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": " ",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "invalid_request_uuid",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoibm90LWEtdXVpZCIsImluc3RhbmNlSWQiOiJmY2I3NmRjMy01MDNlLTRjNzEtODE1NC02MDUxMzM0ZTg5YTkiLCJlbWJlZGRlck9yaWdpbiI6Imh0dHBzOi8vcG9ydGFsLmV4YW1wbGUuY29tIiwiY2xhaW1zIjp7ImRpc3BsYXlfbmFtZSI6IuekuuS-i-eUqOaItyDigJQgzpQiLCJkZXBhcnRtZW50X2NvZGUiOiJEMDAxIn19.JXREa_MRiUhqFrB6p6yKVH_RQFldS3okXt3Bz0237Ts",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "not-a-uuid",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "fractional_iat",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAuNSwiZXhwIjoxNzkzMjMyMDYwLCJqdGkiOiJmZGY1MDdlMy0yMTY0LTRiOGUtYWY0NC01NDNmNjc0ZWE4YWIiLCJwdXJwb3NlIjoiZW1iZWRfbG9naW4iLCJzY2hlbWFWZXJzaW9uIjoiMS4wIiwicmVzb3VyY2VJZCI6ImhvbWUiLCJyZXF1ZXN0SWQiOiI4Zjc5NmY1Mi02YTNlLTQ0YzYtYmI2OC01ZjEwYmEzYzNiMTEiLCJpbnN0YW5jZUlkIjoiZmNiNzZkYzMtNTAzZS00YzcxLTgxNTQtNjA1MTMzNGU4OWE5IiwiZW1iZWRkZXJPcmlnaW4iOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsImNsYWltcyI6eyJkaXNwbGF5X25hbWUiOiLnpLrkvovnlKjmiLcg4oCUIM6UIiwiZGVwYXJ0bWVudF9jb2RlIjoiRDAwMSJ9fQ.jVjtcdK9wIjKRZCrgSqO-mXZOvPZKbKUaS6duJAszu8",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000.5,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "string_exp",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6IjE3OTMyMzIwNjAiLCJqdGkiOiJmZGY1MDdlMy0yMTY0LTRiOGUtYWY0NC01NDNmNjc0ZWE4YWIiLCJwdXJwb3NlIjoiZW1iZWRfbG9naW4iLCJzY2hlbWFWZXJzaW9uIjoiMS4wIiwicmVzb3VyY2VJZCI6ImhvbWUiLCJyZXF1ZXN0SWQiOiI4Zjc5NmY1Mi02YTNlLTQ0YzYtYmI2OC01ZjEwYmEzYzNiMTEiLCJpbnN0YW5jZUlkIjoiZmNiNzZkYzMtNTAzZS00YzcxLTgxNTQtNjA1MTMzNGU4OWE5IiwiZW1iZWRkZXJPcmlnaW4iOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsImNsYWltcyI6eyJkaXNwbGF5X25hbWUiOiLnpLrkvovnlKjmiLcg4oCUIM6UIiwiZGVwYXJ0bWVudF9jb2RlIjoiRDAwMSJ9fQ.iHV5YjJDvmicDbxVcTrzSGtR352CbvWw6Xq5rzrA0aY",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": "1793232060",
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "unregistered_origin",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9hdHRhY2tlci5leGFtcGxlLmNvbSIsImNsYWltcyI6eyJkaXNwbGF5X25hbWUiOiLnpLrkvovnlKjmiLcg4oCUIM6UIiwiZGVwYXJ0bWVudF9jb2RlIjoiRDAwMSJ9fQ.AOOnUI6x77Gb0Oi9tYMTaTV7-MQbB8eHv1DpLAFn6R8",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://attacker.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "origin_with_path",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20vcGF0aCIsImNsYWltcyI6eyJkaXNwbGF5X25hbWUiOiLnpLrkvovnlKjmiLcg4oCUIM6UIiwiZGVwYXJ0bWVudF9jb2RlIjoiRDAwMSJ9fQ.JGjMf4uMidIZUX7FhaC5vn_wdfsLvYSZbr6bwrVBzvw",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com/path",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "missing_required_business_claim",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGVwYXJ0bWVudF9jb2RlIjoiRDAwMSJ9fQ.GcGCW3LE5iNYR9VDDRct1HTy59NnHjhAK57k9NdkhF8",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "valid_subject_128",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6InV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1IiwiYXVkIjoic21hbGwtYXBwIiwiaWF0IjoxNzkzMjMyMDAwLCJleHAiOjE3OTMyMzIwNjAsImp0aSI6ImZkZjUwN2UzLTIxNjQtNGI4ZS1hZjQ0LTU0M2Y2NzRlYThhYiIsInB1cnBvc2UiOiJlbWJlZF9sb2dpbiIsInNjaGVtYVZlcnNpb24iOiIxLjAiLCJyZXNvdXJjZUlkIjoiaG9tZSIsInJlcXVlc3RJZCI6IjhmNzk2ZjUyLTZhM2UtNDRjNi1iYjY4LTVmMTBiYTNjM2IxMSIsImluc3RhbmNlSWQiOiJmY2I3NmRjMy01MDNlLTRjNzEtODE1NC02MDUxMzM0ZTg5YTkiLCJlbWJlZGRlck9yaWdpbiI6Imh0dHBzOi8vcG9ydGFsLmV4YW1wbGUuY29tIiwiY2xhaW1zIjp7ImRpc3BsYXlfbmFtZSI6IuekuuS-i-eUqOaItyDigJQgzpQiLCJkZXBhcnRtZW50X2NvZGUiOiJEMDAxIn19.ivwVFrwzg73yqkiQ-ImVVzH7ikd3Ghi1vRotADGU418",
+      "expected": "valid",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "valid_subject_128_unicode_codepoints",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6IvCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iA8J-YgPCfmIDwn5iAIiwiYXVkIjoic21hbGwtYXBwIiwiaWF0IjoxNzkzMjMyMDAwLCJleHAiOjE3OTMyMzIwNjAsImp0aSI6ImZkZjUwN2UzLTIxNjQtNGI4ZS1hZjQ0LTU0M2Y2NzRlYThhYiIsInB1cnBvc2UiOiJlbWJlZF9sb2dpbiIsInNjaGVtYVZlcnNpb24iOiIxLjAiLCJyZXNvdXJjZUlkIjoiaG9tZSIsInJlcXVlc3RJZCI6IjhmNzk2ZjUyLTZhM2UtNDRjNi1iYjY4LTVmMTBiYTNjM2IxMSIsImluc3RhbmNlSWQiOiJmY2I3NmRjMy01MDNlLTRjNzEtODE1NC02MDUxMzM0ZTg5YTkiLCJlbWJlZGRlck9yaWdpbiI6Imh0dHBzOi8vcG9ydGFsLmV4YW1wbGUuY29tIiwiY2xhaW1zIjp7ImRpc3BsYXlfbmFtZSI6IuekuuS-i-eUqOaItyDigJQgzpQiLCJkZXBhcnRtZW50X2NvZGUiOiJEMDAxIn19.VRp0bajZKldw-oEsaZF5qN7bMN871XcT4f9ctHjWT3Y",
+      "expected": "valid",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": "Length is Unicode code points, not Java/JavaScript UTF-16 code units"
+    },
+    {
+      "name": "subject_too_long",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6InV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dSIsImF1ZCI6InNtYWxsLWFwcCIsImlhdCI6MTc5MzIzMjAwMCwiZXhwIjoxNzkzMjMyMDYwLCJqdGkiOiJmZGY1MDdlMy0yMTY0LTRiOGUtYWY0NC01NDNmNjc0ZWE4YWIiLCJwdXJwb3NlIjoiZW1iZWRfbG9naW4iLCJzY2hlbWFWZXJzaW9uIjoiMS4wIiwicmVzb3VyY2VJZCI6ImhvbWUiLCJyZXF1ZXN0SWQiOiI4Zjc5NmY1Mi02YTNlLTQ0YzYtYmI2OC01ZjEwYmEzYzNiMTEiLCJpbnN0YW5jZUlkIjoiZmNiNzZkYzMtNTAzZS00YzcxLTgxNTQtNjA1MTMzNGU4OWE5IiwiZW1iZWRkZXJPcmlnaW4iOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsImNsYWltcyI6eyJkaXNwbGF5X25hbWUiOiLnpLrkvovnlKjmiLcg4oCUIM6UIiwiZGVwYXJ0bWVudF9jb2RlIjoiRDAwMSJ9fQ.lhwKVwT9I1iA7zZMAL679sD0OEvHTreEh4p-H5oQCEg",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "subject_control_character",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlXG4wMDAyIiwiYXVkIjoic21hbGwtYXBwIiwiaWF0IjoxNzkzMjMyMDAwLCJleHAiOjE3OTMyMzIwNjAsImp0aSI6ImZkZjUwN2UzLTIxNjQtNGI4ZS1hZjQ0LTU0M2Y2NzRlYThhYiIsInB1cnBvc2UiOiJlbWJlZF9sb2dpbiIsInNjaGVtYVZlcnNpb24iOiIxLjAiLCJyZXNvdXJjZUlkIjoiaG9tZSIsInJlcXVlc3RJZCI6IjhmNzk2ZjUyLTZhM2UtNDRjNi1iYjY4LTVmMTBiYTNjM2IxMSIsImluc3RhbmNlSWQiOiJmY2I3NmRjMy01MDNlLTRjNzEtODE1NC02MDUxMzM0ZTg5YTkiLCJlbWJlZGRlck9yaWdpbiI6Imh0dHBzOi8vcG9ydGFsLmV4YW1wbGUuY29tIiwiY2xhaW1zIjp7ImRpc3BsYXlfbmFtZSI6IuekuuS-i-eUqOaItyDigJQgzpQiLCJkZXBhcnRtZW50X2NvZGUiOiJEMDAxIn19.ciS8Y68dvo6ADZeogHBocDZIV9f4fESr4qX6dHItVfs",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee\n0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "valid_resource_128",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJyciIsInJlcXVlc3RJZCI6IjhmNzk2ZjUyLTZhM2UtNDRjNi1iYjY4LTVmMTBiYTNjM2IxMSIsImluc3RhbmNlSWQiOiJmY2I3NmRjMy01MDNlLTRjNzEtODE1NC02MDUxMzM0ZTg5YTkiLCJlbWJlZGRlck9yaWdpbiI6Imh0dHBzOi8vcG9ydGFsLmV4YW1wbGUuY29tIiwiY2xhaW1zIjp7ImRpc3BsYXlfbmFtZSI6IuekuuS-i-eUqOaItyDigJQgzpQiLCJkZXBhcnRtZW50X2NvZGUiOiJEMDAxIn19.tF-BTTmFVUz2pxdVq2P-4VSAzgDVH1xIN7NMUpADgZo",
+      "expected": "valid",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "resource_too_long",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnIiLCJyZXF1ZXN0SWQiOiI4Zjc5NmY1Mi02YTNlLTQ0YzYtYmI2OC01ZjEwYmEzYzNiMTEiLCJpbnN0YW5jZUlkIjoiZmNiNzZkYzMtNTAzZS00YzcxLTgxNTQtNjA1MTMzNGU4OWE5IiwiZW1iZWRkZXJPcmlnaW4iOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsImNsYWltcyI6eyJkaXNwbGF5X25hbWUiOiLnpLrkvovnlKjmiLcg4oCUIM6UIiwiZGVwYXJ0bWVudF9jb2RlIjoiRDAwMSJ9fQ.m5RnrO6fkGUaBsXczvCU2Z7ohno4mp7nQ-IfYtmLTzU",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "resource_unsupported_character",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJyZXBvcnRzLmhvbWUiLCJyZXF1ZXN0SWQiOiI4Zjc5NmY1Mi02YTNlLTQ0YzYtYmI2OC01ZjEwYmEzYzNiMTEiLCJpbnN0YW5jZUlkIjoiZmNiNzZkYzMtNTAzZS00YzcxLTgxNTQtNjA1MTMzNGU4OWE5IiwiZW1iZWRkZXJPcmlnaW4iOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsImNsYWltcyI6eyJkaXNwbGF5X25hbWUiOiLnpLrkvovnlKjmiLcg4oCUIM6UIiwiZGVwYXJ0bWVudF9jb2RlIjoiRDAwMSJ9fQ.OhlVeYigL1ryoKwvjhITLGyOHdZsacbi8gS0IvcT8xg",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "reports.home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "valid_max_safe_timestamp",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjkwMDcxOTkyNTQ3NDA5MzEsImV4cCI6OTAwNzE5OTI1NDc0MDk5MSwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.pyU1i1s3SKe_jxBVihc62RoiXwyZoKQYmbCkxUlMeBY",
+      "expected": "valid",
+      "now": 9007199254740961,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 9007199254740931,
+        "exp": 9007199254740991,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "timestamp_above_max_safe",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjkwMDcxOTkyNTQ3NDA5MzIsImV4cCI6OTAwNzE5OTI1NDc0MDk5MiwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.zOd5gIjDTeEKUn1GMXV9IrO7aJukfNvxWs5DzMgo-NY",
+      "expected": "ASSERTION_INVALID",
+      "now": 9007199254740962,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 9007199254740932,
+        "exp": 9007199254740992,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "extra_header_field",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEiLCJqa3UiOiJodHRwczovL3VudHJ1c3RlZC5leGFtcGxlL2tleXMifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.Aiw0dh2Pmuqm0vILC3vVP92LqircxblrsB6cbMyt63U",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01",
+        "jku": "https://untrusted.example/keys"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "extra_payload_field",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifSwicm9sZSI6IkFETUlOIn0.O_I4GC0f6sm723U4BkZBkoZInZ_3Y6xH76-1WVYxvzE",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        },
+        "role": "ADMIN"
+      },
+      "note": ""
+    },
+    {
+      "name": "uppercase_request_uuid",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOEY3OTZGNTItNkEzRS00NEM2LUJCNjgtNUYxMEJBM0MzQjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.Y_wlCWKCS-c71VhQZGCu32HlZyjNWYebAIJvxRzWIjA",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8F796F52-6A3E-44C6-BB68-5F10BA3C3B11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "uppercase_instance_uuid",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6IkZDQjc2REMzLTUwM0UtNEM3MS04MTU0LTYwNTEzMzRFODlBOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.gtH-T5kee0PplCUm5JlA6n7fRiGhx1kzBKeoqfUADIc",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "FCB76DC3-503E-4C71-8154-6051334E89A9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "uppercase_jti_uuid",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDIiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiRkRGNTA3RTMtMjE2NC00QjhFLUFGNDQtNTQzRjY3NEVBOEFCIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.rXjA8hbis-R7NpE8pjM2KDSDL8cMBK3mOk44XH5GnKo",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0002",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "FDF507E3-2164-4B8E-AF44-543F674EA8AB",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": ""
+    },
+    {
+      "name": "tampered_payload",
+      "assertion": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNtYWxsLXRlc3QtMDEifQ.eyJpc3MiOiJodHRwczovL3BvcnRhbC5leGFtcGxlLmNvbSIsInN1YiI6ImVtcGxveWVlLTAwMDMiLCJhdWQiOiJzbWFsbC1hcHAiLCJpYXQiOjE3OTMyMzIwMDAsImV4cCI6MTc5MzIzMjA2MCwianRpIjoiZmRmNTA3ZTMtMjE2NC00YjhlLWFmNDQtNTQzZjY3NGVhOGFiIiwicHVycG9zZSI6ImVtYmVkX2xvZ2luIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInJlc291cmNlSWQiOiJob21lIiwicmVxdWVzdElkIjoiOGY3OTZmNTItNmEzZS00NGM2LWJiNjgtNWYxMGJhM2MzYjExIiwiaW5zdGFuY2VJZCI6ImZjYjc2ZGMzLTUwM2UtNGM3MS04MTU0LTYwNTEzMzRlODlhOSIsImVtYmVkZGVyT3JpZ2luIjoiaHR0cHM6Ly9wb3J0YWwuZXhhbXBsZS5jb20iLCJjbGFpbXMiOnsiZGlzcGxheV9uYW1lIjoi56S65L6L55So5oi3IOKAlCDOlCIsImRlcGFydG1lbnRfY29kZSI6IkQwMDEifX0.QmlhBCPejNETGF9dswbfYzuWTWtldYu4NAba2jjdRAE",
+      "expected": "ASSERTION_INVALID",
+      "now": 1793232030,
+      "header": {
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "small-test-01"
+      },
+      "payload": {
+        "iss": "https://portal.example.com",
+        "sub": "employee-0003",
+        "aud": "small-app",
+        "iat": 1793232000,
+        "exp": 1793232060,
+        "jti": "fdf507e3-2164-4b8e-af44-543f674ea8ab",
+        "purpose": "embed_login",
+        "schemaVersion": "1.0",
+        "resourceId": "home",
+        "requestId": "8f796f52-6a3e-44c6-bb68-5f10ba3c3b11",
+        "instanceId": "fcb76dc3-503e-4c71-8154-6051334e89a9",
+        "embedderOrigin": "https://portal.example.com",
+        "claims": {
+          "display_name": "示例用户 — Δ",
+          "department_code": "D001"
+        }
+      },
+      "note": "Payload changed without recomputing signature"
+    }
+  ]
+}

@@ -16,8 +16,8 @@ describe("Portal-only login screen", () => {
     expect(html).toContain("portal@example.com");
     expect(html).not.toMatch(/<input[^>]*readonly=""/);
     expect(html).toContain('aria-readonly="false"');
-    expect(html).toContain("请输入测试邮箱");
-    expect(html).toContain("测试模式：可输入已配置工作台权限的邮箱登录。");
+    expect(html).toContain("请输入工作邮箱");
+    expect(html).toContain("仅限已获授权的内部用户使用。");
   });
 
   it("prevents editing and repeat submission while checking permissions", () => {

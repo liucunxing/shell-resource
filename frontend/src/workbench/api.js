@@ -12,11 +12,13 @@ export class ApiError extends Error {
 }
 
 export function getDevelopmentEmail() {
+  if (isPortalEntry()) return "";
   if (typeof sessionStorage === "undefined") return "";
   return String(sessionStorage.getItem(DEV_EMAIL_KEY) || "").trim();
 }
 
 export function setDevelopmentEmail(email) {
+  if (isPortalEntry()) return;
   const value = String(email || "").trim();
   if (typeof sessionStorage === "undefined") return;
   if (value) sessionStorage.setItem(DEV_EMAIL_KEY, value);
@@ -25,6 +27,7 @@ export function setDevelopmentEmail(email) {
 
 // Temporary FineReport Portal handoff; permissions are always resolved by the API.
 export function acceptPortalEmail() {
+  if (isPortalEntry()) return;
   if (typeof window === "undefined") return;
   const url = new URL(window.location.href);
   const entries = [...url.searchParams].filter(([key]) => key.trim() === "user_email");
@@ -49,15 +52,17 @@ function emailHeader() {
 export async function request(path, options = {}) {
   let response;
   try {
-    response = await fetch(API_BASE + path, {
+    const requestOptions = {
       ...options,
       headers: {
         Accept: "application/json",
-        ...emailHeader(),
+        ...(isPortalEntry() ? {} : emailHeader()),
         ...(options.body ? { "Content-Type": "application/json" } : {}),
         ...options.headers,
       },
-    });
+    };
+    response = await fetch((isPortalEntry() ? PORTAL_API_BASE : API_BASE) + path,
+      isPortalEntry() ? portalRequestOptions(requestOptions) : requestOptions);
   } catch (_) {
     throw new ApiError("无法连接工作台服务，请检查网络后重试。", 0);
   }
@@ -68,6 +73,7 @@ export async function request(path, options = {}) {
     throw new ApiError("服务返回格式无效，请稍后重试。", response.status);
   }
   if (!response.ok || body.code !== 200) {
+    if (isPortalEntry()) handlePortalRejection(response.status, body.msg);
     throw new ApiError(
       body.msg || "请求未完成，请重试。", response.status,
       response.headers?.get("X-Insight-Request-ID") || "",
@@ -166,3 +172,4 @@ export const saveInsightPrompt = (scope, text, expectedVersion) => request("/ins
   method: "PUT", body: JSON.stringify({ scope, planning_year: planningYear, text, expected_version: expectedVersion }),
 });
 export { planningYear };
+import { handlePortalRejection, isPortalEntry, portalRequestOptions, PORTAL_API_BASE } from "../portal/session";

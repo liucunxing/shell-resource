@@ -10,7 +10,7 @@ engine = create_async_engine(
     # SQL statements use the application's console logger to avoid duplicate
     # lines from SQLAlchemy's built-in echo handler.
     echo=False,
-    hide_parameters=settings.app_env == "production",
+    hide_parameters=settings.app_env == "production" or settings.resource_portal_enabled,
     pool_pre_ping=True,
 )
 AsyncSessionFactory = async_sessionmaker(engine, expire_on_commit=False)

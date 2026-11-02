@@ -54,6 +54,16 @@ async def get_current_workbench_user(
     email = (x_user_email or "").strip().lower()
     if not email:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="缺少 X-User-Email")
+    return await resolve_workbench_permission(session, email)
+
+
+async def resolve_workbench_permission(session: AsyncSession, email: str) -> WorkbenchUser:
+    """Permission lookup for an already authenticated or explicitly authorized subject.
+
+    This function is not an HTTP identity dependency. Legacy header authentication
+    remains guarded above; Portal authentication owns a separate session dependency.
+    """
+    email = email.strip().lower()
     permission = await WorkspaceRepository(session).get_permission(email)
     if permission is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前邮箱没有工作台权限")

@@ -269,6 +269,7 @@ function EditorContent({
       const bytes = directoryOnly
         ? await X.exportDealerDirectory(exportData)
         : await X.exportWorkbook(state, i.id, identity, exportData);
+      await validatePortalSession();
       const url = URL.createObjectURL(
         new Blob([bytes], {
           type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1171,3 +1172,4 @@ function EditorContent({
     </>
   );
 }
+import { validatePortalSession } from "../../portal/session";

@@ -42,9 +42,24 @@ sso_issuer = ""
 sso_client_id = ""
 sso_client_secret = ""
 
+# Portal receiver (independent from the existing FineReport entry).
+# Enable only after the additive session migration and both sides' configuration.
+resource_portal_enabled = false
+resource_portal_issuer = "https://portal.example.invalid"
+resource_portal_origin = "https://resource.digitalshell.com.cn"
+resource_portal_parent_origins = ["https://portal.example.invalid"]
+resource_portal_app_id = "resource-investment"
+resource_portal_audience = "resource-investment"
+resource_portal_kid = "resource-investment-01"
+resource_portal_key = ""
+resource_portal_cookie_secure = true
+resource_portal_cookie_samesite = "lax"
+resource_portal_allow_loopback_http = false
+resource_portal_session_ttl_seconds = 1800
 
-# The application currently rejects workbench requests in this profile until
-# a trusted SSO authenticator is implemented. Keep it ready for the later cutover.
+
+# Legacy email workbench requests remain rejected in this profile. Do not switch
+# APP_ENV merely to enable Portal: that would interrupt the FineReport entry.
 [production]
 app_name = "资源投资工作台"
 app_version = "1.4.0"

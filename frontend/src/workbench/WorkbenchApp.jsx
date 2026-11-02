@@ -19,6 +19,7 @@ import { useWorkbench } from "./WorkbenchContext.jsx";
 import { WorkPanel } from "./WorkPanel.jsx";
 import { useWorkPanelWidth } from "./WorkPanelResizer";
 import { ToastNotice } from "./ToastNotice.jsx";
+import { PortalAccessNotice } from "../portal/PortalEntry";
 const loginEmailEditable = import.meta.env.VITE_LOGIN_EMAIL_EDITABLE === "true";
 const HomePage = lazy(() =>
   import("./pages/OverviewPages.jsx").then((m) => ({ default: m.HomePage })),
@@ -72,6 +73,15 @@ export function useNarrow(query) {
   }, [query]);
   return matches;
 }
+export function SkipToWorkspace({ portalMode = false }) {
+  return <a className="skip-link" href={portalMode ? window.location.hash : "#main"}
+    onClick={(event) => {
+      event.preventDefault();
+      const main = document.getElementById("main");
+      main?.focus();
+      if (portalMode) main?.scrollIntoView({ block: "start" });
+    }}>跳至工作区</a>;
+}
 export default function WorkbenchApp() {
   const {
     state,
@@ -93,6 +103,7 @@ export default function WorkbenchApp() {
     resetScenario,
     scenarioEpoch,
     apiMode,
+    portalMode,
     loading,
     refresh,
     devEmail,
@@ -144,6 +155,8 @@ export default function WorkbenchApp() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [mobileNav]);
+  if (!identity && portalMode)
+    return <PortalAccessNotice loading={loading} message={storageWarning} />;
   if (!identity && apiMode)
     return (
       <PortalLogin
@@ -176,16 +189,7 @@ export default function WorkbenchApp() {
   const Page = pages[page] || HomePage;
   return (
     <>
-      <a
-        className="skip-link"
-        href="#main"
-        onClick={(event) => {
-          event.preventDefault();
-          document.getElementById("main")?.focus();
-        }}
-      >
-        跳至工作区
-      </a>
+      <SkipToWorkspace portalMode={portalMode} />
       <div
         className={`app-shell ${auxiliary.open ? "work-open" : ""}`}
         style={{ "--work-panel-size": `${panelSize.width}px` }}
@@ -240,7 +244,7 @@ export default function WorkbenchApp() {
               </button>
             ))}
           </nav>
-          <div className="nav-group-title">分析助手</div>
+          {!portalMode && <><div className="nav-group-title">分析助手</div>
           <nav className="nav">
             <button onClick={() => openAuxiliary("chat")}>
               <span className="nav-icon">
@@ -248,7 +252,7 @@ export default function WorkbenchApp() {
               </span>
               小One问数Agent
             </button>
-          </nav>
+          </nav></>}
           <div className="sidebar-bottom">
             <div className="sidebar-context">
               <strong>
@@ -287,7 +291,7 @@ export default function WorkbenchApp() {
                   {identity.label}
                   <button
                     className="button subtle small"
-                    title={loginEmailEditable ? "退出后可使用工作邮箱重新登录" : "退出后须从帆软 Portal 重新进入"}
+                    title={portalMode ? "退出后须从 Portal 重新进入" : loginEmailEditable ? "退出后可使用工作邮箱重新登录" : "退出后须从帆软 Portal 重新进入"}
                     onClick={() => setDevelopmentEmail("")}
                   >
                     退出工作台

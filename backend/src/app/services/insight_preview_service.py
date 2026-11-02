@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
-from app.dependencies.workbench_user import WorkbenchUser, get_current_workbench_user
+from app.dependencies.workbench_user import WorkbenchUser, resolve_workbench_permission
 from app.models.do.insight import InsightPromptDO
 from app.services.insight_service import DEFAULT_PROMPT, InsightService
 
@@ -20,7 +20,7 @@ class InsightPreviewService(InsightService):
         cls, session: AsyncSession, actor: WorkbenchUser, email: str, settings: Settings
     ) -> Self:
         cls._assert_admin(actor)
-        target = await get_current_workbench_user(session, x_user_email=email)
+        target = await resolve_workbench_permission(session, email=email)
         service = cls(session, target, settings, persist_results=False)
         service.actor = actor
         return service
@@ -40,7 +40,7 @@ class InsightPreviewService(InsightService):
 
     async def _refresh_user(self) -> None:
         self.session.expire_all()
-        self.actor = await get_current_workbench_user(self.session, x_user_email=self.actor.email)
+        self.actor = await resolve_workbench_permission(self.session, email=self.actor.email)
         self._assert_admin(self.actor)
         await super()._refresh_user()
 

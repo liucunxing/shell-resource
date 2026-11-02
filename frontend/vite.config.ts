@@ -19,7 +19,12 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
-    proxy: { "/api": "http://127.0.0.1:8000" },
+    proxy: {
+      "/api": "http://127.0.0.1:8000",
+      "/portal-embed/api": "http://127.0.0.1:8000",
+      "/portal-embed/login": "http://127.0.0.1:8000",
+      "/portal-embed/logout": "http://127.0.0.1:8000",
+    },
   },
   worker: { format: "es" },
   build: {

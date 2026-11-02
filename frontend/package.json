@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@oneportal/embed-browser-sdk": "file:vendor/embed-browser-sdk",
     "@fluentui/react-components": "^9.70.0",
     "@phosphor-icons/react": "^2.1.10",
     "@tanstack/react-table": "^8.21.3",

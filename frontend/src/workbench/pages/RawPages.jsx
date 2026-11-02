@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import A from "../domain/explore.js";
 import { PageHead } from "./OverviewPages.jsx";
+import { validatePortalSession } from "../../portal/session";
 const fmt = (n) =>
   (Math.abs(n) < 0.005 ? 0 : n).toLocaleString("zh-CN", {
     minimumFractionDigits: 2,
@@ -50,8 +51,9 @@ export function RawPage() {
     rows = A.filterRows(model, filters),
     pages = Math.max(1, Math.ceil(rows.length / 15)),
     current = Math.min(page, pages);
-  const exportCsv = () => {
+  const exportCsv = async () => {
     try {
+      await validatePortalSession();
       const url = URL.createObjectURL(
         new Blob([A.csv(model, filters)], { type: "text/csv;charset=utf-8" }),
       );

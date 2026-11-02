@@ -233,6 +233,7 @@ export function AdminPage() {
   async function exportConfig() {
     try {
       const bytes = await AX.exportWorkbook(state, identity);
+      await validatePortalSession();
       const url = URL.createObjectURL(
         new Blob([bytes], {
           type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1093,3 +1094,4 @@ export function AdminPage() {
     </>
   );
 }
+import { validatePortalSession } from "../../portal/session";

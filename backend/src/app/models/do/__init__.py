@@ -5,6 +5,7 @@ from app.models.do.budget import BudgetDO
 from app.models.do.budget_distributor import BudgetDistributorDO
 from app.models.do.distributor_history import distributor_sellin_resource_history
 from app.models.do.insight import InsightPromptDO, InsightRecordDO
+from app.models.do.portal_embed import PortalContextDO, PortalSessionDO
 from app.models.do.test_table import TestTableDO
 from app.models.do.workspace import (
     BudgetChangeLogDO,
@@ -30,4 +31,6 @@ __all__ = [
     "BudgetChangeLogDO",
     "InsightPromptDO",
     "InsightRecordDO",
+    "PortalContextDO",
+    "PortalSessionDO",
 ]

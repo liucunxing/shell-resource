@@ -108,6 +108,20 @@ class Settings(BaseModel):
     sso_client_id: str | None = None
     sso_client_secret: SecretStr | None = None
 
+    # Independent Portal receiver. Keeping this disabled preserves the FineReport entry.
+    resource_portal_enabled: bool = False
+    resource_portal_issuer: str = ""
+    resource_portal_origin: str = ""
+    resource_portal_parent_origins: list[str] = Field(default_factory=list)
+    resource_portal_key: SecretStr | None = None
+    resource_portal_app_id: str = "resource-investment"
+    resource_portal_audience: str = "resource-investment"
+    resource_portal_kid: str = "resource-investment-01"
+    resource_portal_cookie_secure: bool = True
+    resource_portal_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
+    resource_portal_allow_loopback_http: bool = False
+    resource_portal_session_ttl_seconds: int = Field(default=1800, ge=60, le=28800)
+
 
 @lru_cache
 def get_settings() -> Settings:
@@ -121,9 +135,19 @@ def get_settings() -> Settings:
         "databricks_client_secret": os.getenv("DATABRICKS_CLIENT_SECRET"),
         "databricks_view_name": os.getenv("DATABRICKS_VIEW_NAME"),
     }
-    configured_overrides = {
+    configured_overrides: dict[str, Any] = {
         key: value for key, value in environment_overrides.items() if value is not None
     }
+    for name in Settings.model_fields:
+        if name.startswith("resource_portal_") and name.upper() in os.environ:
+            value = os.environ[name.upper()]
+            if name == "resource_portal_parent_origins":
+                # Comma separated canonical origins, not a URL inferred from a request.
+                configured_overrides[name] = [
+                    part.strip() for part in value.split(",") if part.strip()
+                ]
+            else:
+                configured_overrides[name] = value
     return Settings.model_validate(
         {**profile, **configured_overrides, "app_env": environment}
     )

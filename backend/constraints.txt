@@ -38,6 +38,7 @@ propcache==0.5.4
 pycparser==3.11
 pydantic==2.14.1
 pydantic_core==2.50.1
+PyJWT==2.15.1
 python-dotenv==1.2.4
 python-multipart==0.0.32
 PyYAML==6.0.3

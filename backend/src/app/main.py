@@ -11,6 +11,7 @@ from app.core.config import get_settings
 from app.core.exception_handlers import register_exception_handlers
 from app.core.logging import configure_logging
 from app.health.router import router as health_router
+from app.portal_embed.app import create_portal_app
 
 
 @asynccontextmanager
@@ -44,6 +45,9 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
     app.include_router(health_router)
     app.include_router(api_router, prefix=settings.api_v1_prefix)
+    portal_app = create_portal_app(settings)
+    app.state.portal_embed = portal_app
+    app.mount("/portal-embed", portal_app, name="portal-embed")
     if settings.serve_frontend:
         frontend = Path(settings.frontend_dist_path)
         if (frontend / "index.html").is_file():

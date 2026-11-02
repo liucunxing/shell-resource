@@ -44,8 +44,9 @@ export function WorkPanel({ overlay, panelSize }) {
     initiativeId,
     view,
     apiMode,
+    portalMode,
   } = useWorkbench();
-  const config = buildYiwenUrl(import.meta.env.VITE_YIWEN_IFRAME_URL, identity.email);
+  const config = portalMode ? { url: "", error: "" } : buildYiwenUrl(import.meta.env.VITE_YIWEN_IFRAME_URL, identity.email);
   const panel = useRef(null);
   const closeButton = useRef(null);
   const [chatVisited, setChatVisited] = useState(false);
@@ -118,7 +119,7 @@ export function WorkPanel({ overlay, panelSize }) {
         )}
         <div className="work-rail">
           <div className="work-tabs" role="tablist" aria-label="工作栏工具">
-            {tabs.map(([id, Icon, label]) => (
+            {tabs.filter(([id]) => !portalMode || id !== "chat").map(([id, Icon, label]) => (
               <button
                 key={id}
                 className={`work-tab ${auxiliary.open && auxiliary.tab === id ? "active" : ""}`}
@@ -209,7 +210,7 @@ export function WorkPanel({ overlay, panelSize }) {
           aria-label="小One问数Agent"
           hidden={!auxiliary.open || auxiliary.tab !== "chat"}
         >
-          {config.url ? (
+          {portalMode ? null : config.url ? (
             <EmbeddedAsk
               key={config.url}
               url={config.url}

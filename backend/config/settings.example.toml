@@ -1,5 +1,21 @@
 # Copy to settings.toml and replace every placeholder with the real value.
 # settings.toml is ignored by Git because it may contain credentials.
+# Portal receiver is disabled by default in every profile. For a controlled rollout,
+# inject RESOURCE_PORTAL_* environment variables (or uncomment these fields INSIDE
+# the selected profile). Never change APP_ENV merely to enable this receiver.
+# resource_portal_enabled = false
+# resource_portal_issuer = "https://portal.example.invalid"
+# resource_portal_origin = "https://resource.example.invalid"
+# resource_portal_parent_origins = ["https://portal.example.invalid"]
+# resource_portal_app_id = "resource-investment" # Plan C: actual managed_record.id
+# resource_portal_audience = "resource-investment"
+# resource_portal_kid = "resource-investment-01"
+# resource_portal_key = "" # private standard Base64 of 32-128 random bytes
+# resource_portal_cookie_secure = true
+# resource_portal_cookie_samesite = "lax" # cross-site may need none + Secure
+# resource_portal_allow_loopback_http = false # explicit local tests only
+# resource_portal_session_ttl_seconds = 1800
+# RESOURCE_PORTAL_PARENT_ORIGINS uses comma-separated canonical origins.
 
 [development]
 app_name = "资源投资工作台"

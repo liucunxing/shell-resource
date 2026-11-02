@@ -495,10 +495,10 @@ class InsightService:
 
     async def _refresh_user(self) -> None:
         # Permissions may be revoked while the remote request is running.
-        from app.dependencies.workbench_user import get_current_workbench_user
+        from app.dependencies.workbench_user import resolve_workbench_permission
 
         self.session.expire_all()
-        self.user = await get_current_workbench_user(self.session, x_user_email=self.user.email)
+        self.user = await resolve_workbench_permission(self.session, email=self.user.email)
 
     async def _workspace(self, planning_year: int) -> dict[str, Any]:
         # Imported here so the Insight module remains independently testable while

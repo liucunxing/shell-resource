@@ -5,6 +5,8 @@ import { FluentProvider, webLightTheme } from "@fluentui/react-components";
 import { IconContext } from "@phosphor-icons/react";
 import App from "./App";
 import { WorkbenchProvider } from "./workbench/WorkbenchContext.jsx";
+import { PortalEntry } from "./portal/PortalEntry";
+import { isPortalEntry } from "./portal/session";
 import "./styles.css";
 
 const theme = {
@@ -56,9 +58,11 @@ createRoot(document.getElementById("root")!).render(
   <FluentProvider theme={theme}>
     <IconContext.Provider value={{ weight: "regular", size: 18 }}>
       <ErrorBoundary>
-        <WorkbenchProvider>
-          <App />
-        </WorkbenchProvider>
+        {isPortalEntry() ? (
+          <PortalEntry><WorkbenchProvider><App /></WorkbenchProvider></PortalEntry>
+        ) : (
+          <WorkbenchProvider><App /></WorkbenchProvider>
+        )}
       </ErrorBoundary>
     </IconContext.Provider>
   </FluentProvider>,
