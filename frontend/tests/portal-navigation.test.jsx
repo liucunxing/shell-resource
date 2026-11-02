@@ -21,8 +21,8 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Portal navigation boundaries", () => {
-  it("hides the sidebar Data Agent action only for the new Portal entry", () => {
-    expect(renderToStaticMarkup(<WorkbenchApp />)).not.toContain("小One问数Agent");
+  it("offers the Data Agent action on both isolated entry modes", () => {
+    expect(renderToStaticMarkup(<WorkbenchApp />)).toContain("小One问数Agent");
     shared.portalMode = false;
     expect(renderToStaticMarkup(<WorkbenchApp />)).toContain("小One问数Agent");
   });

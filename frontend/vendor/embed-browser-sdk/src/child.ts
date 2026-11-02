@@ -1,12 +1,16 @@
 import type { EmbedChild, EmbedContext, EmbedRequest, LaunchDescriptor, RuntimeOptions } from './types.js';
 import { EmbedError, context as validateContext, envelope, launch, message } from './protocol.js';
 import { FrameInstance, runtime } from './runtime.js';
+import { DataAgentChildBridge } from './data-agent-child.js';
 
 export function createEmbedChild(input: EmbedContext, options: RuntimeOptions = {}): EmbedChild {
   const env = runtime(options), win = env.win;
   const context = validateContext(input, env.local);
   if (win.parent === win) throw new EmbedError('CONTEXT_INVALID');
   let destroyed = false;
+  const vendor = new DataAgentChildBridge(win, context);
+  const pagehide = (): void => vendor.stop('INSTANCE_DESTROYED');
+  win.addEventListener('pagehide', pagehide);
   const instances = new Set<FrameInstance>();
   const pending = new Map<string, { resolve: (launch: LaunchDescriptor) => void; reject: (error: EmbedError) => void; appId: string; cleanup: () => void }>();
   function post(type: string, data: Record<string, unknown>, requestId = context.requestId): void {
@@ -14,6 +18,7 @@ export function createEmbedChild(input: EmbedContext, options: RuntimeOptions = 
     win.parent.postMessage(message(type, requestId, context.instanceId, data), context.embedderOrigin);
   }
   const receive = (event: MessageEvent): void => {
+    if (vendor.receive(event)) return;
     if (event.source === win.parent && event.origin === context.embedderOrigin) {
       const msg = envelope(event.data);
       if (!msg || msg.instanceId !== context.instanceId) return;
@@ -32,9 +37,10 @@ export function createEmbedChild(input: EmbedContext, options: RuntimeOptions = 
   };
   win.addEventListener('message', receive);
   return {
+    launchDataAgent(question = '', signal?: AbortSignal) { return vendor.launch(question, signal); },
     notifyReady() { post('EMBED_READY', { appId: context.appId }); },
     notifyError(code: string) { const error = new EmbedError(code); post('EMBED_ERROR', { code: error.code, message: error.message }); },
-    notifySessionExpired() { post('SESSION_EXPIRED', { code: 'SESSION_REQUIRED' }); },
+    notifySessionExpired() { vendor.stop('SESSION_REQUIRED'); post('SESSION_EXPIRED', { code: 'SESSION_REQUIRED' }); },
     embedApp(request: EmbedRequest) {
       if (destroyed) throw new EmbedError('INSTANCE_DESTROYED');
       if (instances.size >= 8) throw new EmbedError('RATE_LIMITED');
@@ -52,6 +58,8 @@ export function createEmbedChild(input: EmbedContext, options: RuntimeOptions = 
     },
     destroy() {
       if (destroyed) return; destroyed = true;
+      vendor.stop('INSTANCE_DESTROYED');
+      win.removeEventListener('pagehide', pagehide);
       win.removeEventListener('message', receive);
       for (const instance of [...instances]) instance.destroy();
       for (const waiter of pending.values()) { waiter.cleanup(); waiter.reject(new EmbedError('INSTANCE_DESTROYED')); }
@@ -60,4 +68,4 @@ export function createEmbedChild(input: EmbedContext, options: RuntimeOptions = 
   };
 }
 export { EmbedError } from './protocol.js';
-export type { EmbedChild, EmbedContext, EmbedInstance, EmbedRequest, RuntimeOptions } from './types.js';
+export type { EmbedChild, EmbedContext, EmbedInstance, EmbedRequest, RuntimeOptions, DataAgentLaunch } from './types.js';

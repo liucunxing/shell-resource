@@ -67,6 +67,22 @@ await agent.ready;
 
 ## 安全与运行边界
 
+### 可选 Data Agent 产品换票桥接
+
+此能力使用独立 `portal-data-agent/1.0` 消息，不能用通用 `embedApp({appId:'data-agent'})`
+代替产品 API Key 换用户 token。Portal 配置 `createEmbedHost({dataAgentLaunch})`，回调签名为
+`({parentInstanceId, question}, signal) => Promise<{iframeUrl,targetOrigin}>`；应用通过回调调用
+同源、带 CSRF 和已认证会话的后端换票接口。没有回调时拒绝请求。
+
+资源页在已验证 context 创建 child 后调用 `await child.launchDataAgent(question, signal)`，
+返回值只用于产品 iframe；不得写入浏览器存储、日志、链接或分析事件。SDK 不会代替产品
+验收，也不会将 iframe load 宣称为个人账号登录成功。退出/换账号时清理该 iframe 并销毁 child/host。
+
+每根实例最多 8 个并发请求、256 个历史请求 ID；默认等待 30 秒。取消、退出、会话过期或
+页面导航会中止待处理请求，晚到结果不会交给新页面。问题最多 2000 个 UTF-16 单元。
+目标只允许 HTTPS、固定 `/admin/chat` 和 `token`/`space`/可选 `ask` 参数；泛用 JWT URL
+仍禁止查询串。详细边界及 schema 见 [`DATA-AGENT-BRIDGE.md`](../../contracts/embed/DATA-AGENT-BRIDGE.md)。
+
 - 所有来源比较均为精确 origin；消息同时校验协议版本、结构、窗口 source、实例及 requestId。错误消息中的内部细节不显示、不记录。
 - 所有 wire UUID 必须为标准连字符格式的小写十六进制；非规范大写值直接拒绝，不自动转换。
 - 默认 HTTPS；本地技术验证可显式设置 `allowLoopbackHttp: true`，只接受 `localhost`、`127.0.0.1`、`[::1]` 的 HTTP。生产不得启用此选项。

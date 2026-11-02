@@ -244,7 +244,7 @@ export default function WorkbenchApp() {
               </button>
             ))}
           </nav>
-          {!portalMode && <><div className="nav-group-title">分析助手</div>
+          <div className="nav-group-title">分析助手</div>
           <nav className="nav">
             <button onClick={() => openAuxiliary("chat")}>
               <span className="nav-icon">
@@ -252,7 +252,7 @@ export default function WorkbenchApp() {
               </span>
               小One问数Agent
             </button>
-          </nav></>}
+          </nav>
           <div className="sidebar-bottom">
             <div className="sidebar-context">
               <strong>

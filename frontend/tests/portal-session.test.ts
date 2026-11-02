@@ -3,10 +3,11 @@ import {
   disposePortalChild, initializePortalSession, isPortalEntry, logoutPortalSession,
   notifyPortalReady, portalInstanceId, portalRequestOptions, validatePortalSession,
   PORTAL_SESSION_ENDED,
+  launchPortalDataAgent,
 } from "../src/portal/session";
 import { acceptPortalEmail, getDevelopmentEmail, request, setDevelopmentEmail } from "../src/workbench/api.js";
 
-const child = vi.hoisted(() => ({ notifyReady: vi.fn(), notifySessionExpired: vi.fn(), destroy: vi.fn() }));
+const child = vi.hoisted(() => ({ notifyReady: vi.fn(), notifySessionExpired: vi.fn(), destroy: vi.fn(), launchDataAgent: vi.fn() }));
 vi.mock("@oneportal/embed-browser-sdk/child", () => ({ createEmbedChild: vi.fn(() => child) }));
 const id = "11111111-1111-4111-8111-111111111111";
 const context = {
@@ -21,6 +22,7 @@ let storage: { getItem: ReturnType<typeof vi.fn>; setItem: ReturnType<typeof vi.
 
 beforeEach(() => {
   vi.clearAllMocks();
+  child.launchDataAgent.mockReset();
   events = new EventTarget();
   vi.stubGlobal("window", {
     location: { pathname: "/portal-embed/workbench", hash: `#portal-instance=${id}`, href: "https://resource.example.invalid/portal-embed/workbench?user_email=attacker@example.invalid" },
@@ -30,6 +32,94 @@ beforeEach(() => {
   vi.stubGlobal("sessionStorage", storage);
   fetchMock = vi.fn().mockResolvedValueOnce(ok(context)).mockResolvedValueOnce(ok({ csrfToken: "test-csrf" }));
   vi.stubGlobal("fetch", fetchMock);
+});
+
+describe("Portal Data Agent credential bridge", () => {
+  const grant = { iframeUrl: "https://agent.example.invalid/chat?token=synthetic", targetOrigin: "https://agent.example.invalid" };
+
+  it("revalidates local permission before and after the parent exchange without sending an email", async () => {
+    await initializePortalSession(id);
+    fetchMock.mockResolvedValue(ok({ csrfToken: "fresh-csrf" }));
+    child.launchDataAgent.mockResolvedValue(grant);
+    const signal = new AbortController().signal;
+    await expect(launchPortalDataAgent("本月销售", signal)).resolves.toEqual(grant);
+    expect(child.launchDataAgent).toHaveBeenCalledExactlyOnceWith("本月销售", signal);
+    expect(fetchMock.mock.calls.slice(2).map(call => call[0])).toEqual([
+      `/portal-embed/api/session/${id}`, `/portal-embed/api/session/${id}`,
+    ]);
+    expect(storage.getItem).not.toHaveBeenCalled();
+  });
+
+  it.each([401, 403, 409])("does not exchange credentials if current resource permission denies (%s)", async status => {
+    await initializePortalSession(id);
+    fetchMock.mockResolvedValue({ ok: false, status });
+    await expect(launchPortalDataAgent()).rejects.toThrow();
+    expect(child.launchDataAgent).not.toHaveBeenCalled();
+  });
+
+  it("fails closed in a standalone resource tab", async () => {
+    window.parent = window;
+    await initializePortalSession(id);
+    await expect(launchPortalDataAgent()).rejects.toThrow("请在 Portal 中");
+    expect(child.launchDataAgent).not.toHaveBeenCalled();
+    expect(storage.getItem).not.toHaveBeenCalled();
+  });
+
+  it("rejects an old user's grant when another resource instance becomes active", async () => {
+    await initializePortalSession(id);
+    fetchMock.mockResolvedValue(ok({ csrfToken: "csrf-a" }));
+    let resolveGrant!: (value: typeof grant) => void;
+    child.launchDataAgent.mockReturnValue(new Promise(resolve => { resolveGrant = resolve; }));
+    const pending = launchPortalDataAgent();
+    const denied = expect(pending).rejects.toThrow();
+    await vi.waitFor(() => expect(child.launchDataAgent).toHaveBeenCalledOnce());
+    const nextId = "33333333-3333-4333-8333-333333333333";
+    fetchMock.mockResolvedValueOnce(ok({ ...context, instanceId: nextId })).mockResolvedValueOnce(ok({ csrfToken: "csrf-b" }));
+    await initializePortalSession(nextId);
+    resolveGrant(grant);
+    await denied;
+    expect(new Headers(portalRequestOptions().headers).get("X-Portal-Instance")).toBe(nextId);
+  });
+
+  it("rejects a grant if the shared Cookie changed while the parent exchanged it", async () => {
+    await initializePortalSession(id);
+    fetchMock.mockResolvedValueOnce(ok({ csrfToken: "csrf-a" })).mockResolvedValueOnce({ ok: false, status: 409 });
+    child.launchDataAgent.mockResolvedValue(grant);
+    await expect(launchPortalDataAgent()).rejects.toThrow();
+    expect(() => portalRequestOptions()).toThrow();
+  });
+
+  it("does not start an exchange after cancellation", async () => {
+    await initializePortalSession(id);
+    const cancel = new AbortController(); cancel.abort();
+    await expect(launchPortalDataAgent(undefined, cancel.signal)).rejects.toMatchObject({ name: "AbortError" });
+    expect(child.launchDataAgent).not.toHaveBeenCalled();
+  });
+
+  it("discards a late grant after cancellation", async () => {
+    await initializePortalSession(id);
+    fetchMock.mockResolvedValue(ok({ csrfToken: "csrf-a" }));
+    let resolveGrant!: (value: typeof grant) => void;
+    child.launchDataAgent.mockReturnValue(new Promise(resolve => { resolveGrant = resolve; }));
+    const cancel = new AbortController();
+    const pending = launchPortalDataAgent(undefined, cancel.signal);
+    const denied = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    await vi.waitFor(() => expect(child.launchDataAgent).toHaveBeenCalledOnce());
+    cancel.abort(); resolveGrant(grant);
+    await denied;
+  });
+
+  it.each([
+    { iframeUrl: "https://wrong.example.invalid/chat", targetOrigin: grant.targetOrigin },
+    { iframeUrl: "javascript:alert(1)", targetOrigin: "null" },
+    { iframeUrl: "http://127.0.0.1:18185/chat", targetOrigin: "http://127.0.0.1:18185" },
+    { iframeUrl: "https://name:password@agent.example.invalid/chat", targetOrigin: grant.targetOrigin },
+  ])("rejects an invalid grant destination", async result => {
+    await initializePortalSession(id);
+    fetchMock.mockResolvedValue(ok({ csrfToken: "csrf-a" }));
+    child.launchDataAgent.mockResolvedValue(result);
+    await expect(launchPortalDataAgent()).rejects.toThrow();
+  });
 });
 afterEach(() => { disposePortalChild(); vi.unstubAllGlobals(); });
 

@@ -31,14 +31,19 @@ export interface RuntimeOptions {
   window?: Window;
 }
 export interface CsrfToken { headerName: string; token: string }
+export interface DataAgentLaunch { iframeUrl: string; targetOrigin: string }
+export interface DataAgentLaunchRequest { parentInstanceId: string; question: string }
 export interface HostOptions extends RuntimeOptions {
   launchEndpoint?: string;
   destroyEndpoint?: string;
   csrf?: (signal?: AbortSignal) => Promise<CsrfToken>;
   fetch?: typeof fetch;
+  /** Vendor-specific server-side token exchange; never a generic JWT launch. */
+  dataAgentLaunch?: (request: DataAgentLaunchRequest, signal: AbortSignal) => Promise<DataAgentLaunch>;
 }
 export interface EmbedHost { embedApp(request: EmbedRequest): EmbedInstance; destroy(): void }
 export interface EmbedChild extends EmbedHost {
+  launchDataAgent(question?: string, signal?: AbortSignal): Promise<DataAgentLaunch>;
   notifyReady(): void;
   notifyError(code: string, message?: string): void;
   notifySessionExpired(): void;

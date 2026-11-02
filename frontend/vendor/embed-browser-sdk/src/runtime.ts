@@ -24,6 +24,8 @@ export class FrameInstance implements EmbedInstance {
   private form: HTMLFormElement | undefined;
   private timer?: ReturnType<typeof setTimeout>;
   private listeners = new Map<keyof EmbedEvents, Set<(event: never) => void>>();
+  private navigations = new Set<() => void>();
+  private navigationEpoch = 0;
   readonly abort = new AbortController();
   constructor(readonly request: EmbedRequest, readonly env: Runtime, private provider: LaunchProvider, private terminal: (instance: FrameInstance) => void) {
     if (!identifier(request.appId) || !identifier(request.resourceId) || !request.container || request.container.ownerDocument !== env.win.document) throw new EmbedError('INVALID_REQUEST');
@@ -37,6 +39,10 @@ export class FrameInstance implements EmbedInstance {
   get instanceId(): string | undefined { return this.id; }
   get window(): Window | null | undefined { return this.iframe?.contentWindow; }
   get targetOrigin(): string | undefined { return this.target; }
+  get navigationVersion(): number { return this.navigationEpoch; }
+  onNavigation(listener: () => void): () => void {
+    this.navigations.add(listener); return () => this.navigations.delete(listener);
+  }
   on<K extends keyof EmbedEvents>(type: K, listener: (event: EmbedEvents[K]) => void): () => void {
     if (this.currentState === 'DESTROYED') return () => undefined;
     const set = this.listeners.get(type) ?? new Set();
@@ -70,6 +76,10 @@ export class FrameInstance implements EmbedInstance {
       this.iframe.referrerPolicy = 'strict-origin-when-cross-origin';
       this.iframe.setAttribute('sandbox', 'allow-forms allow-scripts allow-same-origin allow-downloads');
       this.iframe.dataset.embedInstanceId = descriptor.instanceId;
+      this.iframe.addEventListener('load', () => {
+        this.navigationEpoch++;
+        for (const listener of [...this.navigations]) listener();
+      });
       this.request.container.append(this.iframe);
       this.form = doc.createElement('form');
       this.form.method = 'POST'; this.form.action = descriptor.actionUrl;
@@ -109,6 +119,7 @@ export class FrameInstance implements EmbedInstance {
     this.abort.abort();
     this.form?.remove(); this.form = undefined;
     this.iframe?.remove(); this.iframe = undefined;
+    this.navigations.clear();
   }
   fail(error: EmbedError): void {
     if (this.currentState === 'ERROR' || this.currentState === 'DESTROYED') return;

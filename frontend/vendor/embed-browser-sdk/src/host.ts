@@ -1,6 +1,7 @@
 import type { CsrfToken, EmbedHost, EmbedRequest, HostOptions, LaunchDescriptor } from './types.js';
 import { EmbedError, exact, launch, message, object, safeUrl, text } from './protocol.js';
 import { FrameInstance, runtime } from './runtime.js';
+import { DataAgentHostBridge } from './data-agent-host.js';
 
 export function createEmbedHost(options: HostOptions = {}): EmbedHost {
   const env = runtime(options), win = env.win;
@@ -24,6 +25,7 @@ export function createEmbedHost(options: HostOptions = {}): EmbedHost {
     return { 'Content-Type': 'application/json', [result.headerName]: result.token };
   }
   const instances = new Set<FrameInstance>();
+  const vendor = new DataAgentHostBridge(options.dataAgentLaunch, instance => instances.has(instance));
   const nested = new Map<FrameInstance, Map<string, AbortController>>();
   const seen = new Map<FrameInstance, Set<string>>();
   let destroyed = false;
@@ -38,12 +40,14 @@ export function createEmbedHost(options: HostOptions = {}): EmbedHost {
   }
   function terminal(instance: FrameInstance): void {
     if (!instances.delete(instance)) return;
+    vendor.remove(instance);
     for (const controller of nested.get(instance)?.values() ?? []) controller.abort();
     nested.delete(instance); seen.delete(instance);
     if (instance.instanceId) void headers().then(h => fetcher(`${destroyUrl}/${encodeURIComponent(instance.instanceId!)}`, { method: 'DELETE', credentials: 'same-origin', cache: 'no-store', redirect: 'error', headers: h, keepalive: true })).catch(() => undefined);
   }
   const receive = (event: MessageEvent): void => {
     for (const instance of instances) {
+      if (vendor.accept(event, instance)) return;
       const msg = instance.accept(event);
       if (!msg || msg.type !== 'EMBED_REQUEST') continue;
       const previous = seen.get(instance) ?? new Set<string>();
@@ -73,6 +77,8 @@ export function createEmbedHost(options: HostOptions = {}): EmbedHost {
       if (destroyed) throw new EmbedError('INSTANCE_DESTROYED');
       if (instances.size >= 32) throw new EmbedError('RATE_LIMITED');
       const instance = new FrameInstance(input, env, (id, signal) => request(input.appId, input.resourceId, id, signal), terminal);
+      instance.on('sessionExpired', () => vendor.expire(instance));
+      instance.onNavigation(() => vendor.cancel(instance));
       instances.add(instance); return instance;
     },
     destroy() {
@@ -83,4 +89,4 @@ export function createEmbedHost(options: HostOptions = {}): EmbedHost {
   };
 }
 export { EmbedError } from './protocol.js';
-export type { HostOptions, EmbedHost, EmbedInstance, EmbedRequest, LaunchDescriptor } from './types.js';
+export type { HostOptions, EmbedHost, EmbedInstance, EmbedRequest, LaunchDescriptor, DataAgentLaunch, DataAgentLaunchRequest } from './types.js';

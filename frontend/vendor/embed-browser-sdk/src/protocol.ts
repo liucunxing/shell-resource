@@ -12,6 +12,9 @@ const messages: Record<string, string> = {
   LAUNCH_TIMEOUT: 'The launch request timed out.', EMBED_TIMEOUT: 'The application did not confirm its session.',
   INSTANCE_DESTROYED: 'The embed instance was destroyed.', PROTOCOL_MISMATCH: 'The embed response is incompatible.',
   NETWORK_ERROR: 'The launch request could not be completed.', EMBED_FAILED: 'The embedded application reported a failure.',
+  DATA_AGENT_UNAVAILABLE: 'Data Agent is unavailable.', DATA_AGENT_TOKEN_FAILED: 'Data Agent sign in could not be completed.',
+  DATA_AGENT_IDENTITY_UNMAPPED: 'The Data Agent account is not linked.',
+  DATA_AGENT_IDENTITY_MISMATCH: 'Data Agent did not confirm the expected account.',
 };
 export class EmbedError extends Error {
   readonly code: string;
