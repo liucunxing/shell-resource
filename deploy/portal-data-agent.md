@@ -7,7 +7,7 @@
 1. Portal 使用原 JWT 接口启动资源工具，资源工具建立自己的受保护会话。
 2. 用户首次打开资源工具中的“问数”时，资源工具先验证自己的会话，再通过 SDK 向 Portal 父页面请求。
 3. Portal 父页面核对消息窗口、来源、实例与请求 ID，通过同源 Cookie/CSRF 调用原 `POST /api/data-agent/launch`，新增可选 `parentInstanceId`。
-4. Portal 后端验证当前用户、父应用实例及双方权限，用已有 `DATA_AGENT_API_TOKEN` 调用厂商 `/api/yiaskAuth:issueUserToken`。用户由服务端映射决定，浏览器不能指定邮箱或用户名。
+4. Portal 后端验证当前用户、父应用实例及双方权限，用已有 `DATA_AGENT_API_TOKEN` 调用厂商 `/api/yiaskAuth:issueUserToken`。用户邮箱来自 Portal 当前认证身份的可信 `profile.email`，厂商请求仅发送 `{email}`，返回 `user.email` 必须匹配。浏览器不能指定邮箱或用户名。
 5. Portal 在上游返回后复查会话和权限，仅把当前用户的短期 iframe 地址回传给原实例。资源工具再次验证本地会话后显示 iframe。
 
 这里的 Data Agent 用户票据由 Data Agent 签发；资源工具 JWT 不再次使用，资源工具也不保存厂商 API key。用户后续在 Data Agent 内的对话直接访问其服务。
@@ -21,10 +21,11 @@ DATA_AGENT_BASE_URL=https://agent.example.invalid
 DATA_AGENT_API_TOKEN=REPLACE_WITH_VENDOR_API_KEY
 DATA_AGENT_APP_ID=data-agent
 DATA_AGENT_RESOURCE_ID=home
-DATA_AGENT_IDENTITY_MAP_JSON={"portal-subject":"vendor-username"}
 DATA_AGENT_SPACE=default
 DATA_AGENT_ALLOWED_PARENT_APP_IDS=resource-investment
 ```
+
+已取消 `DATA_AGENT_IDENTITY_MAP_JSON` username 映射。单用户本地测试需显式设置 Portal 的 `PORTAL_DEMO_EMAIL`；正式环境使用批准的身份邮箱资料，不从浏览器参数或用户名推断。资源工具桥协议和前端无需增加 email 参数。
 
 `DATA_AGENT_ALLOWED_PARENT_APP_IDS` 是新增的嵌套父应用白名单，默认空值禁用第二层；现有 Portal 直接 Data Agent 入口仍可用。父应用须已注册、启用且具备对应资源权限；目标应用/资源权限也须配置。`DATA_AGENT_REFERER` 延续原接口约定，必要时按厂商要求设置。
 
