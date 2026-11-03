@@ -17,7 +17,8 @@ export default defineConfig({
     },
   ],
   server: {
-    port: 5173,
+    host: '127.0.0.1',
+    port: 5175,
     strictPort: true,
     proxy: {
       "/api": "http://127.0.0.1:8000",
@@ -27,6 +28,7 @@ export default defineConfig({
     },
   },
   worker: { format: "es" },
+  preview: { host: '127.0.0.1', port: 5175, strictPort: true },
   build: {
     rollupOptions: {
       output: { manualChunks: { fluent: ["@fluentui/react-components"] } },
