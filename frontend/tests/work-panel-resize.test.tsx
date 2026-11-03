@@ -3,20 +3,19 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { panelBounds, panelWidth, WorkPanelResizer } from "../src/workbench/WorkPanelResizer";
 
 describe("responsive work panel width", () => {
-  it("defaults to 480px on regular desktops and leaves at least 480px for the workspace", () => {
+  it("defaults to 480px and allows up to two thirds of the desktop viewport", () => {
     expect(panelWidth(null, 1280)).toBe(480);
     expect(panelWidth(null, 1440)).toBe(480);
     for (const viewport of [1024, 1100, 1199, 1200, 1280, 1440, 1920]) {
-      const nav = viewport >= 1440 ? 272 : viewport >= 1200 ? 240 : 220;
-      expect(viewport - nav - panelWidth(900, viewport)).toBeGreaterThanOrEqual(480);
+      expect(panelWidth(10000, viewport)).toBe(Math.floor(viewport * 2 / 3));
     }
   });
   it("clamps a saved width temporarily without losing the large-screen preference", () => {
     expect(panelWidth(680, 1440)).toBe(680);
-    expect(panelWidth(680, 1024)).toBe(324);
+    expect(panelWidth(800, 1024)).toBe(682);
     expect(panelWidth(680, 1440)).toBe(680);
     expect(panelWidth(50, 1280)).toBe(360);
-    expect(panelWidth(2000, 1920)).toBe(900);
+    expect(panelWidth(2000, 1920)).toBe(1280);
   });
   it("uses a bounded overlay on tablets and fills the phone viewport", () => {
     expect(panelWidth(null, 1023)).toBe(480);

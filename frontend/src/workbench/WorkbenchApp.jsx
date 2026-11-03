@@ -110,6 +110,7 @@ export default function WorkbenchApp() {
     setDevelopmentEmail,
   } = useWorkbench();
   const [scene, setScene] = useState("");
+  const [navCollapsed, setNavCollapsed] = useState(false);
   const sceneDialog = useRef(null);
   const navRef = useRef(null);
   const navTrigger = useRef(null);
@@ -191,7 +192,7 @@ export default function WorkbenchApp() {
     <>
       <SkipToWorkspace portalMode={portalMode} />
       <div
-        className={`app-shell ${auxiliary.open ? "work-open" : ""}`}
+        className={`app-shell ${auxiliary.open ? "work-open" : ""} ${navCollapsed ? "nav-collapsed" : ""}`}
         style={{ "--work-panel-size": `${panelSize.width}px` }}
         data-work-resizing={panelSize.resizing || undefined}
       >
@@ -204,6 +205,8 @@ export default function WorkbenchApp() {
           />
         )}
         <aside
+          id="main-navigation"
+          hidden={navCollapsed && !phone}
           ref={navRef}
           className={`sidebar ${mobileNav ? "mobile-open" : ""}`}
           aria-label="主导航"
@@ -317,6 +320,16 @@ export default function WorkbenchApp() {
         <div className="workspace" inert={workOverlay || mobileNav}>
           <header className="topbar">
             <div className="topbar-left">
+              <button
+                className="button subtle small desktop-nav-toggle"
+                aria-label={navCollapsed ? "展开左侧菜单" : "收起左侧菜单"}
+                title={navCollapsed ? "展开左侧菜单" : "收起左侧菜单"}
+                aria-expanded={!navCollapsed}
+                aria-controls="main-navigation"
+                onClick={() => setNavCollapsed((value) => !value)}
+              >
+                <List size={20} />
+              </button>
               <button
                 ref={navTrigger}
                 className="button subtle small mobile-menu"

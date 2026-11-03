@@ -6,10 +6,9 @@ export const DEFAULT_PANEL_WIDTH = 480;
 
 export function panelBounds(viewport: number) {
   const phone = viewport < 760;
-  const nav = viewport >= 1440 ? 272 : viewport >= 1200 ? 240 : 220;
   const max = Math.max(0, viewport < 1024
     ? viewport - (phone ? 0 : 24)
-    : Math.min(900, viewport - nav - 480));
+    : Math.floor(viewport * 2 / 3));
   return { min: Math.min(360, max), max, phone };
 }
 

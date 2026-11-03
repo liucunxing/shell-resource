@@ -5314,6 +5314,22 @@ th {
 }
 
 /* React integration: scope modal behavior and keep mounted tools inert when hidden. */
+@media (min-width: 760px) {
+  .app-shell.nav-collapsed {
+    --work-nav-size: 0px;
+  }
+  .nav-collapsed > .workspace {
+    grid-column: 2;
+  }
+  .nav-collapsed > .workbench {
+    grid-column: 3;
+  }
+}
+@media (max-width: 759px) {
+  .desktop-nav-toggle {
+    display: none !important;
+  }
+}
 [hidden] {
   display: none !important;
 }
