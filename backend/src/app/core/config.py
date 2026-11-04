@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 from dotenv import dotenv_values
-from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 Environment = Literal["development", "test", "production"]
@@ -108,6 +108,22 @@ class Settings(BaseModel):
     sso_client_id: str | None = None
     sso_client_secret: SecretStr | None = None
 
+    # Service credentials and individually permitted accounts for isolated FineReport UAT.
+    data_agent_base_url: str = ""
+    data_agent_api_token: SecretStr | None = None
+    data_agent_ingress_key: SecretStr | None = None
+    data_agent_space: str = "default"
+    data_agent_uat_emails: list[str] = Field(default_factory=list)
+
+    @field_validator("data_agent_uat_emails")
+    @classmethod
+    def validate_uat_emails(cls, values: list[str]) -> list[str]:
+        from app.portal_embed.config import normalized_email
+
+        if any("*" in value for value in values):
+            raise ValueError("Individual Data Agent UAT email addresses are required")
+        return [normalized_email(value.strip()) for value in values]
+
     # Independent Portal receiver. Keeping this disabled preserves the FineReport entry.
     resource_portal_enabled: bool = False
     resource_portal_issuer: str = ""
@@ -139,10 +155,9 @@ def get_settings() -> Settings:
         key: value for key, value in environment_overrides.items() if value is not None
     }
     for name in Settings.model_fields:
-        if name.startswith("resource_portal_") and name.upper() in os.environ:
+        if name.startswith(("resource_portal_", "data_agent_")) and name.upper() in os.environ:
             value = os.environ[name.upper()]
-            if name == "resource_portal_parent_origins":
-                # Comma separated canonical origins, not a URL inferred from a request.
+            if name in {"resource_portal_parent_origins", "data_agent_uat_emails"}:
                 configured_overrides[name] = [
                     part.strip() for part in value.split(",") if part.strip()
                 ]

@@ -11,7 +11,11 @@ export type AgentFrameState =
 type Launch = (question?: string, signal?: AbortSignal) => Promise<PortalDataAgentLaunch>;
 
 /** Page-local lifecycle: no credentials survive unmount or an expired resource session. */
-export function createAgentFrameController(changed: (state: AgentFrameState) => void, launch: Launch = launchPortalDataAgent) {
+export function createAgentFrameController(
+  changed: (state: AgentFrameState) => void,
+  launch: Launch = launchPortalDataAgent,
+  failureMessage: (error: unknown) => string = () => "暂时无法打开问数，请重试；若访问已失效，请从 Portal 重新进入。",
+) {
   let state: AgentFrameState = { status: "idle" };
   let request: AbortController | undefined;
   let deadline: ReturnType<typeof setTimeout> | undefined;
@@ -26,7 +30,7 @@ export function createAgentFrameController(changed: (state: AgentFrameState) => 
     const current = new AbortController();
     request = current;
     set({ status: "loading" });
-    // Covers both resource session checks as well as the parent credential exchange.
+    // Bound the complete launch, including the vendor exchange.
     deadline = setTimeout(() => {
       if (disposed || expired || request !== current) return;
       cancel();
@@ -37,11 +41,11 @@ export function createAgentFrameController(changed: (state: AgentFrameState) => 
       clearDeadline();
       request = undefined;
       set({ status: "granted", iframeUrl: result.iframeUrl });
-    }).catch(() => {
+    }).catch((error: unknown) => {
       if (disposed || expired || current.signal.aborted || request !== current) return;
       clearDeadline();
       request = undefined;
-      set({ status: "error", message: "暂时无法打开问数，请重试；若访问已失效，请从 Portal 重新进入。" });
+      set({ status: "error", message: failureMessage(error) });
     });
   };
   return {

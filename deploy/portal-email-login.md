@@ -28,12 +28,22 @@ sudo bash deploy/deploy.sh --port 18080
 
 本机开发使用 `frontend/.env.local` 中的同名配置并重启 Vite。两种模式均保留 Portal 带入邮箱后自动校验并进入工作台的行为；手工输入仅在提交时建立该标签页身份，后端继续检查用户权限。测试完成后把配置改回 `false` 并重新部署。
 
-## Data Agent iframe
+## 帆软工作台内打开 Data Agent（隔离 UAT）
 
-“小One问数Agent”入口嵌入 `https://dataaitest.digitalshell.com.cn/`。前端使用后端返回的当前用户 `identity.email`，自动生成 `?user_email=lukx1%40digitalchina.com`；iframe 与“独立打开”使用同一个地址。不会透传角色、Token 或业务数据。
+首次点击“问数”时，浏览器向资源工具同源接口 `POST /api/v1/workbench/data-agent/launch` 发送空请求体，沿用工作台身份。资源工具后端检查当前邮箱的工作台权限和问数测试名单，向配置的 Data Agent 服务提交 `POST /api/yiaskAuth:issueUserToken`，请求体为 `{"email":"当前工作台邮箱"}`。厂商返回的用户邮箱与当前用户一致时，工作台才加载带票据的 `/admin/chat`。折叠再打开保留 iframe，点击“重新加载”会重新换票。
 
-首次打开才加载 iframe，切换参考/Insight 或收起后保留页面；切换用户重新建立 iframe，重新加载按钮只刷新该 iframe。
+在资源工具服务器私有的 `deploy/settings.toml` 当前 UAT 配置段中设置下列字段。厂商须在同一测试环境为每个测试邮箱开通独立账号。API 密钥只存放在后端。
 
-Docker/Compose 构建默认接入上述地址，`VITE_YIWEN_IFRAME_URL` 可覆盖；已有部署配置若仍是空值，Compose 使用该默认值。地址在构建时注入，发布需重新构建前端镜像。本机开发可复制 `frontend/.env.example` 为 `.env.local`。远程地址必须使用 HTTPS，仅 localhost、127.0.0.1 和 [::1] 放行 HTTP 调试。
+```toml
+data_agent_base_url = "https://agent.example.invalid"
+data_agent_api_token = "<资源工具专用的厂商 UAT API 密钥>"
+data_agent_ingress_key = "<与受控入口共享的独立随机密钥，至少 32 字节 ASCII>"
+data_agent_space = "default"
+data_agent_uat_emails = ["tester@example.invalid"]
+```
 
-2026-10-12 本地验证：前端 92 项测试、9 项部署脚本测试及构建通过；真实浏览器确认邮箱 URL、首次打开加载、Tab/收起保留、重新加载及切换账号。远端入口返回 HTTP 200，未返回 X-Frame-Options / CSP 限制；Data Agent 加载较慢，独立打开携带邮箱后最终跳转至 `/signin?redirect=/admin` 并要求用户名和密码。因此本应用的邮箱透传已完成，但 Data Agent 对端免登尚未打通，需对端接收 `user_email` 并配置对应账号映射。iframe 的 load 事件不代表认证成功。
+将样例域名替换为密钥所属的厂商 HTTPS origin。名单默认为空。前端和后端须随此分支一起更新。原有 `VITE_YIWEN_IFRAME_URL` 仅影响演示模式。Portal JWT 入口的配置见[独立说明](portal-data-agent.md)。
+
+**入口身份。** 帆软旧入口使用的 `X-User-Email` 可由浏览器改写。访问名单只控制哪些测试账号能参与。换票接口另需受控入口核实当前登录人，并在代理这一个 POST 时覆盖两个请求头。将 `X-Resource-Verified-Email` 设为入口从认证会话中查到的邮箱，将 `X-Resource-Ingress-Key` 设为与资源工具后端共享的独立随机密钥。入口应清除客户端提供的同名头。复制浏览器传来的邮箱或仅检查 Referer 无法验证身份。两个密钥均应通过服务端密钥渠道提供，禁止进入前端或访问日志。
+
+缺少可信入口配置时接口保持关闭。现有公共网关模板只做转发，部署到该入口前还需接好已认证用户到邮箱的绑定。在隔离 UAT 可由受控测试代理针对已认证的专用测试用户注入这两个头。`production` 继续拒绝旧邮箱工作台身份。

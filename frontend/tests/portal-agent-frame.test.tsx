@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createAgentFrameController } from "../src/portal/agentFrame";
-import { PortalAgentFrame } from "../src/portal/PortalAgentFrame";
+import { DataAgentFrame } from "../src/workbench/DataAgentFrame";
 import type { PortalDataAgentLaunch } from "../src/portal/session";
 
 const grant = { iframeUrl: "https://agent.example.invalid/chat?token=synthetic", targetOrigin: "https://agent.example.invalid" };
@@ -15,7 +15,7 @@ function deferred() {
 
 describe("Portal Data Agent frame lifecycle", () => {
   it("does not render an iframe or credential-bearing link before first use", () => {
-    const html = renderToStaticMarkup(<PortalAgentFrame visible={false} />);
+    const html = renderToStaticMarkup(<DataAgentFrame portalMode visible={false} />);
     expect(html).not.toContain("<iframe");
     expect(html).not.toContain("href=");
     expect(html).not.toContain("独立打开");

@@ -18,6 +18,12 @@
 # RESOURCE_PORTAL_PARENT_ORIGINS uses comma-separated canonical origins.
 
 [development]
+# FineReport direct exchange, for isolated UAT identities. See deploy/portal-email-login.md.
+data_agent_base_url = ""
+data_agent_api_token = ""
+data_agent_ingress_key = ""
+data_agent_space = "default"
+data_agent_uat_emails = []
 app_name = "资源投资工作台"
 app_version = "1.4.0"
 debug = true

@@ -1,6 +1,6 @@
 # Portal 资源工具内嵌 Data Agent
 
-本功能接在已有 Portal JWT 资源工具入口后。帆软原入口 `/?user_email=...`、原邮箱会话和原 Data Agent iframe 配置继续保留。Portal 入口不读取旧邮箱参数，也不使用旧 iframe 地址降级。
+本页描述 Portal JWT 资源工具入口。帆软 `/?user_email=...` 入口由资源工具后端独立换票，见[帆软工作台配置](portal-email-login.md)。
 
 ## 调用流程
 
@@ -10,7 +10,7 @@
 4. Portal 后端验证当前用户、父应用实例及双方权限，用已有 `DATA_AGENT_API_TOKEN` 调用厂商 `/api/yiaskAuth:issueUserToken`。用户邮箱来自 Portal 当前认证身份的可信 `profile.email`，厂商请求仅发送 `{email}`，返回 `user.email` 必须匹配。浏览器不能指定邮箱或用户名。
 5. Portal 在上游返回后复查会话和权限，仅把当前用户的短期 iframe 地址回传给原实例。资源工具再次验证本地会话后显示 iframe。
 
-这里的 Data Agent 用户票据由 Data Agent 签发；资源工具 JWT 不再次使用，资源工具也不保存厂商 API key。用户后续在 Data Agent 内的对话直接访问其服务。
+此 Portal 链路的厂商 API key 配置在 Portal 后端，用户票据由 Data Agent 签发。用户后续在 Data Agent 内的对话直接访问其服务。
 
 ## 配置位置
 

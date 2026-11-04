@@ -19,7 +19,7 @@ import A from "./domain/explore.js";
 import { InsightPanel } from "./pages/InsightPanel.jsx";
 import { buildYiwenUrl } from "../config/yiwen";
 import { WorkPanelResizer } from "./WorkPanelResizer";
-import { PortalAgentFrame } from "../portal/PortalAgentFrame";
+import { DataAgentFrame } from "./DataAgentFrame";
 const fmt = (value) =>
   Number.isFinite(value)
     ? (Math.abs(value) < 0.005 ? 0 : value).toLocaleString("zh-CN", {
@@ -47,7 +47,7 @@ export function WorkPanel({ overlay, panelSize }) {
     apiMode,
     portalMode,
   } = useWorkbench();
-  const config = portalMode ? { url: "", error: "" } : buildYiwenUrl(import.meta.env.VITE_YIWEN_IFRAME_URL, identity.email);
+  const config = apiMode ? { url: "", error: "" } : buildYiwenUrl(import.meta.env.VITE_YIWEN_IFRAME_URL, identity.email);
   const panel = useRef(null);
   const closeButton = useRef(null);
   const [chatVisited, setChatVisited] = useState(false);
@@ -211,7 +211,10 @@ export function WorkPanel({ overlay, panelSize }) {
           aria-label="小One问数Agent"
           hidden={!auxiliary.open || auxiliary.tab !== "chat"}
         >
-          {portalMode ? <PortalAgentFrame visible={auxiliary.open && auxiliary.tab === "chat"} /> : config.url ? (
+          {apiMode ? (
+            <DataAgentFrame key={identity.email} portalMode={portalMode}
+              visible={auxiliary.open && auxiliary.tab === "chat"} />
+          ) : config.url ? (
             <EmbeddedAsk
               key={config.url}
               url={config.url}
