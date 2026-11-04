@@ -4,6 +4,13 @@ proxy_read_timeout 300s;
 proxy_send_timeout 300s;
 ssl_protocols TLSv1.2 TLSv1.3;
 
+# The workbench entry selects a release-specific JS bundle. Re-fetch it on navigation.
+map $uri $resource_entry_cache_control {
+    default "";
+    / "no-store";
+    /index.html "no-store";
+}
+
 server {
     listen 80 default_server;
     server_name _;
@@ -44,6 +51,7 @@ server {
     }
     location / {
         proxy_pass ${RESOURCE_UPSTREAM};
+        add_header Cache-Control $resource_entry_cache_control always;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
