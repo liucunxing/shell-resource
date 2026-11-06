@@ -23,6 +23,7 @@ data_agent_base_url = ""
 data_agent_api_token = ""
 data_agent_ingress_key = ""
 data_agent_space = "default"
+data_agent_access_mode = "uat"
 data_agent_uat_emails = []
 app_name = "资源投资工作台"
 app_version = "1.4.0"

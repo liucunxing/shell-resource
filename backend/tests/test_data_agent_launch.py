@@ -91,7 +91,6 @@ def test_requires_explicit_uat_configuration(launch, field, value, expected):
     {**HEADERS, "X-Resource-Verified-Email": EMAIL + "," + EMAIL},
     [*HEADERS.items(), ("X-Resource-Ingress-Key", INGRESS_KEY)],
     [*HEADERS.items(), ("X-Resource-Verified-Email", EMAIL)],
-    [*HEADERS.items(), ("X-User-Email", EMAIL)],
 ])
 def test_allowlisted_workbench_email_needs_unambiguous_ingress_identity(launch, headers):
     response = launch.client.post(URL, headers=headers)
@@ -127,3 +126,82 @@ def test_configuration_requires_individual_normalized_email():
     values["data_agent_uat_emails"] = ["*@example.com"]
     with pytest.raises(ValidationError):
         Settings.model_validate(values)
+
+
+def test_workbench_mode_uses_existing_permission_without_per_user_allowlist(launch):
+    launch.settings.data_agent_access_mode = "workbench"
+    launch.settings.data_agent_uat_emails = []
+    response = launch.client.post(URL, headers=HEADERS)
+    assert response.status_code == 200
+    assert launch.lookup.await_count == 2
+    launch.exchange.assert_awaited_once()
+
+
+@pytest.mark.parametrize("headers", [
+    {"X-User-Email": EMAIL},
+    {**HEADERS, "X-Resource-Verified-Email": "other@example.com"},
+    {**HEADERS, "X-Resource-Ingress-Key": "wrong"},
+])
+def test_workbench_mode_still_requires_verified_identity(launch, headers):
+    launch.settings.data_agent_access_mode = "workbench"
+    launch.settings.data_agent_uat_emails = []
+    assert launch.client.post(URL, headers=headers).status_code == 403
+    launch.exchange.assert_not_awaited()
+
+
+@pytest.mark.parametrize("revoked_during_exchange", [False, True])
+def test_workbench_mode_rejects_missing_or_revoked_permission(launch, revoked_during_exchange):
+    launch.settings.data_agent_access_mode = "workbench"
+    launch.settings.data_agent_uat_emails = []
+    launch.lookup.side_effect = [launch.record, None] if revoked_during_exchange else [None]
+    response = launch.client.post(URL, headers=HEADERS)
+    assert response.status_code == 403
+    assert "synthetic-user-ticket" not in response.text
+    assert launch.exchange.await_count == int(revoked_during_exchange)
+
+
+def test_access_mode_is_explicit_and_defaults_to_uat():
+    values = get_settings().model_dump()
+    values.pop("data_agent_access_mode", None)
+    assert Settings.model_validate(values).data_agent_access_mode == "uat"
+    values["data_agent_access_mode"] = "all"
+    with pytest.raises(ValidationError):
+        Settings.model_validate(values)
+
+
+def test_email_mode_reuses_workbench_permission_without_ingress_or_user_list(launch):
+    launch.settings.data_agent_access_mode = "workbench_email"
+    launch.settings.data_agent_uat_emails = []
+    launch.settings.data_agent_ingress_key = None
+    response = launch.client.post(URL, headers={"X-User-Email": EMAIL.upper()})
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert launch.lookup.await_count == 2
+    launch.exchange.assert_awaited_once()
+
+
+@pytest.mark.parametrize("mode", ["uat", "workbench", "workbench_email"])
+def test_every_mode_rejects_ambiguous_email_headers(launch, mode):
+    launch.settings.data_agent_access_mode = mode
+    response = launch.client.post(URL, headers=[*HEADERS.items(), ("X-User-Email", EMAIL)])
+    assert response.status_code == 400
+    launch.exchange.assert_not_awaited()
+
+
+def test_email_mode_remains_disabled_in_production(launch):
+    launch.settings.data_agent_access_mode = "workbench_email"
+    launch.settings.app_env = "production"
+    assert launch.client.post(URL, headers={"X-User-Email": EMAIL}).status_code == 401
+    launch.exchange.assert_not_awaited()
+
+
+@pytest.mark.parametrize("revoked_during_exchange", [False, True])
+def test_email_mode_still_checks_permission_and_rechecks_before_returning(
+    launch, revoked_during_exchange,
+):
+    launch.settings.data_agent_access_mode = "workbench_email"
+    launch.lookup.side_effect = [launch.record, None] if revoked_during_exchange else [None]
+    response = launch.client.post(URL, headers={"X-User-Email": EMAIL})
+    assert response.status_code == 403
+    assert "synthetic-user-ticket" not in response.text
+    assert launch.exchange.await_count == int(revoked_during_exchange)

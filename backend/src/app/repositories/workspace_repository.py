@@ -22,10 +22,16 @@ class WorkspaceRepository:
         self.session = session
 
     async def get_permission(self, email: str) -> UserPermissionDO | None:
-        statement = select(UserPermissionDO).where(
-            UserPermissionDO.email == email, UserPermissionDO.enabled.is_(True)
+        # Check all matching records before enabled status: legacy case variants
+        # must never choose an arbitrary role or bypass a disabled identity.
+        statement = (
+            select(UserPermissionDO)
+            .where(func.lower(func.trim(UserPermissionDO.email)) == email.strip().lower())
+            .limit(2)
+            .execution_options(populate_existing=True)
         )
-        return (await self.session.scalars(statement)).one_or_none()
+        permission = (await self.session.scalars(statement)).one_or_none()
+        return permission if permission is not None and permission.enabled else None
 
     async def list_users(self) -> list[UserPermissionDO]:
         return list(

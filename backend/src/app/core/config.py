@@ -108,11 +108,12 @@ class Settings(BaseModel):
     sso_client_id: str | None = None
     sso_client_secret: SecretStr | None = None
 
-    # Service credentials and individually permitted accounts for isolated FineReport UAT.
+    # Shared service credentials. Legacy email mode is explicit and non-production only.
     data_agent_base_url: str = ""
     data_agent_api_token: SecretStr | None = None
     data_agent_ingress_key: SecretStr | None = None
     data_agent_space: str = "default"
+    data_agent_access_mode: Literal["uat", "workbench", "workbench_email"] = "uat"
     data_agent_uat_emails: list[str] = Field(default_factory=list)
 
     @field_validator("data_agent_uat_emails")

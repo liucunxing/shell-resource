@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, status
+from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -64,7 +65,10 @@ async def resolve_workbench_permission(session: AsyncSession, email: str) -> Wor
     remains guarded above; Portal authentication owns a separate session dependency.
     """
     email = email.strip().lower()
-    permission = await WorkspaceRepository(session).get_permission(email)
+    try:
+        permission = await WorkspaceRepository(session).get_permission(email)
+    except MultipleResultsFound:
+        raise HTTPException(status_code=403, detail="邮箱权限记录冲突，请联系管理员") from None
     if permission is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前邮箱没有工作台权限")
     if permission.role not in {"owner", "lead", "management", "admin"} or (
