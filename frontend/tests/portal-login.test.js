@@ -22,21 +22,21 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("FineReport Portal email handoff", () => {
   it("replaces the old identity before the first workspace request and cleans only the email", async () => {
-    const browser = navigate("?user_email=%20LUKX1%40digitalchina.com%20&view=admin#details");
+    const browser = navigate("?user_email=%20Example.User02%40Example.Invalid%20&view=admin#details");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true, status: 200, json: async () => ({ code: 200, data: { identity: { role: "admin" } } }),
     }));
     acceptPortalEmail();
-    expect(getDevelopmentEmail()).toBe("lukx1@digitalchina.com");
+    expect(getDevelopmentEmail()).toBe("example.user02@example.invalid");
     expect(browser.history.replaceState).toHaveBeenCalledWith({ keep: true }, "", "/?view=admin#details");
     await workspace();
-    expect(fetch.mock.calls[0][1].headers["X-User-Email"]).toBe("lukx1@digitalchina.com");
+    expect(fetch.mock.calls[0][1].headers["X-User-Email"]).toBe("example.user02@example.invalid");
   });
 
   it("accepts the space after ? in the supplied Portal URL", () => {
-    navigate("?%20user_email=lukx1@digitalchina.com");
+    navigate("?%20user_email=example.user02@example.invalid");
     acceptPortalEmail();
-    expect(getDevelopmentEmail()).toBe("lukx1@digitalchina.com");
+    expect(getDevelopmentEmail()).toBe("example.user02@example.invalid");
   });
 
   it("clears the current identity without a Portal handoff", () => {

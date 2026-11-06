@@ -24,9 +24,9 @@ async def session():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("stored_email", ["michael.Wang2@shell.com", "MICHAEL.WANG2@SHELL.COM"])
+@pytest.mark.parametrize("stored_email", ["Example.User04@Example.Invalid", "EXAMPLE.USER04@EXAMPLE.INVALID"])
 @pytest.mark.parametrize("input_email", [
-    "michael.Wang2@shell.com", "michael.wang2@shell.com", "MICHAEL.WANG2@SHELL.COM",
+    "Example.User04@Example.Invalid", "example.user04@example.invalid", "EXAMPLE.USER04@EXAMPLE.INVALID",
 ])
 async def test_existing_mixed_case_permission_resolves_without_changing_owner_identity(
     session, stored_email, input_email,

@@ -141,7 +141,7 @@ git rev-parse HEAD
 ```bash
 sudo mkdir -p /opt/shell-forecast
 sudo chown "$(id -u):$(id -g)" /opt/shell-forecast
-git clone --branch main https://github.com/liucunxing/shell-resource.git /opt/shell-forecast
+git clone --branch main https://github.com/YOUR_ORGANIZATION/shell-resource.git /opt/shell-forecast
 cd /opt/shell-forecast
 git fetch --prune origin
 git checkout --detach RELEASE_COMMIT

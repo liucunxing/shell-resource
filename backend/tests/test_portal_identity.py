@@ -15,15 +15,15 @@ from test_workspace import _session
 @pytest.mark.asyncio
 async def test_portal_email_maps_to_database_admin(monkeypatch):
     lookup = AsyncMock(return_value=SimpleNamespace(
-        email="lukx1@digitalchina.com", role="admin", department=None,
+        email="example.user02@example.invalid", role="admin", department=None,
         display_name="Portal Admin", sector=None,
     ))
     monkeypatch.setattr(workbench_user.WorkspaceRepository, "get_permission", lookup)
     user = await workbench_user.get_current_workbench_user(
-        None, " LUKX1@digitalchina.com "
+        None, " Example.User02@Example.Invalid "
     )
-    lookup.assert_awaited_once_with("lukx1@digitalchina.com")
-    assert user.email == "lukx1@digitalchina.com"
+    lookup.assert_awaited_once_with("example.user02@example.invalid")
+    assert user.email == "example.user02@example.invalid"
     assert user.role == "admin"
 
 
@@ -43,7 +43,7 @@ async def test_portal_handoff_does_not_bypass_production_guard(monkeypatch):
         workbench_user, "get_settings", lambda: SimpleNamespace(app_env="production")
     )
     with pytest.raises(HTTPException) as error:
-        await workbench_user.get_current_workbench_user(None, "lukx1@digitalchina.com")
+        await workbench_user.get_current_workbench_user(None, "example.user02@example.invalid")
     assert error.value.status_code == 401
 
 

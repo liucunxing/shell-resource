@@ -4,7 +4,7 @@ import { EmbeddedAsk } from "../src/workbench/WorkPanel.jsx";
 import { buildYiwenUrl } from "../src/config/yiwen";
 
 describe("Data Agent iframe", () => {
-  const { url } = buildYiwenUrl("https://dataaitest.digitalshell.com.cn/", "lukx1@digitalchina.com");
+  const { url } = buildYiwenUrl("https://dataaitest.digitalshell.com.cn/", "example.user02@example.invalid");
   it("loads only when visited, and shares the email URL with the independent link", () => {
     const html = renderToStaticMarkup(<EmbeddedAsk loaded url={url} />);
     expect(html).toContain(`src="${url}"`);
