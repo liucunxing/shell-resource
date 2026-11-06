@@ -1,3 +1,5 @@
+import { assertPreviewResponseCurrent, getPreviewEpoch, getPreviewUserEmail } from "./userPreview";
+
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/api/v1/workbench").replace(/\/$/, "");
 const planningYear = Number(import.meta.env.VITE_PLANNING_YEAR || 2027);
 export const DEV_EMAIL_KEY = "shell-resource-dev-email";
@@ -50,28 +52,37 @@ function emailHeader() {
 }
 
 export async function request(path, options = {}) {
+  const previewEmail = getPreviewUserEmail();
+  const previewEpoch = getPreviewEpoch();
+  if (previewEmail && !["GET", "HEAD", "OPTIONS"].includes((options.method || "GET").toUpperCase()))
+    throw new ApiError("模拟查看为只读模式，请返回管理员后操作。", 403);
   let response;
   try {
     const requestOptions = {
       ...options,
+      ...(previewEmail ? { cache: "no-store" } : {}),
       headers: {
         Accept: "application/json",
         ...(isPortalEntry() ? {} : emailHeader()),
         ...(options.body ? { "Content-Type": "application/json" } : {}),
         ...options.headers,
+        ...(previewEmail ? { "X-Preview-User-Email": previewEmail } : {}),
       },
     };
     response = await fetch((isPortalEntry() ? PORTAL_API_BASE : API_BASE) + path,
       isPortalEntry() ? portalRequestOptions(requestOptions) : requestOptions);
   } catch (_) {
+    assertPreviewResponseCurrent(previewEpoch);
     throw new ApiError("无法连接工作台服务，请检查网络后重试。", 0);
   }
   let body;
   try {
     body = await response.json();
   } catch (_) {
+    assertPreviewResponseCurrent(previewEpoch);
     throw new ApiError("服务返回格式无效，请稍后重试。", response.status);
   }
+  assertPreviewResponseCurrent(previewEpoch);
   if (!response.ok || body.code !== 200) {
     if (isPortalEntry()) handlePortalRejection(response.status, body.msg);
     throw new ApiError(

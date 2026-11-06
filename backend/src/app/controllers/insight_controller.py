@@ -6,7 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings, get_settings
 from app.core.responses import ApiResponse, success
 from app.db.session import get_db_session
-from app.dependencies.workbench_user import WorkbenchUser, get_current_workbench_user
+from app.dependencies.workbench_preview import get_effective_workbench_user
+from app.dependencies.workbench_user import WorkbenchUser
 from app.schemas.dto.insight import InsightGenerateDTO, InsightPreviewDTO, InsightPromptUpdateDTO
 from app.schemas.vo.insight import InsightPromptVO, InsightReadVO
 from app.services.insight_preview_service import InsightPreviewService
@@ -18,7 +19,7 @@ router = APIRouter()
 @router.get("/insights/preview", response_model=ApiResponse[dict], summary="管理员读取试用视角")
 async def insight_preview_context(
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
     settings: Annotated[Settings, Depends(get_settings)],
     user_email: Annotated[str, Query(min_length=1, max_length=254)],
     planning_year: Annotated[int, Query(ge=2000, le=2100)],
@@ -31,7 +32,7 @@ async def insight_preview_context(
 async def generate_insight_preview(
     payload: InsightPreviewDTO,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> ApiResponse[dict]:
     service = await InsightPreviewService.create(session, user, payload.user_email, settings)
@@ -47,7 +48,7 @@ def _service(session: AsyncSession, user: WorkbenchUser, settings: Settings) -> 
 @router.get("/insights", response_model=ApiResponse[InsightReadVO], summary="读取 Insight")
 async def get_insight(
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
     settings: Annotated[Settings, Depends(get_settings)],
     scope: Annotated[str, Query(min_length=1, max_length=300)],
     planning_year: Annotated[int, Query(ge=2000, le=2100)],
@@ -65,7 +66,7 @@ async def get_insight(
 async def update_insight_prompt(
     payload: InsightPromptUpdateDTO,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> ApiResponse[InsightPromptVO]:
     data = await _service(session, user, settings).update_prompt(
@@ -81,7 +82,7 @@ async def update_insight_prompt(
 async def generate_insight(
     payload: InsightGenerateDTO,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> ApiResponse[dict]:
     return success(

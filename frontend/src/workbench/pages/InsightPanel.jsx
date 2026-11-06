@@ -44,7 +44,7 @@ export function InsightPanel({ scope }) {
   return <StandardInsightPanel scope={scope} />;
 }
 function StandardInsightPanel({ scope }) {
-  const { state, data, identity, view, mutate, apiMode, notify } =
+  const { state, data, identity, view, mutate, apiMode, notify, previewMode } =
     useWorkbench();
   const requestEpoch = useRef(0);
   const busyRef = useRef(false);
@@ -222,7 +222,7 @@ function StandardInsightPanel({ scope }) {
       {synced && <p className="small-text muted">范围：全部已同步项目；每项取最新同步版本，不包含未同步草稿。</p>}
       {apiMode && remote.prompt?.editable && <BusinessPromptEditor
         key={`${identityKey}-${remote.prompt.version}`} prompt={remote.prompt}
-        disabled={busy} onSaved={(prompt) => {
+        disabled={busy || previewMode} onSaved={(prompt) => {
           setRemote((current) => ({ ...current, prompt, record: current.record ? { ...current.record, stale: true } : null }));
           notify("关注点已保存，下次生成生效。");
         }}
@@ -245,7 +245,7 @@ function StandardInsightPanel({ scope }) {
         {!readOnly && (apiMode || identity.role !== "admin") && (
           <button
             className="button primary small"
-            disabled={busy || remote.loading}
+            disabled={busy || remote.loading || previewMode}
             onClick={async () => {
               if (!apiMode)
                 return mutate(

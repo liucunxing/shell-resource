@@ -1,5 +1,6 @@
 import { createEmbedChild } from "@oneportal/embed-browser-sdk/child";
 import type { DataAgentLaunch, EmbedChild, EmbedContext } from "@oneportal/embed-browser-sdk/child";
+import { assertNotUserPreview, assertPreviewResponseCurrent, getPreviewEpoch } from "../workbench/userPreview";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export const PORTAL_API_BASE = "/portal-embed/api/v1/workbench";
@@ -104,12 +105,16 @@ export type PortalDataAgentLaunch = DataAgentLaunch;
 
 /** Only the authenticated Portal parent can exchange the vendor credential. */
 export async function launchPortalDataAgent(question?: string, signal?: AbortSignal): Promise<PortalDataAgentLaunch> {
+  assertNotUserPreview();
+  const previewEpoch = getPreviewEpoch();
   const previous = active;
   const child = previous?.child;
   if (!isPortalEntry() || !previous || !child) {
     throw new Error("请在 Portal 中打开资源投资工具后使用问数。");
   }
   const assertCurrent = () => {
+    assertPreviewResponseCurrent(previewEpoch);
+    assertNotUserPreview();
     if (signal?.aborted) throw new DOMException("已取消", "AbortError");
     if (active !== previous) throw sessionFailure();
   };

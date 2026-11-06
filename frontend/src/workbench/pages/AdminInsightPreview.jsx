@@ -11,7 +11,7 @@ const presets = [
 ];
 
 export function AdminInsightPreview({ PromptEditor }) {
-  const { roles: users = [], identity, notify } = useWorkbench();
+  const { roles: users = [], identity, notify, previewMode } = useWorkbench();
   const [email, setEmail] = useState("");
   const [context, setContext] = useState(null);
   const [scope, setScope] = useState("");
@@ -71,9 +71,9 @@ export function AdminInsightPreview({ PromptEditor }) {
     }
   }
   return <div className="insight-panel">
-    <p className="small-text muted">选择一个用户，按他的可见数据试用全局提示词。试用结果不会保存到该用户的 Insight。</p>
+    <p className="small-text muted">{previewMode ? "模拟查看期间不可再切换分析用户或生成分析，请返回管理员后使用。" : "选择一个用户，按他的可见数据试用全局提示词。试用结果不会保存到该用户的 Insight。"}</p>
     <label className="form-field insight-scope-select">模拟用户视角
-      <select aria-label="模拟用户视角" value={email} disabled={busy} onChange={event => {
+      <select aria-label="模拟用户视角" value={email} disabled={busy || previewMode} onChange={event => {
         epoch.current += 1; setRecord(null); setContext(null); setEmail(event.target.value);
       }}>
         <option value="">请选择用户</option>
@@ -100,7 +100,7 @@ export function AdminInsightPreview({ PromptEditor }) {
         {presets.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
       </select>
     </label>
-    {prompt && <PromptEditor key={prompt.version} prompt={prompt} disabled={busy} onSaved={value => {
+    {prompt && <PromptEditor key={prompt.version} prompt={prompt} disabled={busy || previewMode} onSaved={value => {
       setPrompt(value); notify("全局提示词已保存，可重新试用查看效果。");
     }} />}
     {promptError && <p className="note-box" role="alert">{promptError}
@@ -108,7 +108,7 @@ export function AdminInsightPreview({ PromptEditor }) {
     </p>}
     <div className="insight-toolbar">
       <span className="badge">用户视角试用{prompt ? ` · 全局提示词 v${prompt.version}` : ""}</span>
-      <button className="button primary small" disabled={!context || !scope || !prompt || loading || busy} onClick={generate}>
+      <button className="button primary small" disabled={previewMode || !context || !scope || !prompt || loading || busy} onClick={generate}>
         {busy ? `正在试用 · ${elapsed}秒` : "试用分析"}
       </button>
     </div>

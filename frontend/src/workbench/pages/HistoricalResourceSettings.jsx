@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 const resources = ["MRD", "SP&A", "ICE Rebate", "Capex"];
-export function HistoricalResourceSettings({ mapping, departments, saveConfig }) {
+export function HistoricalResourceSettings({ mapping, departments, saveConfig, readOnly = false }) {
   const [draft, setDraft] = useState(mapping);
   const [busy, setBusy] = useState(false);
   const names = [...new Set([...Object.keys(draft), ...departments])].sort();
@@ -11,7 +11,7 @@ export function HistoricalResourceSettings({ mapping, departments, saveConfig })
     <div className="table-scroll"><table><thead><tr><th>部门</th>{resources.map((resource) => <th key={resource}>{resource}</th>)}</tr></thead>
       <tbody>{names.map((department) => <tr key={department}><th>{department}</th>
         {resources.map((resource) => <td key={resource}><input type="checkbox"
-          aria-label={`${department} 可查看 ${resource}`} disabled={busy}
+          aria-label={`${department} 可查看 ${resource}`} disabled={busy || readOnly}
           checked={(draft[department] || []).includes(resource)}
           onChange={(event) => setDraft((current) => ({ ...current,
             [department]: event.target.checked ? [...(current[department] || []), resource]
@@ -19,7 +19,7 @@ export function HistoricalResourceSettings({ mapping, departments, saveConfig })
           }))} /></td>)}
       </tr>)}</tbody>
     </table></div>
-    <button className="button primary small" disabled={busy} onClick={async () => {
+    <button className="button primary small" disabled={busy || readOnly} onClick={async () => {
       setBusy(true);
       try { await saveConfig({ departmentResources: draft }); }
       finally { setBusy(false); }

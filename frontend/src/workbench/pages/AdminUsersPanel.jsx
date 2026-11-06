@@ -62,7 +62,7 @@ function UserDialog({ title, children, onClose, onConfirm, confirmLabel, saving 
 }
 
 export function AdminUsersPanel() {
-  const { identity, notify, refresh } = useWorkbench();
+  const { identity, notify, refresh, previewMode, startUserPreview, switchingPreview } = useWorkbench();
   const [draftFilters, setDraftFilters] = useState(EMPTY_FILTERS);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [offset, setOffset] = useState(0);
@@ -174,8 +174,8 @@ export function AdminUsersPanel() {
   return (
     <>
       <div className="user-list-heading">
-        <p className="small-text muted">维护邮箱、姓名、角色、部门和业务线；已有 Initiative 的用户仅可调整部门，且须保留有项目归属的部门。</p>
-        <button type="button" className="button primary" onClick={() => open("create")}>新增人员</button>
+        <p className="small-text muted">维护邮箱、姓名、角色、部门和业务线。点击“模拟查看”可按该用户的实际权限只读查看工作台；已有 Initiative 的用户仅可调整部门。</p>
+        <button type="button" className="button primary" disabled={previewMode} onClick={() => open("create")}>新增人员</button>
       </div>
       <form
         className="user-filters"
@@ -238,8 +238,12 @@ export function AdminUsersPanel() {
                   {user.enabled ? "启用" : "停用"}</span></td>
                 <td>{user.has_initiatives ? <span className="badge amber">已有 Initiative</span> : "无"}</td>
                 <td><div className="actions">
-                  <button type="button" className="button small" onClick={() => open("edit", user)}>修改</button>
-                  <button type="button" className="button small" onClick={() => open("delete", user)}>删除</button>
+                  {!previewMode && identity.role === "admin" && user.email !== identity.email && <button
+                    type="button" className="button small" disabled={!user.enabled || switchingPreview}
+                    title={user.enabled ? "按该用户权限只读查看工作台" : "停用用户无法模拟查看"}
+                    onClick={() => startUserPreview(user)}>模拟查看</button>}
+                  <button type="button" className="button small" disabled={previewMode} onClick={() => open("edit", user)}>修改</button>
+                  <button type="button" className="button small" disabled={previewMode} onClick={() => open("delete", user)}>删除</button>
                 </div></td>
               </tr>)}
               {!loading && !result.items.length && <tr><td colSpan={8}>暂无匹配人员。</td></tr>}

@@ -9,7 +9,8 @@ from app.core.config import Settings, get_settings
 from app.core.responses import ApiResponse, success
 from app.db.session import get_db_session
 from app.dependencies.storage import get_workbench_blob_storage
-from app.dependencies.workbench_user import WorkbenchUser, get_current_workbench_user
+from app.dependencies.workbench_preview import get_effective_workbench_user
+from app.dependencies.workbench_user import WorkbenchUser
 from app.repositories.budget_repository import BudgetDistributorRepository, BudgetRepository
 from app.schemas.dto.workbench import (
     AdminBudgetDeleteDTO,
@@ -60,7 +61,7 @@ def _admin_service(session: AsyncSession, user: WorkbenchUser) -> AdminService:
 async def get_workspace(
     planning_year: int,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[dict]:
     return success(await _workspace_service(session, user).get_workspace(planning_year))
 
@@ -71,7 +72,7 @@ async def get_workspace(
     summary="获取 Databricks 经销商目录",
 )
 async def get_distributors(
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> ApiResponse[list[dict]]:
     if user.role not in {"owner", "lead", "admin", "management"}:
@@ -89,7 +90,7 @@ async def get_distributors(
 async def get_initiative_draft(
     budget_id: int,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[dict]:
     return success(await _workspace_service(session, user).get_draft(budget_id))
 
@@ -103,7 +104,7 @@ async def put_initiative_draft(
     budget_id: int,
     payload: InitiativeDraftUpdateDTO,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[dict]:
     return success(
         await _workspace_service(session, user).save_draft(budget_id, payload), msg="草稿已保存"
@@ -117,7 +118,7 @@ async def publish_initiative(
     budget_id: int,
     payload: PublishDTO,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[dict]:
     return success(
         await _workspace_service(session, user).publish(budget_id, payload), msg="同步成功"
@@ -132,7 +133,7 @@ async def publish_initiative(
 async def get_publications(
     budget_id: int,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[list[dict]]:
     return success(await _workspace_service(session, user).publications(budget_id))
 
@@ -141,7 +142,7 @@ async def get_publications(
 async def put_admin_budgets(
     payload: AdminBudgetsUpdateDTO,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[dict]:
     return success(await _admin_service(session, user).update_budgets(payload))
 
@@ -153,7 +154,7 @@ async def put_admin_budget(
     budget_id: int,
     payload: AdminBudgetEditDTO,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[dict]:
     return success(await _admin_service(session, user).edit_budget(budget_id, payload))
 
@@ -165,7 +166,7 @@ async def delete_admin_budget(
     budget_id: int,
     payload: AdminBudgetDeleteDTO,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[dict]:
     return success(await _admin_service(session, user).delete_budget(budget_id, payload))
 
@@ -174,7 +175,7 @@ async def delete_admin_budget(
 async def post_admin_budgets(
     payload: AdminBudgetsCreateDTO,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[dict]:
     return success(await _admin_service(session, user).create_budgets(payload))
 
@@ -187,7 +188,7 @@ async def post_admin_budgets(
 async def post_admin_budget_import(
     payload: AdminBudgetsImportDTO,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[dict]:
     return success(await _admin_service(session, user).import_budgets(payload))
 
@@ -195,7 +196,7 @@ async def post_admin_budget_import(
 @router.get("/admin/users", response_model=ApiResponse[dict], summary="查询人员权限列表")
 async def get_admin_users(
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
     email: Annotated[str | None, Query(max_length=255)] = None,
     name: Annotated[str | None, Query(max_length=255)] = None,
     role: Literal["owner", "lead", "management", "admin"] | None = None,
@@ -221,7 +222,7 @@ async def get_admin_users(
 async def post_admin_user(
     payload: AdminUserDTO,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[dict]:
     return success(await _admin_service(session, user).create_user(payload))
 
@@ -231,7 +232,7 @@ async def put_admin_user(
     user_id: int,
     payload: AdminUserDTO,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[dict]:
     return success(await _admin_service(session, user).update_user(user_id, payload))
 
@@ -240,7 +241,7 @@ async def put_admin_user(
 async def delete_admin_user(
     user_id: int,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[dict]:
     return success(await _admin_service(session, user).delete_user(user_id))
 
@@ -249,7 +250,7 @@ async def delete_admin_user(
 async def put_admin_config(
     payload: AdminConfigDTO,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[dict]:
     return success(await _admin_service(session, user).update_config(payload))
 
@@ -258,7 +259,7 @@ async def put_admin_config(
 async def post_admin_reference(
     payload: ReferenceImportDTO,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[dict]:
     return success(await _admin_service(session, user).import_reference(payload))
 
@@ -270,7 +271,7 @@ async def post_admin_reference(
 )
 async def get_my_initiatives(
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
     initiative_keyword: Annotated[str | None, Query(max_length=255)] = None,
     resource_type_keyword: Annotated[str | None, Query(max_length=64)] = None,
     status_value: Annotated[int | None, Query(alias="status", ge=0, le=1)] = None,
@@ -293,7 +294,7 @@ async def get_my_initiatives(
 async def list_distributor_allocations(
     budget_id: int,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[list[DistributorAllocationVO]]:
     return success(await _workbench_service(session, user).list_distributor_allocations(budget_id))
 
@@ -307,7 +308,7 @@ async def create_distributor_allocation(
     budget_id: int,
     payload: DistributorAllocationCreateDTO,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[DistributorAllocationVO]:
     return success(
         await _workbench_service(session, user).create_distributor_allocation(
@@ -328,7 +329,7 @@ async def update_distributor_allocation(
     allocation_id: int,
     payload: DistributorAllocationUpdateDTO,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[DistributorAllocationVO]:
     return success(
         await _workbench_service(session, user).update_distributor_allocation(
@@ -349,7 +350,7 @@ async def delete_distributor_allocation(
     budget_id: int,
     allocation_id: int,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[None]:
     await _workbench_service(session, user).delete_distributor_allocation(
         budget_id=budget_id,
@@ -366,7 +367,7 @@ async def delete_distributor_allocation(
 async def get_budget_summary(
     budget_id: int,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[InitiativeBudgetSummaryVO]:
     return success(await _workbench_service(session, user).get_budget_summary(budget_id))
 
@@ -377,7 +378,7 @@ async def get_budget_summary(
     response_class=StreamingResponse,
 )
 async def download_distributor_allocation_template(
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
     storage: Annotated[AzureBlobStorage, Depends(get_workbench_blob_storage)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> StreamingResponse:
@@ -404,7 +405,7 @@ async def import_distributor_allocations(
     file: Annotated[UploadFile, File(description="经销商分配 .xlsx 文件")],
     settings: Annotated[Settings, Depends(get_settings)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[DistributorImportVO]:
     return success(
         await _workbench_service(session, user).import_distributor_allocations(

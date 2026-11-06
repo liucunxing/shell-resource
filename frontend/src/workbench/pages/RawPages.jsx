@@ -3,6 +3,7 @@ import { useWorkbench } from "../WorkbenchContext.jsx";
 import A from "../domain/explore.js";
 import { PageHead } from "./OverviewPages.jsx";
 import { validatePortalSession } from "../../portal/session";
+import { assertPreviewResponseCurrent, getPreviewEpoch } from "../userPreview";
 const fmt = (n) =>
   (Math.abs(n) < 0.005 ? 0 : n).toLocaleString("zh-CN", {
     minimumFractionDigits: 2,
@@ -52,8 +53,10 @@ export function RawPage() {
     pages = Math.max(1, Math.ceil(rows.length / 15)),
     current = Math.min(page, pages);
   const exportCsv = async () => {
+    const previewEpoch = getPreviewEpoch();
     try {
       await validatePortalSession();
+      assertPreviewResponseCurrent(previewEpoch);
       const url = URL.createObjectURL(
         new Blob([A.csv(model, filters)], { type: "text/csv;charset=utf-8" }),
       );
@@ -66,7 +69,7 @@ export function RawPage() {
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       notify("已导出当前筛选的数据。");
     } catch {
-      notify("导出失败，请重试。", true);
+      if (previewEpoch === getPreviewEpoch()) notify("导出失败，请重试。", true);
     }
   };
   return (

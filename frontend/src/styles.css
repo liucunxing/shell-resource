@@ -4582,6 +4582,26 @@ tbody tr:hover {
   table-layout: fixed;
 }
 
+.user-preview-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  border: 1px solid #e7c260;
+  border-left: 4px solid #bd861a;
+  border-radius: 8px;
+  background: #fff8df;
+  color: #624511;
+}
+.user-preview-banner p { margin: 4px 0; overflow-wrap: anywhere; }
+.user-preview-banner small { display: block; line-height: 1.6; }
+.user-preview-banner > button { flex-shrink: 0; }
+@media (max-width: 759px) {
+  .user-preview-banner { align-items: flex-start; flex-direction: column; }
+}
+
 /* Resource investment login */
 .login-shell {
   --login-red: #d71920;

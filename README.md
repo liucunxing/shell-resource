@@ -21,6 +21,8 @@ docs/       本期业务契约和协作说明
 
 前后端接口联调只维护 [接口文档](backend/docs/接口文档.md)。前端开发、独立演示模式见 [前端说明](frontend/README.md)。
 
+管理员可从“管理后台 → 人员与权限”模拟查看不同用户的只读视角，操作与验证范围见 [管理员模拟用户视角](docs/ADMIN_USER_PREVIEW.md)。
+
 Portal JWT 独立入口的配置、迁移、联调与回滚见 [Portal 接入说明](deploy/portal-jwt.md)。该能力默认关闭，现有帆软 URL 邮箱入口保留；本轮仅接入资源工具。
 
 按当前约定先本地试用：在 `backend` 执行 `.\.venv\Scripts\python.exe -m uvicorn tests.browser_fixture:app --app-dir src --host 127.0.0.1 --port 8014`，访问 `http://127.0.0.1:8014/`，使用 `owner-a@example.test` 登录。合成数据会保存在本地 SQLite；页面可切换开发邮箱。角色账号和配置见后端说明，验证证据见 [本地验收记录](docs/quickwin-validation.md)。

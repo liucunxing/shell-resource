@@ -46,6 +46,7 @@ export function WorkPanel({ overlay, panelSize }) {
     view,
     apiMode,
     portalMode,
+    previewMode,
   } = useWorkbench();
   const config = apiMode ? { url: "", error: "" } : buildYiwenUrl(import.meta.env.VITE_YIWEN_IFRAME_URL, identity.email);
   const panel = useRef(null);
@@ -211,7 +212,10 @@ export function WorkPanel({ overlay, panelSize }) {
           aria-label="小One问数Agent"
           hidden={!auxiliary.open || auxiliary.tab !== "chat"}
         >
-          {apiMode ? (
+          {previewMode ? (
+            <div className="work-empty"><h3>模拟查看期间暂停问数</h3>
+              <p>请返回管理员后打开 Data Agent。</p></div>
+          ) : apiMode ? (
             <DataAgentFrame key={identity.email} portalMode={portalMode}
               visible={auxiliary.open && auxiliary.tab === "chat"} />
           ) : config.url ? (

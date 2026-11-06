@@ -11,6 +11,7 @@ import E from "./domain/engine.js";
 import DATA from "./domain/demo-data.json";
 import * as api from "./api.js";
 import { isPortalEntry, logoutPortalSession } from "../portal/session";
+import { getPreviewEpoch, getPreviewUserEmail, setPreviewUserEmail } from "./userPreview";
 
 export const STORAGE_KEY = "shell-resource-workbench-v13";
 const portalMode = isPortalEntry();
@@ -140,6 +141,9 @@ export function WorkbenchProvider({ children }) {
     demoMode ? DATA : { dealers: [], distributorDirectory: [] },
   );
   const [identity, setIdentityState] = useState(demoMode ? roles[0] : null);
+  const [previewActor, setPreviewActor] = useState(null);
+  const [switchingPreview, setSwitchingPreview] = useState(false);
+  const previewSwitch = useRef(false);
   const [users, setUsers] = useState([]);
   const [serverRevisions, setServerRevisions] = useState({});
   const [dirtyIds, setDirtyIds] = useState(new Set());
@@ -205,6 +209,9 @@ export function WorkbenchProvider({ children }) {
     setEditorOperations({});
     setInitiativeId("");
     setRawRequest(null);
+    setToast(null);
+    setMobileNav(false);
+    setScenarioEpoch((value) => value + 1);
     setAuxiliary({ open: false, tab: "reference", dealerId: "", scope: "" });
   };
 
@@ -220,6 +227,10 @@ export function WorkbenchProvider({ children }) {
     try {
       const workspace = normalizeWorkspace(await api.workspace());
       if (epoch !== sessionEpoch.current) return false;
+      const previewEmail = getPreviewUserEmail();
+      if (previewEmail && (workspace.identity?.email !== previewEmail ||
+          workspace.identity?.preview?.readOnly !== true))
+        throw Error("服务暂不支持模拟查看，请返回管理员。");
       replaceState(workspace.state);
       setData(workspace.data);
       directoryRows.current = [];
@@ -285,6 +296,10 @@ export function WorkbenchProvider({ children }) {
     if (portalMode || api.getDevelopmentEmail()) refresh();
     else setLoading(false);
   }, []);
+  useEffect(() => () => {
+    sessionEpoch.current += 1;
+    setPreviewUserEmail("");
+  }, []);
   useEffect(() => {
     if (!toast) return undefined;
     const timer = setTimeout(() => setToast(null), 5000);
@@ -302,6 +317,10 @@ export function WorkbenchProvider({ children }) {
   };
 
   const mutate = (change, message) => {
+    if (getPreviewUserEmail()) {
+      notify("模拟查看为只读模式，请返回管理员后操作。", true);
+      return false;
+    }
     try {
       const before = stateRef.current;
       const next = structuredClone(before);
@@ -575,11 +594,18 @@ export function WorkbenchProvider({ children }) {
   const setDevelopmentEmail = async (email) => {
     if (portalMode) {
       if (email) return;
-      try { await logoutPortalSession(); clearApiWorkspace(); }
+      try {
+        await logoutPortalSession();
+        setPreviewUserEmail("");
+        setPreviewActor(null);
+        clearApiWorkspace();
+      }
       catch { notify("退出未完成，请重试。", true); }
       return;
     }
     if (demoMode) return;
+    setPreviewUserEmail("");
+    setPreviewActor(null);
     api.setDevelopmentEmail(email);
     setDevEmailState(api.getDevelopmentEmail());
     clearApiWorkspace();
@@ -589,6 +615,43 @@ export function WorkbenchProvider({ children }) {
       return;
     }
     await refresh();
+  };
+  const startUserPreview = async (user) => {
+    if (demoMode || identity?.role !== "admin" || getPreviewUserEmail() ||
+        previewSwitch.current || !user?.enabled || user.email === identity.email || !inputReady()) return false;
+    previewSwitch.current = true;
+    setSwitchingPreview(true);
+    setPreviewActor(identity);
+    clearApiWorkspace();
+    setPreviewUserEmail(user.email);
+    const epoch = getPreviewEpoch();
+    try {
+      const ok = await refresh();
+      if (epoch !== getPreviewEpoch()) return false;
+      if (ok) return true;
+      // Keep the administrator's credentials; reload its current permissions.
+      setPreviewUserEmail("");
+      setPreviewActor(null);
+      await refresh();
+      notify("模拟查看未能加载，该用户可能已停用或权限已变更。已退出模拟。", true);
+      return false;
+    } finally {
+      previewSwitch.current = false;
+      setSwitchingPreview(false);
+    }
+  };
+  const stopUserPreview = async () => {
+    if (previewSwitch.current) return false;
+    previewSwitch.current = true;
+    setSwitchingPreview(true);
+    clearApiWorkspace();
+    setPreviewUserEmail("");
+    setPreviewActor(null);
+    try { return await refresh(); }
+    finally {
+      previewSwitch.current = false;
+      setSwitchingPreview(false);
+    }
   };
   const navigate = (nextPage, id) => {
     if (!inputReady()) return false;
@@ -653,6 +716,11 @@ export function WorkbenchProvider({ children }) {
     state,
     data,
     identity,
+    previewActor,
+    previewMode: Boolean(identity?.preview?.readOnly || previewActor),
+    switchingPreview,
+    startUserPreview,
+    stopUserPreview,
     roles: demoMode ? roles : users,
     apiMode: !demoMode,
     portalMode,

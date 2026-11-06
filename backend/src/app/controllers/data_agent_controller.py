@@ -7,9 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings, get_settings
 from app.core.responses import ApiResponse, success
 from app.db.session import get_db_session
+from app.dependencies.workbench_preview import get_effective_workbench_user
 from app.dependencies.workbench_user import (
     WorkbenchUser,
-    get_current_workbench_user,
     resolve_workbench_permission,
 )
 from app.portal_embed.config import normalized_email
@@ -45,7 +45,7 @@ def _require_verified_email(request: Request, settings: Settings, email: str) ->
 async def launch_data_agent(
     request: Request,
     response: Response,
-    user: Annotated[WorkbenchUser, Depends(get_current_workbench_user)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
     settings: Annotated[Settings, Depends(get_settings)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> ApiResponse[dict[str, str]]:

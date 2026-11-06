@@ -27,6 +27,8 @@ class InsightPreviewService(InsightService):
 
     @staticmethod
     def _assert_admin(actor: WorkbenchUser) -> None:
+        if actor.preview_actor_email is not None:
+            raise HTTPException(status_code=403, detail="请退出模拟后试用用户 Insight")
         if actor.role != "admin":
             raise HTTPException(status_code=403, detail="仅管理员可试用用户视角")
 

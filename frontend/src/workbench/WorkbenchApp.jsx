@@ -20,6 +20,7 @@ import { WorkPanel } from "./WorkPanel.jsx";
 import { useWorkPanelWidth } from "./WorkPanelResizer";
 import { ToastNotice } from "./ToastNotice.jsx";
 import { PortalAccessNotice } from "../portal/PortalEntry";
+import { UserPreviewBanner } from "./UserPreviewBanner";
 const loginEmailEditable = import.meta.env.VITE_LOGIN_EMAIL_EDITABLE === "true";
 const HomePage = lazy(() =>
   import("./pages/OverviewPages.jsx").then((m) => ({ default: m.HomePage })),
@@ -108,6 +109,10 @@ export default function WorkbenchApp() {
     refresh,
     devEmail,
     setDevelopmentEmail,
+    previewMode,
+    previewActor,
+    switchingPreview,
+    stopUserPreview,
   } = useWorkbench();
   const [scene, setScene] = useState("");
   const [navCollapsed, setNavCollapsed] = useState(false);
@@ -156,6 +161,13 @@ export default function WorkbenchApp() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [mobileNav]);
+  if (!identity && (previewMode || switchingPreview))
+    return <main className="page">
+      <UserPreviewBanner identity={null} actor={previewActor} busy={switchingPreview} onExit={stopUserPreview} />
+      <div className="empty" role={storageWarning ? "alert" : "status"}>
+        {storageWarning || "正在切换用户视角…"}
+      </div>
+    </main>;
   if (!identity && portalMode)
     return <PortalAccessNotice loading={loading} message={storageWarning} />;
   if (!identity && apiMode)
@@ -380,6 +392,9 @@ export default function WorkbenchApp() {
             </div>
           </header>
           <main id="main" className="page" tabIndex={-1}>
+            {previewMode && <UserPreviewBanner identity={identity} actor={previewActor || {
+              email: identity.preview?.actorEmail, label: identity.preview?.actorLabel,
+            }} busy={switchingPreview} onExit={stopUserPreview} />}
             {storageWarning && (
               <div className="note-box warn" role="alert">
                 {storageWarning}{" "}
@@ -400,7 +415,7 @@ export default function WorkbenchApp() {
               <Page key={`${identity.key}:${page}:${scenarioEpoch}`} />
             </Suspense>
             <div className="footer-note">
-              {apiMode
+              {previewMode ? "模拟查看 · 当前用户权限范围 · 只读" : apiMode
                 ? "服务端工作稿 · 请明确保存后同步 · 金额按源表原值展示"
                 : "本地演示 · 自动保存 · 金额按源表原值展示"}
             </div>

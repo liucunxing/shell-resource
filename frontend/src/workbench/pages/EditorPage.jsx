@@ -161,6 +161,7 @@ function EditorContent({
   saveDraft,
   publish,
   apiMode,
+  previewMode,
   dirtyIds,
   savedForSyncIds,
   editorOperations,
@@ -191,7 +192,7 @@ function EditorContent({
   if (!i) return <div className="empty">当前角色无权查看该明细。</div>;
   const operation = editorOperations[i.id] || null;
   const savedForSync = savedForSyncIds.has(i.id);
-  const editable = E.canEdit(state, i.id, identity),
+  const editable = !previewMode && E.canEdit(state, i.id, identity),
     totals = E.totals([i]),
     errors = E.completionErrors(i, data, state.budgetReasons);
   const synchronizedRevision =
@@ -257,6 +258,7 @@ function EditorContent({
     });
   const close = () => setModal(null);
   const download = async (directoryOnly = false) => {
+    const previewEpoch = getPreviewEpoch();
     if (!directoryOnly && !guard()) return;
     setBusy(true);
     try {
@@ -270,6 +272,8 @@ function EditorContent({
         ? await X.exportDealerDirectory(exportData)
         : await X.exportWorkbook(state, i.id, identity, exportData);
       await validatePortalSession();
+      assertPreviewResponseCurrent(previewEpoch);
+      if (!alive.current) return;
       const url = URL.createObjectURL(
         new Blob([bytes], {
           type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -281,7 +285,7 @@ function EditorContent({
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
-      notify(e.message, true);
+      if (alive.current && previewEpoch === getPreviewEpoch()) notify(e.message, true);
     } finally {
       if (alive.current) setBusy(false);
     }
@@ -1173,3 +1177,4 @@ function EditorContent({
   );
 }
 import { validatePortalSession } from "../../portal/session";
+import { assertPreviewResponseCurrent, getPreviewEpoch } from "../userPreview";

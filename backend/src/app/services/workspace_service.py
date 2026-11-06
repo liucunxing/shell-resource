@@ -259,6 +259,11 @@ class WorkspaceService:
             "sectors": list(self.user.sectors),
             "ownerId": self.user.email,
             "label": self.user.display_name,
+            "preview": {
+                "readOnly": True,
+                "actorEmail": self.user.preview_actor_email,
+                "actorLabel": self.user.preview_actor_label,
+            } if self.user.preview_actor_email else None,
         }
 
     @staticmethod

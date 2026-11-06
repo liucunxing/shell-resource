@@ -232,6 +232,7 @@ function completionErrors(i, data, reasons) {
   return errors;
 }
 function canEdit(state, id, identity) {
+  if (identity?.preview?.readOnly) return false;
   try {
     identityCheck(identity);
     const i = initiative(state, id);

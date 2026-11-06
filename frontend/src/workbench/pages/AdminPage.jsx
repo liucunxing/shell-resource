@@ -120,6 +120,7 @@ export function AdminPage() {
     saveConfig,
     saveReference,
     loading,
+    previewMode,
   } = useWorkbench();
   const [tab, setTab] = useState("budgets");
   const [modal, setModal] = useState(null);
@@ -231,9 +232,11 @@ export function AdminPage() {
   }
 
   async function exportConfig() {
+    const previewEpoch = getPreviewEpoch();
     try {
       const bytes = await AX.exportWorkbook(state, identity);
       await validatePortalSession();
+      assertPreviewResponseCurrent(previewEpoch);
       const url = URL.createObjectURL(
         new Blob([bytes], {
           type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -246,7 +249,7 @@ export function AdminPage() {
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       notify("已导出当前配置，可修改已有项目或在表尾新增 Initiative 后导入。");
     } catch (error) {
-      notify(error.message, true);
+      if (previewEpoch === getPreviewEpoch()) notify(error.message, true);
     }
   }
   async function importConfig(event) {
@@ -383,7 +386,7 @@ export function AdminPage() {
               </p>
             </div>
             <div className="actions">
-              <button className="button small" disabled={budgetPending} onClick={() => setModal({ kind: "create", form: budgetForm() })}>新增</button>
+              <button className="button small" disabled={budgetPending || previewMode} onClick={() => setModal({ kind: "create", form: budgetForm() })}>新增</button>
               <button
                 className="button small"
                 disabled={budgetPending}
@@ -393,7 +396,7 @@ export function AdminPage() {
               </button>
               <button
                 className="button primary small"
-                disabled={budgetPending}
+                disabled={budgetPending || previewMode}
                 onClick={() => upload.current.click()}
               >
                 {budgetPending ? "数据更新中…" : "导入 Excel"}
@@ -402,6 +405,7 @@ export function AdminPage() {
                 ref={upload}
                 className="upload-input"
                 type="file"
+                disabled={previewMode}
                 accept=".xlsx"
                 aria-label="上传管理员配置 Excel"
                 onChange={importConfig}
@@ -456,14 +460,14 @@ export function AdminPage() {
                         <div className="actions">
                           <button
                             className="button small"
-                            disabled={budgetPending}
+                            disabled={budgetPending || previewMode}
                             onClick={() => setModal({ kind: "edit", item, form: budgetForm(item) })}
                           >
                             编辑
                           </button>
                           <button
                             className="button small"
-                            disabled={budgetPending}
+                            disabled={budgetPending || previewMode}
                             onClick={() => setModal({ kind: "delete", item })}
                           >
                             删除
@@ -507,6 +511,7 @@ export function AdminPage() {
             </div>
             <button
               className="button primary small"
+              disabled={previewMode}
               onClick={() => edit("reason", null, "")}
             >
               + 添加原因
@@ -533,12 +538,14 @@ export function AdminPage() {
                     <td>
                       <button
                         className="button small"
+                        disabled={previewMode}
                         onClick={() => edit("reason", reason, reason.label)}
                       >
                         改名
                       </button>{" "}
                       <button
                         className="button small"
+                        disabled={previewMode}
                         onClick={() =>
                           apiMode
                             ? saveConfig({
@@ -619,12 +626,14 @@ export function AdminPage() {
                   <>
                     <button
                       className="button primary"
+                      disabled={previewMode}
                       onClick={() => referenceUpload.current?.click()}
                     >
                       导入历史 JSON
                     </button>
                     <input
                       ref={referenceUpload}
+                      disabled={previewMode}
                       type="file"
                       accept="application/json,.json"
                       hidden
@@ -738,7 +747,7 @@ export function AdminPage() {
       {tab === "permissions" && apiMode && <HistoricalResourceSettings
         key={state.configRevision} mapping={state.departmentResources || {}}
         departments={[...new Set([...state.initiatives.map((item) => item.department), ...roles.flatMap((user) => E.departments(user))])]}
-        saveConfig={saveConfig} />}
+        saveConfig={saveConfig} readOnly={previewMode} />}
       {tab === "guide" && (
         <section className="panel">
           <div className="panel-header">
@@ -750,6 +759,7 @@ export function AdminPage() {
               指南内容
               <textarea
                 rows={7}
+                readOnly={previewMode}
                 value={guide}
                 onChange={(event) => setGuide(event.target.value)}
               />
@@ -760,6 +770,7 @@ export function AdminPage() {
             </label>
             <button
               className="button primary"
+              disabled={previewMode}
               onClick={() =>
                 apiMode
                   ? saveConfig({ guide: { ...state.guide, text: guide } })
@@ -1095,3 +1106,4 @@ export function AdminPage() {
   );
 }
 import { validatePortalSession } from "../../portal/session";
+import { assertPreviewResponseCurrent, getPreviewEpoch } from "../userPreview";

@@ -19,6 +19,8 @@ class WorkbenchUser:
     department: str | list[str] | tuple[str, ...] | None
     display_name: str
     sectors: tuple[str, ...] = ()
+    preview_actor_email: str | None = None
+    preview_actor_label: str | None = None
 
     @property
     def departments(self) -> tuple[str, ...]:
