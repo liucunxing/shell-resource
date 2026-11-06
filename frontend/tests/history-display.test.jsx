@@ -29,19 +29,19 @@ it("labels multi-sector Lead history and global administrator/management history
 
 it("shows and exports both sectors for one code and selects reference history by sector", () => {
   const data = { ...D, dealers: [
-    { id: "12088918", name: "Dealer", sector: "PCMO", history: { vol2025: 821370.19, yield: 8 } },
-    { id: "12088918", name: "Dealer", sector: "CRTO", history: { vol2025: 160384.05, yield: 4.33 } },
+    { id: "DEMO-DEALER-001", name: "Dealer", sector: "PCMO", history: { vol2025: 12000, yield: 8 } },
+    { id: "DEMO-DEALER-001", name: "Dealer", sector: "CRTO", history: { vol2025: 24000, yield: 3 } },
   ] };
   const state = E.createState(D, "working");
   const identity = { role: "admin" };
   const model = X.rawData(state, identity, data, "history");
   expect(model.rows.map((row) => row.sector)).toEqual(["PCMO", "CRTO"]);
   expect(model.basisLabel).toContain("1 家经销商 / 2 条业务线记录");
-  expect(X.csv(model)).toContain('"PCMO","12088918"');
-  expect(X.csv(model)).toContain('"CRTO","12088918"');
-  expect(X.historyReference(state, identity, data, "12088918", "PCMO").yield).toBe(8);
-  expect(X.historyReference(state, identity, data, "12088918", "CRTO").yield).toBe(4.33);
-  expect(() => X.historyReference(state, identity, data, "12088918")).toThrow(/选择业务线/);
+  expect(X.csv(model)).toContain('"PCMO","DEMO-DEALER-001"');
+  expect(X.csv(model)).toContain('"CRTO","DEMO-DEALER-001"');
+  expect(X.historyReference(state, identity, data, "DEMO-DEALER-001", "PCMO").yield).toBe(8);
+  expect(X.historyReference(state, identity, data, "DEMO-DEALER-001", "CRTO").yield).toBe(3);
+  expect(() => X.historyReference(state, identity, data, "DEMO-DEALER-001")).toThrow(/选择业务线/);
 });
 
 it("uses the matching sector in calculated Insight instead of the last history row", () => {
@@ -62,12 +62,12 @@ it("uses the matching sector in calculated Insight instead of the last history r
 
 it("combines the four-sector filter with code/name and exports only matches", () => {
   const model = { tab: "history", columns: [{ key: "sector", label: "Sector" }, { key: "dealerName", label: "名称" }], rows: [
-    { sector: "PCMO", dealerCode: "12088918", dealerName: "成都中润" },
-    { sector: "CRTO", dealerCode: "12088918", dealerName: "成都中润" },
+    { sector: "PCMO", dealerCode: "DEMO-DEALER-001", dealerName: "成都示例经销商" },
+    { sector: "CRTO", dealerCode: "DEMO-DEALER-001", dealerName: "成都示例经销商" },
     { sector: "B2B", dealerCode: "222", dealerName: "乙" },
     { sector: "OEM", dealerCode: "333", dealerName: "丙" },
   ] };
-  const filters = { sector: "PCMO", dealerCode: "889", dealerName: " 中润 " };
+  const filters = { sector: "PCMO", dealerCode: "DEALER-001", dealerName: " 示例 " };
   expect(X.filterRows(model, filters)).toEqual([model.rows[0]]);
   expect(X.csv(model, filters)).toContain("PCMO");
   expect(X.csv(model, filters)).not.toContain("CRTO");

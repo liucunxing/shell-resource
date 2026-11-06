@@ -249,9 +249,9 @@ class ProjectionTests(unittest.TestCase):
 
     def test_selected_chinese_name_can_contain_omitted_name(self):
         review = self.evidence["datasets"][-1]
-        review["rows"][299]["dealer"] = "成都中润"
+        review["rows"][299]["dealer"] = "成都示例经销商"
         review["rows"][100]["dealer"] = "成都"
-        self.pack.validate_model_references({"headline": "成都中润投入变化"}, self.evidence)
+        self.pack.validate_model_references({"headline": "成都示例经销商投入变化"}, self.evidence)
         with self.assertRaises(PackError):
             self.pack.validate_model_references({"headline": "成都投入变化"}, self.evidence)
 
@@ -270,19 +270,19 @@ class ProjectionTests(unittest.TestCase):
 
     def test_display_name_binding_in_blocks_and_overview(self):
         evidence = deepcopy(self.evidence)
-        for token, name, amount in [("A", "成都中润", 100000), ("B", "北京经销商", 200000)]:
+        for token, name, amount in [("A", "成都示例经销商", 100000), ("B", "北京经销商", 200000)]:
             evidence["facts"].append({**evidence["facts"][0], "id": "investment:hash" + token,
                 "value": json.dumps({"dealer_id": token, "dealer": name, "historical_actual": amount})})
         result = load_json(ROOT / "examples/baseline.comprehensive.json")
         result["blocks"] = [{"id": "named", "kind": "finding", "title": "历史投入",
-                            "body": "成都中润2025实际投入200,000元。", "status": "observed",
+                            "body": "成都示例经销商2025实际投入200,000元。", "status": "observed",
                             "dimension_ids": ["trend"], "fact_ids": ["investment:hashB"], "dataset_id": None}]
         self.assertTrue(any(e.startswith("blocks.0:unbound_") for e in _consistency.issues(result, evidence)))
-        result["headline"] = "成都中润2025实际投入200,000元。"
+        result["headline"] = "成都示例经销商2025实际投入200,000元。"
         self.assertTrue(any(e.startswith("overview:unbound_number") for e in _consistency.issues(result, evidence)))
         result["blocks"][0]["fact_ids"] = ["investment:hashA"]
-        result["blocks"][0]["body"] = "成都中润2025实际投入100,000元。"
-        result["headline"] = "成都中润2025实际投入100,000元。"
+        result["blocks"][0]["body"] = "成都示例经销商2025实际投入100,000元。"
+        result["headline"] = "成都示例经销商2025实际投入100,000元。"
         self.assertFalse(any(e.startswith(("blocks.0:", "overview:")) for e in _consistency.issues(result, evidence)))
 
     def test_provider_schema_requires_refs_for_nonlimited_status(self):
