@@ -76,6 +76,26 @@ it("restores the administrator after a disabled or missing target fails", async 
   expect(getPreviewUserEmail()).toBe("");
 });
 
+it.each(["Owner@Example.Test", " OWNER@EXAMPLE.TEST "])(
+  "accepts the requested target's normalized email while retaining its stored identity: %s",
+  async (storedEmail) => {
+    harness.workspace.mockResolvedValueOnce(payload({ ...owner, email: storedEmail }, "owner-only"));
+    await expect(harness.context.startUserPreview({ email: storedEmail, enabled: true })).resolves.toBe(true);
+    expect(render().identity.email).toBe(storedEmail);
+    expect(harness.context.state.initiatives[0].id).toBe("owner-only");
+    expect(getPreviewUserEmail()).toBe(owner.email);
+    expect(harness.email).toBe(admin.email);
+  },
+);
+
+it("rejects a marked preview response for a different email and restores the administrator", async () => {
+  harness.workspace.mockResolvedValueOnce(payload({ ...owner, email: "other@example.test" }, "other-only"));
+  await expect(harness.context.startUserPreview({ email: owner.email, enabled: true })).resolves.toBe(false);
+  expect(render().identity.email).toBe(admin.email);
+  expect(harness.context.state.initiatives.some((item) => item.id === "other-only")).toBe(false);
+  expect(getPreviewUserEmail()).toBe("");
+});
+
 it("keeps the exit context when the target loses access during a later refresh", async () => {
   harness.workspace.mockResolvedValueOnce(payload(owner));
   await harness.context.startUserPreview({ email: owner.email, enabled: true });

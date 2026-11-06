@@ -15,14 +15,14 @@ def evidence(rows):
 
 
 def test_sector_metrics_survive_restricted_resource_amount():
-    pcmo = record("D1", sector="PCMO", **{"SP&A": 129569.45})
+    pcmo = record("D1", sector="PCMO", **{"SP&A": 10000})
     pcmo["history"]["resources2025"].pop("MRD")
     pcmo["history"].update(
-        yield_value=5.59, vol2025=821370.19, restrictedResources2025=["MRD", "Capex"]
+        yield_value=2.5, vol2025=12000, restrictedResources2025=["MRD", "Capex"]
     )
     pcmo["history"]["yield"] = pcmo["history"].pop("yield_value")
     crto = record("D1", sector="CRTO")
-    crto["history"].update({"yield": 4.33, "vol2025": 160384.05})
+    crto["history"].update({"yield": 3, "vol2025": 24000})
     data = build_evidence(
         {"data": {"dealers": [crto, pcmo]}},
         {"scope": "owner:test", "items": [item(295987.72, sector="PCMO")]},
@@ -30,8 +30,8 @@ def test_sector_metrics_survive_restricted_resource_amount():
         2027,
     )
     facts = {f["id"]: f["value"] for f in data["facts"]}
-    assert facts["yield:D1"] == 5.59
-    assert facts["vol2025:D1"] == 821370.19
+    assert facts["yield:D1"] == 2.5
+    assert facts["vol2025:D1"] == 12000
     assert not any(d["id"] == "investment-review" for d in data["datasets"])
     assert not any(key.startswith("investment") for key in facts)
     pack = InsightPack(PACK_ROOT)
@@ -58,7 +58,7 @@ def test_sector_metrics_survive_restricted_resource_amount():
 
 def test_mixed_resources_only_compare_authorized_amounts():
     dealer = record(actual=100000, **{"SP&A": 100000})
-    dealer["history"].update({"yield": 5.59, "restrictedResources2025": ["MRD"]})
+    dealer["history"].update({"yield": 2.5, "restrictedResources2025": ["MRD"]})
     data = build_evidence(
         {"data": {"dealers": [dealer]}},
         {"scope": "owner:test", "items": [item(), item(resource="SP&A", identifier="2")]},
@@ -68,7 +68,7 @@ def test_mixed_resources_only_compare_authorized_amounts():
     assert len(rows) == 1 and rows[0]["resource_type"] == "SP&A"
     facts = {f["id"]: f["value"] for f in data["facts"]}
     assert facts["investment-comparison-count"] == facts["investment-review-count"] == 1
-    assert facts["allocated"] == 2000000 and facts["yield:D1"] == 5.59
+    assert facts["allocated"] == 2000000 and facts["yield:D1"] == 2.5
 
 
 def test_department_permission_skips_resource_even_without_history_rows():

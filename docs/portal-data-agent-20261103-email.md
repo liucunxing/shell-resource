@@ -1,10 +1,12 @@
 # 资源工具内部 Data Agent 邮箱免登验证
 
+本记录中的用户标识已匿名化；`example.invalid` 邮箱仅代指当时的测试身份，不表示该示例邮箱可以用于线上登录或已获授任何权限。
+
 2026-11-03，配套 Portal 后端切换为 email 交换。资源工具继续使用现有第二层消息桥，不发送身份参数，也不保存厂商 API key。此 feature 需要配套更新 Portal `main` 后端（`fc07d18`）。
 
 ## 实际验证
 
-以用户指定的 `lukxa@digitalchina.com` 登录 Portal，本机 JWT 接收端和临时 SQLite 资源夹具接受该邮箱，打开工作台并点击“问数”。
+使用当时已授权的测试账号登录 Portal（本文匿名标识为 `example.user03@example.invalid`），本机 JWT 接收端和临时 SQLite 资源夹具接受其身份，打开工作台并点击“问数”。
 
 - Portal 收到的浏览器请求仅含 `parentInstanceId`、`question`，未传 email/username。
 - Portal 后端以认证用户可信 `profile.email` 调用真实 Data Agent，校验返回 `user.email` 一致，返回 HTTP 200。

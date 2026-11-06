@@ -49,18 +49,24 @@ async def launch_data_agent(
     settings: Annotated[Settings, Depends(get_settings)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> ApiResponse[dict[str, str]]:
-    """Use the workbench-resolved identity for the limited FineReport UAT entry."""
+    """Exchange an allowed workbench identity under the explicitly selected mode."""
     if settings.app_env == "production":
         raise HTTPException(401, "生产环境需要可信身份认证")
     if request.query_params:
         raise HTTPException(400, "问数入口不接收查询参数")
+    if len(request.headers.getlist("X-User-Email")) != 1:
+        raise HTTPException(400, "问数入口需要唯一的工作台邮箱")
     async for chunk in request.stream():
         if chunk:
             raise HTTPException(400, "问数入口不接收请求体")
     if not settings.data_agent_base_url or not settings.data_agent_api_token:
         raise HTTPException(503, "工作台尚未配置问数服务")
-    _require_verified_email(request, settings, user.email)
-    if user.email.lower() not in settings.data_agent_uat_emails:
+    if settings.data_agent_access_mode != "workbench_email":
+        _require_verified_email(request, settings, user.email)
+    if (
+        settings.data_agent_access_mode == "uat"
+        and user.email.strip().lower() not in settings.data_agent_uat_emails
+    ):
         raise HTTPException(403, "当前工作台账号未开通问数测试权限")
     url = await exchange_data_agent_ticket(
         email=user.email,

@@ -228,7 +228,8 @@ export function WorkbenchProvider({ children }) {
       const workspace = normalizeWorkspace(await api.workspace());
       if (epoch !== sessionEpoch.current) return false;
       const previewEmail = getPreviewUserEmail();
-      if (previewEmail && (workspace.identity?.email !== previewEmail ||
+      const workspaceEmail = String(workspace.identity?.email || "").trim().toLowerCase();
+      if (previewEmail && (workspaceEmail !== previewEmail ||
           workspace.identity?.preview?.readOnly !== true))
         throw Error("服务暂不支持模拟查看，请返回管理员。");
       replaceState(workspace.state);

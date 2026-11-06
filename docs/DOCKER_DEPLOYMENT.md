@@ -63,7 +63,7 @@ bash deploy/deploy.sh --help
 
 ## 1. 当前发布边界
 
-- 手册生成时，`main`、`origin/main`、`feature/liucxs_from_v14-quickwin` 和其远端均指向业务代码提交 `baa8cbd134400b14ef63f690e4b4652c739301c6`。
+- 手册生成时，`main`、`origin/main`、当时的开发分支（名称已省略）和其远端均指向业务代码提交 `baa8cbd134400b14ef63f690e4b4652c739301c6`。
 - 本手册和 Docker 文件是在该提交之上新增的，因此必须先提交这些部署文件。服务器最终应检出“包含 Docker 文件的发布提交”，而不是只检出 `baa8cbd`。
 - 部署分支使用 `main`。个人分支只用于开发；发布前应把已验收的部署文件合入 `main`，并记录最终发布 commit。
 - 当前可信 SSO 尚未实现。`APP_ENV=production` 会让所有工作台业务 API 返回 401。现阶段只能在受控内网以 `APP_ENV=development` 做 UAT，并继续使用页面输入邮箱、后端查询 `data.user_permissions` 的临时身份方式。
@@ -141,7 +141,7 @@ git rev-parse HEAD
 ```bash
 sudo mkdir -p /opt/shell-forecast
 sudo chown "$(id -u):$(id -g)" /opt/shell-forecast
-git clone --branch main https://github.com/liucunxing/shell-resource.git /opt/shell-forecast
+git clone --branch main https://github.com/YOUR_ORGANIZATION/shell-resource.git /opt/shell-forecast
 cd /opt/shell-forecast
 git fetch --prune origin
 git checkout --detach RELEASE_COMMIT

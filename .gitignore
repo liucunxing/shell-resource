@@ -85,6 +85,15 @@ node_modules/
 .envrc
 *.pem
 *.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+*.private.*
+.local/
+/outputs/
+id_rsa
+id_ed25519
 
 # Version-controlled configuration templates
 !**/.env.example

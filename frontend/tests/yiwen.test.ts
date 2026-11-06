@@ -52,8 +52,8 @@ describe("易问嵌入地址", () => {
 describe("Data Agent 邮箱透传", () => {
   const base = "https://dataaitest.digitalshell.com.cn/";
   it("uses the authenticated identity and replaces every stale email", () => {
-    const result = buildYiwenUrl(base + "?view=chat&user_email=old@example.com&%20user_email=other@example.com#start", " LUKX1@digitalchina.com ");
-    expect(result).toEqual({url: base + "?view=chat&user_email=lukx1%40digitalchina.com#start", error: null});
+    const result = buildYiwenUrl(base + "?view=chat&user_email=old@example.com&%20user_email=other@example.com#start", " Example.User02@Example.Invalid ");
+    expect(result).toEqual({url: base + "?view=chat&user_email=example.user02%40example.invalid#start", error: null});
   });
   it("encodes plus addressing without turning it into a space", () => {
     const result = buildYiwenUrl(base, "a+test@example.com");
