@@ -1,21 +1,30 @@
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 
-export const PANEL_WIDTH_KEY = "shell-resource-work-panel-width";
-export const DEFAULT_PANEL_WIDTH = 480;
+// Reset the former oversized preference once, then remember each user's new choice.
+export const PANEL_WIDTH_KEY = "shell-resource-work-panel-width-v2";
+export const DEFAULT_PANEL_WIDTH = 420;
 
-export function panelBounds(viewport: number) {
-  const phone = viewport < 760;
-  const max = Math.max(0, viewport < 1024
-    ? viewport - (phone ? 0 : 24)
-    : Math.floor(viewport * 2 / 3));
+export function panelBounds(viewport: number, navCollapsed = false, layoutViewport = viewport) {
+  const available = Number.isFinite(viewport) ? Math.max(0, Math.floor(viewport)) : 0;
+  // Media queries include the scrollbar; usable grid width does not.
+  const layout = Number.isFinite(layoutViewport) ? Math.max(0, layoutViewport) : available;
+  const phone = layout < 760;
+  const navigation = navCollapsed ? 0 : layout >= 1440 ? 272 : 240;
+  const max = layout < 1200
+    ? Math.max(0, available - (phone ? 0 : 24))
+    : Math.min(Math.floor(available * 2 / 3), Math.max(0, available - navigation - 560));
   return { min: Math.min(360, max), max, phone };
 }
 
-export function panelWidth(preferred: number | null, viewport: number) {
-  const { min, max, phone } = panelBounds(viewport);
+export function panelWidth(
+  preferred: number | null, viewport: number, navCollapsed = false, layoutViewport = viewport,
+) {
+  const { min, max, phone } = panelBounds(viewport, navCollapsed, layoutViewport);
   if (phone) return max;
-  return Math.min(max, Math.max(min, preferred ?? DEFAULT_PANEL_WIDTH));
+  const width = preferred !== null && Number.isFinite(preferred) && preferred > 0
+    ? preferred : DEFAULT_PANEL_WIDTH;
+  return Math.min(max, Math.max(min, width));
 }
 
 function readWidth() {
@@ -27,14 +36,37 @@ function readWidth() {
   }
 }
 
-export function useWorkPanelWidth() {
+const layoutBreakpoints = [1440, 1200, 760];
+const breakpointQuery = (width: number) => `(min-width: ${width}px)`;
+function readViewport() {
+  return {
+    available: document.documentElement.clientWidth,
+    // Rounded innerWidth can cross a CSS breakpoint when browser zoom creates fractions.
+    layout: layoutBreakpoints.find((width) => window.matchMedia(breakpointQuery(width)).matches) ?? 0,
+  };
+}
+
+export function useWorkPanelWidth(navCollapsed = false) {
   const [preferred, setPreferred] = useState<number | null>(readWidth);
-  const [viewport, setViewport] = useState(() => document.documentElement.clientWidth);
+  const [viewport, setViewport] = useState(readViewport);
   const [resizing, setResizing] = useState(false);
   useEffect(() => {
-    const resize = () => setViewport(document.documentElement.clientWidth);
+    const resize = () => {
+      const next = readViewport();
+      setViewport((current) => current.available === next.available && current.layout === next.layout
+        ? current : next);
+    };
     window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
+    const media = layoutBreakpoints.map((width) => window.matchMedia(breakpointQuery(width)));
+    media.forEach((query) => query.addEventListener("change", resize));
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(resize);
+    observer?.observe(document.documentElement);
+    resize();
+    return () => {
+      window.removeEventListener("resize", resize);
+      media.forEach((query) => query.removeEventListener("change", resize));
+      observer?.disconnect();
+    };
   }, []);
   useEffect(() => {
     try {
@@ -43,8 +75,8 @@ export function useWorkPanelWidth() {
     } catch { /* Width adjustment remains usable when browser storage is unavailable. */ }
   }, [preferred]);
   return {
-    width: panelWidth(preferred, viewport),
-    ...panelBounds(viewport),
+    width: panelWidth(preferred, viewport.available, navCollapsed, viewport.layout),
+    ...panelBounds(viewport.available, navCollapsed, viewport.layout),
     onChange: setPreferred,
     onResizingChange: setResizing,
     resizing,

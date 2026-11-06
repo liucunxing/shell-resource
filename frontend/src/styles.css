@@ -2002,7 +2002,7 @@ body.modal-open {
 .action-cell .button + .button {
   margin-left: 5px;
 }
-@media (max-width: 1199px) {
+@media (width < 1200px) {
   .management-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3217,7 +3217,7 @@ tbody tr:hover {
     margin-left: 0;
   }
 }
-@media (max-width: 1199px) {
+@media (width < 1200px) {
   .app-shell,
   .app-shell.work-open {
     grid-template-columns: 180px minmax(0, 1fr) 54px;
@@ -3323,7 +3323,7 @@ tbody tr:hover {
     flex-wrap: wrap;
   }
 }
-@media (max-width: 759px) {
+@media (width < 760px) {
   .app-shell,
   .app-shell.work-open {
     grid-template-columns: minmax(0, 1fr) 46px;
@@ -3698,7 +3698,7 @@ tbody tr:hover {
     display: none;
   }
 }
-@media (max-width: 759px) {
+@media (width < 760px) {
   .mobile-menu {
     display: inline-flex;
   }
@@ -4032,7 +4032,7 @@ tbody tr:hover {
     padding: 6px 14px 10px;
   }
 }
-@media (max-width: 759px) {
+@media (width < 760px) {
   .sidebar.mobile-open {
     width: 224px;
   }
@@ -4419,7 +4419,7 @@ tbody tr:hover {
   border-top: 1px solid #eeeeee;
   padding-top: 10px;
 }
-@media (max-width: 759px) {
+@media (width < 760px) {
   .budget-composition {
     padding: 9px 10px;
   }
@@ -4570,7 +4570,7 @@ tbody tr:hover {
   font-size: 17px;
   font-variant-numeric: tabular-nums;
 }
-@media (max-width: 759px) {
+@media (width < 760px) {
   .admin-config-header {
     flex-wrap: wrap;
   }
@@ -5325,7 +5325,7 @@ th {
     grid-column: 3;
   }
 }
-@media (max-width: 759px) {
+@media (width < 760px) {
   .desktop-nav-toggle {
     display: none !important;
   }
@@ -5335,7 +5335,7 @@ th {
 }
 :root {
   --work-nav-size: 240px;
-  --work-panel-size: 480px;
+  --work-panel-size: 420px;
 }
 .app-shell {
   grid-template-columns: var(--work-nav-size) minmax(0, 1fr) 54px;
@@ -5541,13 +5541,16 @@ dialog.modal:not([open]) {
     --work-nav-size: 272px;
   }
 }
-@media (max-width: 1199px) {
+@media (width < 1200px) {
   :root {
     --work-nav-size: 220px;
   }
 }
 /* Desktop tools occupy their own column, leaving the work area interactive. */
-@media (min-width: 1024px) {
+@media (min-width: 1200px) {
+  .app-shell.work-open {
+    grid-template-columns: var(--work-nav-size) minmax(560px, 1fr) var(--work-panel-size);
+  }
   .work-open .workbench {
     position: sticky;
     inset: auto;
@@ -5557,7 +5560,7 @@ dialog.modal:not([open]) {
     box-shadow: none;
   }
 }
-@media (min-width: 1024px) and (max-width: 1199px) {
+@media (min-width: 1024px) and (width < 1200px) {
   .work-open .topbar {
     flex-wrap: wrap;
   }
@@ -5585,7 +5588,7 @@ dialog.modal:not([open]) {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
-@media (max-width: 1023px) {
+@media (width < 1200px) {
   .work-open .workbench {
     width: var(--work-panel-size);
     max-width: 100vw;
@@ -5595,7 +5598,7 @@ dialog.modal:not([open]) {
     grid-template-columns: var(--work-nav-size) minmax(0, 1fr) 54px;
   }
 }
-@media (max-width: 759px) {
+@media (width < 760px) {
   :root {
     --work-nav-size: 0px;
   }
@@ -5624,5 +5627,153 @@ dialog.modal:not([open]) {
   }
   .work-open .work-tabs {
     gap: 2px;
+  }
+}
+
+/* Respond to the space left by the resizable tools, not only the viewport. */
+.workspace {
+  container: workspace / inline-size;
+}
+.workspace .topbar-left {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.workspace .breadcrumb {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workspace .topbar-left > button,
+.workspace .topbar-right {
+  flex-shrink: 0;
+}
+.workspace .page-heading > div:first-child {
+  min-width: 0;
+}
+.workspace .page-heading > .actions {
+  flex-shrink: 0;
+}
+.workspace .table-scroll {
+  min-width: 0;
+  max-width: 100%;
+  overscroll-behavior-x: contain;
+}
+.workspace .metric-value strong,
+.workspace .management-card > strong,
+.workspace .budget-summary strong {
+  white-space: nowrap;
+}
+.work-open .workbench {
+  min-width: 0;
+  container: work-tools / inline-size;
+}
+.embedded-ask,
+.embedded-frame {
+  min-width: 0;
+}
+.work-resize-handle {
+  width: 10px;
+}
+.work-resize-handle::after {
+  left: 3px;
+  height: 48px;
+}
+
+@container workspace (max-width: 900px) {
+  .workspace .metric-grid,
+  .workspace .metric-grid.owner-metrics,
+  .workspace .management-metrics,
+  .workspace .management-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .workspace .initiative-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workspace .initiative-panel > .filters {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    padding: 0 16px 12px;
+  }
+  .workspace .budget-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .workspace .budget-summary > div {
+    border-bottom: 1px solid var(--line);
+  }
+}
+@container workspace (max-width: 720px) {
+  .workspace .page {
+    padding: 16px;
+  }
+  .workspace .topbar {
+    padding-inline: 16px;
+  }
+  .workspace .topbar .demo-mark {
+    display: none;
+  }
+  .workspace .metric-card {
+    padding: 12px 14px;
+  }
+  .workspace .metric-value strong,
+  .workspace .management-card > strong {
+    font-size: 24px;
+  }
+  .workspace .focus-banner {
+    flex-wrap: wrap;
+  }
+  .workspace .focus-banner > div {
+    flex-wrap: wrap;
+    gap: 4px 10px;
+  }
+  .workspace .focus-banner p {
+    white-space: normal;
+  }
+}
+@container workspace (max-width: 640px) {
+  .workspace .page-heading {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .workspace .page-heading > div:first-child {
+    flex: 1 1 100%;
+  }
+  .workspace .page-heading > .actions {
+    justify-content: flex-start;
+  }
+  .workspace .budget-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .workspace .panel-head,
+  .workspace .panel-header {
+    flex-wrap: wrap;
+  }
+}
+@container workspace (max-width: 480px) {
+  .workspace .metric-grid,
+  .workspace .metric-grid.owner-metrics,
+  .workspace .management-metrics,
+  .workspace .management-filters,
+  .workspace .budget-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workspace .budget-summary > .gap {
+    grid-column: auto;
+  }
+}
+@container work-tools (max-width: 480px) {
+  .work-title {
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    padding: 12px 16px;
+  }
+  .embedded-toolbar {
+    gap: 8px;
+    padding: 8px 12px;
+  }
+  .embedded-help {
+    padding: 8px 12px;
+    line-height: 1.5;
   }
 }

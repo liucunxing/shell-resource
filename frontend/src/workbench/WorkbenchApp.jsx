@@ -114,10 +114,10 @@ export default function WorkbenchApp() {
   const sceneDialog = useRef(null);
   const navRef = useRef(null);
   const navTrigger = useRef(null);
-  const narrow = useNarrow("(max-width: 1023px)");
-  const phone = useNarrow("(max-width: 759px)");
+  const narrow = useNarrow("(width < 1200px)");
+  const phone = useNarrow("(width < 760px)");
   const workOverlay = auxiliary.open && narrow;
-  const panelSize = useWorkPanelWidth();
+  const panelSize = useWorkPanelWidth(navCollapsed);
   const closeNav = () => {
     setMobileNav(false);
     requestAnimationFrame(() => navTrigger.current?.focus());
