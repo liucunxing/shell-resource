@@ -74,3 +74,5 @@ python scripts/verify_sellin_live_pg.py --report <local-output>/live-data-test.j
 ```
 
 评估脚本仅输出聚合、模式、校验结果，不导出明细或连接凭据。原始表扫描的摘要指纹用于核对前后数据未变；不能代替数据负责人对指标口径的确认。
+
+2026-11-15 01:21（北京时间）再次以只读事务核查：1,489行、Sector＋编码重复0、跨Sector编码205；2026四类费用和源Yield各1,489个NULL，指纹仍为 `dc1d6e2460b013ee63195897cc49bcff`。本次报告为忽略目录 `outputs/pg-recheck-20261115/metrics-followup.json`；未写入或迁移远端业务库。

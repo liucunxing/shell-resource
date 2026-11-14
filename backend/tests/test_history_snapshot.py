@@ -54,4 +54,10 @@ def test_manifest_declares_units_and_unavailable_metrics_without_substitution():
     assert rules["phasing"]["available"] is False
     assert rules["phasing"]["unavailableReason"] == "missing_contract_volume"
     assert rules["phasing"]["trafficLight"]["relativeYellowBand"] == 0.1
-    assert rules["ppp"]["defined"] is False
+    assert rules["phasing"]["contractPeriod"] == "full_year_signed"
+    assert rules["ppp"]["defined"] is True
+    assert rules["ppp"]["kind"] == "target"
+    assert rules["ppp"]["metrics"] == ["volume", "c3"]
+    assert rules["ppp"]["displayUnits"] == {"volume": "KL", "c3": "K$"}
+    assert rules["ppp"]["available"] is False
+    assert rules["ppp"]["unavailableReason"] == "missing_target_data"

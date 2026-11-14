@@ -11,6 +11,7 @@ import {
 } from "../src/workbench/pages/V19ExecutiveHealth.jsx";
 import {
   V19BudgetOverview,
+  CumulativeChart,
   V19Health,
   V19Stack,
   initiativeColor,
@@ -205,4 +206,19 @@ it("renders the executive budget composition ring and the complete resource cate
   expect(html).toContain("拆分依据");
   expect(html).toContain("2 家");
   expect(html).not.toContain("未确认的 Initiative");
+});
+
+
+it("uses the concentration cohort order and excludes no-history allocations from the rendered curve", () => {
+  const rows = [
+    { id: "A", amount: 1001, metric: 60, hasHistory: true },
+    { id: "B", amount: 1049, metric: -10, hasHistory: true },
+    { id: "N", amount: 100000, metric: 0, hasHistory: false },
+  ];
+  const html = renderToStaticMarkup(<CumulativeChart rows={rows} top={20} basis="c3" onSelect={() => {}} />);
+  expect(html).toContain('points="48,226 308,36 568,36"');
+  expect(html).not.toContain("NaN");
+  const empty = renderToStaticMarkup(<CumulativeChart rows={rows.map(r => ({ ...r, metric: -1 }))} top={20} basis="c3" />);
+  expect(empty).toContain("暂无可比较的历史产出");
+  expect(empty).not.toContain("<svg");
 });

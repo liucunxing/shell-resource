@@ -17,6 +17,8 @@ import { WorkflowDialog } from "./WorkflowDialog.jsx";
 import E from "../domain/engine.js";
 import {
   concentration,
+  rankedConcentrationRows,
+  analyticalOutput,
   dealerDeviations,
   portfolioRows,
 } from "../domain/portfolio-analytics.js";
@@ -532,11 +534,10 @@ function AllocationBar({ total }) {
 }
 
 export function CumulativeChart({ rows, top, basis, onSelect }) {
-  const eligible = rows
-      .filter((r) => r.metric != null)
-      .sort((a, b) => b.amount - a.amount || b.metric - a.metric),
+  const eligible = rankedConcentrationRows(rows),
     a = eligible.reduce((s, r) => s + r.amount, 0),
-    m = eligible.reduce((s, r) => s + Math.max(0, r.metric), 0);
+    m = eligible.reduce((s, r) => s + analyticalOutput(r.metric), 0);
+  if (a <= 0 || m <= 0) return <p className="empty">暂无可比较的历史产出。</p>;
   let ac = 0,
     mc = 0;
   const points = [
@@ -544,7 +545,7 @@ export function CumulativeChart({ rows, top, basis, onSelect }) {
     ...eligible.map((r, i) => ({
       x: ((i + 1) / eligible.length) * 100,
       a: a ? ((ac += r.amount) / a) * 100 : 0,
-      m: m ? ((mc += Math.max(0, r.metric)) / m) * 100 : 0,
+      m: m ? ((mc += analyticalOutput(r.metric)) / m) * 100 : 0,
     })),
   ];
   const xy = (x, y) => `${48 + x * 5.2},${226 - y * 1.9}`,

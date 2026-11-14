@@ -44,6 +44,7 @@ import {
   historyInvestment,
   historyYield,
   historyPhasing,
+  finiteHistoryValue,
   historyYoyLabel,
   configuredYtdLabel,
   initiativeDealers,
@@ -289,7 +290,7 @@ function HistoryControls({
       )}
       <span
         className="v19-history-info"
-        title="页面月份由管理端配置；真实 Actual / 费用覆盖单独核实。合同缺失或非正数时不算 Phasing，PPP 口径待确认。"
+        title="页面月份由管理端配置；真实 Actual / 费用覆盖单独核实。合同取全年签署量，缺失或非正数时不算 Phasing；PPP 目标数据尚未提供。"
       >
         !
       </span>
@@ -724,6 +725,10 @@ function EditorContent({
   };
   const historyVolKey = historyPeriod === "2026Ytd" ? "vol2026Ytd" : "vol2025";
   const historyC3Key = historyPeriod === "2026Ytd" ? "c32026Ytd" : "c32025";
+  const historyContractKey = historyPeriod === "2026Ytd" ? "contract2026Ytd" : "contract2025";
+  const contracts = i.rows.map((row) => finiteHistoryValue(dealerMeta(row.dealerId).history?.[historyContractKey]));
+  const contractTotal = contracts.length && contracts.every((value) => value !== null)
+    ? contracts.reduce((sum, value) => sum + value, 0) : null;
   const scopeHistoryTotals = i.rows.reduce(
     (sum, row) => {
       const historyRow = dealerMeta(row.dealerId).history || {};
@@ -778,10 +783,11 @@ function EditorContent({
       outputShare: share,
       difference:
         amountShare == null || share == null ? null : amountShare - share,
-      contract: null,
-      contractShare: null,
+      contract: finiteHistoryValue(history[historyContractKey]),
+      contractShare: history[historyContractKey] != null && contractTotal > 0
+        ? history[historyContractKey] / contractTotal * 100 : null,
       actual: history[outputKey],
-      phasing: null,
+      phasing: historyPhasing(history, historyPeriod),
       support: otherInitiatives(row.dealerId).length,
       note: row.note || "",
     }[key];
@@ -1201,7 +1207,7 @@ function EditorContent({
                                   </TableCell>
                                   <TableCell
                                     className="num"
-                                    title="Phasing = Delivery Vol ÷ 同期合同量；合同量须大于 0"
+                                    title="Phasing = Delivery Vol ÷ 全年签署合同量；合同量须大于 0"
                                   >
                                     {historyPhasing(h, period) == null
                                       ? "—"
@@ -1867,17 +1873,19 @@ function EditorContent({
                           </TableCell>
                           <TableCell
                             className="num"
-                            title="历史数据未提供合同量"
+                            title="全年签署合同量；未提供时显示 —"
                           >
-                            —
+                            {histFmt(allocationValue(r, "contract"))}
                           </TableCell>
-                          <TableCell className="num">—</TableCell>
+                          <TableCell className="num">
+                            {allocationValue(r, "contractShare") == null ? "—" : `${fmt(allocationValue(r, "contractShare"))}%`}
+                          </TableCell>
                           <TableCell className="num">
                             {histFmt(h[metricKey])}
                           </TableCell>
                           <TableCell
                             className="num"
-                            title="Phasing = Delivery Vol ÷ 同期合同量；合同量须大于 0"
+                            title="Phasing = Delivery Vol ÷ 全年签署合同量；合同量须大于 0"
                           >
                             {historyPhasing(h, historyPeriod) == null
                               ? "—"

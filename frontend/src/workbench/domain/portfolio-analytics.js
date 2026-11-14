@@ -65,23 +65,31 @@ export function portfolioRows(items, dealers, basis = "c3", period = "2025") {
   return [...rows.values()];
 }
 
-export function concentration(rows, topPercent = 20) {
-  const eligible = rows
-    .filter((row) => row.hasHistory !== false && row.metric !== null)
+// V17/V19 mval: clip only analytical output, never the source history.
+export const analyticalOutput = (value) => Math.max(0, number(value) || 0);
+
+export function rankedConcentrationRows(rows) {
+  return rows.filter((row) => row.hasHistory !== false && number(row.metric) !== null)
     .sort((left, right) =>
-      Math.round(right.amount / 100) - Math.round(left.amount / 100) || right.metric - left.metric || String(left.code || left.id).localeCompare(String(right.code || right.id)),
+      Math.round(right.amount / 100) - Math.round(left.amount / 100) ||
+      analyticalOutput(right.metric) - analyticalOutput(left.metric) ||
+      String(left.code || left.id).localeCompare(String(right.code || right.id)),
     );
+}
+
+export function concentration(rows, topPercent = 20) {
+  const eligible = rankedConcentrationRows(rows);
   if (!eligible.length) return null;
   const n = Math.max(1, Math.round(eligible.length * topPercent / 100));
   const top = eligible.slice(0, n);
   const amountTotal = eligible.reduce((sum, row) => sum + row.amount, 0);
-  const metricTotal = eligible.reduce((sum, row) => sum + Math.max(0, row.metric), 0);
+  const metricTotal = eligible.reduce((sum, row) => sum + analyticalOutput(row.metric), 0);
   if (amountTotal <= 0 || metricTotal <= 0) return null;
   const amountShare = amountTotal
     ? top.reduce((sum, row) => sum + row.amount, 0) / amountTotal * 100
     : 0;
   const metricShare = metricTotal
-    ? top.reduce((sum, row) => sum + Math.max(0, row.metric), 0) / metricTotal * 100
+    ? top.reduce((sum, row) => sum + analyticalOutput(row.metric), 0) / metricTotal * 100
     : 0;
   return { count: eligible.length, n, top, amountShare, metricShare, gap: amountShare - metricShare };
 }
@@ -89,10 +97,10 @@ export function concentration(rows, topPercent = 20) {
 export function dealerDeviations(rows) {
   const eligible = rows.filter((row) => row.hasHistory !== false && row.metric !== null);
   const amountTotal = eligible.reduce((sum, row) => sum + row.amount, 0);
-  const metricTotal = eligible.reduce((sum, row) => sum + Math.max(0, row.metric), 0);
+  const metricTotal = eligible.reduce((sum, row) => sum + analyticalOutput(row.metric), 0);
   return eligible.map((row) => {
     const amountShare = amountTotal ? row.amount / amountTotal * 100 : 0;
-    const metricShare = metricTotal ? Math.max(0, row.metric) / metricTotal * 100 : 0;
+    const metricShare = metricTotal ? analyticalOutput(row.metric) / metricTotal * 100 : 0;
     return { ...row, amountShare, metricShare, gap: amountShare - metricShare };
   }).sort((left, right) => right.gap - left.gap || right.amount - left.amount);
 }
@@ -103,7 +111,7 @@ const completeSum = (values) => values.length && values.every((value) => number(
 export function groupSummary(rows, allDealers, groupBy = "sd", period = "2025") {
   const groups = new Map();
   const totalAmount = rows.reduce((sum, row) => sum + row.amount, 0);
-  const totalMetric = rows.reduce((sum, row) => sum + Math.max(0, row.metric || 0), 0);
+  const totalMetric = rows.reduce((sum, row) => sum + analyticalOutput(row.metric), 0);
   for (const row of rows) {
     const key = row[groupBy] || `未配置 ${groupBy.toUpperCase()}`;
     const group = groups.get(key) || { key, allocated: new Set(), selected: new Set(), rows: [], amount: 0, metric: 0 };
@@ -111,7 +119,7 @@ export function groupSummary(rows, allDealers, groupBy = "sd", period = "2025") 
     if (row.amount > 0) group.allocated.add(row.key);
     group.rows.push(row);
     group.amount += row.amount;
-    group.metric += Math.max(0, row.metric || 0);
+    group.metric += analyticalOutput(row.metric);
     groups.set(key, group);
   }
   const masterCounts = new Map();
@@ -128,11 +136,18 @@ export function groupSummary(rows, allDealers, groupBy = "sd", period = "2025") 
   const metricComplete = rows.every((row) => number(row.metric) !== null);
   return [...groups.values()].map((group) => {
     const metric = completeSum(group.rows.map((row) => row.metric));
+    const analysisSum = (basis) => {
+      const values = group.rows.map((row) => historyValue({ history: row.history }, basis, period));
+      return values.every((value) => value !== null)
+        ? values.reduce((sum, value, index) => sum + (group.rows[index].hasHistory === false ? 0 : analyticalOutput(value)), 0)
+        : null;
+    };
+    const analyticalVol = analysisSum("vol"), analyticalC3 = analysisSum("c3");
     const historicalVol = completeSum(group.rows.map((row) => row.history?.[period === "2025" ? "vol2025" : "vol2026Ytd"]));
     const historicalC3 = completeSum(group.rows.map((row) => row.history?.[period === "2025" ? "c32025" : "c32026Ytd"]));
     const historicalInvestment = completeSum(group.rows.map((row) => historyInvestment(row.history, period)));
     const contractVolume = completeSum(group.rows.map((row) => row.history?.[period === "2025" ? "contract2025" : "contract2026Ytd"]));
-    const aligned = period === "2025" || group.rows.every((row) => !row.history?.ytdYieldUnavailableReason && number(row.history?.yield2026Ytd) !== null);
+    const aligned = period === "2025" || group.rows.every((row) => !row.history?.ytdYieldUnavailableReason);
     return {
     ...group,
     metric,
@@ -145,8 +160,9 @@ export function groupSummary(rows, allDealers, groupBy = "sd", period = "2025") 
     gap: metricComplete && totalAmount && totalMetric
       ? group.amount / totalAmount * 100 - group.metric / totalMetric * 100
       : null,
-    historicalVol, historicalC3, historicalInvestment, contractVolume,
+    historicalVol, historicalC3, historicalInvestment, contractVolume, analyticalVol, analyticalC3,
     phasing: historicalVol !== null && contractVolume > 0 ? historicalVol / contractVolume : null,
+    yieldAligned: aligned,
     historicalYield: aligned && historicalC3 > 0 && historicalInvestment > 0 ? historicalC3 / historicalInvestment : null,
     pppVol: null, pppC3: null,
   };

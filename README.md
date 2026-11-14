@@ -96,3 +96,5 @@ cd backend
 本地原型与远端真实数据分支的启动、测试和最新结果见 [双分支测试说明](docs/TEST_BRANCHES.md)。
 
 当前需要业务/数据负责人补齐的事项见 [剩余数据与口径确认清单](docs/PENDING_DATA_DECISIONS.md)。
+
+已确认指标的本轮工程修复与测试见 [指标实现验证](docs/METRIC_IMPLEMENTATION_VALIDATION.md)；需要补的数据和业务选择见 [待确认清单](docs/PENDING_DATA_DECISIONS.md)。

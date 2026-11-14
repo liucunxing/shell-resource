@@ -125,3 +125,30 @@ describe("V19 SD presentation", () => {
     expect(html).not.toContain("名单覆盖率");
   });
 });
+
+
+it("shows nonnegative analytical shares beside signed Actuals and signed historical investment", () => {
+  const source = dealers.map((d, index) => ({ ...d, history: { ...d.history, c32025: index ? 400 : -100, vol2025: index ? -500 : 3000, totalInvestment2025: index ? 100 : -20 } }));
+  const { groups, totals } = summary(source);
+  const east = groups.find(g => g.key === "东区");
+  expect(east).toMatchObject({ historicalC3: -100, c3Share: 0, volShare: 100, metricShare: 0, historyShare: -25 });
+  expect(totals).toMatchObject({ historicalC3: 300, historicalVol: 2500, historicalInvestment: 80, analyticalC3: 400, analyticalVol: 3000 });
+  expect(groups.reduce((sum, g) => sum + g.c3Share, 0)).toBe(100);
+  expect(groups.reduce((sum, g) => sum + g.volShare, 0)).toBe(100);
+});
+
+
+it("computes aggregate Yield from signed totals, not validity of individual rates", () => {
+  const mixed = dealers.map((d, index) => ({ ...d, history: { ...d.history, c32025: index ? 400 : -100 } }));
+  expect(summary(mixed).totals.historicalYield).toBe(0.6);
+  mixed[0].history.c32025 = -500;
+  expect(summary(mixed).totals.historicalYield).toBeNull();
+});
+
+it("separates YTD coverage alignment from individual Yield eligibility", () => {
+  const source = dealers.map((d, index) => ({ ...d, history: { vol2026Ytd: 100, c32026Ytd: index ? 400 : -100, totalInvestment2026Ytd: 100, yield2026Ytd: index ? 4 : null } }));
+  const read = () => sdPresentationGroups(sdGroupsWithComparison(items, null, source, "sd", "c3", "2026Ytd"));
+  expect(read().totals.historicalYield).toBe(1.5);
+  source[0].history.ytdYieldUnavailableReason = "截止月未知";
+  expect(read().totals.historicalYield).toBeNull();
+});
