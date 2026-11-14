@@ -266,6 +266,20 @@ export function WorkPanel({ overlay, panelSize }) {
   );
 }
 
+export function ResourceCompositionRows({ resources, prefix, allResources }) {
+  const complete = resources.length > 0 && resources.every((row) => Number.isFinite(row.amount));
+  const negative = resources.some((row) => Number.isFinite(row.amount) && row.amount < 0);
+  const total = complete ? resources.reduce((sum, row) => sum + row.amount, 0) : null;
+  const comparable = complete && !negative && total > 0;
+  return <>
+    {resources.map((resource) => <div className="resource-bar-row" key={resource.label}>
+      <div><span>{resource.label.replace(prefix, "")}</span><b>{fmt(resource.amount)} K$</b></div>
+      {comparable && <div className="history-bar-track"><i className="resource" style={{ width: `${resource.amount / total * 100}%` }} /></div>}
+    </div>)}
+    <p>{negative ? "含负费用，暂不显示构成占比；金额保留原值。" : !complete ? "费用数据不完整，暂不显示构成占比。" : total <= 0 ? "费用合计不大于 0，暂不显示构成占比。" : `条形占比以${allResources ? "全部" : "当前授权"}资源合计为分母。`}</p>
+  </>;
+}
+
 function ReferencePanel() {
   const {
     state,
@@ -303,22 +317,6 @@ function ReferencePanel() {
   );
   const fullYears = model.periods.filter((period) => period.comparable);
   const ytd = model.periods.find((period) => !period.comparable);
-  const resourceTotal = model.resources.reduce(
-    (total, resource) =>
-      total +
-      (Number.isFinite(resource.amount) && resource.amount > 0
-        ? resource.amount
-        : 0),
-    0,
-  );
-  const resource2026Total = (model.resources2026Ytd || []).reduce(
-    (total, resource) =>
-      total +
-      (Number.isFinite(resource.amount) && resource.amount > 0
-        ? resource.amount
-        : 0),
-    0,
-  );
   return (
     <>
       <Label className="reference-selector">
@@ -434,25 +432,7 @@ function ReferencePanel() {
               : `${E.departments(identity).join("、")} 授权范围`}
           </span>
         </div>
-        {model.resources.map((resource) => (
-          <div className="resource-bar-row" key={resource.label}>
-            <div>
-              <span>{resource.label.replace("2025 ", "")}</span>
-              <b>{fmt(resource.amount)} K$</b>
-            </div>
-            <div className="history-bar-track">
-              <i
-                className="resource"
-                style={{
-                  width: `${resourceTotal && Number.isFinite(resource.amount) ? (Math.max(0, resource.amount) / resourceTotal) * 100 : 0}%`,
-                }}
-              />
-            </div>
-          </div>
-        ))}
-        <p>
-          条形占比以{model.allResources ? "全部" : "当前授权"}资源合计为分母。
-        </p>
+        <ResourceCompositionRows resources={model.resources} prefix="2025 " allResources={model.allResources} />
       </section>
       {!!model.resources2026Ytd?.length && (
         <section className="resource-chart">
@@ -464,22 +444,7 @@ function ReferencePanel() {
                 : `${E.departments(identity).join("、")} 授权范围`}
             </span>
           </div>
-          {model.resources2026Ytd.map((resource) => (
-            <div className="resource-bar-row" key={resource.label}>
-              <div>
-                <span>{resource.label.replace("2026 YTD ", "")}</span>
-                <b>{fmt(resource.amount)} K$</b>
-              </div>
-              <div className="history-bar-track">
-                <i
-                  className="resource"
-                  style={{
-                    width: `${resource2026Total && Number.isFinite(resource.amount) ? (Math.max(0, resource.amount) / resource2026Total) * 100 : 0}%`,
-                  }}
-                />
-              </div>
-            </div>
-          ))}
+          <ResourceCompositionRows resources={model.resources2026Ytd} prefix="2026 YTD " allResources={model.allResources} />
         </section>
       )}
       <p className="reference-footnote">

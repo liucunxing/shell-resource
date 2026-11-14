@@ -131,3 +131,33 @@ def test_yoy_uses_raw_metrics_and_identifies_missing_baseline(
         assert original == before
 
     asyncio.run(run())
+
+
+def test_raw_signed_history_and_missing_targets_survive_api_projection():
+    async def run():
+        original = {
+            **history_row("Dealer"), "volume_2025": -3, "c3_2025": -4,
+            "mrd_2025": -7, "volume_2026": None, "mrd_2026": None,
+        }
+        before = dict(original)
+
+        class Repository:
+            async def list_dealers(self, *args):
+                return [original]
+
+        service = ReferenceService(None)
+        service.repository = Repository()
+        history = (await service.get_dealers(2027))[0]["history"]
+        # Analysis-only clamping must not erase raw history or net expense totals.
+        assert history["vol2025"] == -3
+        assert history["c32025"] == -4
+        assert history["totalInvestment2025"] == 20
+        assert history["vol2026Ytd"] is None
+        assert history["totalInvestment2026Ytd"] is None
+        assert history["yield"] is None
+        assert history["yield2026Ytd"] is None
+        assert "contractVolume" not in history
+        assert "ppp" not in history
+        assert original == before
+
+    asyncio.run(run())

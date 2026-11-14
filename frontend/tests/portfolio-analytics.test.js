@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   concentration,
+  rankedConcentrationRows,
   dealerDeviations,
   groupSummary,
   portfolioRows,
@@ -140,5 +141,37 @@ describe("V19 selection and comparison", () => {
     expect(facts).toHaveLength(2);
     expect(new Set(facts.map((row) => row.direction))).toEqual(new Set(["偏多", "偏少"]));
     expect(facts.every((row) => row.owner === "Owner")).toBe(true);
+  });
+});
+
+
+describe("V19 analytical output versus signed history", () => {
+  it("clips output before tie sorting and keeps curves and top cohorts in one order", () => {
+    const rows = [
+      { id: "C", code: "C", amount: 1049, metric: -1, hasHistory: true },
+      { id: "A", code: "A", amount: 1001, metric: -500, hasHistory: true },
+      { id: "B", code: "B", amount: 1000, metric: 100, hasHistory: true },
+      { id: "N", amount: 99999, metric: 0, hasHistory: false },
+    ];
+    const before = structuredClone(rows);
+    expect(rankedConcentrationRows(rows).map(r => r.id)).toEqual(["B", "A", "C"]);
+    expect(concentration(rows, 50).top.map(r => r.id)).toEqual(["B", "A"]);
+    expect(concentration(rows, 50).metricShare).toBe(100);
+    expect(dealerDeviations(rows).find(r => r.id === "A").metricShare).toBe(0);
+    expect(rows).toEqual(before);
+  });
+
+  it("clips each dealer before SD aggregation while retaining signed totals and missing values", () => {
+    const source = [
+      { id: "A", sector: "S", sd: "X", history: { c32025: -20, vol2025: 10, totalInvestment2025: -5 } },
+      { id: "B", sector: "S", sd: "X", history: { c32025: 100, vol2025: -2, totalInvestment2025: 10 } },
+      { id: "C", sector: "S", sd: "Y", history: { c32025: 100, vol2025: 10, totalInvestment2025: 20 } },
+    ];
+    const rows = portfolioRows([{ sector: "S", rows: source.map(d => ({ dealerId: d.id, amount: 100 })) }], source);
+    const x = groupSummary(rows, source).find(g => g.key === "X");
+    expect(x).toMatchObject({ historicalC3: 80, historicalVol: 8, historicalInvestment: 5, analyticalC3: 100, analyticalVol: 10, metricShare: 50 });
+    source[0].history.vol2025 = null;
+    const missingRows = portfolioRows([{ sector: "S", rows: [{ dealerId: "A", amount: 1 }] }], source);
+    expect(groupSummary(missingRows, source)[0].analyticalVol).toBeNull();
   });
 });

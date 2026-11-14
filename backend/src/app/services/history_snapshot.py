@@ -67,6 +67,7 @@ def history_manifest(
             "phasing": {
                 "formula": "deliveryVolume / contractVolume * 100",
                 "eligibility": "contractVolume > 0 and deliveryVolume is present",
+                "contractPeriod": "full_year_signed",
                 "unit": "percent",
                 "reference": "sum(deliveryVolume) / sum(contractVolume) for eligible rows",
                 "trafficLight": {
@@ -78,10 +79,16 @@ def history_manifest(
                 "unavailableReason": "missing_contract_volume",
             },
             "ppp": {
-                "defined": False,
+                "defined": True,
+                "kind": "target",
+                "metrics": ["volume", "c3"],
+                "displayUnits": {"volume": "KL", "c3": "K$"},
                 "available": False,
-                "unavailableReason": "undefined_business_definition",
-                "note": "PPP 口径未定义，不能使用合同量或其他字段替代。",
+                "unavailableReason": "missing_target_data",
+                "note": (
+                    "PPP 为 Vol/C3 目标；目标数据及字段映射未提供，"
+                    "不能用合同量或 Actual 替代。"
+                ),
             },
         },
         "asOf": None,

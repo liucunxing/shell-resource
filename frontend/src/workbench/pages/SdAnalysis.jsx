@@ -56,6 +56,8 @@ export function sdPresentationGroups(groups) {
     amount: sum("amount"),
     allocatedCount: sum("allocatedCount"),
     selectedCount: sum("selectedCount"),
+    analyticalVol: complete("analyticalVol"),
+    analyticalC3: complete("analyticalC3"),
     historicalVol: complete("historicalVol"),
     historicalC3: complete("historicalC3"),
     historicalInvestment: complete("historicalInvestment"),
@@ -70,11 +72,8 @@ export function sdPresentationGroups(groups) {
       : null;
   totals.historicalYield =
     totals.historicalInvestment > 0 &&
-    totals.historicalC3 != null &&
-    current.every(
-      (group) =>
-        group.historicalYield != null || group.historicalInvestment === 0,
-    )
+    totals.historicalC3 > 0 &&
+    current.every((group) => group.yieldAligned)
       ? totals.historicalC3 / totals.historicalInvestment
       : null;
   const comparable =
@@ -98,8 +97,8 @@ export function sdPresentationGroups(groups) {
       average: group.allocatedCount
         ? group.amount / group.allocatedCount
         : null,
-      volShare: share(group.historicalVol, totals.historicalVol),
-      c3Share: share(group.historicalC3, totals.historicalC3),
+      volShare: share(group.analyticalVol, totals.analyticalVol),
+      c3Share: share(group.analyticalC3, totals.analyticalC3),
       historyShare: share(
         group.historicalInvestment,
         totals.historicalInvestment,
@@ -646,8 +645,8 @@ export function SdAnalysis({
                 <HistoryCells
                   group={{
                     ...totals,
-                    volShare: totals.historicalVol > 0 ? 100 : null,
-                    c3Share: totals.historicalC3 > 0 ? 100 : null,
+                    volShare: totals.analyticalVol > 0 ? 100 : null,
+                    c3Share: totals.analyticalC3 > 0 ? 100 : null,
                     historyShare: totals.historicalInvestment > 0 ? 100 : null,
                   }}
                 />

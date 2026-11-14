@@ -28,7 +28,7 @@ docs/       本期业务契约和协作说明
 
 Databricks 只能使用应用 Service Principal 对应且获授权的 schema，当前目标为 `prod.resource_planning.dim_distributor`。2026-11-14 限定该 schema 的个人只读核查可见两个经销商基础视图，各 2,678 行、3 个字段；未看到业务指标与月份/汇率字段。应用 SP 认证仍返回 `401 invalid_client`，个人查询不能证明应用身份可读。其他 schema 的候选数据不能直接接入，不能用个人凭据回退。
 
-历史宽表尚缺真实截止月和合同量；Phasing 的 Vol/合同、Yield 的 C3/完整投资、YoY 的年度公式已定义，不能因缺字段而说成公式未定义。PPP 的业务定义和来源仍缺。YTD 配置允许 1–12、默认 10，但与 PG Actual/费用的实际覆盖月份分开表达。金额比较须明确币种、单位、汇率和期间，未知值不补零、不猜月份、不把合同量当 PPP。完整边界见 [指标定义](docs/METRIC_DEFINITIONS.md)。
+历史宽表尚缺真实截止月和合同量；Phasing 的 Vol/合同、Yield 的 C3/完整投资、YoY 的年度公式已定义，不能因缺字段而说成公式未定义。V19 已定义 PPP 的 Vol/C3 目标列，但真实目标来源与字段映射仍缺；合同采用原型已明确的全年签署量。分析产出截零与历史金额保留负数的原型证据见[确认清单](docs/PENDING_DATA_DECISIONS.md)。YTD 配置允许 1–12、默认 10，但与 PG Actual/费用的实际覆盖月份分开表达。金额比较须明确币种、单位、汇率和期间，未知值不补零、不猜月份、不把合同量当 PPP。完整边界见 [指标定义](docs/METRIC_DEFINITIONS.md)。
 
 ## 开发与运行
 
@@ -94,3 +94,7 @@ cd backend
 原型导出由 `backend/scripts/export_v19_prototype.cjs` 在全新浏览器上下文执行最终 `enterDemo()` 生成，记录源 SHA、明确的演示月份及单位。包含120家虚构经销商、10个虚构用户及两个规划版本，源JSON两版本均无部门确认。本地fixture另标注 `derivedLocalPreparation`，通过正常业务服务确认202612的齐交部门供管理层查看基线；202701保留原22提交、0确认。派生测试准备不反写源JSON或远端PG。重复提取仅运行时审计时间变化；原始HTML保持不变。
 
 本地原型与远端真实数据分支的启动、测试和最新结果见 [双分支测试说明](docs/TEST_BRANCHES.md)。
+
+当前需要业务/数据负责人补齐的事项见 [剩余数据与口径确认清单](docs/PENDING_DATA_DECISIONS.md)。
+
+已确认指标的本轮工程修复与测试见 [指标实现验证](docs/METRIC_IMPLEMENTATION_VALIDATION.md)；需要补的数据和业务选择见 [待确认清单](docs/PENDING_DATA_DECISIONS.md)。

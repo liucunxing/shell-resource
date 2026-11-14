@@ -92,7 +92,7 @@ export function historyYield(
     : null;
 }
 
-// V2.0 §11: source Vol and contract must use the same unit and period.
+// V17/V19: current-year Actual (including YTD) / full-year signed contract, both in L.
 export function historyPhasing(
   history: DealerHistory | undefined,
   period: HistoryPeriod,
