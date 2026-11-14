@@ -62,3 +62,16 @@ pwsh -NoProfile -File ./scripts/Test-Branch.ps1 -Python 'C:/venvs/resource/Scrip
 PG 模式还须传入 `-SettingsFile`。测试报告保存在当前工作目录的 `outputs/branch-tests/<模式>-<时间>/`，本地为 JUnit XML，PG 为各步骤 JSON；这些目录不进入 Git。失败时检查该目录中已经生成的报告。
 
 脚本结束后恢复调用进程原有的 `APP_ENV`、`APP_SETTINGS_FILE`、`PYTHONPATH` 和工作目录。启动脚本以前台方式运行，使用 Ctrl+C 停止；如需后台启动，在外部使用隐藏窗口启动进程并分别保留日志。
+
+## 2026-11-15 验证记录
+
+- 共同功能代码：`72c6d5b`，试算无历史对象边界修复 `d7d5823` 同步至两个测试分支；两分支跟踪文件的差异仅为 `test-profile.json`。
+- 后端全量 738 项通过，Ruff 通过，Mypy 90 源文件通过。前端全量 334 项通过；两个 worktree 分别安装依赖并构建，包检查均通过。
+- 本地默认 `Test-Branch.ps1` 9 项通过；独立 `.venv`、`node_modules`、`dist`、SQLite 与报告目录均已建立，没有指向其他 worktree 的链接。
+- PG 默认测试入口（显式传安全配置）完成只读扫描、31 项隔离 V19 检查和 16 项真实全量接入检查；1,489 行全部映射一致，无身份覆盖；测试事务回滚、临时 schema 已清理。
+- 浏览器实测：本地免登录、10 演示角色；月份从10改9，刷新保留并同步Owner期间，再恢复10；13被阻止；1440px和390px无页面横向溢出，管理层202612确认基线图表显示，无页面异常。
+- PG 测试前后均为1,489行，源表指纹同为 `dc1d6e2460b013ee63195897cc49bcff`；无真实业务写入。
+- 本地预览由 local-demo worktree 的 `Start-Branch.ps1` 启动于 `http://127.0.0.1:8019`。远端应用服务器未部署；PG分支正常应用入口仍保留鉴权。
+- 本地原型的120全局经销商为适配Sector权限映射到480个Sector身份，不改变源项目预算、分配或预留；跨Sector合计家数不等于原型全局家数。原型合同和月份虽保留在导出/manifest，当前历史API仍按已接字段提供；这些适配限制不等于真实数据验收通过。
+
+待确认的业务口径和数据见 [METRIC_DEFINITIONS.md](METRIC_DEFINITIONS.md)。V19视觉效果仍须用户确认，不把测试通过视为视觉或完整UAT通过。
