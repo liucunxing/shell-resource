@@ -23,3 +23,7 @@
 - 合同读取/计算支持已落实，但PG源及现有模型未提供合同列；本地原型导出合同也尚未进入seed/API。真实源确定后仍需模型映射接入，不把函数测试当实际合同数据验收。
 - PPP目标、2026费用和真实覆盖月份仍未提供；业务选择见[PENDING_DATA_DECISIONS.md](PENDING_DATA_DECISIONS.md)。
 - 本轮是计算与数据边界修复，不宣称全部V19视觉或真实业务UAT已通过；没有部署远端应用服务器。
+
+## 分支同步
+
+实现提交 `fcf9d5c` 已同步main与test/v19-pg-real；test/v19-local-demo以合并提交 `b509b32` 纳入。两个测试分支跟踪内容仅test-profile.json不同（真实PG / 本地原型）。两个worktree分别build和bundle检查通过，本地默认入口9项SQLite原型测试通过，报告位于该worktree的outputs/branch-tests/local-prototype-20261115-013055-553/。后续仅文档记录提交不改变受测业务代码。

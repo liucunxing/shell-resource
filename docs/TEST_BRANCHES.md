@@ -75,3 +75,7 @@ PG 模式还须传入 `-SettingsFile`。测试报告保存在当前工作目录�
 - 本地原型的120全局经销商为适配Sector权限映射到480个Sector身份，不改变源项目预算、分配或预留；跨Sector合计家数不等于原型全局家数。原型合同和月份虽保留在导出/manifest，当前历史API仍按已接字段提供；这些适配限制不等于真实数据验收通过。
 
 待确认的业务口径和数据见 [METRIC_DEFINITIONS.md](METRIC_DEFINITIONS.md)。V19视觉效果仍须用户确认，不把测试通过视为视觉或完整UAT通过。
+
+## 2026-11-15 指标口径修复补充
+
+共同实现fcf9d5c；main与PG分支同步，本地分支b509b32合入，跟踪差异仅test-profile.json。前端345项/后端739项通过；两个worktree构建和bundle通过，本地9项通过，PG31项流程＋16项全量接入通过且业务源指纹未变。本轮修改、实测和剩余边界见[指标实现验证](METRIC_IMPLEMENTATION_VALIDATION.md)。
