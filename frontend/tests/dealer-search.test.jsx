@@ -6,6 +6,8 @@ import {
   uniqueDealersByCode,
   MissingHistoryNotice,
   balanceSelectedDealers,
+  dealerBusinessCode,
+  dealerDisplayLabel,
 } from "../src/workbench/pages/EditorPage.jsx";
 import E from "../src/workbench/domain/engine.js";
 
@@ -19,6 +21,15 @@ const dealers = [
 ];
 
 describe("dealer picker search", () => {
+  it("shows the business identity and organization without leaking internal history keys", () => {
+    const id = "history:0815e96d954e716b";
+    const dealer = { id, code: "D001", name: "验收经销商", sd: "North", rsm: "RSM-A" };
+    expect(dealerBusinessCode(id, dealer)).toBe("D001");
+    expect(dealerDisplayLabel(id, dealer)).toBe("验收经销商（D001） · North / RSM-A");
+    expect(dealerDisplayLabel(id, {}, { dealerCode: "D001", sd: "South", rsm: "RSM-B" })).toBe("D001 · South / RSM-B");
+    expect(dealerDisplayLabel(id)).toBe("编码未提供");
+    expect(dealerDisplayLabel(id)).not.toContain("history:");
+  });
   it("renders zero-allocation dealer names as a vertical list", () => {
     const html = renderToStaticMarkup(<MissingHistoryNotice metricLabel="2025 C3"
       unavailable={["经销商甲（10392457）", "经销商乙（11146913）"]} hasHistory={true} />);

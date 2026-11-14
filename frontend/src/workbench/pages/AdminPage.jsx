@@ -3,7 +3,7 @@ import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
 import AX from "../domain/admin-excel.js";
 import { HistoricalResourceSettings } from "./HistoricalResourceSettings.jsx";
-import { parseReferenceInWorker, previewExcelInWorker } from "../file-import.js";
+import { exportExcelInWorker, parseReferenceInWorker, previewExcelInWorker } from "../file-import.js";
 import { AdminUsersPanel } from "./AdminUsersPanel.jsx";
 import { AdminBudgetFields, budgetForm, budgetPayload } from "./AdminBudgetFields.jsx";
 
@@ -234,7 +234,7 @@ export function AdminPage() {
   async function exportConfig() {
     const previewEpoch = getPreviewEpoch();
     try {
-      const bytes = await AX.exportWorkbook(state, identity);
+      const bytes = await exportExcelInWorker("admin", state, identity);
       await validatePortalSession();
       assertPreviewResponseCurrent(previewEpoch);
       const url = URL.createObjectURL(

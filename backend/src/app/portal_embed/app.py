@@ -17,6 +17,7 @@ from starlette.exceptions import HTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.controllers.insight_controller import router as insight_router
+from app.controllers.planning_controller import router as planning_router
 from app.controllers.workbench_controller import router as workbench_router
 from app.core.config import Settings
 from app.db.session import get_db_session
@@ -53,7 +54,8 @@ class ReceiverHeaders:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
-        if self.config is None:
+        config = self.config
+        if config is None:
             await error_response(404, "RECEIVER_DISABLED")(scope, receive, send)
             return
 
@@ -70,7 +72,7 @@ class ReceiverHeaders:
                         b"content-security-policy",
                     }
                 ]
-                ancestors = " ".join(sorted(self.config.verifier.parent_origins))
+                ancestors = " ".join(sorted(config.verifier.parent_origins))
                 headers.extend(
                     [
                         (b"cache-control", b"no-store"),
@@ -150,6 +152,7 @@ def create_portal_app(settings: Settings) -> FastAPI:
     app.dependency_overrides[get_current_workbench_user] = get_portal_workbench_user
     app.include_router(workbench_router, prefix="/api/v1/workbench")
     app.include_router(insight_router, prefix="/api/v1/workbench")
+    app.include_router(planning_router, prefix="/api/v1/workbench")
 
     @app.post("/login")
     async def login(

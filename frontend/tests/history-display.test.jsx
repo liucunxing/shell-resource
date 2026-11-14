@@ -17,12 +17,12 @@ it("puts Sector first and displays/exports Yield with one decimal without roundi
 
 it("labels multi-sector Lead history and global administrator/management history correctly", () => {
   const state = E.createState(D, "working");
-  const model = X.rawData(state, { role: "lead", department: "MKT", sectors: ["PCMO", "CRTO"] }, D, "history");
-  expect(model.scopeLabel).toContain("全部经销商历史");
+  const model = X.rawData(state, { role: "lead", affiliation_sector: "PCMO", affiliation_department: "MKT", department: "MKT", sectors: ["PCMO", "CRTO"] }, D, "history");
+  expect(model.scopeLabel).toContain("授权经销商历史");
   expect(model.columns.filter((column) => column.key.startsWith("resource_")).map((column) => column.key)).toEqual(["resource_MRD", "resource_SP&A"]);
   for (const role of ["admin", "management"]) {
     const global = X.rawData(state, { role }, D, "history");
-    expect(global.scopeLabel).toContain("全部经销商历史");
+    expect(global.scopeLabel).toContain("授权经销商历史");
     expect(global.columns.some((column) => column.label.includes("总资源"))).toBe(false);
   }
 });

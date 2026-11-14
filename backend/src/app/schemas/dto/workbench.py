@@ -4,6 +4,8 @@ from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.core.resource_access import AFFILIATION_DEPARTMENTS, RESOURCE_TYPES, SECTORS
+
 
 class AdminUserDTO(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -16,6 +18,37 @@ class AdminUserDTO(BaseModel):
     department: list[str] = Field(default_factory=list)
     sector: list[str] = Field(default_factory=list, max_length=4)
     enabled: bool = True
+    affiliation_sector: str = Field(min_length=1, max_length=32)
+    affiliation_department: str = Field(min_length=1, max_length=32)
+    history_resources: list[str] | None = None
+
+    @field_validator("affiliation_sector", "affiliation_department", mode="before")
+    @classmethod
+    def normalize_affiliation(cls, value: Any) -> Any:
+        return value.strip().upper() if isinstance(value, str) else value
+
+    @field_validator("affiliation_sector")
+    @classmethod
+    def valid_affiliation_sector(cls, value: str) -> str:
+        if value not in SECTORS:
+            raise ValueError("请选择有效的所属 Sector")
+        return value
+
+    @field_validator("affiliation_department")
+    @classmethod
+    def valid_affiliation_department(cls, value: str) -> str:
+        if value not in AFFILIATION_DEPARTMENTS:
+            raise ValueError("请选择有效的所属 Department")
+        return value
+
+    @field_validator("history_resources")
+    @classmethod
+    def valid_history_resources(cls, value: list[str] | None) -> list[str] | None:
+        if value is not None and (
+            len(value) != len(set(value)) or set(value) - set(RESOURCE_TYPES)
+        ):
+            raise ValueError("历史费用列无效或重复")
+        return value
 
     @field_validator("email", "display_name", mode="before")
     @classmethod
@@ -157,6 +190,7 @@ class InitiativeDraftUpdateDTO(BaseModel):
     expected_revision: int = Field(ge=0)
     rows: list[DraftRowDTO] = Field(default_factory=list)
     otherBudgets: list[OtherBudgetDTO] = Field(default_factory=list)
+    changeReason: str = Field(default="", max_length=160)
 
 
 class PublishDTO(BaseModel):
@@ -251,17 +285,47 @@ class AdminConfigDTO(BaseModel):
     budgetReasons: list[dict] | None = Field(default=None, min_length=1, max_length=30)
     guide: dict | None = None
     departmentResources: dict[str, list[str]] | None = None
+    roleResources: dict[str, list[str]] | None = None
+    healthThresholds: dict[str, float] | None = None
+
+    @field_validator("healthThresholds")
+    @classmethod
+    def validate_health_thresholds(cls, value: dict | None) -> dict | None:
+        if value is None:
+            return None
+        keys = {"concentrationYellow", "concentrationRed", "dealerYellow", "dealerRed"}
+        if set(value) != keys:
+            raise ValueError("健康度阈值必须包含集中度和经销商的黄色、红色阈值")
+        for prefix in ("concentration", "dealer"):
+            if not 0 <= value[prefix + "Yellow"] < value[prefix + "Red"] <= 100:
+                raise ValueError("健康度阈值必须满足 0 ≤ 黄色 < 红色 ≤ 100")
+        return value
+
+    @field_validator("roleResources")
+    @classmethod
+    def validate_role_resources(cls, value: dict | None) -> dict | None:
+        if value is None:
+            return None
+        if set(value) - {"owner", "lead", "management", "admin"}:
+            raise ValueError("历史费用角色无效")
+        for resources in value.values():
+            if len(resources) != len(set(resources)) or set(resources) - set(RESOURCE_TYPES):
+                raise ValueError("历史费用列无效或重复")
+        return value
 
     @field_validator("departmentResources")
     @classmethod
     def validate_department_resources(cls, value: dict | None) -> dict | None:
         if value is None:
             return None
-        from app.core.resource_access import RESOURCE_TYPES
         normalized = {}
         for department, resources in value.items():
             name = department.strip().upper()
-            if not name or len(name) > 32 or name in normalized:
+            parts = name.split("|")
+            valid = (len(parts) == 1 and parts[0] in AFFILIATION_DEPARTMENTS) or (
+                len(parts) == 2 and parts[0] in SECTORS and parts[1] in AFFILIATION_DEPARTMENTS
+            )
+            if not valid or name in normalized:
                 raise ValueError("部门名称无效或重复")
             if len(resources) != len(set(resources)) or set(resources) - set(RESOURCE_TYPES):
                 raise ValueError("历史资源类型无效或重复")
@@ -274,6 +338,7 @@ class AdminConfigDTO(BaseModel):
         if reasons is None:
             return reasons
         ids = set()
+        labels = set()
         for reason in reasons:
             if set(reason) - {"id", "label", "enabled"}:
                 raise ValueError("预算原因包含未知字段")
@@ -291,7 +356,14 @@ class AdminConfigDTO(BaseModel):
                 raise ValueError("预算原因名称无效")
             if not isinstance(reason.get("enabled"), bool):
                 raise ValueError("预算原因 enabled 必须为布尔值")
+            normalized_label = label.strip()
+            if normalized_label in labels:
+                raise ValueError("预算原因名称不可重复")
+            labels.add(normalized_label)
+            reason["label"] = normalized_label
             ids.add(reason_id)
+        if not any(reason["enabled"] for reason in reasons):
+            raise ValueError("至少保留一个启用的预留原因")
         return reasons
 
     @field_validator("guide")

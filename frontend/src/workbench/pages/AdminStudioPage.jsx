@@ -1,7 +1,13 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
 import { PageHead } from "./OverviewPages.jsx";
+import { PlanningVersionBar as VersionBar } from "./PlanningVersionBar.jsx";
+import { PlanningVersionsPage } from "./PlanningVersionsPage.jsx";
+import { StudioConfiguration } from "./StudioConfiguration.jsx";
+import { AdminUsersPanel } from "./AdminUsersPanel.jsx";
+import { HistoricalResourceSettings } from "./HistoricalResourceSettings.jsx";
+import { WorkflowDialog } from "./WorkflowDialog.jsx";
 
 const num = (value, digits = 1) =>
   Number(value || 0).toLocaleString("zh-CN", {
@@ -42,132 +48,6 @@ const ADMIN_META = {
   ],
 };
 
-function VersionBar() {
-  return (
-    <div className="studio-version-bar">
-      <label>
-        当前配置版本
-        <select defaultValue="202701">
-          <option value="202612">202612 · 年度初始规划</option>
-          <option value="202701">202701 · 业务目标校准</option>
-        </select>
-      </label>
-      <span className="resource-status done">已发布 · 开放提交</span>
-      <small>版本间清单、预算、Owner、草稿相互独立</small>
-    </div>
-  );
-}
-
-function VersionsPage({ items, notify }) {
-  const total = E.totals(items);
-  const [creating, setCreating] = useState(false),
-    [versionId, setVersionId] = useState("202702"),
-    [name, setName] = useState("");
-  return (
-    <section className="panel studio-admin-panel">
-      <div className="panel-header">
-        <div>
-          <h2>规划版本</h2>
-          <p>新版本复制清单与上一版已提交方案为草稿，不自动提交。</p>
-        </div>
-        <button className="button primary" onClick={() => setCreating(true)}>
-          ＋ 从上版创建新版本
-        </button>
-      </div>
-      <div className="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>版本 / 来源</th>
-              <th>名称</th>
-              <th className="num">启用项目</th>
-              <th className="num">总预算（万）</th>
-              <th>发布 / 提交状态</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <strong>202612</strong>
-                <small>来源 初始</small>
-              </td>
-              <td>年度初始规划</td>
-              <td className="num">{items.length}</td>
-              <td className="num">{num(total.budget / 10000)}</td>
-              <td>
-                <span className="resource-status done">已发布</span>{" "}
-                <span className="resource-status done">开放提交</span>
-              </td>
-              <td>
-                <button className="button small">配置项目</button>{" "}
-                <button className="button small">关闭提交</button>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>202701</strong>
-                <small>来源 202612</small>
-              </td>
-              <td>业务目标校准</td>
-              <td className="num">{items.length}</td>
-              <td className="num">{num(total.budget / 10000)}</td>
-              <td>
-                <span className="resource-status done">已发布</span>{" "}
-                <span className="resource-status done">开放提交</span>
-              </td>
-              <td>
-                <button className="button small">配置项目</button>{" "}
-                <button className="button small">关闭提交</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      {creating && (
-        <div className="studio-inline-form">
-          <h3>从 202701 创建新版本</h3>
-          <label>
-            版本 ID
-            <input
-              value={versionId}
-              onChange={(event) =>
-                setVersionId(event.target.value.replace(/\D/g, "").slice(0, 6))
-              }
-            />
-          </label>
-          <label>
-            版本名称
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="例如：二季度业务校准"
-            />
-          </label>
-          <div className="actions">
-            <button className="button" onClick={() => setCreating(false)}>
-              取消
-            </button>
-            <button
-              className="button primary"
-              disabled={versionId.length !== 6 || !name.trim()}
-              onClick={() => {
-                setCreating(false);
-                notify("版本创建尚未接入服务端，本次未保存。", true);
-              }}
-            >
-              创建版本
-            </button>
-          </div>
-        </div>
-      )}
-      <p className="studio-table-note">
-        预算改变后不自动缩放；新增项目从零开始；取消项目保留稳定编码与历史实际。
-      </p>
-    </section>
-  );
-}
-
 function InitiativesPage({
   items,
   identity,
@@ -176,19 +56,20 @@ function InitiativesPage({
   mutate,
   manageAdminBudget,
   notify,
+  state,
+  previewMode,
 }) {
   const [query, setQuery] = useState(""),
     [editing, setEditing] = useState(null),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false), [error, setError] = useState("");
   const filtered = items.filter((item) =>
     `${item.id} ${item.name} ${item.ownerId}`
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
-  const open = (item = null) =>
-    setEditing(
+  const open = (item = null) => { setError(""); setEditing(
       item
-        ? { ...item, budgetWan: item.budget / 10000 }
+        ? { ...item, budgetWan: item.budget / 10000, reason: "" }
         : {
             id: "",
             name: "",
@@ -198,8 +79,9 @@ function InitiativesPage({
             ownerId: "",
             budgetWan: 0,
             enabled: true,
+            reason: "",
           },
-    );
+    ); };
   const save = async () => {
     const payload = {
       id: editing.id,
@@ -210,9 +92,10 @@ function InitiativesPage({
       ownerId: editing.ownerId,
       budget: Math.round(Number(editing.budgetWan) * 10000),
       enabled: editing.enabled !== false,
+      reason: editing.reason.trim(),
     };
-    if (!payload.id || !payload.name || !payload.ownerId || payload.budget < 0)
-      return notify("请完整填写编码、名称、Owner 与非负预算。", true);
+    if (!payload.name || !payload.ownerId || !Number.isFinite(payload.budget) || payload.budget < 0 || (state.planningVersion && !payload.reason))
+      return notify("请完整填写名称、Owner、变更原因与非负预算。", true);
     setBusy(true);
     try {
       if (apiMode)
@@ -231,6 +114,8 @@ function InitiativesPage({
           else E.applyAdminConfiguration(draft, [], identity, roles, [payload]);
         }, "本版项目配置已更新。");
       setEditing(null);
+    } catch (failure) {
+      setError(failure.message);
     } finally {
       setBusy(false);
     }
@@ -241,13 +126,13 @@ function InitiativesPage({
       <section className="panel studio-admin-panel">
         <div className="panel-header">
           <div>
-            <h2>202701 · 项目清单与预算</h2>
+            <h2>{state.planningVersion?.name || "历史工作区"} · 项目清单与预算</h2>
             <p>
               {items.length} 项 · 总预算 {num(E.totals(items).budget / 10000)}{" "}
               万
             </p>
           </div>
-          <button className="button primary" onClick={() => open()}>
+          <button className="button primary" disabled={previewMode} onClick={() => open()}>
             ＋ 本版新增 Initiative
           </button>
         </div>
@@ -290,10 +175,10 @@ function InitiativesPage({
                   <td>{item.ownerId}</td>
                   <td className="num">{num(item.budget / 10000)}</td>
                   <td>
-                    <span className="resource-status done">启用</span>
+                    <span className={`resource-status ${item.enabled === false ? "editing" : "done"}`}>{item.enabled === false ? "停用" : "启用"}</span>
                   </td>
                   <td>
-                    <button className="button small" onClick={() => open(item)}>
+                    <button className="button small" disabled={previewMode} onClick={() => open(item)}>
                       编辑
                     </button>
                   </td>
@@ -304,14 +189,10 @@ function InitiativesPage({
         </div>
       </section>
       {editing && (
-        <div className="studio-inline-form studio-admin-editor">
-          <h3>
-            {items.some((item) => item.id === editing.id)
-              ? "编辑 Initiative"
-              : "本版新增 Initiative"}
-          </h3>
+        <WorkflowDialog title={editing.id ? "编辑 Initiative" : "本版新增 Initiative"} busy={busy} onClose={() => setEditing(null)} onConfirm={save} confirmLabel="保存项目">
+          <p>预算与归属变更保留原名单和金额，撤回对应提交与部门确认；版本需重新发布。</p>
+          <div className="v19-form-grid">
           {[
-            ["编码", "id"],
             ["Initiative 名称", "name"],
             ["Sector", "sector"],
             ["Department", "department"],
@@ -333,354 +214,24 @@ function InitiativesPage({
               />
             </label>
           ))}
-          <div className="actions">
-            <button className="button" onClick={() => setEditing(null)}>
-              取消
-            </button>
-            <button className="button primary" disabled={busy} onClick={save}>
-              {busy ? "保存中…" : "保存"}
-            </button>
           </div>
-        </div>
+          <label className="v19-scope-label"><input type="checkbox" checked={editing.enabled !== false} onChange={(event) => setEditing({ ...editing, enabled: event.target.checked })} />本版启用</label>
+          <label>变更原因（必填）<textarea value={editing.reason} onChange={(event) => setEditing({ ...editing, reason: event.target.value })} /></label>
+          {error && <p className="note-box warn" role="alert">{error}</p>}
+        </WorkflowDialog>
       )}
     </>
   );
 }
 
-function UsersPage({ users, identity, notify }) {
-  const [rows, setRows] = useState(() => (users.length ? users : [identity]));
-  const [editing, setEditing] = useState(null);
-  const save = () => {
-    notify("新版用户编辑尚未接入服务端，本次未保存。", true);
-  };
-  return (
-    <section className="panel studio-admin-panel">
-      <div className="panel-header">
-        <div>
-          <h2>用户清单 · {rows.length} 人</h2>
-          <p>登录仍沿用当前邮箱登录；角色与数据范围由服务端校验。</p>
-        </div>
-        <button
-          className="button primary"
-          onClick={() =>
-            setEditing({
-              label: "",
-              email: "",
-              role: "owner",
-              department: "",
-              enabled: true,
-            })
-          }
-        >
-          ＋ 新增用户
-        </button>
-      </div>
-      <div className="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>姓名</th>
-              <th>登录账号</th>
-              <th>角色</th>
-              <th>授权范围</th>
-              <th>负责 Initiative</th>
-              <th>状态</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((user) => (
-              <tr key={user.email || user.key}>
-                <td>
-                  <strong>{user.label || user.name || "—"}</strong>
-                </td>
-                <td>{user.email || "—"}</td>
-                <td>{user.role}</td>
-                <td>
-                  {Array.isArray(user.department)
-                    ? user.department.join("、")
-                    : user.department || user.scope || "全部"}
-                </td>
-                <td>{user.ownerId || "—"}</td>
-                <td>
-                  <span
-                    className={`resource-status ${user.enabled === false ? "closed" : "done"}`}
-                  >
-                    {user.enabled === false ? "停用" : "启用"}
-                  </span>
-                </td>
-                <td>
-                  <button
-                    className="button small"
-                    onClick={() => setEditing({ ...user })}
-                  >
-                    编辑
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {editing && (
-        <div className="studio-inline-form">
-          <h3>用户与权限</h3>
-          <label>
-            姓名
-            <input
-              value={editing.label || ""}
-              onChange={(event) =>
-                setEditing({ ...editing, label: event.target.value })
-              }
-            />
-          </label>
-          <label>
-            登录账号
-            <input
-              type="email"
-              value={editing.email || ""}
-              onChange={(event) =>
-                setEditing({ ...editing, email: event.target.value })
-              }
-            />
-          </label>
-          <label>
-            角色
-            <select
-              value={editing.role}
-              onChange={(event) =>
-                setEditing({ ...editing, role: event.target.value })
-              }
-            >
-              <option value="owner">Initiative Owner</option>
-              <option value="lead">部门负责人</option>
-              <option value="management">最高管理层</option>
-              <option value="admin">系统管理员</option>
-            </select>
-          </label>
-          <label>
-            授权范围
-            <input
-              value={
-                Array.isArray(editing.department)
-                  ? editing.department.join(",")
-                  : editing.department || ""
-              }
-              onChange={(event) =>
-                setEditing({ ...editing, department: event.target.value })
-              }
-            />
-          </label>
-          <div className="actions">
-            <button className="button" onClick={() => setEditing(null)}>
-              取消
-            </button>
-            <button
-              className="button primary"
-              disabled={!editing.email || !editing.label}
-              onClick={save}
-            >
-              保存
-            </button>
-          </div>
-        </div>
-      )}
-    </section>
-  );
-}
-
-function EnumEditor({ title, values, setValues }) {
-  const [draft, setDraft] = useState("");
-  return (
-    <article className="studio-enum-card">
-      <h2>{title}</h2>
-      <div>
-        {values.map((value) => (
-          <span key={value}>
-            {value}
-            <button
-              aria-label={`移除 ${value}`}
-              onClick={() => setValues(values.filter((item) => item !== value))}
-            >
-              ×
-            </button>
-          </span>
-        ))}
-      </div>
-      <label>
-        <input
-          value={draft}
-          placeholder="输入新值"
-          onChange={(event) => setDraft(event.target.value)}
-        />
-        <button
-          className="button small"
-          disabled={!draft.trim()}
-          onClick={() => {
-            if (!values.includes(draft.trim()))
-              setValues([...values, draft.trim()]);
-            setDraft("");
-          }}
-        >
-          ＋ 添加
-        </button>
-      </label>
-    </article>
-  );
-}
-
-function EnumsPage({ notify }) {
-  const [sectors, setSectors] = useState(["PCMO", "B2B", "CRTO", "OEM"]),
-    [departments, setDepartments] = useState(["MKT", "ICE", "Capex"]),
-    [types, setTypes] = useState(["ICE Rebate", "MRD", "SP&A", "Capex"]),
-    [cutoff, setCutoff] = useState(10);
-  return (
-    <>
-      <div className="studio-enum-grid">
-        <EnumEditor title="Sector" values={sectors} setValues={setSectors} />
-        <EnumEditor
-          title="Department"
-          values={departments}
-          setValues={setDepartments}
-        />
-        <EnumEditor title="资源大类" values={types} setValues={setTypes} />
-        <article className="studio-enum-card">
-          <h2>历史数据期间</h2>
-          <p>2025 全年</p>
-          <label>
-            2026 YTD 截止月份
-            <input
-              type="number"
-              min="1"
-              max="12"
-              value={cutoff}
-              onChange={(event) => setCutoff(event.target.value)}
-            />
-          </label>
-        </article>
-        <article className="studio-enum-card">
-          <h2>经销商主数据（只读）</h2>
-          <p>编码、名称、SD、RSM、状态来自历史表，不能在本页修改。</p>
-        </article>
-      </div>
-      <div className="actions studio-admin-save">
-        <button
-          className="button primary"
-          onClick={() => notify("组织与枚举尚未接入服务端，本次未保存。", true)}
-        >
-          保存配置
-        </button>
-      </div>
-    </>
-  );
-}
-
-function ThresholdsPage({ notify }) {
-  const [values, setValues] = useState({
-    concentrationYellow: 5,
-    concentrationRed: 10,
-    dealerYellow: 3,
-    dealerRed: 6,
-  });
-  const set = (key, value) => setValues({ ...values, [key]: Number(value) });
-  return (
-    <section className="panel studio-admin-panel">
-      <div className="panel-header">
-        <div>
-          <h2>健康检查阈值</h2>
-          <p>仅用于提示复核，不自动判定业务方案错误。</p>
-        </div>
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>指标</th>
-            <th>口径</th>
-            <th>黄色 &gt;</th>
-            <th>红色 &gt;</th>
-            <th>默认</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>集中度差值</td>
-            <td>Top N 投资金额占比 − 产出占比</td>
-            <td>
-              <input
-                type="number"
-                value={values.concentrationYellow}
-                onChange={(event) =>
-                  set("concentrationYellow", event.target.value)
-                }
-              />{" "}
-              pp
-            </td>
-            <td>
-              <input
-                type="number"
-                value={values.concentrationRed}
-                onChange={(event) =>
-                  set("concentrationRed", event.target.value)
-                }
-              />{" "}
-              pp
-            </td>
-            <td>5 / 10pp</td>
-          </tr>
-          <tr>
-            <td>经销商超配 / 低配</td>
-            <td>经销商投资金额占比 − 产出占比（绝对值）</td>
-            <td>
-              <input
-                type="number"
-                value={values.dealerYellow}
-                onChange={(event) => set("dealerYellow", event.target.value)}
-              />{" "}
-              pp
-            </td>
-            <td>
-              <input
-                type="number"
-                value={values.dealerRed}
-                onChange={(event) => set("dealerRed", event.target.value)}
-              />{" "}
-              pp
-            </td>
-            <td>3 / 6pp</td>
-          </tr>
-        </tbody>
-      </table>
-      <div className="actions studio-admin-save">
-        <button
-          className="button"
-          onClick={() =>
-            setValues({
-              concentrationYellow: 5,
-              concentrationRed: 10,
-              dealerYellow: 3,
-              dealerRed: 6,
-            })
-          }
-        >
-          恢复默认
-        </button>
-        <button
-          className="button primary"
-          onClick={() => notify("健康检查阈值尚未接入服务端，本次未保存。", true)}
-        >
-          保存阈值
-        </button>
-      </div>
-    </section>
-  );
-}
-
-function AuditPage({ audit }) {
+export function AuditPage({ audit }) {
+  const [query, setQuery] = useState("");
+  const filtered = audit.filter((row) => JSON.stringify(row).toLowerCase().includes(query.toLowerCase()));
   return (
     <section className="panel studio-admin-panel">
       <div className="studio-table-toolbar">
-        <span>共 {audit.length} 条操作记录</span>
-        <input type="search" placeholder="搜索操作人 / 对象 / 动作" />
+        <span>共 {filtered.length} 条操作记录</span>
+        <input type="search" placeholder="搜索操作人 / 对象 / 动作" value={query} onChange={(event) => setQuery(event.target.value)} />
       </div>
       <div className="table-scroll">
         <table>
@@ -694,16 +245,16 @@ function AuditPage({ audit }) {
             </tr>
           </thead>
           <tbody>
-            {audit.map((row, index) => (
+            {filtered.map((row, index) => (
               <tr key={row.id || index}>
                 <td>{time(row.at || row.createdAt)}</td>
-                <td>{row.actor || row.user || "—"}</td>
+                <td>{typeof row.actor === "object" ? row.actor?.label || row.operator || "—" : row.actor || row.user || row.operator || "—"}</td>
                 <td>{row.action || row.type || "—"}</td>
-                <td>{row.target || row.scope || row.initiativeId || "—"}</td>
-                <td>{row.message || row.summary || "—"}</td>
+                <td>{row.object || row.target || row.scope || row.initiativeId || "—"}</td>
+                <td>{row.detail || row.note || row.message || row.summary || "—"}</td>
               </tr>
             ))}
-            {!audit.length && (
+            {!filtered.length && (
               <tr>
                 <td colSpan="5">
                   <div className="empty">暂无操作审计记录。</div>
@@ -734,19 +285,17 @@ export function AdminStudioPage() {
     return <div className="empty">仅系统管理员可访问。</div>;
   const items = view.initiatives || [],
     meta = ADMIN_META[page] || ADMIN_META["admin-versions"];
-  const users = useMemo(
-    () => (roles || []).filter((user) => user.role),
-    [roles],
-  );
   return (
     <>
       <PageHead eyebrow={meta[0]} title={meta[1]} description={meta[2]} />
       {page === "admin-versions" && (
-        <VersionsPage items={items} notify={notify} />
+        <PlanningVersionsPage />
       )}
       {page === "admin-initiatives" && (
         <InitiativesPage
           items={items}
+          state={state}
+          previewMode={context.previewMode}
           identity={identity}
           roles={roles}
           apiMode={apiMode}
@@ -756,10 +305,11 @@ export function AdminStudioPage() {
         />
       )}
       {page === "admin-users" && (
-        <UsersPage users={users} identity={identity} notify={notify} />
+        <><section className="panel studio-admin-panel"><AdminUsersPanel /></section>
+          <HistoricalResourceSettings mapping={state.departmentResources || {}} roleMapping={state.roleResources} departments={[...new Set(items.map((item) => item.department))]} saveConfig={context.saveConfig} readOnly={context.previewMode} /></>
       )}
-      {page === "admin-enums" && <EnumsPage notify={notify} />}
-      {page === "admin-thresholds" && <ThresholdsPage notify={notify} />}
+      {page === "admin-enums" && <StudioConfiguration />}
+      {page === "admin-thresholds" && <StudioConfiguration thresholds />}
       {page === "admin-audit" && <AuditPage audit={state.audit || []} />}
     </>
   );

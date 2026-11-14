@@ -13,10 +13,10 @@ vitestTest(
       checks++;
       console.log("PASS " + label);
     };
-    const lead = { role: "lead", department: "MKT" },
-      owner = { role: "owner", department: "MKT", ownerId: "MKT-1" },
-      management = { role: "management" },
-      admin = { role: "admin" };
+    const lead = { role: "lead", department: "MKT", affiliation_sector: "PCMO", affiliation_department: "MKT" },
+      owner = { role: "owner", department: "MKT", ownerId: "MKT-1", affiliation_sector: "PCMO", affiliation_department: "MKT" },
+      management = { role: "management", affiliation_sector: "PCMO", affiliation_department: "MKT", history_resources: ["MRD", "SP&A", "ICE Rebate", "Capex"] },
+      admin = { role: "admin", affiliation_sector: "PCMO", affiliation_department: "MKT", history_resources: ["MRD", "SP&A", "ICE Rebate", "Capex"] };
     const working = E.createState(D, "working"),
       submitted = E.createState(D, "submitted");
     test("analytics rejects unauthorized roles and dimensions", () => {
@@ -150,7 +150,7 @@ vitestTest(
         () => {
           const m = X.rawData(
             working,
-            { role: "lead", department },
+            { role: "lead", department, affiliation_sector: "PCMO", affiliation_department: department },
             D,
             "history",
           );
@@ -236,7 +236,7 @@ vitestTest(
     });
     test("owner history notes distinguish history from allocation directory", () => {
       const model = X.rawData(working, { ...owner, sectors: ["PCMO"] }, D, "history");
-      assert.ok(model.notes.includes("Vol、C3、Yield 展示全部经销商；可分配经销商仍按业务线授权。历史总资源列不展示。"));
+      assert.ok(model.notes.includes("经销商范围由服务端业务授权确定；历史投资总额、Vol、C3、Yield 为公共参考指标。"));
     });
     test("Yield missing or non-finite source value remains null", () => {
       for (const value of [undefined, null, Infinity, NaN]) {
@@ -263,8 +263,8 @@ vitestTest(
       for (const identity of [
         owner,
         lead,
-        { role: "lead", department: "ICE" },
-        { role: "lead", department: "CAPEX" },
+        { role: "lead", department: "ICE", affiliation_sector: "PCMO", affiliation_department: "ICE" },
+        { role: "lead", department: "CAPEX", affiliation_sector: "PCMO", affiliation_department: "CAPEX" },
         management,
         admin,
       ]) {
@@ -286,7 +286,7 @@ vitestTest(
           : identity.department === "MKT"
             ? ["2025 MRD (K$)", "2025 SP&A (K$)"]
             : identity.department === "ICE"
-              ? ["2025 ICE Rebate (K$)", "2025 SP&A (K$)"]
+              ? ["2025 SP&A (K$)", "2025 ICE Rebate (K$)"]
               : ["2025 Capex (K$)"];
         assert.deepEqual(
           m.resources.map((r) => r.label),

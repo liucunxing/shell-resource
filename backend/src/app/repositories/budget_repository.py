@@ -1,7 +1,7 @@
 from decimal import Decimal
 from typing import cast
 
-from sqlalchemy import Select, case, func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -28,7 +28,7 @@ class BudgetRepository(BaseRepository[BudgetDO]):
         resource_type_keyword: str | None,
         status: int | None,
     ) -> list[BudgetDO]:
-        statement: Select[tuple[BudgetDO]] = select(BudgetDO).where()
+        statement = select(BudgetDO)
         if planning_year is not None:
             statement = statement.where(BudgetDO.planning_year == planning_year)
         if department is not None:

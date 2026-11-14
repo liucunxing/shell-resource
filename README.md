@@ -1,4 +1,9 @@
-# 资源投资工作台 V1.4
+# 资源投资工作台 V19 工程迭代
+
+本轮基于 `origin/feature_11_11_cx`（`6e70ba5`）与 2026-11-14 最新 V19 原型更新。
+支持独立规划版本、Owner 三步拆分与提交冻结、部门齐交确认/撤回/定向退回、管理层已确认组合、
+来源版本与 SD/RSM 对比，以及人员归属和历史费用权限配置。实现范围、验证证据与边界见
+[V19 工程验收记录](docs/V19_VALIDATION.md)。
 
 > 服务器发布、重启、健康检查、日志和证书续期，请先阅读 [服务器运维手册](docs/SERVER_OPERATIONS.md)。
 
@@ -10,14 +15,14 @@ backend/    Controller → Service → Repository → DO
 docs/       本期业务契约和协作说明
 ```
 
-正式数据保存在 PostgreSQL `data` schema。整项草稿保存使用事务和修订号；不平衡草稿可保存，同步时必须平衡。管理层读取每项最新同步快照，后续草稿修改不会改写快照。
+正式数据保存在 PostgreSQL `data` schema。整项草稿保存使用事务和修订号；不平衡草稿可保存，提交时必须平衡。管理层只读取部门已确认的提交快照；撤回确认保留 Owner 已提交状态，定向退回后才允许编辑。
 
 ## 开发与运行
 
 1. 按 [后端说明](backend/README.md) 安装、填写本地配置并核对数据库结构。
 2. 在 `frontend` 执行 `npm ci`、`npm run build`。
 3. 在 `backend` 启动 Uvicorn，配置 `serve_frontend = true` 后访问 `http://127.0.0.1:8000/`。
-4. 开发环境在页面输入已配置权限的邮箱。后台逐请求读取 `data.user_permissions`，再在 SQL 查询中过滤范围。
+4. 通过现有 Portal 邮箱入口或配置的 JWT 入口建立身份。后台逐请求读取 `data.user_permissions` 并校验角色与业务范围。
 
 前后端接口联调只维护 [接口文档](backend/docs/接口文档.md)。前端开发、独立演示模式见 [前端说明](frontend/README.md)。
 
@@ -25,7 +30,10 @@ docs/       本期业务契约和协作说明
 
 Portal JWT 独立入口的配置、迁移、联调与回滚见 [Portal 接入说明](deploy/portal-jwt.md)。该能力默认关闭，现有帆软 URL 邮箱入口保留；本轮仅接入资源工具。
 
-按当前约定先本地试用：在 `backend` 执行 `.\.venv\Scripts\python.exe -m uvicorn tests.browser_fixture:app --app-dir src --host 127.0.0.1 --port 8014`，访问 `http://127.0.0.1:8014/`，使用 `owner-a@example.test` 登录。合成数据会保存在本地 SQLite；页面可切换开发邮箱。角色账号和配置见后端说明，验证证据见 [本地验收记录](docs/quickwin-validation.md)。
+V19 本地试用：编译前端后，在 `backend` 使用已安装项目依赖的 Python 执行
+`python -m uvicorn tests.v19_browser_fixture:app --app-dir src --host 127.0.0.1 --port 8019`，
+访问 `http://127.0.0.1:8019/?user_email=owner-a@example.test`。
+独立 SQLite 仅保存合成数据；其他角色入口和验证证据见 [V19 工程验收记录](docs/V19_VALIDATION.md)。
 
 ## 本地密钥
 
@@ -35,7 +43,11 @@ Portal JWT 独立入口的配置、迁移、联调与回滚见 [Portal 接入说
 
 当前开发身份使用 `X-User-Email`；`production` 环境明确拒绝此身份方式，可信登录接入仍是正式上线前的必要工作。Tracking、小 One 真实问数、审批和实时协同不在一期范围。
 
-本机 PostgreSQL 5432 访问超时，尚未核对或执行远端增量 SQL；真实百炼调用需要填写 key 和地址。自动化测试与本地合成数据验证不能替代这两项外部联调。增量脚本和检查命令见后端说明。
+2026-11-14 19:50（+08:00）已将远端 PostgreSQL `resource_dev` 升级到 `20261114_03`，
+原有业务值核对一致；31 项 PG 隔离验收及四角色真实库只读接口检查通过。
+20 个历史用户的所属 Sector/Department 需按真实归属配置，未配置时不展示费用明细。
+应用服务器尚未部署，真实 SSO、AI 调用和业务 UAT 尚待验证。
+迁移演练、执行方式与证据见 [V19 工程验收记录](docs/V19_VALIDATION.md)。
 
 ## Docker 单机部署
 

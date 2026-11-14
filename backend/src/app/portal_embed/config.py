@@ -2,6 +2,7 @@
 
 import re
 from dataclasses import dataclass
+from typing import Literal
 from urllib.parse import urlsplit
 
 from app.core.config import Settings
@@ -37,7 +38,7 @@ class PortalConfig:
     resource_origin: str
     app_id: str
     cookie_secure: bool
-    cookie_samesite: str
+    cookie_samesite: Literal["lax", "strict", "none"]
     session_ttl_seconds: int
 
     @classmethod
@@ -51,8 +52,8 @@ class PortalConfig:
             issuer=settings.resource_portal_issuer,
             audience=settings.resource_portal_audience,
             keys={settings.resource_portal_kid: key.get_secret_value() if key else ""},
-            parent_origins=set(settings.resource_portal_parent_origins),
-            required_claims={"email"},
+            parent_origins=frozenset(settings.resource_portal_parent_origins),
+            required_claims=frozenset({"email"}),
             allow_loopback_http=settings.resource_portal_allow_loopback_http,
         )
         # Reuse the verifier's trusted-origin validation for the receiver origin too.
@@ -60,8 +61,8 @@ class PortalConfig:
             issuer=settings.resource_portal_issuer,
             audience=settings.resource_portal_audience,
             keys={settings.resource_portal_kid: key.get_secret_value() if key else ""},
-            parent_origins={settings.resource_portal_origin},
-            required_claims={"email"},
+            parent_origins=frozenset({settings.resource_portal_origin}),
+            required_claims=frozenset({"email"}),
             allow_loopback_http=settings.resource_portal_allow_loopback_http,
         )
         origin = urlsplit(settings.resource_portal_origin)

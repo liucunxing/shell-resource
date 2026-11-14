@@ -30,6 +30,7 @@ export default defineConfig({
   worker: { format: "es" },
   preview: { host: '127.0.0.1', port: 5175, strictPort: true },
   build: {
+    manifest: true,
     rollupOptions: {
       output: { manualChunks: { fluent: ["@fluentui/react-components"] } },
     },

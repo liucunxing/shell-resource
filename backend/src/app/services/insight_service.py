@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.core.departments import departments
+from app.core.resource_access import historical_resource_access
 from app.dependencies.workbench_user import WorkbenchUser
 from app.models.do.insight import InsightPromptDO, InsightRecordDO
 from app.repositories.insight_repository import InsightRepository
@@ -45,6 +46,14 @@ class ModelResponseError(ValueError):
     def __init__(self, reason: str, *, retryable: bool = False) -> None:
         super().__init__(reason)
         self.retryable = retryable
+
+
+class InsightProviderError(HTTPException):
+    """Public provider failure with typed diagnostics retained for server-side logs."""
+
+    def __init__(self, diagnostics: dict[str, Any]) -> None:
+        super().__init__(status_code=502, detail="百炼 Insight 生成失败，原记录已保留")
+        self.model_diagnostics = diagnostics
 
 
 def _safe_request_id(value: Any) -> str:
@@ -134,6 +143,10 @@ class InsightService:
             record["stale"] = record.get("signature") != self._signature(
                 workspace, scope, prompt, preset_id
             )
+            if (workspace.get("state") or {}).get("planningVersion") and record["stale"]:
+                # Confirmation withdrawal can remove submitted amounts without changing
+                # initiative IDs. An earlier V19 result must not retain those amounts.
+                record = None
         if record is None and self.user.role in {"management", "admin"}:
             evidence, _ = self._evidence(workspace, descriptor)
             record = self._record(
@@ -420,6 +433,10 @@ class InsightService:
         if self._access(current_descriptor) != access:
             raise HTTPException(status_code=409, detail="生成期间授权范围已变化，请重新生成")
         current_prompt = await self._prompt(planning_year, scope, current_descriptor)
+        if (current_workspace.get("state") or {}).get("planningVersion") and (
+            signature != self._signature(current_workspace, scope, current_prompt, preset_id)
+        ):
+            raise HTTPException(status_code=409, detail="生成期间方案或部门确认已变化，请重新生成")
         guide = workspace["state"].get("guide") or {}
         record = {
             "scope": scope,
@@ -527,16 +544,9 @@ class InsightService:
 
     def _scope(self, workspace: dict[str, Any], scope: str) -> dict[str, Any]:
         state = workspace.get("state") or {}
-        from app.core.resource_access import default_department_resources
-
-        mapping = state.get("departmentResources", default_department_resources())
-        self._visible_resources = sorted(
-            {
-                resource
-                for dep in departments(self.user.department)
-                for resource in mapping.get(dep, [])
-            }
-        )
+        self._visible_resources = historical_resource_access(
+            self.user, state.get("departmentResources"), state.get("roleResources")
+        )["resources"]
         items = list(state.get("initiatives") or [])
         role = str(getattr(self.user, "role", ""))
         email = str(getattr(self.user, "email", ""))
@@ -654,9 +664,7 @@ class InsightService:
         return {
             "email": self.user.email,
             "role": self.user.role,
-            "historicalResources": getattr(self, "_visible_resources", [])
-            if self.user.role in {"owner", "lead"}
-            else "all",
+            "historicalResources": getattr(self, "_visible_resources", []),
             "department": sorted(departments(self.user.department)),
             "sectors": sorted(getattr(self.user, "sectors", ()) or ()),
             "initiativeIds": sorted(str(item["id"]) for item in descriptor["items"]),
@@ -672,12 +680,10 @@ class InsightService:
         # with unrestricted amounts after the new department restriction takes effect.
         if saved != {key: value for key, value in current.items() if key != "historicalResources"}:
             return False
-        if self.user.role not in {"owner", "lead"}:
-            return True
         old_mapping = {"MKT": {"MRD", "SP&A"}, "ICE": {"ICE Rebate"}, "CAPEX": {"Capex"}}
         previous = (
             {"MRD", "SP&A", "ICE Rebate", "Capex"}
-            if self.user.role == "lead"
+            if self.user.role != "owner"
             else set().union(
                 *(old_mapping.get(dep, set()) for dep in departments(self.user.department))
             )
@@ -1132,9 +1138,7 @@ class InsightService:
             return parsed, {**(payload.get("usage") or {}), "response_diagnostics": diagnostics}
         except (httpx.HTTPError, IndexError, KeyError, TypeError, ValueError) as exc:
             diagnostics["elapsed_seconds"] = round(perf_counter() - started, 3)
-            error = HTTPException(status_code=502, detail="百炼 Insight 生成失败，原记录已保留")
-            error.model_diagnostics = diagnostics
-            raise error from exc
+            raise InsightProviderError(diagnostics) from exc
 
     def _record(
         self,

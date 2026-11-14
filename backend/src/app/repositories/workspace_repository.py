@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.departments import departments
 from app.models.do.budget import BudgetDO
 from app.models.do.budget_distributor import BudgetDistributorDO
+from app.models.do.planning import InitiativeWorkflowDO, PlanningVersionDO
 from app.models.do.workspace import (
     BudgetChangeLogDO,
     OtherBudgetDO,
@@ -48,8 +49,11 @@ class WorkspaceRepository:
         department: str | list[str] | tuple[str, ...] | None,
         sector: str | None,
         owner: str | None,
+        version_id: str | None = None,
     ) -> list[BudgetDO]:
-        statement = select(BudgetDO).where(BudgetDO.planning_year == year)
+        statement = select(BudgetDO).where(
+            BudgetDO.planning_year == year, BudgetDO.planning_version_id == version_id
+        )
         if department is not None:
             statement = statement.where(BudgetDO.department.in_(departments(department)))
         if sector:
@@ -77,7 +81,7 @@ class WorkspaceRepository:
         if owner_email:
             statement = statement.where(BudgetDO.owner_email == owner_email)
         if for_update:
-            statement = statement.with_for_update()
+            statement = statement.with_for_update().execution_options(populate_existing=True)
         return (await self.session.scalars(statement)).one_or_none()
 
     async def rows_for(self, budget_id: int) -> list[BudgetDistributorDO]:
@@ -113,8 +117,30 @@ class WorkspaceRepository:
         department: str | list[str] | tuple[str, ...] | None,
         sector: str | None,
         owner: str | None,
+        version_id: str | None = None,
     ) -> list[WorkspacePublicationDO]:
-        ids = select(BudgetDO.id).where(BudgetDO.planning_year == year)
+        if version_id is None:
+            version_id = await self.session.scalar(
+                select(PlanningVersionDO.id)
+                .where(
+                    PlanningVersionDO.planning_year == year, PlanningVersionDO.published.is_(True)
+                )
+                .order_by(
+                    PlanningVersionDO.open.desc(),
+                    PlanningVersionDO.created_at.desc(),
+                    PlanningVersionDO.id.desc(),
+                )
+                .limit(1)
+            )
+            if version_id is None and await self.session.scalar(
+                select(PlanningVersionDO.id).where(PlanningVersionDO.planning_year == year).limit(1)
+            ):
+                return []
+        ids = select(BudgetDO.id).where(
+            BudgetDO.planning_year == year, BudgetDO.planning_version_id == version_id
+        )
+        if version_id:
+            ids = ids.where(BudgetDO.enabled.is_(True))
         if department is not None:
             ids = ids.where(BudgetDO.department.in_(departments(department)))
         if sector:
@@ -126,13 +152,16 @@ class WorkspaceRepository:
             .where(WorkspacePublicationDO.budget_id.in_(ids))
             .group_by(WorkspacePublicationDO.budget_id)
         )
-        return list(
-            (
-                await self.session.scalars(
-                    select(WorkspacePublicationDO).where(WorkspacePublicationDO.id.in_(latest))
+        statement = select(WorkspacePublicationDO).where(WorkspacePublicationDO.id.in_(latest))
+        if version_id:
+            statement = statement.where(
+                WorkspacePublicationDO.id.in_(
+                    select(InitiativeWorkflowDO.confirmed_publication_id).where(
+                        InitiativeWorkflowDO.requires_resubmission.is_(False)
+                    )
                 )
-            ).all()
-        )
+            )
+        return list((await self.session.scalars(statement)).all())
 
     async def config(self) -> WorkspaceConfigDO | None:
         return await self.session.get(WorkspaceConfigDO, 1)

@@ -60,12 +60,10 @@ def test_reference_results_preserve_sectors_for_the_same_distributor_code():
         assert dealers[0]["status"] == "active"
         assert dealers[0]["history"]["yoyVol2425"] == 12.5
         assert dealers[0]["history"]["yoyC32425"] == -3.25
-        assert dealers[0]["history"]["yield2026Ytd"] == 21.0
-        assert dealers[0]["history"]["resources2026Ytd"] == {
-            "MRD": 17.0,
-            "SP&A": 19.0,
-            "ICE Rebate": 18.0,
-            "Capex": 20.0,
-        }
+        assert dealers[0]["history"]["yield2026Ytd"] is None
+        assert dealers[0]["history"]["resources2026Ytd"] == {}
+        assert dealers[0]["history"]["totalInvestment2025"] == 34
+        assert dealers[0]["history"]["totalInvestment2026Ytd"] == 74
+        assert dealers[0]["history"]["expenseAccess"]["source"] == "missing-department"
 
     asyncio.run(run())

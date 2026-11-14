@@ -34,6 +34,9 @@ def fingerprint(permission: UserPermissionDO) -> str:
         permission.role,
         sorted(departments(permission.department)),
         sorted(permission.sector or []),
+        permission.affiliation_sector,
+        permission.affiliation_department,
+        sorted(permission.history_resources) if permission.history_resources is not None else None,
     ]
     return hashlib.sha256(json.dumps(value, ensure_ascii=True).encode()).hexdigest()
 
@@ -62,6 +65,10 @@ def workbench_user(permission: UserPermissionDO) -> WorkbenchUser:
         permission.department,
         permission.display_name,
         tuple(permission.sector or ()),
+        affiliation_sector=permission.affiliation_sector,
+        affiliation_department=permission.affiliation_department,
+        history_resources=tuple(permission.history_resources)
+        if permission.history_resources is not None else None,
     )
 
 

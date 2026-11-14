@@ -159,7 +159,11 @@ async def test_admin_and_management_receive_all_distributor_history() -> None:
     for role in ("admin", "management"):
         service = _workspace_service(
             session,
-            WorkbenchUser(f"{role}@example.com", role, "MKT", role.title()),
+            WorkbenchUser(
+                f"{role}@example.com", role, "MKT", role.title(),
+                affiliation_sector="PCMO", affiliation_department="MKT",
+                history_resources=("MRD", "SP&A", "ICE Rebate", "Capex"),
+            ),
         )
         dealers = (await service.get_workspace(2027))["data"]["dealers"]
         assert [dealer["id"] for dealer in dealers] == ["d1", "d2", "d3"]
@@ -263,11 +267,13 @@ async def test_reference_metadata_uses_history_source_for_workspace_and_snapshot
     session = await _session()
     service = _workspace_service(session, _owner())
     result = await service.get_workspace(2027)
-    assert result["state"]["reference"] == {
-        "batchId": "data.distributor_sellin_resource_history",
-        "asOf": "2026",
-        "planningYear": 2027,
-        "count": 3,
+    manifest = result["state"]["reference"]
+    assert manifest["batchId"] == "data.distributor_sellin_resource_history"
+    assert manifest["asOf"] is None
+    assert manifest["planningYear"] == 2027
+    assert manifest["count"] == 2  # Only authorized PCMO records, not the whole table.
+    assert result["data"]["historySnapshot"] == {
+        "manifest": manifest, "records": result["data"]["dealers"],
     }
     await service.save_draft(
         1, InitiativeDraftUpdateDTO(expected_revision=0, rows=[{"dealerId": "d1", "amount": "100"}])

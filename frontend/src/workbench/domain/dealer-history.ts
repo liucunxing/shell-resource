@@ -9,6 +9,9 @@ export type HistoryField =
   | "investment2026Ytd";
 type ResourceValues = Record<string, number | null | undefined>;
 export interface DealerHistory {
+  totalInvestment2025?: number | null;
+  totalInvestment2026Ytd?: number | null;
+  ytdYieldUnavailableReason?: string;
   vol2025?: number | null;
   c32025?: number | null;
   vol2026Ytd?: number | null;
@@ -50,6 +53,11 @@ export function historyInvestment(
   history: DealerHistory | undefined,
   period: HistoryPeriod,
 ): number | null {
+  const publicKey = period === "2025" ? "totalInvestment2025" : "totalInvestment2026Ytd";
+  // A public total is computed before expense-column authorization. Never replace
+  // an explicit null with the sum of a partial or authorized subset.
+  if (history && Object.hasOwn(history, publicKey))
+    return finiteHistoryValue(history[publicKey]);
   const values =
     period === "2025" ? history?.resources2025 : history?.resources2026Ytd;
   const restricted =
@@ -69,6 +77,7 @@ export function historyYield(
   history: DealerHistory | undefined,
   period: HistoryPeriod,
 ): number | null {
+  if (period !== "2025" && history?.ytdYieldUnavailableReason) return null;
   return finiteHistoryValue(
     period === "2025" ? history?.yield : history?.yield2026Ytd,
   );

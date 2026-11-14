@@ -43,6 +43,7 @@ const ManagementPage = lazy(() =>
 const EditorPage = lazy(() =>
   import("./pages/EditorPage.jsx").then((m) => ({ default: m.EditorPage })),
 );
+const DepartmentReviewPage = lazy(() => import("./pages/DepartmentReviewPage.jsx").then((m) => ({ default: m.DepartmentReviewPage })));
 const AdminPage = lazy(() =>
   import("./pages/AdminStudioPage.jsx").then((m) => ({
     default: m.AdminStudioPage,
@@ -52,6 +53,7 @@ const pages = {
   home: HomePage,
   portfolio: DepartmentPage,
   department: DepartmentPage,
+  "department-review": DepartmentReviewPage,
   management: ManagementPage,
   editor: EditorPage,
   submissions: SubmissionPage,
@@ -85,9 +87,9 @@ function navigationFor(identity, initiativeId) {
       ["submissions", ClipboardText, "草稿与提交", "批量校验与提交"],
     ];
   if (identity.role === "lead")
-    return [["department", Buildings, "部门投入组合", "本部门已提交方案"]];
+    return [["department", Buildings, "部门投入组合", "本部门已提交方案"], ["department-review", ShieldCheck, "确认部门方案", "统一确认与定向退回"]];
   if (identity.role === "management")
-    return [["management", Stack, "全局投资看板", "全部已提交方案"]];
+    return [["management", Stack, "全局投资看板", "部门已确认方案"]];
   return [
     ["admin-versions", GearSix, "版本与发布", ""],
     ["admin-initiatives", ClipboardText, "本版项目配置", ""],
@@ -241,7 +243,7 @@ export default function WorkbenchApp() {
     <>
       <SkipToWorkspace portalMode={portalMode} />
       <div
-        className={`app-shell studio-shell ${navCollapsed ? "nav-collapsed" : ""}`}
+        className={`app-shell studio-shell v19-shell ${navCollapsed ? "nav-collapsed" : ""}`}
       >
         {mobileNav && (
           <button
@@ -332,16 +334,6 @@ export default function WorkbenchApp() {
           <header className="topbar">
             <div className="topbar-left">
               <button
-                className="button subtle small desktop-nav-toggle"
-                aria-label={navCollapsed ? "展开左侧菜单" : "收起左侧菜单"}
-                title={navCollapsed ? "展开左侧菜单" : "收起左侧菜单"}
-                aria-expanded={!navCollapsed}
-                aria-controls="main-navigation"
-                onClick={() => setNavCollapsed((value) => !value)}
-              >
-                <List size={20} />
-              </button>
-              <button
                 ref={navTrigger}
                 className="button subtle small mobile-menu"
                 aria-label="展开导航"
@@ -352,6 +344,7 @@ export default function WorkbenchApp() {
                 <List size={20} />
               </button>
               <span className="breadcrumb">
+                <ChartDonut size={27} weight="duotone" />
                 <strong>Resource Studio</strong>
                 <span>经销商资源投资规划 · 2027 OP</span>
               </span>
@@ -366,8 +359,12 @@ export default function WorkbenchApp() {
                   </small>
                 </span>
               </span>
+              {apiMode && <button className="button subtle small" onClick={() => setDevelopmentEmail("")}>退出</button>}
             </div>
           </header>
+          <nav className="v19-primary-nav" aria-label="工作台导航">
+            {nav.map(([id, Icon, label, , disabled]) => <button key={id} className={page === id ? "active" : ""} aria-current={page === id ? "page" : undefined} disabled={disabled} onClick={() => navigate(id)}><Icon size={18} /><span>{label}</span></button>)}
+          </nav>
           <main id="main" className="page" tabIndex={-1}>
             {previewMode && (
               <UserPreviewBanner

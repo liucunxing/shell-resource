@@ -35,7 +35,7 @@ it.each(["management", "admin"])("%s has the appropriate generation perspective"
 it("management overview follows the customer V17 readonly board", () => {
   const html = renderToStaticMarkup(<ManagementPage />);
   expect(html).toContain("全局投资看板");
-  expect(html).toContain("只读，基于已提交方案");
+  expect(html).toContain("只读，基于部门已确认方案");
   expect(html).toContain("① 总盘");
   expect(html).toContain("② 集中度");
   expect(html).toContain("经销商明细");
@@ -51,7 +51,7 @@ it("the resource settings support shared resource types and explain the historic
   const html = renderToStaticMarkup(<HistoricalResourceSettings
     mapping={{ MKT: ["MRD", "SP&A"], ICE: ["SP&A"] }} departments={["NEW"]} saveConfig={vi.fn()} />);
   expect(html).toContain('aria-label="ICE 可查看 SP&amp;A" checked=""');
-  expect(html).toContain('aria-label="NEW 可查看 MRD"');
+  expect(html).toContain('aria-label="PCMO|MKT 可查看 MRD"');
   expect(html).toContain("暂不拆部门");
 });
 
@@ -63,17 +63,34 @@ it("business prompts expose prior versions and clearly defer their effect to reg
   expect(html).toContain("已有摘要保留原版本");
 });
 
-it.each(["owner", "lead"])("%s historical display and export obey configurable unions, with no total column", (role) => {
+it.each(["owner", "lead"])("%s historical display and export obey home affiliation and preserve public totals", (role) => {
   const state = shared.context.state;
   state.departmentResources = { MKT: ["MRD"], ICE: ["SP&A"], CUSTOM: ["Capex"] };
-  const identity = { role, department: ["MKT", "ICE"], ownerId: state.initiatives[0].ownerId };
+  const identity = { role, affiliation_sector: "PCMO", affiliation_department: "MKT", department: ["MKT", "ICE"], ownerId: state.initiatives[0].ownerId };
   const model = X.rawData(state, identity, D, "history");
   expect(model.rows).toHaveLength(D.dealers.length);
   expect(model.columns.filter((column) => column.key.startsWith("resource_")).map((column) => column.key))
-    .toEqual(["resource_MRD", "resource_SP&A"]);
-  expect(X.csv(model)).not.toContain("总资源");
+    .toEqual(["resource_MRD"]);
+  expect(X.csv(model)).toContain("历史投资总额");
   expect(X.csv(model)).not.toContain("2025 Capex");
   expect(X.csv(model)).not.toContain("2025 ICE Rebate");
   state.departmentResources = {};
   expect(X.rawData(state, identity, D, "history").columns.some((column) => column.key.startsWith("resource_"))).toBe(false);
+});
+
+it("expense exports fail closed for missing affiliation and honor overrides without inventing API fields", () => {
+  const state = shared.context.state;
+  state.departmentResources = { MKT: ["MRD"], "PCMO|MKT": ["SP&A"] };
+  const home = { role: "admin", affiliation_sector: "PCMO", affiliation_department: "MKT" };
+  const columns = identity => X.rawData(state, identity, D, "history").columns
+    .filter(column => column.key.startsWith("resource_")).map(column => column.key);
+  expect(columns({ role: "admin" })).toEqual([]);
+  expect(columns(home)).toEqual(["resource_SP&A"]);
+  expect(columns({ ...home, history_resources: [] })).toEqual([]);
+  expect(columns({ ...home, history_resources: ["Capex"] })).toEqual(["resource_Capex"]);
+  state.scenario = "api";
+  const data = { ...D, dealers: [{ id: "PUBLIC", history: { resources2025: {}, totalInvestment2025: 100000 } }] };
+  const model = X.rawData(state, { ...home, history_resources: ["Capex"] }, data, "history");
+  expect(model.columns.some(column => column.key === "resource_Capex")).toBe(false);
+  expect(model.rows[0].totalInvestment2025).toBe(100);
 });

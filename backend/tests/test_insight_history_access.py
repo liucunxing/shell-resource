@@ -4,13 +4,16 @@ import json
 from app.services.insight_pack_adapter import PACK_ROOT, InsightPack, build_evidence
 from test_insight_investment import item, record
 
+HISTORY_IDENTITY = {"role": "owner", "affiliation_sector": "PCMO", "affiliation_department": "MKT"}
+
 
 def evidence(rows):
     items = [
         item((i + 1) * 100000, code=row["id"], identifier=str(i)) for i, row in enumerate(rows)
     ]
     return build_evidence(
-        {"data": {"dealers": rows}}, {"scope": "owner:test", "items": items}, "owner", 2027
+        {"identity": HISTORY_IDENTITY, "data": {"dealers": rows}},
+        {"scope": "owner:test", "items": items}, "owner", 2027
     )
 
 
@@ -24,7 +27,7 @@ def test_sector_metrics_survive_restricted_resource_amount():
     crto = record("D1", sector="CRTO")
     crto["history"].update({"yield": 3, "vol2025": 24000})
     data = build_evidence(
-        {"data": {"dealers": [crto, pcmo]}},
+        {"identity": HISTORY_IDENTITY, "data": {"dealers": [crto, pcmo]}},
         {"scope": "owner:test", "items": [item(295987.72, sector="PCMO")]},
         "owner",
         2027,
@@ -43,7 +46,7 @@ def test_sector_metrics_survive_restricted_resource_amount():
     pcmo["history"]["restrictedResources2025"] = ["Capex"]
     pcmo["history"]["resources2025"]["MRD"] = None
     other = build_evidence(
-        {"data": {"dealers": [pcmo]}},
+        {"identity": HISTORY_IDENTITY, "data": {"dealers": [pcmo]}},
         {"scope": "owner:test", "items": [item(295987.72, sector="PCMO")]},
         "owner",
         2027,
@@ -60,7 +63,7 @@ def test_mixed_resources_only_compare_authorized_amounts():
     dealer = record(actual=100000, **{"SP&A": 100000})
     dealer["history"].update({"yield": 2.5, "restrictedResources2025": ["MRD"]})
     data = build_evidence(
-        {"data": {"dealers": [dealer]}},
+        {"identity": HISTORY_IDENTITY, "data": {"dealers": [dealer]}},
         {"scope": "owner:test", "items": [item(), item(resource="SP&A", identifier="2")]},
         "owner", 2027,
     )
@@ -72,17 +75,23 @@ def test_mixed_resources_only_compare_authorized_amounts():
 
 
 def test_department_permission_skips_resource_even_without_history_rows():
-    workspace = {"identity": {"department": ["ICE"]}, "data": {"dealers": []}}
+    workspace = {
+        "identity": {
+            "role": "owner", "department": ["ICE"],
+            "affiliation_sector": "PCMO", "affiliation_department": "ICE",
+        },
+        "data": {"dealers": []},
+    }
     descriptor = {"scope": "owner:test", "items": [item()]}
     data = build_evidence(workspace, descriptor, "owner", 2027)
     assert not any(f["id"].startswith("investment") for f in data["facts"])
-    # Configured multi-department union permits the comparison; source absence
-    # then remains genuine missing history rather than being silently skipped.
-    workspace["identity"]["department"].append("MKT")
+    # Business scope does not grant expense access. An explicit user override does;
+    # source absence remains missing history rather than being silently skipped.
+    workspace["identity"]["history_resources"] = ["MRD"]
     data = build_evidence(workspace, descriptor, "owner", 2027)
     rows = next(d for d in data["datasets"] if d["id"] == "investment-review")["rows"]
     assert rows[0]["reason_code"] == "missing"
-    workspace["identity"]["department"] = ["ICE"]
+    workspace["identity"].pop("history_resources")
     workspace["state"] = {"departmentResources": {"ICE": ["MRD"]}}
     data = build_evidence(workspace, descriptor, "owner", 2027)
     assert any(d["id"] == "investment-review" for d in data["datasets"])

@@ -8,8 +8,7 @@ from pathlib import Path
 from statistics import median
 from typing import Any
 
-from app.core.departments import departments
-from app.core.resource_access import RESOURCE_TYPES, default_department_resources
+from app.core.resource_access import RESOURCE_TYPES, historical_resource_access
 from app.services.dealer_history import scoped_dealer_histories
 from app.services.insight_investment import InvestmentRules, investment_comparisons
 
@@ -286,11 +285,12 @@ def build_evidence(
                 "2025全年 / 2024全年",
                 "系统计算2025减2024；零值、负值保留；缺任一年度才为空，单位沿用源数据。",
             )
+            supplied_metric_growth = supplied_growth[metric]
             fact(
                 f"{metric}-growth:{dealer_id}",
                 f"{dealer_id} {metric.upper()} 全年同比变化率",
-                supplied_growth[metric] / 100
-                if supplied_growth[metric] is not None
+                supplied_metric_growth / 100
+                if supplied_metric_growth is not None
                 else (
                     float(change / Decimal(str(previous)))
                     if change is not None and previous is not None and previous > 0
@@ -420,14 +420,11 @@ def build_evidence(
             ],
         )
     investment_rules = investment_rules or InvestmentRules()
-    excluded_resources = set()
     identity = workspace.get("identity") or {}
-    if role in {"owner", "lead"} and "department" in identity:
-        mapping = state.get("departmentResources", default_department_resources())
-        visible = set().union(
-            *(mapping.get(dep, []) for dep in departments(identity["department"]))
-        )
-        excluded_resources = set(RESOURCE_TYPES) - visible
+    visible = historical_resource_access(
+        identity, state.get("departmentResources"), state.get("roleResources")
+    )["resources"]
+    excluded_resources = set(RESOURCE_TYPES) - set(visible)
     investment_rows = investment_comparisons(
         (workspace.get("data") or {}).get("dealers") or [],
         descriptor["items"],

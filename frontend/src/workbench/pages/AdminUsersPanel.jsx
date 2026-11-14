@@ -6,9 +6,11 @@ import { useWorkbench } from "../WorkbenchContext.jsx";
 const PAGE_SIZE = 20;
 const DEPARTMENTS = ["MKT", "ICE", "CAPEX"];
 const SECTORS = ["PCMO", "CRTO", "B2B", "OEM"];
+const HISTORY_RESOURCES = ["MRD", "SP&A", "ICE Rebate", "Capex"];
 const EMPTY_FILTERS = { email: "", name: "", role: "", department: "", sector: "" };
 const EMPTY_USER = {
   email: "", display_name: "", role: "owner", department: ["MKT"], sector: [], enabled: true,
+  affiliation_sector: "", affiliation_department: "", history_resources: null,
 };
 const ROLE_LABELS = {
   owner: "Owner", lead: "部门负责人", management: "管理层", admin: "管理员",
@@ -27,6 +29,8 @@ export const toggleSectorSelection = (role, current, sector) => {
 };
 export const ownerSectorOptions = (department, leadSectorsByDepartment = {}) =>
   E.departments(department).length ? SECTORS.filter((sector) => E.departments(department).every((dep) => (leadSectorsByDepartment[dep] || []).includes(sector))) : [];
+export const hasValidAffiliation = (user) => SECTORS.includes(user.affiliation_sector)
+  && DEPARTMENTS.includes(user.affiliation_department);
 
 function UserDialog({ title, children, onClose, onConfirm, confirmLabel, saving }) {
   const ref = useRef(null);
@@ -104,6 +108,9 @@ export function AdminUsersPanel() {
       department: E.departments(user),
       sector: user.sector || [],
       enabled: user.enabled,
+      affiliation_sector: user.affiliation_sector || "",
+      affiliation_department: user.affiliation_department || "",
+      history_resources: user.history_resources ?? null,
     } : { ...EMPTY_USER });
     setDialog({ kind, user });
   };
@@ -118,6 +125,10 @@ export function AdminUsersPanel() {
         return;
       }
       if (!displayName) { setFormError("姓名不能为空。"); return; }
+      if (!hasValidAffiliation(form)) {
+        setFormError("所有角色都必须选择所属 Sector 和 Department。");
+        return;
+      }
       if (["owner", "lead"].includes(form.role) && !form.department.length) {
         setFormError("Owner 和部门负责人必须填写部门。");
         return;
@@ -149,6 +160,9 @@ export function AdminUsersPanel() {
             ? form.department : [],
           sector: ["owner", "lead"].includes(form.role) ? form.sector : [],
           enabled: form.enabled,
+          affiliation_sector: form.affiliation_sector,
+          affiliation_department: form.affiliation_department,
+          history_resources: form.history_resources,
         };
         if (dialog.kind === "create") await api.createAdminUser(payload);
         else await api.updateAdminUser(dialog.user.id, payload);
@@ -174,7 +188,7 @@ export function AdminUsersPanel() {
   return (
     <>
       <div className="user-list-heading">
-        <p className="small-text muted">维护邮箱、姓名、角色、部门和业务线。点击“模拟查看”可按该用户的实际权限只读查看工作台；已有 Initiative 的用户仅可调整部门。</p>
+        <p className="small-text muted">维护人员归属、业务授权和历史费用列。所属部门用于费用权限，不会增加项目或部门查看范围。点击“模拟查看”按实际权限只读查看。</p>
         <button type="button" className="button primary" disabled={previewMode} onClick={() => open("create")}>新增人员</button>
       </div>
       <form
@@ -225,7 +239,7 @@ export function AdminUsersPanel() {
         <div className="table-scroll">
           <table className="contract-table">
             <thead><tr>
-              <th>邮箱</th><th>姓名</th><th>角色</th><th>部门</th><th>业务线</th><th>状态</th><th>预算关联</th><th>操作</th>
+              <th>邮箱</th><th>姓名</th><th>角色</th><th>授权部门</th><th>授权业务线</th><th>所属部门</th><th>费用列</th><th>状态</th><th>预算关联</th><th>操作</th>
             </tr></thead>
             <tbody>
               {result.items.map((user) => <tr key={user.id}>
@@ -234,6 +248,8 @@ export function AdminUsersPanel() {
                 <td>{ROLE_LABELS[user.role] || user.role}</td>
                 <td>{E.departments(user).join("、") || "—"}</td>
                 <td>{user.sector?.length ? user.sector.join("、") : "—"}</td>
+                <td>{hasValidAffiliation(user) ? `${user.affiliation_sector} / ${user.affiliation_department}` : "待配置"}</td>
+                <td>{user.history_resources == null ? "继承默认" : user.history_resources.join("、") || "全部隐藏"}</td>
                 <td><span className={`badge ${user.enabled ? "teal" : "amber"}`}>
                   {user.enabled ? "启用" : "停用"}</span></td>
                 <td>{user.has_initiatives ? <span className="badge amber">已有 Initiative</span> : "无"}</td>
@@ -246,7 +262,7 @@ export function AdminUsersPanel() {
                   <button type="button" className="button small" disabled={previewMode} onClick={() => open("delete", user)}>删除</button>
                 </div></td>
               </tr>)}
-              {!loading && !result.items.length && <tr><td colSpan={8}>暂无匹配人员。</td></tr>}
+              {!loading && !result.items.length && <tr><td colSpan={10}>暂无匹配人员。</td></tr>}
             </tbody>
           </table>
         </div>
@@ -290,7 +306,36 @@ export function AdminUsersPanel() {
               {Object.entries(ROLE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </label>
-          {dialog.user?.has_initiatives && <p className="note-box">已有预算事项，仅可调整部门；仍有项目的部门必须保留。</p>}
+          {dialog.user?.has_initiatives && <p className="note-box">已有预算事项，可调整部门、所属归属和费用列；仍有项目的授权部门必须保留。</p>}
+          <fieldset className="form-field">
+            <legend>所属部门（所有角色必填）</legend>
+            <label className="form-field">所属 Sector
+              <select required value={form.affiliation_sector} onChange={(event) => setForm({ ...form, affiliation_sector: event.target.value })}>
+                <option value="">请选择 Sector</option>
+                {SECTORS.map(value => <option key={value} value={value}>{value}</option>)}
+              </select>
+            </label>
+            <label className="form-field">所属 Department
+              <select required value={form.affiliation_department} onChange={(event) => setForm({ ...form, affiliation_department: event.target.value })}>
+                <option value="">请选择 Department</option>
+                {DEPARTMENTS.map(value => <option key={value} value={value}>{value}</option>)}
+              </select>
+            </label>
+            <small>仅用于关联历史费用权限，不自动改变下方业务授权。未配置有效归属时不显示费用明细。</small>
+          </fieldset>
+          <fieldset className="form-field">
+            <legend>历史费用列覆盖</legend>
+            <label><input type="checkbox" checked={form.history_resources !== null}
+              onChange={(event) => setForm({ ...form, history_resources: event.target.checked ? [] : null })} />为此用户单独配置</label>
+            {form.history_resources !== null && <div className="sector-choice-group">
+              {HISTORY_RESOURCES.map(resource => <label key={resource}>
+                <input type="checkbox" checked={form.history_resources.includes(resource)} onChange={(event) => setForm({ ...form,
+                  history_resources: event.target.checked ? [...form.history_resources, resource] : form.history_resources.filter(item => item !== resource),
+                })} />{resource}
+              </label>)}
+            </div>}
+            <small>用户覆盖优先于所属部门默认和角色默认；单独配置后不勾选即全部隐藏。历史总额与 Yield 等公共指标不受影响。</small>
+          </fieldset>
           {["owner", "lead"].includes(form.role) && <div className="form-field">部门（可多选）
             <div className="sector-choice-group" role="group" aria-label="选择部门">
               {userDepartmentOptions(form.department).map((value) => <button

@@ -13,6 +13,9 @@ class BudgetDO(TimestampMixin, BaseDO):
     __table_args__ = {"schema": "data"}
 
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
+    planning_version_id: Mapped[str | None] = mapped_column(String(32), index=True)
+    initiative_key: Mapped[str | None] = mapped_column(String(64))
+    enabled: Mapped[bool] = mapped_column(default=True, nullable=False)
     planning_year: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     sector: Mapped[str] = mapped_column(String(32), nullable=False)
     department: Mapped[str] = mapped_column(String(32), nullable=False)

@@ -107,6 +107,8 @@ def investment_comparisons(
             )
         elif (
             baseline > 0
+            and multiple is not None
+            and delta is not None
             and multiple >= Decimal(str(rules.increase_multiple))
             and delta >= Decimal(str(rules.absolute_change))
         ):
@@ -114,6 +116,8 @@ def investment_comparisons(
             status, reason = "review", "计划较历史实际显著增加，达到倍数及金额复核阈值"
         elif (
             baseline > 0
+            and multiple is not None
+            and delta is not None
             and multiple <= Decimal(str(rules.decrease_multiple))
             and -delta >= Decimal(str(rules.absolute_change))
         ):

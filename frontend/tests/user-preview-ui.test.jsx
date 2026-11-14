@@ -76,7 +76,7 @@ describe("user preview read-only surfaces", () => {
     const settings = renderToStaticMarkup(<HistoricalResourceSettings mapping={{ MKT: ["MRD"] }}
       departments={["MKT"]} saveConfig={vi.fn()} readOnly />);
     expect(settings).toMatch(/<input[^>]*disabled=""/);
-    expect(settings).toMatch(/<button[^>]*disabled=""[^>]*>保存资源列权限<\/button>/);
+    expect(settings).toMatch(/<button[^>]*disabled=""[^>]*>保存费用列权限<\/button>/);
     const insight = renderToStaticMarkup(<InsightPanel />);
     expect(insight).toMatch(/<select aria-label="模拟用户视角" disabled=""/);
     expect(insight).toMatch(/<button[^>]*disabled=""[^>]*>试用分析<\/button>/);

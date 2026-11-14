@@ -51,6 +51,16 @@ def test_ratios_and_annual_changes_are_provided_with_explicit_denominators():
     assert facts["arranged"]["value"] == 100
 
 
+def test_supplied_zero_growth_is_preserved_while_missing_growth_uses_calculation():
+    data = evidence({
+        "vol2024": 100, "vol2025": 120, "yoyVol2425": 0,
+        "c32024": 50, "c32025": 60, "yoyC32425": None,
+    })
+    facts = {fact["id"]: fact["value"] for fact in data["facts"]}
+    assert facts["vol-growth:D1"] == 0
+    assert facts["c3-growth:D1"] == 0.2
+
+
 def test_fully_documented_other_budget_keeps_amount_check_clear():
     data = evidence()
     completeness = next(c for c in data["check_constraints"] if c["dimension_id"] == "completeness")

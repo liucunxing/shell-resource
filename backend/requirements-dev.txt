@@ -6,3 +6,6 @@ pytest-asyncio>=0.24,<1.0
 ruff>=0.8,<1.0
 mypy>=1.13,<2.0
 
+# Starlette 1.9 TestClient uses httpx2; runtime HTTP integrations still use httpx.
+httpx2==2.16.0
+

@@ -187,7 +187,7 @@ export function WorkbenchProvider({ children }) {
   const view = useMemo(
     () =>
       identity
-        ? E.selectView(state, identity)
+        ? { ...E.selectView(state, identity), ...(state.planningVersion ? { initiatives: state.initiatives.filter((item) => identity.role === "admin" || item.enabled !== false) } : {}) }
         : { initiatives: [], departments: {}, summaries: {} },
     [identity, state],
   );
@@ -215,7 +215,7 @@ export function WorkbenchProvider({ children }) {
     setAuxiliary({ open: false, tab: "reference", dealerId: "", scope: "" });
   };
 
-  const refresh = async () => {
+  const refresh = async (options = {}) => {
     if (demoMode) return true;
     const epoch = ++sessionEpoch.current;
     pendingDrafts.current.clear();
@@ -245,7 +245,8 @@ export function WorkbenchProvider({ children }) {
       setDirtyIds(new Set());
       setSavedForSyncIds(new Set());
       setEditorOperations({});
-      setPage(homeFor(workspace.identity));
+      api.setPlanningVersion(workspace.state.currentVersionId || workspace.state.planningVersion?.id || "");
+      if (!options.preservePage) setPage(homeFor(workspace.identity));
       return true;
     } catch (error) {
       if (epoch !== sessionEpoch.current) return false;
@@ -256,6 +257,17 @@ export function WorkbenchProvider({ children }) {
     } finally {
       if (epoch === sessionEpoch.current) setLoading(false);
     }
+  };
+
+  const selectPlanningVersion = async (id) => {
+    if (!inputReady()) return false;
+    if (dirtyIds.size) {
+      notify("请先保存当前草稿，再切换规划版本。", true);
+      return false;
+    }
+    api.setPlanningVersion(id);
+    setInitiativeId("");
+    return refresh({ preservePage: page !== "editor" });
   };
 
   const loadDistributorDirectory = useCallback(async ({ force = false } = {}) => {
@@ -380,7 +392,7 @@ export function WorkbenchProvider({ children }) {
     if (!draft || pendingDrafts.current.has(String(id))) return false;
     const epoch = sessionEpoch.current;
     const requested = structuredClone(current);
-    const showEditorOperation = values === undefined;
+    const showEditorOperation = values === undefined || Object.keys(values).every((key) => key === "changeReason");
     pendingDrafts.current.add(String(id));
     if (showEditorOperation)
       setEditorOperations((old) => ({ ...old, [id]: "save" }));
@@ -438,7 +450,7 @@ export function WorkbenchProvider({ children }) {
     }
   };
 
-  const publish = async (id) => {
+  const publish = async (id, note = "") => {
     const local = stateRef.current.initiatives.find(
       (item) => item.id === String(id),
     );
@@ -469,7 +481,7 @@ export function WorkbenchProvider({ children }) {
         notify("已同步最新分配，仍可继续修改。");
         return publication;
       }
-      const publication = await api.publish(id, requested);
+      const publication = await api.publish(id, requested, note);
       if (epoch !== sessionEpoch.current) return false;
       const next = structuredClone(stateRef.current);
       const history = next.publications[id] || [];
@@ -489,7 +501,12 @@ export function WorkbenchProvider({ children }) {
         next.delete(String(id));
         return next;
       });
-      notify("已同步最新分配，仍可继续修改。");
+      if (current?.workflow) {
+        current.workflow = { ...current.workflow, submitted: true, editable: false, requiresResubmission: false, returnReason: null };
+        current.status = "completed";
+        replaceState({ ...next });
+      }
+      notify(current?.workflow ? "方案已提交，进入只读；如需修改请由部门负责人退回。" : "已同步最新分配。");
       return publication;
     } catch (error) {
       if (epoch !== sessionEpoch.current) return false;
@@ -527,12 +544,20 @@ export function WorkbenchProvider({ children }) {
   const manageAdminBudget = async (action, item, payload) => {
     const epoch = sessionEpoch.current;
     try {
-      if (action === "create") await api.createBudget(payload);
+      if (stateRef.current.planningVersion) {
+        const version = stateRef.current.planningVersion;
+        const value = { ...payload, expected_revision: version.revision };
+        delete value.id;
+        if (action === "create") await api.createVersionInitiative(version.id, value);
+        else if (action === "edit") await api.updateVersionInitiative(version.id, item.id, value);
+        else throw Error("规划版本内请停用项目以保留历史。");
+      }
+      else if (action === "create") await api.createBudget(payload);
       else if (action === "edit") await api.editBudget(item.id, { ...payload, expected_revision: item.revision });
       else if (action === "delete") await api.deleteBudget(item.id, item.revision);
       else throw Error("项目操作无效");
       if (epoch !== sessionEpoch.current) return false;
-      return await refresh();
+      return await refresh({ preservePage: true });
     } catch (error) {
       if (epoch !== sessionEpoch.current) return false;
       notify(error.message || "项目配置保存失败，请重试。", true);
@@ -608,6 +633,7 @@ export function WorkbenchProvider({ children }) {
     setPreviewUserEmail("");
     setPreviewActor(null);
     api.setDevelopmentEmail(email);
+    api.setPlanningVersion("");
     setDevEmailState(api.getDevelopmentEmail());
     clearApiWorkspace();
     if (!api.getDevelopmentEmail()) {
@@ -731,6 +757,7 @@ export function WorkbenchProvider({ children }) {
     directoryStatus,
     loadDistributorDirectory,
     refresh,
+    selectPlanningVersion,
     dirtyIds,
     savedForSyncIds,
     editorOperations,

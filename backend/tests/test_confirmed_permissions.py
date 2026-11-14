@@ -1,6 +1,7 @@
 """Confirmed permission matrix: reads, writes, prompt versions and synced AI inputs."""
 
 import json
+from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
@@ -21,7 +22,8 @@ from test_workspace import _owner, _session, _workspace_service
 
 
 def user(role, department=()):
-    return WorkbenchUser(f"{role}@example.com", role, department, role, ("PCMO",))
+    return WorkbenchUser(f"{role}@example.com", role, department, role, ("PCMO",),
+                         affiliation_sector="PCMO", affiliation_department="MKT")
 
 
 async def published_then_changed(session):
@@ -72,29 +74,29 @@ async def test_admin_reads_drafts_versions_and_all_logs_but_cannot_write():
 
 
 @pytest.mark.asyncio
-async def test_configured_resource_union_is_enforced_for_owner_and_lead_without_total():
+async def test_home_department_controls_expenses_without_expanding_business_scope():
     session = await _session()
     try:
         admin = AdminService(session, user("admin"))
         result = await admin.update_config(
             AdminConfigDTO(
                 expected_revision=0,
-                departmentResources={"MKT": ["MRD"], "ICE": ["SP&A"], "NEW": ["Capex"]},
+                departmentResources={"MKT": ["MRD"], "ICE": ["SP&A"], "CAPEX": ["Capex"]},
             )
         )
         assert result["departmentResources"]["ICE"] == ["SP&A"]
         for role in ("owner", "lead"):
             ws = await WorkspaceService(session, user(role, ("MKT", "ICE"))).get_workspace(2027)
-            assert {row["id"] for row in ws["data"]["dealers"]} == {"d1", "d2", "d3"}
+            assert {row["id"] for row in ws["data"]["dealers"]} == {"d1", "d2"}
             for row in ws["data"]["dealers"]:
-                assert set(row["history"]["resources2025"]) == {"MRD", "SP&A"}
-                assert row["history"]["restrictedResources2025"] == ["Capex", "ICE Rebate"]
+                assert set(row["history"]["resources2025"]) == {"MRD"}
+                assert row["history"]["restrictedResources2025"] == ["Capex", "ICE Rebate", "SP&A"]
                 assert "yield" in row["history"]
-                assert "resource_total" not in row["history"]
-        # Empty scope never grants every column; custom departments work without code changes.
-        for deps, resources in [((), set()), (("NEW",), {"Capex"})]:
-            ws = await WorkspaceService(session, user("lead", deps)).get_workspace(2027)
-            assert set(ws["data"]["dealers"][0]["history"]["resources2025"]) == resources
+                assert "totalInvestment2025" in row["history"]
+        # A missing home affiliation denies detail even for a privileged role.
+        missing = replace(user("admin"), affiliation_department=None)
+        ws = await WorkspaceService(session, missing).get_workspace(2027)
+        assert ws["data"]["dealers"][0]["history"]["resources2025"] == {}
         with pytest.raises(HTTPException) as error:
             await AdminService(session, user("lead", ("MKT",))).update_config(
                 AdminConfigDTO(expected_revision=1, departmentResources={})
@@ -196,9 +198,9 @@ async def test_prompt_inherited_by_owner_and_old_result_hidden_after_resource_re
         await session.bind.dispose()
 
 
-def test_pre_upgrade_owner_records_remain_visible_but_lead_unrestricted_records_do_not():
+def test_pre_upgrade_records_without_valid_affiliation_are_hidden():
     workspace = {"state": {"initiatives": [], "departmentResources": {"MKT": ["MRD", "SP&A"]}}}
-    for role, visible in [("owner", True), ("lead", False)]:
+    for role, visible in [("owner", False), ("lead", False)]:
         insight, _ = fake_insight_service(role)
         scope = "owner:owner@example.com" if role == "owner" else "MKT"
         descriptor = insight._scope(workspace, scope)

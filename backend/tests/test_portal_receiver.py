@@ -195,6 +195,47 @@ async def test_login_cookie_context_and_two_identity_routes(harness):
 
 
 @pytest.mark.asyncio
+async def test_portal_planning_routes_use_portal_identity_and_csrf(harness):
+    harness.db.add(UserPermissionDO(
+        id=5, email="admin@example.com", display_name="Admin", role="admin",
+        department=[], enabled=True,
+    ))
+    await harness.db.commit()
+    response, instance = await harness.login("admin@example.com", "employee-admin")
+    assert response.status_code == 303
+    headers = await harness.headers(instance)
+    endpoint = PREFIX + "/api/v1/workbench/planning-versions"
+    payload = {"id": "202701", "name": "First", "planning_year": 2027}
+    denied = await harness.client.post(endpoint, headers={
+        key: value for key, value in headers.items() if key != "X-Portal-CSRF"
+    }, json=payload)
+    assert denied.status_code == 403
+    created = await harness.client.post(endpoint, headers=headers, json=payload)
+    assert created.status_code == 200, created.text
+    listed = await harness.client.get(endpoint + "?planning_year=2027", headers=headers)
+    assert listed.status_code == 200 and listed.json()["data"][0]["id"] == "202701"
+    opened = await harness.client.patch(endpoint + "/202701", headers=headers, json={
+        "expected_revision": 0, "published": True, "open": True,
+    })
+    assert opened.status_code == 200, opened.text
+    department = await harness.client.get(
+        endpoint + "/202701/department?sector=PCMO&department=MKT", headers=headers,
+    )
+    assert department.status_code == 200, department.text
+    incomplete = await harness.client.post(
+        endpoint + "/202701/department/confirm", headers=headers,
+        json={"sector": "PCMO", "department": "MKT", "expected_revision": 1},
+    )
+    assert incomplete.status_code == 409, incomplete.text
+    _, instance = await harness.login()
+    owner_headers = await harness.headers(instance)
+    forbidden = await harness.client.post(endpoint, headers={
+        **owner_headers, "X-User-Email": "admin@example.com",
+    }, json={**payload, "id": "202702", "source_version_id": "202701"})
+    assert forbidden.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_session_fixation_multiinstance_account_switch_and_logout(harness):
     response, first = await harness.login()
     old_cookie = harness.client.cookies.get(COOKIE_NAME)

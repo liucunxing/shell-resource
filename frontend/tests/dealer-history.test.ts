@@ -10,6 +10,18 @@ import { allocateByHistory } from "../src/workbench/domain/history-allocation";
 import E from "../src/workbench/domain/engine.js";
 
 describe("imported distributor history", () => {
+  it("uses public totals independently of expense-column permission", () => {
+    const history = { totalInvestment2025: 120, resources2025: { MRD: 10 }, restrictedResources2025: ["Capex"] };
+    expect(historyInvestment(history, "2025")).toBe(120);
+    expect(historyInvestment({ ...history, totalInvestment2025: null }, "2025")).toBeNull();
+    expect(historyInvestment({ ...history, totalInvestment2025: 0 }, "2025")).toBe(0);
+    expect(historyInvestment({ totalInvestment2026Ytd: 80 }, "2026Ytd")).toBe(80);
+  });
+
+  it("suppresses YTD Yield when coverage cannot be aligned", () => {
+    expect(historyYield({ yield2026Ytd: 12, ytdYieldUnavailableReason: "月份未提供" }, "2026Ytd")).toBeNull();
+  });
+
   it("combines metadata and metrics only within the initiative sector", () => {
     const rows = initiativeDealers(
       [

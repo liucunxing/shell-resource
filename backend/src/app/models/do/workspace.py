@@ -18,7 +18,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from app.core.departments import departments
-from app.core.resource_access import default_department_resources
+from app.core.resource_access import default_department_resources, default_role_resources
 from app.models.do.base import BaseDO, TimestampMixin
 
 
@@ -52,6 +52,12 @@ class UserPermissionDO(TimestampMixin, BaseDO):
         ARRAY(String(32)).with_variant(JSON(), "sqlite")
     )
     enabled: Mapped[bool] = mapped_column(nullable=False, default=True)
+    # Home affiliation is independent from department/sector business authorization.
+    affiliation_sector: Mapped[str | None] = mapped_column(String(32))
+    affiliation_department: Mapped[str | None] = mapped_column(String(32))
+    history_resources: Mapped[list[str] | None] = mapped_column(
+        ARRAY(String(32)).with_variant(JSON(), "sqlite")
+    )
 
 
 class OtherBudgetDO(TimestampMixin, BaseDO):
@@ -102,6 +108,16 @@ class WorkspaceConfigDO(TimestampMixin, BaseDO):
     reference: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     department_resources: Mapped[dict] = mapped_column(
         JSON, nullable=False, default=default_department_resources
+    )
+    role_resources: Mapped[dict] = mapped_column(
+        JSON, nullable=False, default=default_role_resources
+    )
+    health_thresholds: Mapped[dict] = mapped_column(
+        JSON, nullable=False,
+        default=lambda: {
+            "concentrationYellow": 5, "concentrationRed": 10,
+            "dealerYellow": 3, "dealerRed": 6,
+        },
     )
 
 

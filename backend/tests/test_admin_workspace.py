@@ -473,29 +473,26 @@ def test_distributor_history_field_mapping_and_department_scope():
             )
         )
         await session.commit()
-        dealer = (await ReferenceService(session).get_dealers(2027, "MKT"))[0]
-        assert dealer == {
-            "id": "D-HISTORY",
-            "name": "History Dealer",
-            "sector": "PCMO",
-            "history": {
-                "vol2024": 1.0,
-                "c32024": 2.0,
-                "vol2025": 3.0,
-                "c32025": 4.0,
-                "vol2026Ytd": 5.0,
-                "c32026Ytd": 6.0,
-                "yield": 11.0,
-                "resources2025": {"MRD": 7.0, "SP&A": 9.0},
-                "restrictedResources2025": ["Capex", "ICE Rebate"],
-            },
-        }
-        ice = (await ReferenceService(session).get_dealers(2027, "ICE"))[0]
-        assert ice["history"]["resources2025"] == {"ICE Rebate": 8.0, "SP&A": 9.0}
-        multi = (await ReferenceService(session).get_dealers(2027, ["MKT", "ICE"]))[0]
-        assert multi["history"]["resources2025"] == {"MRD": 7.0, "SP&A": 9.0, "ICE Rebate": 8.0}
-        empty = (await ReferenceService(session).get_dealers(2027, []))[0]
+        mkt_user = WorkbenchUser("owner@example.com", "owner", ["MKT", "ICE"], "Owner",
+                                 ("PCMO",), affiliation_sector="PCMO", affiliation_department="MKT")
+        dealer = (await ReferenceService(session).get_dealers(2027, user=mkt_user))[0]
+        assert (dealer["code"], dealer["sector"]) == ("D-HISTORY", "PCMO")
+        assert dealer["history"]["vol2024"] == 1
+        assert dealer["history"]["vol2025"] == 3
+        assert dealer["history"]["c32026Ytd"] == 6
+        assert dealer["history"]["yield"] == 11
+        assert dealer["history"]["resources2025"] == {"MRD": 7, "SP&A": 9}
+        assert dealer["history"]["totalInvestment2025"] == 34
+        assert dealer["history"]["totalInvestment2026Ytd"] is None
+        assert dealer["history"]["restrictedResources2025"] == ["Capex", "ICE Rebate"]
+        # Multiple business-authorized departments never union home-affiliation expense access.
+        ice_user = WorkbenchUser("lead@example.com", "lead", ["MKT", "ICE"], "Lead",
+                                 ("PCMO",), affiliation_sector="PCMO", affiliation_department="ICE")
+        ice = (await ReferenceService(session).get_dealers(2027, user=ice_user))[0]
+        assert ice["history"]["resources2025"] == {"ICE Rebate": 8, "SP&A": 9}
+        empty = (await ReferenceService(session).get_dealers(2027))[0]
         assert empty["history"]["resources2025"] == {}
+        assert empty["history"]["totalInvestment2025"] == 34
 
     asyncio.run(database_case(run))
 

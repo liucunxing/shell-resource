@@ -3,9 +3,9 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dealer_identity import dealer_identity
-from app.core.departments import departments
 from app.core.distributor_status import distributor_status
-from app.core.resource_access import default_department_resources
+from app.core.resource_access import historical_resource_access
+from app.dependencies.workbench_user import WorkbenchUser
 from app.repositories.reference_repository import ReferenceRepository
 from app.repositories.workspace_repository import WorkspaceRepository
 
@@ -21,12 +21,22 @@ class ReferenceService:
         department: str | tuple[str, ...] | list[str] | None = None,
         dealer_ids: list[str] | None = None,
         sectors: tuple[str, ...] | None = None,
+        *,
+        user: WorkbenchUser | None = None,
     ) -> list[dict]:
         del planning_year  # The source table contains fixed historical years, not planning years.
+        if user is not None:
+            sectors = user.dealer_sectors
         rows = await self.repository.list_dealers(dealer_ids, sectors)
         result = []
-        config = await self.workspace_repository.config() if department is not None else None
-        allowed = config.department_resources if config else default_department_resources()
+        # Older internal callers without an authenticated user receive public metrics only.
+        config = await self.workspace_repository.config() if user is not None else None
+        access = historical_resource_access(
+            user,
+            config.department_resources if config else None,
+            config.role_resources if config else None,
+        )
+        visible = set(access["resources"])
         for row in rows:
             code = str(row["distributor_code"])
             resources = {
@@ -41,11 +51,6 @@ class ReferenceService:
                 "ICE Rebate": row["reb_2026"],
                 "Capex": row["capex_2026"],
             }
-            visible = (
-                set().union(*(allowed.get(dep, set()) for dep in departments(department)))
-                if department is not None
-                else set(resources)
-            )
             history_values = {
                 "vol2024": row["volume_2024"],
                 "c32024": row["c3_2024"],
@@ -54,7 +59,7 @@ class ReferenceService:
                 "vol2026Ytd": row["volume_2026"],
                 "c32026Ytd": row["c3_2026"],
                 "yield": row["yield_2025"],
-                "yield2026Ytd": row["yield_2026"],
+                "yield2026Ytd": None,
                 "yoyVol2425": row["yoy_vol_24_25"],
                 "yoyC32425": row["yoy_c3_24_25"],
             }
@@ -62,6 +67,16 @@ class ReferenceService:
                 key: float(value) if value is not None else None
                 for key, value in history_values.items()
             }
+            history["ytdYieldUnavailableReason"] = "历史Actual与费用数据的业务月份尚未提供"
+            for key, values in (
+                ("totalInvestment2025", resources),
+                ("totalInvestment2026Ytd", resources_2026),
+            ):
+                history[key] = (
+                    float(sum(values.values()))
+                    if all(value is not None for value in values.values()) else None
+                )
+            history["expenseAccess"] = access
             # Imported YoY values are ratios (0.125 = 12.5%); keep the UI contract
             # in percentage points. Do not recompute the data team's supplied values.
             for key in ("yoyVol2425", "yoyC32425"):

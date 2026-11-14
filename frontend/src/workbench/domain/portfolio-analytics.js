@@ -1,3 +1,5 @@
+import { historyInvestment } from "./dealer-history";
+
 const number = (value) =>
   value === null || value === undefined || value === ""
     ? null
@@ -21,7 +23,13 @@ export function historyValue(dealer, basis = "c3", period = "2025") {
 export function portfolioRows(items, dealers, basis = "c3", period = "2025") {
   const rows = new Map();
   for (const initiative of items || []) {
-    for (const allocation of initiative.rows || []) {
+    const allocations = new Map((initiative.rows || []).map((row) => [String(row.dealerId), row]));
+    // Selection, not positive investment, defines the history denominator.
+    const selectedIds = Array.isArray(initiative.selected)
+      ? initiative.selected.map(String)
+      : [...allocations.keys()];
+    for (const dealerId of new Set(selectedIds)) {
+      const allocation = allocations.get(dealerId) || { dealerId, amount: 0 };
       const dealer = dealerHistory(dealers, allocation.dealerId, initiative.sector);
       const key = `${initiative.sector || ""}:${allocation.dealerId}`;
       const current = rows.get(key) || {
@@ -30,11 +38,12 @@ export function portfolioRows(items, dealers, basis = "c3", period = "2025") {
         code: dealer?.code || allocation.dealerCode || String(allocation.dealerId),
         name: dealer?.name || "—",
         sector: initiative.sector || dealer?.sector || "—",
-        sd: dealer?.sd || "未配置 SD",
-        rsm: dealer?.rsm || "未配置 RSM",
+        sd: allocation.sd || dealer?.sd || "未配置 SD",
+        rsm: allocation.rsm || dealer?.rsm || "未配置 RSM",
         status: dealer?.status || "—",
         amount: 0,
         initiatives: new Set(),
+        initiativeSources: [],
         resourceTypes: new Set(),
         notes: [],
         metric: historyValue(dealer, basis, period),
@@ -42,6 +51,11 @@ export function portfolioRows(items, dealers, basis = "c3", period = "2025") {
       };
       current.amount += Number(allocation.amount) || 0;
       current.initiatives.add(initiative.name);
+      current.initiativeSources.push({
+        id: String(initiative.id), key: String(initiative.initiativeKey || initiative.id),
+        name: initiative.name, owner: initiative.ownerName || initiative.ownerId || "—",
+        amount: Number(allocation.amount) || 0,
+      });
       current.resourceTypes.add(initiative.resourceType);
       if (allocation.note) current.notes.push(allocation.note);
       rows.set(key, current);
@@ -81,33 +95,134 @@ export function dealerDeviations(rows) {
   }).sort((left, right) => right.gap - left.gap || right.amount - left.amount);
 }
 
-export function groupSummary(rows, allDealers, groupBy = "sd") {
+const completeSum = (values) => values.length && values.every((value) => number(value) !== null)
+  ? values.reduce((sum, value) => sum + number(value), 0) : null;
+
+export function groupSummary(rows, allDealers, groupBy = "sd", period = "2025") {
   const groups = new Map();
   const totalAmount = rows.reduce((sum, row) => sum + row.amount, 0);
   const totalMetric = rows.reduce((sum, row) => sum + Math.max(0, row.metric || 0), 0);
   for (const row of rows) {
     const key = row[groupBy] || `未配置 ${groupBy.toUpperCase()}`;
-    const group = groups.get(key) || { key, allocated: new Set(), amount: 0, metric: 0 };
-    group.allocated.add(row.key);
+    const group = groups.get(key) || { key, allocated: new Set(), selected: new Set(), rows: [], amount: 0, metric: 0 };
+    group.selected.add(row.key);
+    if (row.amount > 0) group.allocated.add(row.key);
+    group.rows.push(row);
     group.amount += row.amount;
     group.metric += Math.max(0, row.metric || 0);
     groups.set(key, group);
   }
   const masterCounts = new Map();
+  const scopedSectors = new Set(rows.map((row) => row.sector));
+  const seenDealers = new Set();
   for (const dealer of allDealers || []) {
+    if (dealer.sector && !scopedSectors.has(dealer.sector)) continue;
+    const identity = `${dealer.sector || ""}:${dealer.id}`;
+    if (seenDealers.has(identity)) continue;
+    seenDealers.add(identity);
     const key = dealer[groupBy] || `未配置 ${groupBy.toUpperCase()}`;
     masterCounts.set(key, (masterCounts.get(key) || 0) + 1);
   }
-  return [...groups.values()].map((group) => ({
+  const metricComplete = rows.every((row) => number(row.metric) !== null);
+  return [...groups.values()].map((group) => {
+    const metric = completeSum(group.rows.map((row) => row.metric));
+    const historicalVol = completeSum(group.rows.map((row) => row.history?.[period === "2025" ? "vol2025" : "vol2026Ytd"]));
+    const historicalC3 = completeSum(group.rows.map((row) => row.history?.[period === "2025" ? "c32025" : "c32026Ytd"]));
+    const historicalInvestment = completeSum(group.rows.map((row) => historyInvestment(row.history, period)));
+    const contractVolume = completeSum(group.rows.map((row) => row.history?.[period === "2025" ? "contract2025" : "contract2026Ytd"]));
+    const aligned = period === "2025" || group.rows.every((row) => !row.history?.ytdYieldUnavailableReason && number(row.history?.yield2026Ytd) !== null);
+    return {
     ...group,
+    metric,
+    metricComplete,
+    selectedCount: group.selected.size,
     allocatedCount: group.allocated.size,
-    totalCount: Math.max(masterCounts.get(group.key) || 0, group.allocated.size),
-    amountShare: totalAmount ? group.amount / totalAmount * 100 : 0,
-    metricShare: totalMetric ? group.metric / totalMetric * 100 : 0,
-    gap: totalAmount && totalMetric
+    totalCount: Math.max(masterCounts.get(group.key) || 0, group.selected.size),
+    amountShare: totalAmount ? group.amount / totalAmount * 100 : null,
+    metricShare: metricComplete && totalMetric ? group.metric / totalMetric * 100 : null,
+    gap: metricComplete && totalAmount && totalMetric
       ? group.amount / totalAmount * 100 - group.metric / totalMetric * 100
       : null,
-  })).sort((left, right) => right.amount - left.amount);
+    historicalVol, historicalC3, historicalInvestment, contractVolume,
+    phasing: historicalVol !== null && contractVolume > 0 ? historicalVol / contractVolume : null,
+    historicalYield: aligned && historicalC3 !== null && historicalInvestment > 0 ? historicalC3 / historicalInvestment : null,
+    pppVol: null, pppC3: null,
+  };
+  }).sort((left, right) => right.amount - left.amount);
+}
+
+export function versionFluctuation(current, previous, available = true) {
+  if (!available || number(current) === null || number(previous) === null)
+    return { changeRate: null, changeLabel: "不可比较", changeState: "missing" };
+  if (previous === 0)
+    return { changeRate: null, changeLabel: current > 0 ? "新增" : "无基期", changeState: current > 0 ? "new" : "zero" };
+  const changeRate = (current - previous) / previous * 100;
+  return { changeRate, changeLabel: `${changeRate > 0 ? "+" : ""}${changeRate.toFixed(1)}%`, changeState: "comparable" };
+}
+
+/** Both versions retain their own group attribution. Pass the intended Initiative
+ * collection; sameInitiatives limits SD/RSM baselines to the current collection.
+ */
+export function compareVersionGroups(currentItems, sourceItems, dealers, groupBy = "initiative", options = {}) {
+  const current = (currentItems || []).filter((item) => item.enabled !== false);
+  const keys = new Set(current.map((item) => String(item.initiativeKey || item.id)));
+  const previous = (sourceItems || []).filter((item) => item.enabled !== false &&
+    (!options.sameInitiatives || keys.has(String(item.initiativeKey || item.id))));
+  const groups = new Map();
+  const ensure = (key, name, owner) => {
+    if (!groups.has(key)) groups.set(key, {
+      key, name, owner, previousAmount: 0, currentAmount: 0,
+      previousBudget: 0, currentBudget: 0, previousReserve: 0, currentReserve: 0,
+      comparable: sourceItems !== null && sourceItems !== undefined,
+    });
+    return groups.get(key);
+  };
+  for (const [side, items] of [["previous", previous], ["current", current]]) {
+    for (const item of items) {
+      const identity = String(item.initiativeKey || item.id);
+      const available = item.allocationVisible !== false && (!options.requireConfirmed || item.workflow?.confirmed === true);
+      const owner = item.ownerName || item.ownerId || "—";
+      if (groupBy === "sd" || groupBy === "rsm") {
+        for (const row of portfolioRows([item], dealers)) {
+          const group = ensure(row[groupBy], row[groupBy], null);
+          group[`${side}Amount`] += row.amount;
+          group.comparable &&= available;
+        }
+        // A hidden allocation can belong to any SD: don't imply the visible
+        // subset is a complete comparison when a scope member is unconfirmed.
+        if (!available) for (const group of groups.values()) group.comparable = false;
+      } else {
+        const key = groupBy === "initiative" ? identity : item[groupBy] || "未配置";
+        const group = ensure(key, groupBy === "initiative" ? item.name : key, groupBy === "initiative" ? owner : null);
+        group[`${side}Budget`] += number(item.budget) || 0;
+        group[`${side}Amount`] += (item.rows || []).reduce((sum, row) => sum + (number(row.amount) || 0), 0);
+        group[`${side}Reserve`] += (item.otherBudgets || []).reduce((sum, row) => sum + (number(row.amount) || 0), 0);
+        group.comparable &&= available;
+      }
+    }
+  }
+  const hasUnknownGroup = ["sd", "rsm"].includes(groupBy) && [...current, ...previous].some((item) =>
+    item.allocationVisible === false || (options.requireConfirmed && item.workflow?.confirmed !== true));
+  return [...groups.values()].map((group) => {
+    const comparable = group.comparable && !hasUnknownGroup;
+    return {
+      ...group, comparable,
+      previousAmount: comparable ? group.previousAmount : null,
+      currentAmount: comparable ? group.currentAmount : null,
+      previousReserve: comparable ? group.previousReserve : null,
+      currentReserve: comparable ? group.currentReserve : null,
+      delta: comparable ? group.currentAmount - group.previousAmount : null,
+      budgetDelta: group.currentBudget - group.previousBudget,
+      ...versionFluctuation(group.currentAmount, group.previousAmount, comparable),
+    };
+  }).sort((left, right) => (right.currentAmount || 0) - (left.currentAmount || 0) || String(left.key).localeCompare(String(right.key)));
+}
+
+export function initiativeSdFacts(items, dealers, basis = "c3", period = "2025", threshold = 3) {
+  return (items || []).flatMap((item) => groupSummary(portfolioRows([item], dealers, basis, period), dealers, "sd", period)
+    .filter((group) => group.gap !== null && Math.abs(group.gap) > threshold)
+    .map((group) => ({ ...group, initiativeId: String(item.id), initiativeName: item.name,
+      owner: item.ownerName || item.ownerId || "—", direction: group.gap > 0 ? "偏多" : "偏少" })));
 }
 
 export function level(gap, yellow = 5, red = 10) {

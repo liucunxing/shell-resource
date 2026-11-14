@@ -79,6 +79,8 @@ def payload(**overrides):
         "department": "ice",
         "sector": ["pcmo"],
         "enabled": True,
+        "affiliation_sector": "PCMO",
+        "affiliation_department": "ICE",
         **overrides,
     }
 
@@ -199,6 +201,8 @@ async def test_owner_sector_must_be_covered_by_an_enabled_department_lead(api):
             "department": "MKT",
             "sector": ["CRTO"],
             "enabled": True,
+        "affiliation_sector": "PCMO",
+        "affiliation_department": "ICE",
         },
     )
     assert changed.status_code == 422
@@ -292,6 +296,8 @@ async def test_existing_owner_can_add_department_but_not_remove_used_department(
         "department": ["MKT", "ICE"],
         "sector": ["PCMO"],
         "enabled": True,
+        "affiliation_sector": "PCMO",
+        "affiliation_department": "ICE",
     }
     response = await client.put("admin/users/1", headers=headers(), json=update)
     assert response.status_code == 200, response.text

@@ -1,6 +1,8 @@
 from app.services.insight_investment import InvestmentRules, investment_comparisons
 from app.services.insight_pack_adapter import build_evidence
 
+HISTORY_IDENTITY = {"role": "owner", "affiliation_sector": "PCMO", "affiliation_department": "MKT"}
+
 
 def record(code="D1", actual=100000, sector="B2B", **resources):
     return {
@@ -35,7 +37,8 @@ def test_ten_to_hundred_thousand_is_deterministic_review():
     )
     assert row["status"] == "review"
     evidence = build_evidence(
-        {"data": {"dealers": [record()]}}, {"scope": "owner:test", "items": [item()]}, "owner", 2027
+        {"identity": HISTORY_IDENTITY, "data": {"dealers": [record()]}},
+        {"scope": "owner:test", "items": [item()]}, "owner", 2027
     )
     trend = next(c for c in evidence["check_constraints"] if c["dimension_id"] == "trend")
     assert trend["allowed_statuses"] == ["review"]
@@ -122,7 +125,8 @@ def test_assigned_evidence_excludes_drafts_and_retains_zero_yield_and_budget():
               item(None, code="NULL", identifier="null"),
               item(0, code="D0", identifier="zero-second-project", sector="B2C")]
     data = build_evidence(
-        {"data": {"dealers": records}}, {"scope": "owner:test", "items": items}, "owner", 2027
+        {"identity": HISTORY_IDENTITY, "data": {"dealers": records}},
+        {"scope": "owner:test", "items": items}, "owner", 2027
     )
     facts = {f["id"]: f["value"] for f in data["facts"]}
     datasets = {d["id"]: d for d in data["datasets"]}
@@ -149,7 +153,7 @@ def test_unallocated_only_scope_has_no_dealer_analysis_but_checks_budget_gap():
     only_item = item(0)
     only_item["budget"] = 100000
     data = build_evidence(
-        {"data": {"dealers": [record(), record("D2", actual=None)]}},
+        {"identity": HISTORY_IDENTITY, "data": {"dealers": [record(), record("D2", actual=None)]}},
         {"scope": "owner:test", "items": [only_item]}, "owner", 2027,
     )
     facts = {f["id"]: f["value"] for f in data["facts"]}

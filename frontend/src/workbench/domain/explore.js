@@ -258,11 +258,19 @@ function rawData(state, identity, data, tab) {
     );
     model.notes.push("每一行对应一条其他预算安排；同一 Initiative 可有多条。");
   } else {
-    const all = ["management", "admin"].includes(identity.role);
     const mapping = state.departmentResources || { MKT: ["MRD", "SP&A"], ICE: ["ICE Rebate", "SP&A"], CAPEX: ["Capex"] };
-    const resources = all
-      ? ["MRD", "SP&A", "ICE Rebate", "Capex"]
-      : [...new Set(E.departments(identity).flatMap((dep) => mapping[dep] || []))];
+    const resourceTypes = ["MRD", "SP&A", "ICE Rebate", "Capex"];
+    const validHome = ["PCMO", "CRTO", "B2B", "OEM"].includes(identity.affiliation_sector)
+      && ["MKT", "ICE", "CAPEX"].includes(identity.affiliation_department);
+    const roleMapping = state.roleResources || { owner: [], lead: [], management: resourceTypes, admin: resourceTypes };
+    const configured = !validHome ? [] : identity.history_resources
+      ?? mapping[`${identity.affiliation_sector}|${identity.affiliation_department}`]
+      ?? mapping[identity.affiliation_department] ?? roleMapping[identity.role] ?? [];
+    // API responses are already filtered. Never recreate an absent protected column.
+    const resources = resourceTypes.filter(resource => configured.includes(resource)
+      && (state.scenario !== "api" || data.dealers.some(dealer =>
+        Object.hasOwn(dealer.history?.resources2025 || {}, resource)
+        || Object.hasOwn(dealer.history?.resources2026Ytd || {}, resource))));
     const history = [
       ["vol2024", "2024 Vol (KL)"],
       ["c32024", "2024 C3 (K$)"],
@@ -281,6 +289,8 @@ function rawData(state, identity, data, tab) {
       ...history,
       ["yoyVol2425", "2025 vs 2024 Delivery Vol YoY (%)"],
       ["yoyC32425", "2025 vs 2024 C3 YoY (%)"],
+      ["totalInvestment2025", "2025 历史投资总额 (K$)"],
+      ["totalInvestment2026Ytd", "2026 YTD 历史投资总额 (K$)"],
       ...resources.map((r) => ["resource_" + r, "2025 " + r + " (K$)"]),
       ...resources.map((r) => ["resource2026_" + r, "2026 YTD " + r + " (K$)"]),
       ["yield", "Yield"],
@@ -292,6 +302,8 @@ function rawData(state, identity, data, tab) {
       history.forEach(([k]) => (row[k] = toDisplayUnit(h[k])));
       row.yoyVol2425 = Number.isFinite(h.yoyVol2425) ? h.yoyVol2425 : null;
       row.yoyC32425 = Number.isFinite(h.yoyC32425) ? h.yoyC32425 : null;
+      row.totalInvestment2025 = toDisplayUnit(h.totalInvestment2025);
+      row.totalInvestment2026Ytd = toDisplayUnit(h.totalInvestment2026Ytd);
       resources.forEach(
         (r) =>
           (row["resource_" + r] = toDisplayUnit((h.resources2025 || {})[r])),
@@ -303,16 +315,14 @@ function rawData(state, identity, data, tab) {
       row.yield = Number.isFinite(h.yield) ? h.yield : null;
       return row;
     });
-    model.scopeLabel = `全部经销商历史 · ${all ? "全部资源列" : E.departments(identity).join("、") + " 授权资源列"}`;
+    model.scopeLabel = `授权经销商历史 · ${validHome ? identity.affiliation_sector + " / " + identity.affiliation_department + " 费用列权限" : "未配置所属部门，仅公共指标"}`;
     model.basisLabel = `源历史数据 · 共 ${new Set(data.dealers.map((d) => String(d.id))).size} 家经销商 / ${data.dealers.length} 条业务线记录`;
     model.notes.push(
       "2024、2025 为全年；2026 为 YTD 累计，不默认同比或年化。",
       "Yield 向所有角色只读开放，取源数据中的 2025 C3 / 资源原始比值，不转换为百分比。",
-      "Vol、C3、Yield 展示全部经销商；可分配经销商仍按业务线授权。历史总资源列不展示。",
+      "经销商范围由服务端业务授权确定；历史投资总额、Vol、C3、Yield 为公共参考指标。",
       "SP&A 使用全部历史合计，暂不按部门拆分。",
-      all
-        ? "全资源历史仅供只读参考。"
-        : "资源明细仅显示本部门授权范围；整体 Yield 为授权共享指标，不额外展示跨部门资源总额或资源明细。",
+      "费用列按用户覆盖、所属部门默认、角色默认依次决定；不会合并业务授权部门来扩大费用权限。",
     );
   }
   return model;
@@ -328,6 +338,8 @@ function historyReference(state, identity, data, dealerId, sector) {
     sector: row.sector,
     scopeLabel: model.scopeLabel,
     yield: row.yield,
+    totalInvestment2025: row.totalInvestment2025,
+    totalInvestment2026Ytd: row.totalInvestment2026Ytd,
     yoyVol2425: row.yoyVol2425,
     yoyC32425: row.yoyC32425,
     periods: [
@@ -356,7 +368,7 @@ function historyReference(state, identity, data, dealerId, sector) {
     resources2026Ytd: model.columns
       .filter((c) => c.key.startsWith("resource2026_"))
       .map((c) => ({ label: c.label, amount: row[c.key] })),
-    allResources: ["management", "admin"].includes(identity.role),
+    allResources: model.columns.filter(column => column.key.startsWith("resource_")).length === 4,
   };
 }
 function filterHistoryRows(rows, { dealerCode = "", dealerName = "", sector = "" } = {}) {

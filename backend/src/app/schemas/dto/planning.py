@@ -1,0 +1,69 @@
+"""Planning version commands use explicit optimistic revisions."""
+
+from datetime import datetime
+from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from app.schemas.dto.workbench import AdminBudgetCreateItemDTO
+
+
+class PlanningVersionCreateDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    id: str = Field(min_length=1, max_length=32, pattern=r"^20\d{2}(0[1-9]|1[0-2])$")
+    name: str = Field(min_length=1, max_length=100)
+    planning_year: int = Field(ge=2020, le=2100)
+    source_version_id: str | None = Field(default=None, max_length=32)
+    deadline: datetime | None = None
+
+    @field_validator("deadline")
+    @classmethod
+    def timezone_required(cls, value: datetime | None) -> datetime | None:
+        if value is not None and value.tzinfo is None:
+            raise ValueError("截止时间必须包含时区")
+        return value
+
+
+class PlanningVersionUpdateDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_revision: int = Field(ge=0)
+    published: bool | None = None
+    open: bool | None = None
+    deadline: datetime | None = None
+
+    @field_validator("deadline")
+    @classmethod
+    def timezone_required(cls, value: datetime | None) -> datetime | None:
+        return PlanningVersionCreateDTO.timezone_required(value)
+
+
+class DepartmentActionDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    sector: str = Field(min_length=1, max_length=32)
+    department: str = Field(min_length=1, max_length=32)
+    expected_revision: int = Field(ge=0)
+    reason: str = Field(default="", max_length=160)
+    initiative_id: int | None = Field(default=None, gt=0)
+    owner_email: str | None = Field(default=None, max_length=255)
+
+    @model_validator(mode="after")
+    def one_scope(self) -> "DepartmentActionDTO":
+        if self.initiative_id and self.owner_email:
+            raise ValueError("退回只可选择一个项目或一个 Owner")
+        if self.owner_email:
+            self.owner_email = self.owner_email.lower()
+        return self
+
+
+class VersionInitiativeDTO(AdminBudgetCreateItemDTO):
+    model_config = ConfigDict(extra="forbid")
+    expected_revision: int = Field(ge=0)
+    reason: str = Field(min_length=1, max_length=160)
+    enabled: bool = True
+
+    @field_validator("budget")
+    @classmethod
+    def whole_currency_budget(cls, value: Decimal) -> Decimal:
+        if value != value.to_integral_value():
+            raise ValueError("规划预算必须为非负整数元")
+        return value

@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.controllers import data_agent_controller
 from app.models.do.base import BaseDO
 from app.models.do.workspace import UserPermissionDO
-from app.repositories.distributor_directory_repository import DatabricksDistributorRepository
 from app.services.insight_service import InsightService
 from test_portal_receiver import PREFIX, Harness
 from test_portal_receiver import harness as harness
@@ -116,27 +115,20 @@ async def test_insight_read_uses_target_owner_and_rejects_another_scope(preview_
 
 
 @pytest.mark.asyncio
-async def test_distributor_directory_uses_target_sectors(preview_api, monkeypatch):
+async def test_distributor_directory_uses_target_sectors(preview_api):
     api = preview_api
     permission = await api.db.scalar(
         select(UserPermissionDO).where(UserPermissionDO.email == OWNER)
     )
     permission.sector = ["CRTO"]
     await api.db.commit()
-    rows = [
-        {"distributor_code": "d1", "distributor_name": "PCMO Dealer", "sector": "PCMO"},
-        {"distributor_code": "d3", "distributor_name": "CRTO Dealer", "sector": "CRTO"},
-    ]
-
-    async def directory(_self, sectors):
-        return [row for row in rows if sectors is None or row["sector"] in sectors]
-
-    monkeypatch.setattr(DatabricksDistributorRepository, "list_distributors", directory)
     response = await api.client.get(api.prefix + "/distributors", headers=api.headers())
     assert response.status_code == 200, response.text
-    assert response.json()["data"] == [{"id": "d3", "name": "CRTO Dealer", "sector": "CRTO"}]
+    # Exercise the actual PostgreSQL-backed repository against the isolated fixture;
+    # the old Databricks mock no longer participates in the directory request.
+    assert [(row["id"], row["sector"]) for row in response.json()["data"]] == [("d3", "CRTO")]
     restored = await api.client.get(api.prefix + "/distributors", headers=api.actor_headers)
-    assert {row["id"] for row in restored.json()["data"]} == {"d1", "d3"}
+    assert {row["id"] for row in restored.json()["data"]} == {"d1", "d2", "d3"}
 
 
 @pytest.mark.asyncio

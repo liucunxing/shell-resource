@@ -1,7 +1,9 @@
 from collections.abc import Sequence
 
-from sqlalchemy import String, cast, delete, exists, func, select, update
+from sqlalchemy import SQLColumnExpression, String, cast, delete, exists, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
+from sqlalchemy.sql.selectable import Exists
 
 from app.core.departments import departments
 from app.models.do.base import BaseDO
@@ -32,14 +34,14 @@ class AdminRepository:
             )
         ).all()
 
-    def _department_member(self, department: str):
+    def _department_member(self, department: str) -> ColumnElement[bool]:
         if self.session.get_bind().dialect.name == "sqlite":
             entries = func.json_each(UserPermissionDO.department).table_valued("value")
             return exists(select(1).select_from(entries).where(entries.c.value == department))
-        return UserPermissionDO.department.any(department)
+        return UserPermissionDO.department.any_() == department
 
     @staticmethod
-    def _budget_for_email(email_column):
+    def _budget_for_email(email_column: str | SQLColumnExpression[str]) -> Exists:
         return (
             select(BudgetDO.id)
             .where(func.lower(func.trim(BudgetDO.owner_email)) == func.lower(email_column))
@@ -163,12 +165,21 @@ class AdminRepository:
         ).one_or_none()
 
     async def has_removed_reason_in_use(self, reason_ids: list[str]) -> bool:
-        return (
-            await self.session.scalar(
-                select(OtherBudgetDO.id).where(OtherBudgetDO.reason_id.not_in(reason_ids)).limit(1)
+        return bool((await self.used_reason_ids()) - set(reason_ids))
+
+    async def used_reason_ids(self) -> set[str]:
+        used = set((await self.session.scalars(select(OtherBudgetDO.reason_id).distinct())).all())
+        # Submitted snapshots retain reasons after draft rows change or are removed.
+        snapshots: Sequence[dict] = (
+            await self.session.scalars(select(WorkspacePublicationDO.snapshot))
+        ).all()
+        for snapshot in snapshots:
+            initiative = snapshot.get("initiative", snapshot)
+            used.update(
+                row["reasonId"] for row in initiative.get("otherBudgets", [])
+                if isinstance(row, dict) and row.get("reasonId")
             )
-            is not None
-        )
+        return used
 
     def add(self, entity: BaseDO) -> None:
         self.session.add(entity)
@@ -180,20 +191,16 @@ class AdminRepository:
         self, planning_year: int, sector: str, department: str, resource_type: str, name: str,
         exclude_id: int | None = None,
     ) -> bool:
-        return (
-            await self.session.scalar(
-                select(BudgetDO.id)
-                .where(
-                    BudgetDO.planning_year == planning_year,
-                    BudgetDO.sector == sector,
-                    BudgetDO.department == department,
-                    BudgetDO.resource_type == resource_type,
-                    BudgetDO.initiative_name == name,
-                    BudgetDO.id != exclude_id if exclude_id is not None else True,
-                )
-                .limit(1)
-            )
-        ) is not None
+        statement = select(BudgetDO.id).where(
+            BudgetDO.planning_year == planning_year,
+            BudgetDO.sector == sector,
+            BudgetDO.department == department,
+            BudgetDO.resource_type == resource_type,
+            BudgetDO.initiative_name == name,
+        )
+        if exclude_id is not None:
+            statement = statement.where(BudgetDO.id != exclude_id)
+        return await self.session.scalar(statement.limit(1)) is not None
 
     async def sync_allocation_metadata(self, budget: BudgetDO) -> None:
         await self.session.execute(

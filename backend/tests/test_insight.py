@@ -83,7 +83,10 @@ def workspace() -> dict:
             "budgetReasonVersion": 4,
         },
         "data": {"dealers": []},
-        "identity": {},
+        "identity": {
+            "role": "management", "affiliation_sector": "PCMO", "affiliation_department": "MKT",
+            "history_resources": ["MRD", "SP&A", "ICE Rebate", "Capex"],
+        },
         "users": [],
     }
 

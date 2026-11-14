@@ -7,11 +7,29 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
 from pydantic import ValidationError
 
 from app.core.config import Settings
+from app.services.insight_service import InsightProviderError
 from test_insight import service
+
+
+@pytest.mark.asyncio
+async def test_provider_diagnostics_stay_internal_in_http_error_response():
+    app = FastAPI()
+
+    @app.get("/provider-failure")
+    async def provider_failure():
+        raise InsightProviderError({"request_id": "safe-id", "internal": "PRIVATE_DIAGNOSTICS"})
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.get("/provider-failure")
+    assert response.status_code == 502
+    assert response.json() == {"detail": "百炼 Insight 生成失败，原记录已保留"}
+    assert "PRIVATE_DIAGNOSTICS" not in response.text
 
 
 @pytest.mark.asyncio

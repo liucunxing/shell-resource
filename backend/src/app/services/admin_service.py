@@ -50,6 +50,9 @@ class AdminService(WorkspaceService):
             "sector": list(item.sector or []),
             "enabled": item.enabled,
             "has_initiatives": has_initiatives,
+            "affiliation_sector": item.affiliation_sector,
+            "affiliation_department": item.affiliation_department,
+            "history_resources": item.history_resources,
         }
 
     async def list_users(
@@ -157,10 +160,11 @@ class AdminService(WorkspaceService):
 
     async def _validate_department_sector_coverage(
         self,
-        payload: AdminUserDTO,
+        payload: AdminUserDTO | UserPermissionDO,
         *,
         replacing_user_id: int | None = None,
         previous_department: list[str] | None = None,
+        include_payload: bool = True,
     ) -> None:
         """Ensure every enabled Owner sector is covered by an enabled Lead in that department."""
         affected_departments = set(payload.department) | set(departments(previous_department))
@@ -168,7 +172,7 @@ class AdminService(WorkspaceService):
             users = list(await self.admin_repository.locked_enabled_users_by_department(department))
             if replacing_user_id is not None:
                 users = [user for user in users if user.id != replacing_user_id]
-            if payload.enabled and department in payload.department:
+            if include_payload and payload.enabled and department in payload.department:
                 users.append(
                     UserPermissionDO(
                         email=payload.email,
@@ -206,16 +210,10 @@ class AdminService(WorkspaceService):
                 )
             if user.role == "lead" and user.enabled and user.department:
                 await self._validate_department_sector_coverage(
-                    AdminUserDTO(
-                        email=user.email,
-                        display_name=user.display_name,
-                        role=user.role,
-                        department=user.department,
-                        sector=list(user.sector or []),
-                        enabled=False,
-                    ),
+                    user,
                     replacing_user_id=user.id,
                     previous_department=user.department,
+                    include_payload=False,
                 )
             before = self._user_record(user)
             await self.session.delete(user)
@@ -263,6 +261,7 @@ class AdminService(WorkspaceService):
                 budget = await self.admin_repository.locked_budget(item.id)
                 if budget is None:
                     raise HTTPException(status_code=422, detail="预算不存在")
+                self._require_legacy_budget(budget)
                 owner = await self._owner(item.ownerId, budget.department)
                 if budget.revision != item.expected_revision:
                     raise HTTPException(status_code=409, detail="预算已被修改，请刷新后重试")
@@ -291,11 +290,16 @@ class AdminService(WorkspaceService):
         return {"updated_count": updated}
 
     @staticmethod
+    def _require_legacy_budget(budget: BudgetDO) -> None:
+        if budget.planning_version_id:
+            raise HTTPException(status_code=409, detail="请在规划版本的项目配置中修改")
+
+    @staticmethod
     def _entity_snapshot(entity: BaseDO) -> dict:
-        return json.loads(json.dumps(
+        return dict(json.loads(json.dumps(
             {column.name: getattr(entity, column.name) for column in entity.__table__.columns},
             default=str,
-        ))
+        )))
 
     async def edit_budget(self, budget_id: int, payload: AdminBudgetEditDTO) -> dict:
         self._admin()
@@ -306,6 +310,7 @@ class AdminService(WorkspaceService):
             budget = await self.admin_repository.locked_budget(budget_id)
             if budget is None:
                 raise HTTPException(status_code=404, detail="预算不存在或已删除")
+            self._require_legacy_budget(budget)
             if budget.revision != payload.expected_revision:
                 raise HTTPException(status_code=409, detail="项目已被修改，请刷新后重试")
             if payload.resourceType not in {"MRD", "SP&A", "ICE Rebate", "Capex"}:
@@ -348,6 +353,7 @@ class AdminService(WorkspaceService):
             budget = await self.admin_repository.locked_budget(budget_id)
             if budget is None:
                 raise HTTPException(status_code=404, detail="预算不存在或已删除")
+            self._require_legacy_budget(budget)
             if budget.revision != payload.expected_revision:
                 raise HTTPException(status_code=409, detail="项目已被修改，请刷新后重试")
             rows = await self.repository.rows_for(budget_id)
@@ -440,6 +446,7 @@ class AdminService(WorkspaceService):
                 budget = await self.admin_repository.locked_budget(item.id)
                 if budget is None:
                     raise HTTPException(status_code=422, detail="预算不存在")
+                self._require_legacy_budget(budget)
                 if budget.planning_year != payload.planning_year:
                     raise HTTPException(status_code=422, detail="预算不属于当前规划年度")
                 owner = await self._owner(item.ownerId, budget.department)
@@ -450,31 +457,34 @@ class AdminService(WorkspaceService):
             entities = []
             keys = set()
             allowed_resources = {"MRD", "SP&A", "ICE Rebate", "Capex"}
-            for item in payload.creates:
-                key = (item.sector, item.department, item.resourceType, item.name)
+            for create_item in payload.creates:
+                key = (
+                    create_item.sector, create_item.department,
+                    create_item.resourceType, create_item.name,
+                )
                 if key in keys or await self.admin_repository.business_key_exists(
                     payload.planning_year,
-                    item.sector,
-                    item.department,
-                    item.resourceType,
-                    item.name,
+                    create_item.sector,
+                    create_item.department,
+                    create_item.resourceType,
+                    create_item.name,
                 ):
                     raise HTTPException(
                         status_code=409,
                         detail="同年度、部门、Sector 和资源类型下 Initiative 已存在",
                     )
                 keys.add(key)
-                if item.resourceType not in allowed_resources:
+                if create_item.resourceType not in allowed_resources:
                     raise HTTPException(status_code=422, detail="资源类型无效")
-                owner = await self._owner(item.ownerId, item.department)
+                owner = await self._owner(create_item.ownerId, create_item.department)
                 entities.append(
                     BudgetDO(
                         planning_year=payload.planning_year,
-                        sector=item.sector,
-                        department=item.department,
-                        resource_type=item.resourceType,
-                        initiative_name=item.name,
-                        plan_budget_amount=item.budget,
+                        sector=create_item.sector,
+                        department=create_item.department,
+                        resource_type=create_item.resourceType,
+                        initiative_name=create_item.name,
+                        plan_budget_amount=create_item.budget,
                         allocate_budget_amount=0,
                         status=0,
                         input_source="ADMIN_IMPORT",
@@ -526,8 +536,17 @@ class AdminService(WorkspaceService):
             previous_resource_mapping = config.department_resources
             if payload.budgetReasons is not None:
                 ids = [reason["id"] for reason in payload.budgetReasons]
-                if await self.admin_repository.has_removed_reason_in_use(ids):
+                used = await self.admin_repository.used_reason_ids()
+                if used - set(ids):
                     raise HTTPException(status_code=422, detail="仍被预算行使用的原因不能删除")
+                previous = {item["id"]: item.get("label", "") for item in config.budget_reasons}
+                if any(
+                    item["id"] in used and item["label"] != previous.get(item["id"], item["label"])
+                    for item in payload.budgetReasons
+                ):
+                    raise HTTPException(
+                        status_code=422, detail="已使用的预留原因不能改名，可停用后新增"
+                    )
                 config.budget_reasons = payload.budgetReasons
                 config.budget_reason_version += 1
             if payload.guide is not None:
@@ -537,12 +556,18 @@ class AdminService(WorkspaceService):
                 }
             if payload.departmentResources is not None:
                 config.department_resources = payload.departmentResources
+            if payload.roleResources is not None:
+                config.role_resources = payload.roleResources
+            if payload.healthThresholds is not None:
+                config.health_thresholds = payload.healthThresholds
             config.revision += 1
             result = {
                 "revision": config.revision,
                 "budgetReasons": config.budget_reasons,
                 "budgetReasonVersion": config.budget_reason_version,
                 "departmentResources": config.department_resources,
+                "roleResources": config.role_resources,
+                "healthThresholds": config.health_thresholds,
                 "guide": config.guide,
                 "reference": config.reference,
             }

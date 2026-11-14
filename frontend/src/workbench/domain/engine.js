@@ -233,7 +233,9 @@ function completionErrors(i, data, reasons) {
     errors.push("预算未平衡，请处理未解释差额后标记完成。");
   if (!errors.length && Array.isArray(i.otherBudgets))
     i.otherBudgets.forEach((row, index) => {
-      if (row.amount > 0 && !hasText(row.note))
+      if (i.workflow && !(reasons || DEFAULT_BUDGET_REASONS).some((reason) => reason.id === row.reasonId && reason.enabled))
+        errors.push("第 " + (index + 1) + " 行预留原因已停用或不存在，请重新选择。");
+      if (!i.workflow && row.amount > 0 && !hasText(row.note))
         errors.push("第 " + (index + 1) + " 行其他预算须填写原因说明。");
     });
   return errors;
@@ -243,6 +245,7 @@ function canEdit(state, id, identity) {
   try {
     identityCheck(identity);
     const i = initiative(state, id);
+    if (i.workflow && !i.workflow.editable) return false;
     return (
       ["owner", "lead"].includes(identity.role) &&
       hasDepartment(identity, i.department) &&

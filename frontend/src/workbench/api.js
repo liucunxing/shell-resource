@@ -93,13 +93,32 @@ export async function request(path, options = {}) {
   return body.data;
 }
 
-export const workspace = () => request(`/workspace?planning_year=${planningYear}`);
+let selectedVersionId = "";
+export const setPlanningVersion = (id) => { selectedVersionId = String(id || ""); };
+export const workspace = (versionId = selectedVersionId) => request(`/workspace?planning_year=${planningYear}${versionId ? `&version_id=${encodeURIComponent(versionId)}` : ""}`);
+export const planningVersions = () => request(`/planning-versions?planning_year=${planningYear}`);
+export const createPlanningVersion = (value) => request("/planning-versions", {
+  method: "POST", body: JSON.stringify({ planning_year: planningYear, ...value }),
+});
+export const updatePlanningVersion = (id, value) => request(`/planning-versions/${encodeURIComponent(id)}`, {
+  method: "PATCH", body: JSON.stringify(value),
+});
+export const createVersionInitiative = (versionId, value) => request(`/planning-versions/${encodeURIComponent(versionId)}/initiatives`, { method: "POST", body: JSON.stringify(value) });
+export const updateVersionInitiative = (versionId, id, value) => request(`/planning-versions/${encodeURIComponent(versionId)}/initiatives/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(value) });
+export const departmentReview = (versionId, sector, department) => request(
+  `/planning-versions/${encodeURIComponent(versionId)}/department?${new URLSearchParams({ sector, department })}`,
+);
+export const reviewDepartment = (versionId, action, value) => request(
+  `/planning-versions/${encodeURIComponent(versionId)}/department/${action}`,
+  { method: "POST", body: JSON.stringify(value) },
+);
 export const distributors = () => request("/distributors");
 export const saveDraft = (id, item, expectedRevision = item.revision) =>
   request(`/initiatives/${encodeURIComponent(id)}/draft`, {
     method: "PUT",
     body: JSON.stringify({
       expected_revision: expectedRevision,
+      ...(item.changeReason !== undefined ? { changeReason: item.changeReason } : {}),
       rows: item.rows.map(({ dealerId, amount, note }) => ({ dealerId, amount, note: note || "" })),
       otherBudgets: item.otherBudgets.map(({ id: rowId, reasonId, amount, note }) => ({ id: rowId, reasonId, amount, note: note || "" })),
     }),
@@ -120,7 +139,7 @@ export const updateBudgets = (items) => request("/admin/budgets", {
   method: "PUT", body: JSON.stringify({ items }),
 });
 export const createBudget = (item) => request("/admin/budgets", {
-  method: "POST", body: JSON.stringify({ planning_year: planningYear, items: [item] }),
+  method: "POST", body: JSON.stringify({ planning_year: planningYear, ...(selectedVersionId ? { version_id: selectedVersionId } : {}), items: [item] }),
 });
 export const editBudget = (id, item) => request(`/admin/budgets/${encodeURIComponent(id)}`, {
   method: "PUT", body: JSON.stringify(item),

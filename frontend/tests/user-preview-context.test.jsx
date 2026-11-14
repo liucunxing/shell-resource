@@ -23,6 +23,7 @@ vi.mock("react", async (importOriginal) => ({
 vi.mock("../src/workbench/api.js", () => ({
   acceptPortalEmail: vi.fn(), getDevelopmentEmail: () => harness.email,
   setDevelopmentEmail: (email) => { harness.email = email; }, workspace: harness.workspace,
+  setPlanningVersion: vi.fn(),
 }));
 import { WorkbenchProvider, useWorkbench } from "../src/workbench/WorkbenchContext.jsx";
 

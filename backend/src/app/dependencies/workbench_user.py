@@ -22,6 +22,9 @@ class WorkbenchUser:
     sectors: tuple[str, ...] = ()
     preview_actor_email: str | None = None
     preview_actor_label: str | None = None
+    affiliation_sector: str | None = None
+    affiliation_department: str | None = None
+    history_resources: tuple[str, ...] | None = None
 
     @property
     def departments(self) -> tuple[str, ...]:
@@ -77,10 +80,14 @@ async def resolve_workbench_permission(session: AsyncSession, email: str) -> Wor
         permission.role in {"owner", "lead"} and not departments(permission.department)
     ):
         raise HTTPException(status_code=403, detail="用户权限配置无效")
+    history_resources: list[str] | None = getattr(permission, "history_resources", None)
     return WorkbenchUser(
         email=permission.email,
         role=permission.role,
         department=permission.department,
         display_name=permission.display_name,
         sectors=tuple(permission.sector or ()),
+        affiliation_sector=getattr(permission, "affiliation_sector", None),
+        affiliation_department=getattr(permission, "affiliation_department", None),
+        history_resources=tuple(history_resources) if history_resources is not None else None,
     )

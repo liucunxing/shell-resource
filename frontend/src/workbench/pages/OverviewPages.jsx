@@ -1,6 +1,10 @@
 import { useMemo, useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
+import { PlanningVersionBar as VersionBar } from "./PlanningVersionBar.jsx";
+import { VersionComparison } from "./VersionComparison.jsx";
+import { SdAnalysis } from "./SdAnalysis.jsx";
+import { WorkflowDialog } from "./WorkflowDialog.jsx";
 import {
   historyDisplayValue,
   historyInvestment,
@@ -9,8 +13,6 @@ import {
 import {
   concentration,
   dealerDeviations,
-  groupSummary,
-  level,
   portfolioRows,
 } from "../domain/portfolio-analytics.js";
 
@@ -25,11 +27,6 @@ const pct = (value, digits = 1) =>
 const pp = (value) =>
   value == null ? "—" : `${value >= 0 ? "+" : ""}${num(value, 1)}pp`;
 const metricLabel = (basis) => (basis === "vol" ? "Delivery Vol" : "C3");
-const versions = [
-  ["202612", "年度初始规划"],
-  ["202701", "业务目标校准"],
-];
-
 export function PageHead({ eyebrow, title, description, children }) {
   return (
     <header className="studio-page-head">
@@ -40,29 +37,6 @@ export function PageHead({ eyebrow, title, description, children }) {
       </div>
       {children && <div className="actions">{children}</div>}
     </header>
-  );
-}
-
-function VersionBar() {
-  const [version, setVersion] = useState("202701");
-  return (
-    <div className="studio-version-bar">
-      <label>
-        2027 OP · 工作版本
-        <select
-          value={version}
-          onChange={(event) => setVersion(event.target.value)}
-        >
-          {versions.map(([id, name]) => (
-            <option key={id} value={id}>
-              {id} · {name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <span className="resource-status done">开放提交</span>
-      <small>清单、预算、Owner、草稿均按版本独立</small>
-    </div>
   );
 }
 
@@ -91,17 +65,8 @@ function Status({ status }) {
 
 export function HomePage() {
   const { view, navigate } = useWorkbench();
-  const [sector, setSector] = useState("all"),
-    [department, setDepartment] = useState("all");
   const items = view.initiatives || [];
-  const options = (key) => [
-    ...new Set(items.map((item) => item[key]).filter(Boolean)),
-  ];
-  const filtered = items.filter(
-    (item) =>
-      (sector === "all" || item.sector === sector) &&
-      (department === "all" || item.department === department),
-  );
+  const filtered = items;
   const total = E.totals(filtered);
   return (
     <>
@@ -111,32 +76,6 @@ export function HomePage() {
         description="选择 Initiative 进入三步拆分：预算与预留、经销商范围、试算微调与提交。"
       />
       <VersionBar />
-      <section className="studio-filter-row panel">
-        <label>
-          Sector
-          <select
-            value={sector}
-            onChange={(event) => setSector(event.target.value)}
-          >
-            <option value="all">全部</option>
-            {options("sector").map((value) => (
-              <option key={value}>{value}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Department
-          <select
-            value={department}
-            onChange={(event) => setDepartment(event.target.value)}
-          >
-            <option value="all">全部</option>
-            {options("department").map((value) => (
-              <option key={value}>{value}</option>
-            ))}
-          </select>
-        </label>
-      </section>
       <Metrics
         entries={[
           [
@@ -150,7 +89,7 @@ export function HomePage() {
             wan(total.allocated),
             `占预算 ${pct(total.budget ? (total.allocated / total.budget) * 100 : 0)}`,
           ],
-          ["预留", wan(total.reserve), "有原因、暂不分配"],
+          ["预留", wan(total.otherBudget), "有原因、暂不分配"],
           [
             "待分配",
             wan(Math.max(0, total.gap)),
@@ -184,7 +123,7 @@ export function HomePage() {
               <span className="studio-progress">
                 <i
                   style={{
-                    width: `${Math.min(100, item.budget ? ((totals.allocated + totals.reserve) / item.budget) * 100 : 0)}%`,
+                    width: `${Math.min(100, item.budget ? ((totals.allocated + totals.otherBudget) / item.budget) * 100 : 0)}%`,
                   }}
                 />
               </span>
@@ -195,7 +134,7 @@ export function HomePage() {
                 </div>
                 <div>
                   <dt>预留</dt>
-                  <dd>{wan(totals.reserve)}</dd>
+                  <dd>{wan(totals.otherBudget)}</dd>
                 </div>
                 <div>
                   <dt>待分配</dt>
@@ -222,10 +161,10 @@ export function HomePage() {
 }
 
 export function SubmissionPage() {
-  const { view, navigate, publish, savedForSyncIds, editorOperations } =
+  const { view, state, navigate, publish, savedForSyncIds, editorOperations } =
     useWorkbench();
   const items = view.initiatives || [];
-  const ready = items.filter((item) => savedForSyncIds.has(item.id));
+  const ready = items.filter((item) => savedForSyncIds.has(item.id) && item.workflow?.editable !== false && (!state.planningVersion?.sourceVersionId || item.changeReason?.trim()));
   return (
     <>
       <PageHead
@@ -237,7 +176,7 @@ export function SubmissionPage() {
       <section className="panel studio-submission-panel">
         <div className="panel-header">
           <div>
-            <h2>202701 · 当前 Owner</h2>
+            <h2>{state.planningVersion?.name || "当前工作区"} · 当前 Owner</h2>
             <p className="muted">
               提交覆盖仅限当前版本选中的项目，保留修订审计。
             </p>
@@ -246,7 +185,7 @@ export function SubmissionPage() {
             className="button primary"
             disabled={!ready.length}
             onClick={async () => {
-              for (const item of ready) await publish(item.id);
+              for (const item of ready) await publish(item.id, item.changeReason || "");
             }}
           >
             提交本版所有已配平项目
@@ -276,7 +215,7 @@ export function SubmissionPage() {
                     </td>
                     <td className="num">{num(item.budget / 10000, 1)}</td>
                     <td className="num">{num(totals.allocated / 10000, 1)}</td>
-                    <td className="num">{num(totals.reserve / 10000, 1)}</td>
+                    <td className="num">{num(totals.otherBudget / 10000, 1)}</td>
                     <td className="num">
                       {num(Math.max(0, totals.gap) / 10000, 1)}
                     </td>
@@ -311,20 +250,6 @@ function latestPublished(state) {
     .map((rows) => rows.at(-1)?.initiative)
     .filter(Boolean);
 }
-function signal(gap) {
-  const tone = level(gap);
-  return [
-    tone,
-    tone === "bad"
-      ? "优先关注"
-      : tone === "warn"
-        ? "建议复核"
-        : tone === "good"
-          ? "匹配"
-          : "无历史",
-  ];
-}
-
 function BoardFilters({ items, filters, setFilters, executive }) {
   const options = (key) =>
     [...new Set(items.map((item) => item[key]).filter(Boolean))].sort();
@@ -362,13 +287,14 @@ function TotalSection({ items, rows, total, mode }) {
     0,
     total.budget - total.allocated - total.otherBudget,
   );
+  const pendingLabel = mode === "owner" ? "待分配" : mode === "exec" ? "待确认预算" : "未提交";
   return (
     <section id="studio-total" className="panel studio-section">
       <header>
         <span>①</span>
         <div>
           <h2>总盘 · 预算有多少，分下去多少</h2>
-          <p>预算 = 已分配到经销商 + 预留 + 未提交</p>
+          <p>{mode === "exec" ? "预算包含本版配置项目；分配与预留仅汇总部门已确认快照。" : "预算 = 已分配到经销商 + 预留 + 未提交"}</p>
         </div>
       </header>
       <Metrics
@@ -380,9 +306,9 @@ function TotalSection({ items, rows, total, mode }) {
             "accent",
           ],
           ["已分配到经销商", wan(total.allocated), `${rows.length} 家经销商`],
-          ["预留", wan(total.reserve), "有原因、暂不分配"],
+          ["预留", wan(total.otherBudget), "有原因、暂不分配"],
           [
-            mode === "owner" ? "待分配" : "未提交",
+            pendingLabel,
             wan(unsubmitted),
             unsubmitted ? "仍需处理" : "当前范围已完成",
             unsubmitted ? "warn" : "success",
@@ -392,8 +318,8 @@ function TotalSection({ items, rows, total, mode }) {
       <div className="studio-budget-flow">
         {[
           ["已分配到经销商", total.allocated],
-          ["预留", total.reserve],
-          [mode === "owner" ? "待分配" : "未提交", unsubmitted],
+          ["预留", total.otherBudget],
+          [pendingLabel, unsubmitted],
         ].map(([label, value]) => (
           <div key={label}>
             <span>{label}</span>
@@ -423,10 +349,12 @@ function HealthSection({
   setPeriod,
   executive,
 }) {
+  const { state } = useWorkbench();
+  const thresholds = state.healthThresholds || { concentrationYellow: 5, concentrationRed: 10, dealerYellow: 3, dealerRed: 6 };
   const label = metricLabel(basis),
     summaries = [20, 50, 80].map((top) => [top, concentration(rows, top)]),
     deviations = dealerDeviations(rows),
-    over = deviations.filter((row) => row.gap > 3).length;
+    over = deviations.filter((row) => row.gap > thresholds.dealerYellow).length;
   return (
     <section id="studio-health" className="panel studio-section">
       <header>
@@ -458,7 +386,7 @@ function HealthSection({
             onChange={(event) => setPeriod(event.target.value)}
           >
             <option value="2025">2025 全年</option>
-            <option value="2026Ytd">2026 YTD（1–10月）</option>
+            <option value="2026Ytd">2026 YTD（月份由数据源提供）</option>
           </select>
         </label>
         <small>只改变参考数据，不重算已分配金额</small>
@@ -488,7 +416,7 @@ function HealthSection({
                     {result ? pct(result.metricShare) : "—"}
                   </td>
                   <td className="num">
-                    <b className={result?.gap > 10 ? "negative" : ""}>
+                    <b className={result?.gap > thresholds.concentrationRed ? "negative" : ""}>
                       {result ? pp(result.gap) : "—"}
                     </b>
                   </td>
@@ -499,9 +427,9 @@ function HealthSection({
         </div>
         <aside>
           <span>结论</span>
-          <strong>{over} 家经销商超配 &gt;3pp</strong>
+          <strong>{over} 家经销商超配 &gt;{thresholds.dealerYellow}pp</strong>
           <p>
-            差值 &gt;3pp 提示复核，&gt;6pp
+            差值 &gt;{thresholds.dealerYellow}pp 提示复核，&gt;{thresholds.dealerRed}pp
             优先关注；无历史的新经销商不参与比较。
           </p>
         </aside>
@@ -523,6 +451,7 @@ function DestinationSection({ items, executive }) {
         key,
         label: executive ? key : scoped[0]?.name,
         total: E.totals(scoped),
+        owner: scoped[0]?.ownerLabel || scoped[0]?.ownerId,
       };
     })
     .sort((a, b) => b.total.budget - a.total.budget);
@@ -541,7 +470,7 @@ function DestinationSection({ items, executive }) {
         <table>
           <thead>
             <tr>
-              <th>{executive ? "资源大类" : "Initiative"}</th>
+              <th>{executive ? "资源大类" : "Initiative"}</th>{!executive && <th>Owner</th>}
               <th className="num">预算（万）</th>
               <th className="num">已分配（万）</th>
               <th className="num">预留（万）</th>
@@ -556,9 +485,10 @@ function DestinationSection({ items, executive }) {
                   <strong>{group.label}</strong>
                   {!executive && <small>{group.key}</small>}
                 </td>
+                {!executive && <td>{group.owner}</td>}
                 <td className="num">{num(group.total.budget / 10000, 1)}</td>
                 <td className="num">{num(group.total.allocated / 10000, 1)}</td>
-                <td className="num">{num(group.total.reserve / 10000, 1)}</td>
+                <td className="num">{num(group.total.otherBudget / 10000, 1)}</td>
                 <td className="num">
                   {num(Math.max(0, group.total.gap) / 10000, 1)}
                 </td>
@@ -578,62 +508,13 @@ function DestinationSection({ items, executive }) {
   );
 }
 
-function StructureSection({ rows, dealers, basis }) {
-  const groups = groupSummary(rows, dealers, "sd"),
-    label = metricLabel(basis);
-  return (
-    <section id="studio-structure" className="panel studio-section">
-      <header>
-        <span>④</span>
-        <div>
-          <h2>按 SD 看 · 各 SD 分得是否均衡</h2>
-          <p>投入金额占比与 {label} 占比在同一完整范围内比较。</p>
-        </div>
-      </header>
-      <div className="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>SD</th>
-              <th className="num">获配 / 全部</th>
-              <th className="num">投资金额（万）</th>
-              <th className="num">投资占比</th>
-              <th className="num">{label} 占比</th>
-              <th className="num">差值</th>
-              <th>判断</th>
-            </tr>
-          </thead>
-          <tbody>
-            {groups.map((group) => {
-              const [tone, text] = signal(group.gap);
-              return (
-                <tr key={group.key}>
-                  <td>
-                    <strong>{group.key}</strong>
-                  </td>
-                  <td className="num">
-                    {group.allocatedCount} / {group.totalCount}
-                  </td>
-                  <td className="num">{num(group.amount / 10000, 1)}</td>
-                  <td className="num">{pct(group.amountShare)}</td>
-                  <td className="num">{pct(group.metricShare)}</td>
-                  <td className="num">{pp(group.gap)}</td>
-                  <td>
-                    <span className={`resource-signal ${tone}`}>{text}</span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
-function DealerSection({ rows, basis, period, executive }) {
+function DealerSection({ items, dealers, executive }) {
+  const [basis, setBasis] = useState("c3"), [period, setPeriod] = useState("2025");
+  const rows = portfolioRows(items, dealers, basis, period);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [detail, setDetail] = useState(null), [sort, setSort] = useState({ key: "amount", direction: -1 });
+  const header = (key, label) => <th className={!["name", "sd", "rsm"].includes(key) ? "num" : ""} aria-sort={sort.key === key ? sort.direction === 1 ? "ascending" : "descending" : "none"}><button className="v19-sort" onClick={() => { setSort({ key, direction: sort.key === key ? -sort.direction : 1 }); setPage(1); }}>{label}{sort.key === key ? sort.direction === 1 ? " ↑" : " ↓" : " ↕"}</button></th>;
   const shares = (field) =>
     new Map(
       dealerDeviations(
@@ -649,7 +530,13 @@ function DealerSection({ rows, basis, period, executive }) {
     )
     .filter((row) =>
       `${row.id} ${row.name}`.toLowerCase().includes(search.toLowerCase()),
-    );
+    ).sort((a, b) => {
+      const value = (row) => ({ volShare: volShares.get(row.key), c3Share: c3Shares.get(row.key), vol: row.history?.[period === "2025" ? "vol2025" : "vol2026Ytd"], c3: row.history?.[period === "2025" ? "c32025" : "c32026Ytd"], investment: historyInvestment(row.history, period), yield: historyYield(row.history, period), count: row.initiatives.size })[sort.key] ?? row[sort.key];
+      const av = value(a), bv = value(b);
+      if (av == null) return bv == null ? 0 : 1;
+      if (bv == null) return -1;
+      return (typeof av === "number" && typeof bv === "number" ? av - bv : String(av).localeCompare(String(bv), "zh-CN", { numeric: true })) * sort.direction;
+    });
   return (
     <section id="studio-dealers" className="panel studio-section">
       <header>
@@ -658,10 +545,11 @@ function DealerSection({ rows, basis, period, executive }) {
           <h2>{executive ? "④ " : "⑤ "}经销商明细 · 投入与历史对照</h2>
           <p>
             金额为当前范围合计；历史列期间为{" "}
-            {period === "2025" ? "2025 全年" : "2026 YTD（1–10月）"}。
+            {period === "2025" ? "2025 全年" : "2026 YTD（月份由数据源提供）"}。
           </p>
         </div>
       </header>
+      <div className="studio-inline-controls"><label>明细历史期间<select value={period} onChange={(event) => setPeriod(event.target.value)}><option value="2025">2025 全年</option><option value="2026Ytd">2026 YTD</option></select></label><label>明细产出口径<select value={basis} onChange={(event) => setBasis(event.target.value)}><option value="c3">C3</option><option value="vol">Delivery Vol</option></select></label></div>
       <div className="studio-table-toolbar">
         <span>快速定位：占比与差值 · Actual / Phasing · 投资 / Yield</span>
         <input
@@ -678,21 +566,22 @@ function DealerSection({ rows, basis, period, executive }) {
         <table>
           <thead>
             <tr>
-              <th>经销商 / 编码</th>
-              <th className="num">累计投资（万）</th>
-              <th>SD</th>
-              <th>RSM</th>
-              <th>状态</th>
-              <th className="num">投资占比</th>
-              <th className="num">Delivery Vol占比</th>
-              <th className="num">C3占比</th>
-              <th className="num">投资−{metricLabel(basis)}</th>
-              <th className="num">Delivery Vol（KL）</th>
-              <th className="num">Actual C3（K$）</th>
+              {header("name", "经销商 / 编码")}
+              {header("amount", "累计投资（万）")}
+              {header("sd", "SD")}
+              {executive && <th>Initiative</th>}
+              {header("rsm", "RSM")}
+              {!executive && <th>状态</th>}
+              {header("amountShare", "投资占比")}
+              {header("volShare", "Delivery Vol占比")}
+              {header("c3Share", "C3占比")}
+              {header("gap", `投资−${metricLabel(basis)}`)}
+              {header("vol", "Delivery Vol（KL）")}
+              {header("c3", "Actual C3（K$）")}
               <th className="num">Phasing</th>
-              <th className="num">历史投资（K$）</th>
-              <th className="num">Yield</th>
-              <th className="num">获配项目数</th>
+              {header("investment", "历史投资（K$）")}
+              {header("yield", "Yield")}
+              {header("count", "获配项目数")}
             </tr>
           </thead>
           <tbody>
@@ -720,13 +609,14 @@ function DealerSection({ rows, basis, period, executive }) {
                       <small>{row.code || row.id}</small>
                     </td>
                     <td className="num">{num(row.amount / 10000, 1)}</td>
-                    <td>{row.sd}</td>
+                    <td>{executive ? <button className="button small" onClick={() => setDetail(row)}>{row.sd}</button> : row.sd}</td>
+                    {executive && <td><div className="v19-source-chips">{row.initiativeSources?.map((source) => <button key={source.id} onClick={() => setDetail(row)}>{source.name}</button>)}</div></td>}
                     <td>{row.rsm}</td>
-                    <td>
+                    {!executive && <td>
                       <span className={`resource-status ${row.status}`}>
                         {row.status}
                       </span>
-                    </td>
+                    </td>}
                     <td className="num">{pct(row.amountShare)}</td>
                     <td className="num">{pct(volShares.get(row.key))}</td>
                     <td className="num">{pct(c3Shares.get(row.key))}</td>
@@ -785,53 +675,21 @@ function DealerSection({ rows, basis, period, executive }) {
       </div>
       <p className="studio-table-note">
         Yield
-        读取对应期间的历史数据；历史投资仅在四类资源均可见且数据完整时展示。
+        读取对应期间的历史数据；历史投资合计为公共指标，费用明细按当前账号权限展示。
         合同量未提供，Phasing 暂显示 —；缺失值不按 0 处理。
       </p>
-    </section>
-  );
-}
-
-function VersionSection({ executive }) {
-  return (
-    <section
-      id="studio-version-change"
-      className="panel studio-section studio-version-compare"
-    >
-      <header>
-        <span>{executive ? "⑤" : "⑥"}</span>
-        <div>
-          <h2>{executive ? "⑤ " : "⑥ "}版本变化 · 202701 对比 202612</h2>
-          <p>默认当前版本对比来源版本，也可选择任意两个已发布版本。</p>
-        </div>
-      </header>
-      <div className="studio-inline-controls">
-        <label>
-          版本 A
-          <select>
-            <option>202612 · 年度初始规划</option>
-          </select>
-        </label>
-        <span>→</span>
-        <label>
-          版本 B
-          <select>
-            <option>202701 · 业务目标校准</option>
-          </select>
-        </label>
-      </div>
-      <div className="empty">选择范围后展示预算去向与经销商投入变化。</div>
+      {detail && <WorkflowDialog title={`${detail.name} · 已确认投资来源`} onClose={() => setDetail(null)}><p>{detail.sd} · {detail.rsm} · 合计 {wan(detail.amount)}</p><table><thead><tr><th>Initiative</th><th>Owner</th><th className="num">投入（元）</th></tr></thead><tbody>{detail.initiativeSources?.map((source) => <tr key={source.id}><td>{source.name}</td><td>{source.owner}</td><td className="num">{num(source.amount, 2)}</td></tr>)}</tbody></table></WorkflowDialog>}
     </section>
   );
 }
 
 function PortfolioDashboard({ mode }) {
-  const { view, state, data } = useWorkbench();
+  const { view, state, data, identity } = useWorkbench();
   const accessible = new Set((view.initiatives || []).map((item) => item.id));
   const published = latestPublished(state).filter(
     (item) => mode === "exec" || accessible.has(item.id),
   );
-  const source = mode === "owner" ? view.initiatives || [] : published;
+  const source = state.planningVersion ? (view.initiatives || []).filter((item) => mode === "owner" || (mode === "exec" ? true : item.workflow?.submitted)) : mode === "owner" ? view.initiatives || [] : published;
   const [filters, setFilters] = useState({
     sector: "all",
     department: "all",
@@ -857,7 +715,7 @@ function PortfolioDashboard({ mode }) {
       ? "我的投入组合"
       : "部门投入组合";
   const description = executive
-    ? "从资源大类往下看：预算分到哪类资源、是否集中、叠加后谁超配。只读，基于已提交方案。"
+    ? "从资源大类往下看：预算分到哪类资源、是否集中、叠加后谁超配。只读，基于部门已确认方案。"
     : mode === "owner"
       ? "本人全部 Initiative 的工作草稿叠加分析。"
       : "本部门已提交方案，只读查看预算去向与历史产出匹配。";
@@ -907,15 +765,10 @@ function PortfolioDashboard({ mode }) {
       />
       <DestinationSection items={scoped} executive={executive} />
       {!executive && (
-        <StructureSection rows={rows} dealers={data.dealers} basis={basis} />
+        <SdAnalysis items={scoped} dealers={data.dealers} showOwner={mode === "department"} metadata={state.reference} threshold={state.healthThresholds?.dealerYellow ?? 3} sourceVersionId={state.planningVersion?.sourceVersionId} comparisonIdentity={identity?.email} />
       )}
-      <DealerSection
-        rows={rows}
-        basis={basis}
-        period={period}
-        executive={executive}
-      />
-      <VersionSection executive={executive} />
+      <DealerSection items={scoped} dealers={data.dealers} executive={executive} />
+      <VersionComparison executive={executive} />
       <p className="studio-board-footnote">
         集中度高不代表不合理，需结合 Owner
         说明判断；无历史的新经销商不参与产出匹配比较。

@@ -62,8 +62,11 @@ async def get_workspace(
     planning_year: int,
     session: Annotated[AsyncSession, Depends(get_db_session)],
     user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
+    version_id: str | None = None,
 ) -> ApiResponse[dict]:
-    return success(await _workspace_service(session, user).get_workspace(planning_year))
+    return success(
+        await _workspace_service(session, user).get_workspace(planning_year, version_id=version_id)
+    )
 
 
 @router.get(

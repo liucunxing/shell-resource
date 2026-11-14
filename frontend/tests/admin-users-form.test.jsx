@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   departmentAfterRoleChange,
+  hasValidAffiliation,
   ownerSectorOptions,
   sectorAfterRoleChange,
   toggleSectorSelection,
@@ -47,4 +48,12 @@ describe("管理员人员业务线选择", () => {
     expect(toggleSectorSelection("lead", ["PCMO"], "CRTO")).toEqual(["PCMO", "CRTO"]);
     expect(toggleSectorSelection("lead", ["PCMO", "CRTO"], "PCMO")).toEqual(["CRTO"]);
   });
+});
+
+it("requires explicit valid home affiliation for every role without using business scope", () => {
+  for (const role of ["owner", "lead", "management", "admin"]) {
+    expect(hasValidAffiliation({ role, department: ["MKT"], sector: ["PCMO"] })).toBe(false);
+    expect(hasValidAffiliation({ role, affiliation_sector: "PCMO", affiliation_department: "MKT" })).toBe(true);
+  }
+  expect(hasValidAffiliation({ affiliation_sector: "UNKNOWN", affiliation_department: "MKT" })).toBe(false);
 });

@@ -77,6 +77,8 @@ class WorkbenchService:
             resource_type_keyword=None,
             status=None,
         )
+        if any(item.planning_version_id for item in all_items):
+            raise HTTPException(409, "版本化项目请使用带版本的工作台投影接口")
         total_count = len(all_items)
         total_budget = sum((item.plan_budget_amount for item in all_items), Decimal("0"))
         completed_count = sum(1 for item in all_items if item.status == 1)
@@ -261,6 +263,20 @@ class WorkbenchService:
             raise HTTPException(status_code=404, detail="预算不存在或不属于当前工作台范围")
         if writable and budget.owner_email != self.user.email:
             raise HTTPException(status_code=403, detail="仅当前 Initiative 的 Owner 可编辑")
+        if budget.planning_version_id:
+            from app.services.planning_service import PlanningService
+
+            planning = PlanningService(self.budget_repository.session, self.user)
+            await planning.read_guard(budget)
+            if (
+                not writable
+                and self.user.role == "lead"
+                and (budget.owner_email or "").lower() != self.user.email.lower()
+            ):
+                raise HTTPException(409, "部门请通过版本工作台查看已提交方案")
+            if writable:
+                # Row endpoints lack a revision-bearing complete plan; do not permit bypass.
+                raise HTTPException(409, "版本化项目请使用完整草稿保存接口")
         return budget
 
     @staticmethod
