@@ -103,8 +103,8 @@ describe("imported distributor history", () => {
     });
     const rows = ["A", "B", "C"].map((dealerId) => ({ dealerId, amount: 0 }));
     const dealers = [
-      { id: "A", history: { resources2026Ytd: resources(1) } },
-      { id: "B", history: { resources2026Ytd: resources(2) } },
+      { id: "A", history: { vol2026Ytd: 1, resources2026Ytd: resources(1) } },
+      { id: "B", history: { vol2026Ytd: 1, resources2026Ytd: resources(2) } },
       { id: "C", history: { resources2026Ytd: { MRD: 100 } } },
     ];
     const result = allocateByHistory(rows, dealers, 10000, "investment2026Ytd");
