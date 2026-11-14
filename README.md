@@ -92,3 +92,5 @@ cd backend
 用户已明确：本地可以导入原型演示数据；远端 PG 连接真实业务数据。演示数据、模拟月份和账号不能写入远端 PG，也不能作为真实数据验收证据。远端核查结果见 [PG 历史数据评估](docs/PG_SELLIN_ASSESSMENT.md)。
 
 原型导出由 `backend/scripts/export_v19_prototype.cjs` 在全新浏览器上下文执行最终 `enterDemo()` 生成，记录源 SHA、明确的演示月份及单位。包含120家虚构经销商、10个虚构用户及两个规划版本，源JSON两版本均无部门确认。本地fixture另标注 `derivedLocalPreparation`，通过正常业务服务确认202612的齐交部门供管理层查看基线；202701保留原22提交、0确认。派生测试准备不反写源JSON或远端PG。重复提取仅运行时审计时间变化；原始HTML保持不变。
+
+本地原型与远端真实数据分支的启动、测试和最新结果见 [双分支测试说明](docs/TEST_BRANCHES.md)。
