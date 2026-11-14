@@ -28,7 +28,7 @@ docs/       本期业务契约和协作说明
 
 Databricks 只能使用应用 Service Principal 对应且获授权的 schema，当前目标为 `prod.resource_planning.dim_distributor`。2026-11-14 限定该 schema 的个人只读核查可见两个经销商基础视图，各 2,678 行、3 个字段；未看到业务指标与月份/汇率字段。应用 SP 认证仍返回 `401 invalid_client`，个人查询不能证明应用身份可读。其他 schema 的候选数据不能直接接入，不能用个人凭据回退。
 
-历史宽表尚缺真实截止月和合同量；Phasing 的 Vol/合同、Yield 的 C3/完整投资、YoY 的年度公式已定义，不能因缺字段而说成公式未定义。PPP 的业务定义和来源仍缺。YTD 配置允许 1–12、默认 10，但与 PG Actual/费用的实际覆盖月份分开表达。金额比较须明确币种、单位、汇率和期间，未知值不补零、不猜月份、不把合同量当 PPP。完整边界见 [指标定义](docs/METRIC_DEFINITIONS.md)。
+历史宽表尚缺真实截止月和合同量；Phasing 的 Vol/合同、Yield 的 C3/完整投资、YoY 的年度公式已定义，不能因缺字段而说成公式未定义。V19 已定义 PPP 的 Vol/C3 目标列，但真实目标来源与字段映射仍缺；合同采用原型已明确的全年签署量。分析产出截零与历史金额保留负数的原型证据见[确认清单](docs/PENDING_DATA_DECISIONS.md)。YTD 配置允许 1–12、默认 10，但与 PG Actual/费用的实际覆盖月份分开表达。金额比较须明确币种、单位、汇率和期间，未知值不补零、不猜月份、不把合同量当 PPP。完整边界见 [指标定义](docs/METRIC_DEFINITIONS.md)。
 
 ## 开发与运行
 
