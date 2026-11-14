@@ -144,3 +144,26 @@ describe("historical proportional allocation", () => {
     expect(() => allocateByHistory(rows, [], -1, "c32025")).toThrow();
   });
 });
+
+it("does not allocate investment weights to new dealers without output history", () => {
+  const source = [
+    { id: "A", history: { vol2025: 0, c32025: 0, totalInvestment2025: 100 } },
+    { id: "B", history: { vol2025: 1, c32025: 0, totalInvestment2025: 200 } },
+  ];
+  const onlyNew = allocateByHistory(
+    rows.slice(0, 1),
+    source,
+    100100,
+    "investment2025",
+  );
+  expect(onlyNew.hasHistory).toBe(false);
+  expect(onlyNew.rows[0].amount).toBe(0);
+  expect(
+    allocateByHistory(
+      rows.slice(0, 2),
+      source,
+      100100,
+      "investment2025",
+    ).rows.map((row) => row.amount),
+  ).toEqual([0, 1001]);
+});
