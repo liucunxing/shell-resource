@@ -32,6 +32,13 @@ export function allocateByHistory(
   }
   const weighted = rows.map((row) => {
     const dealer = byId.get(String(row.dealerId));
+    const ytd = field.endsWith("2026Ytd");
+    const vol = dealer?.history?.[ytd ? "vol2026Ytd" : "vol2025"];
+    const c3 = dealer?.history?.[ytd ? "c32026Ytd" : "c32025"];
+    const hasOutputHistory = [vol, c3].some(
+      (value) =>
+        typeof value === "number" && Number.isFinite(value) && value > 0,
+    );
     const value =
       field === "investment2025" || field === "investment2026Ytd"
         ? historyInvestment(
@@ -42,7 +49,10 @@ export function allocateByHistory(
     return {
       name: `${names.get(String(row.dealerId)) || "名称未提供"}（${row.dealerId}）`,
       weight:
-        typeof value === "number" && Number.isFinite(value) && value > 0
+        hasOutputHistory &&
+        typeof value === "number" &&
+        Number.isFinite(value) &&
+        value > 0
           ? value
           : 0,
     };
