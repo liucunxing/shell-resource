@@ -851,6 +851,8 @@ class InsightService:
         dealer_id, history = trend
         vol24, vol25 = self._numeric(history.get("vol2024")), self._numeric(history.get("vol2025"))
         c324, c325 = self._numeric(history.get("c32024")), self._numeric(history.get("c32025"))
+        supplied_vol_yoy = self._numeric(history.get("yoyVol2425"))
+        supplied_c3_yoy = self._numeric(history.get("yoyC32425"))
         if vol24 is None or vol25 is None or c324 is None or c325 is None or not vol24 or not c324:
             return self._trend_evidence(None, dealers, common, descriptor)
         return {
@@ -861,10 +863,18 @@ class InsightService:
                 **common,
                 "2024 Vol": self._number(vol24),
                 "2025 Vol": self._number(vol25),
-                "Vol变化": float(((vol25 / vol24) - 1).quantize(Decimal("0.0001"))),
+                "Vol变化": float(
+                    (supplied_vol_yoy / Decimal("100")).quantize(Decimal("0.0001"))
+                    if supplied_vol_yoy is not None
+                    else ((vol25 / vol24) - 1).quantize(Decimal("0.0001"))
+                ),
                 "2024 C3": self._number(c324),
                 "2025 C3": self._number(c325),
-                "C3变化": float(((c325 / c324) - 1).quantize(Decimal("0.0001"))),
+                "C3变化": float(
+                    (supplied_c3_yoy / Decimal("100")).quantize(Decimal("0.0001"))
+                    if supplied_c3_yoy is not None
+                    else ((c325 / c324) - 1).quantize(Decimal("0.0001"))
+                ),
                 "规划年度分配": self._number(dealers[dealer_id]["amount"]),
             },
             "status": "review",

@@ -273,7 +273,7 @@ vitestTest(
           m.periods.map((p) => p.comparable),
           [true, true, false],
         );
-        assert.equal(m.periods[2].label, "2026 1–8月");
+        assert.equal(m.periods[2].label, "2026 YTD");
         const all = ["management", "admin"].includes(identity.role);
         assert.equal(m.allResources, all);
         const labels = all

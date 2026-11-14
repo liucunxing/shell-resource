@@ -5,6 +5,7 @@ import {
   toggleDealerSelection,
   uniqueDealersByCode,
   MissingHistoryNotice,
+  balanceSelectedDealers,
 } from "../src/workbench/pages/EditorPage.jsx";
 import E from "../src/workbench/domain/engine.js";
 
@@ -65,7 +66,18 @@ describe("dealer picker search", () => {
     ]);
   });
 
-  it("accepts a new Databricks directory dealer before it has history data", () => {
+  it("balances an integer remainder across selected dealers in stable order", () => {
+    const rows = [
+      { dealerId: "A", amount: 20 },
+      { dealerId: "B", amount: 40 },
+      { dealerId: "C", amount: 10 },
+    ];
+    expect(balanceSelectedDealers(rows, ["A", "B", "C"], 1001).map((row) => row.amount))
+      .toEqual([354, 374, 343]);
+    expect(balanceSelectedDealers(rows, ["A", "B"], -100)).toBeNull();
+  });
+
+  it("accepts a dealer selected from the server directory", () => {
     const errors = E.validateInitiative(
       {
         budget: 0,

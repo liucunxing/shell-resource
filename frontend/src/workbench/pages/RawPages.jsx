@@ -345,7 +345,7 @@ export function AboutPage() {
                 <span>PostgreSQL</span>
               </div>
               <p className="small-text muted">
-                Databricks 每月人工触发参考数据推送；应用后端从 PG
+                历史与经销商主数据由数据团队刷新到 PostgreSQL；应用后端从 PG
                 提取授权事实调用允许的 LLM，并保存 Insight 与依据版本。
               </p>
             </div>

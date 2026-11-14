@@ -43,7 +43,7 @@ const homeFor = (identity) =>
     : identity.role === "lead"
       ? "department"
       : identity.role === "admin"
-        ? "admin"
+        ? "admin-versions"
         : "management";
 const blankDepartments = () =>
   Object.fromEntries(

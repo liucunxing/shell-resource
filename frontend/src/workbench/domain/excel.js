@@ -150,7 +150,7 @@ function dealerDirectory(data = {}) {
     : Array.isArray(data.dealers)
       ? data.dealers
       : [];
-  return [...new Map(rows.map((dealer) => [json([String(dealer.id), dealer.sector || ""]), dealer])).values()];
+  return [...new Map(rows.filter((dealer) => dealer.status == null || dealer.status === "active" || String(dealer.status) === "1").map((dealer) => [json([String(dealer.id), dealer.sector || ""]), dealer])).values()];
 }
 async function exportWorkbook(state, id, identity, data = {}) {
   const i = editable(state, id, identity),
@@ -167,10 +167,15 @@ async function exportWorkbook(state, id, identity, data = {}) {
   meta.getRow(9).getCell(2).alignment = { wrapText: true };
   meta.getRow(9).height = 56;
   const rows = book.addWorksheet("经销商分配");
-  rows.addRow(HEAD);
-  (i.rows || []).forEach((r) =>
-    rows.addRow([r.dealerId, r.amount, r.note || ""]),
-  );
+  const historical = [...(data.dealers || []), ...dealerDirectory(data)];
+  const byId = new Map(historical.map((dealer) => [String(dealer.id), dealer]));
+  const detailed = historical.some((dealer) => dealer.code);
+  rows.addRow(detailed ? [...HEAD, "SD", "RSM", "记录标识"] : HEAD);
+  (i.rows || []).forEach((r) => {
+    const dealer = byId.get(String(r.dealerId)) || {};
+    rows.addRow(detailed ? [dealer.code || r.dealerCode || r.dealerId, r.amount, r.note || "", dealer.sd || r.sd || "", dealer.rsm || r.rsm || "", r.dealerId] : [r.dealerId, r.amount, r.note || ""]);
+  });
+  if (detailed) rows.getColumn(6).hidden = true;
   style(rows, [24, 20, 65]);
   rows.getColumn(2).numFmt = "#,##0.00";
   const other = book.addWorksheet("其他预算安排");
@@ -210,11 +215,18 @@ async function exportWorkbook(state, id, identity, data = {}) {
 }
 function addDealerDirectory(book, data) {
   const directory = book.addWorksheet("经销商列表");
-  directory.addRow(["业务线", "经销商编码", "经销商名称"]);
+  directory.addRow(["业务线", "经销商编码", "经销商名称", "SD", "RSM", "状态"]);
   dealerDirectory(data).forEach((dealer) =>
-    directory.addRow([String(dealer.sector || ""), String(dealer.id), String(dealer.name || "")]),
+    directory.addRow([
+      String(dealer.sector || ""),
+      String(dealer.code || dealer.id),
+      String(dealer.name || ""),
+      String(dealer.sd || ""),
+      String(dealer.rsm || ""),
+      String(dealer.status || ""),
+    ]),
   );
-  style(directory, [20, 24, 48]);
+  style(directory, [20, 24, 48, 24, 24, 18]);
 }
 async function exportDealerDirectory(data) {
   const book = new (await excelLibrary()).Workbook();
@@ -397,16 +409,31 @@ async function previewImport(buffer, state, id, identity, data) {
   if (meta.rowCount > (isV14 ? 9 : 11))
     out.errors.push("模板信息含额外行，请使用原始模板。");
   checkHeaders(read, out, ds, isV14 ? HEAD : LEGACY_HEAD);
-  checkWidth(out, ds, isV14 ? 3 : 4);
-  const dealers = new Set(dealerDirectory(data).map((d) => String(d.id))),
+  const detailed = isV14 && read(ds, 1, 6) === "记录标识";
+  checkWidth(out, ds, detailed ? 6 : isV14 ? 3 : 4);
+  const sourceRecords = [...(data.dealers || []), ...dealerDirectory(data)];
+  const dealers = new Set([
+      ...dealerDirectory(data).filter((d) => !d.sector || d.sector === i.sector).map((d) => String(d.id)),
+      ...i.rows.map((row) => String(row.dealerId)),
+    ]),
     keys = new Set(),
     ids = new Set();
   for (let n = 2; n <= ds.rowCount; n++) {
     const row = Array.from({ length: isV14 ? 3 : 4 }, (_, c) => read(ds, n, c + 1));
     if (row.every((v) => v === "")) continue;
-    const [key, dealer, amount, note] = isV14
+    const [key, inputDealer, amount, note] = isV14
       ? [null, row[0], row[1], row[2]]
       : row;
+    let dealer = inputDealer;
+    if (detailed) {
+      const sd = String(read(ds, n, 4) || ""), rsm = String(read(ds, n, 5) || "");
+      const matches = [...new Map(sourceRecords.filter((record) =>
+        (!record.sector || record.sector === i.sector) && String(record.code || record.id) === String(inputDealer) && (record.sd || "") === sd && (record.rsm || "") === rsm
+      ).map((record) => [String(record.id), record])).values()];
+      dealer = matches.length === 1 ? String(matches[0].id) : read(ds, n, 6);
+      if (matches.length !== 1 && !i.rows.some((old) => old.dealerId === dealer && (old.dealerCode || old.dealerId) === inputDealer))
+        out.errors.push(`经销商分配 第${n}行编码、SD、RSM 无法唯一匹配历史记录。`);
+    }
     if (typeof dealer !== "string" || !dealers.has(dealer))
       out.errors.push(`经销商分配 第${n}行经销商编码不存在或格式不正确。`);
     if (!isV14 && key !== i.id + "::" + dealer)

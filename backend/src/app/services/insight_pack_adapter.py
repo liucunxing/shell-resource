@@ -256,6 +256,10 @@ def build_evidence(
             key: number(history.get(key))
             for key in ["vol2024", "vol2025", "c32024", "c32025", "vol2026Ytd", "c32026Ytd"]
         }
+        supplied_growth = {
+            "vol": number(history.get("yoyVol2425")),
+            "c3": number(history.get("yoyC32425")),
+        }
         for key, val in values.items():
             fact(
                 f"{key}:{dealer_id}",
@@ -285,9 +289,13 @@ def build_evidence(
             fact(
                 f"{metric}-growth:{dealer_id}",
                 f"{dealer_id} {metric.upper()} 全年同比变化率",
-                float(change / Decimal(str(previous)))
-                if change is not None and previous is not None and previous > 0
-                else None,
+                supplied_growth[metric] / 100
+                if supplied_growth[metric] is not None
+                else (
+                    float(change / Decimal(str(previous)))
+                    if change is not None and previous is not None and previous > 0
+                    else None
+                ),
                 "ratio",
                 "2025全年 / 2024全年",
                 "仅正数基期计算变化率；零或负基期仍可陈述原值及变化量，不能称数据缺失。",

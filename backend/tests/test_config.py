@@ -5,7 +5,7 @@ from app.core.config import get_settings
 
 
 @pytest.mark.parametrize("environment", ["development", "production", "test"])
-def test_databricks_profiles_use_renamed_uc_view(
+def test_legacy_databricks_profiles_remain_loadable(
     monkeypatch: MonkeyPatch, environment: str
 ) -> None:
     monkeypatch.setenv("APP_ENV", environment)
@@ -36,7 +36,9 @@ def test_prod_alias_selects_production_profile(monkeypatch: MonkeyPatch) -> None
     get_settings.cache_clear()
 
 
-def test_databricks_environment_values_override_profile(monkeypatch: MonkeyPatch) -> None:
+def test_legacy_databricks_environment_values_remain_loadable(
+    monkeypatch: MonkeyPatch,
+) -> None:
     monkeypatch.setenv("DATABRICKS_SERVER_HOSTNAME", "adb.example.test")
     monkeypatch.setenv("DATABRICKS_HTTP_PATH", "/sql/1.0/warehouses/warehouse-1")
     monkeypatch.setenv("DATABRICKS_CLIENT_ID", "client-id")

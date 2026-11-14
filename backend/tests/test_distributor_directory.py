@@ -1,106 +1,81 @@
-import httpx
 import pytest
 from fastapi import HTTPException
-from pydantic import SecretStr
 
-from app.core.config import get_settings
-from app.repositories.distributor_directory_repository import (
-    DatabricksDistributorRepository,
-)
 from app.services.distributor_directory_service import DistributorDirectoryService
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("sectors", [("PCMO",), ("PCMO", "CRTO"), None])
-async def test_databricks_directory_uses_oauth_and_statement_api(
-    monkeypatch: pytest.MonkeyPatch,
-    sectors: tuple[str, ...] | None,
-) -> None:
-    settings = get_settings().model_copy(
-        update={
-            "databricks_server_hostname": "https://workspace.example.test",
-            "databricks_http_path": "/sql/1.0/warehouses/warehouse-1",
-            "databricks_client_id": "client-id",
-            "databricks_client_secret": SecretStr("client-secret"),
-            "databricks_view_name": "prod.resource_planning.dim_distributor",
-        }
-    )
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        if request.url.path == "/oidc/v1/token":
-            assert request.headers["authorization"].startswith("Basic ")
-            assert b"scope=sql" in request.content
-            return httpx.Response(200, json={"access_token": "short-lived-token"})
-        assert request.url.path == "/api/2.0/sql/statements"
-        assert request.headers["authorization"] == "Bearer short-lived-token"
-        statement = request.content.decode()
-        if sectors is None:
-            assert "sector IN" not in statement
-        else:
-            expected = "'CRTO', 'PCMO'" if len(sectors) == 2 else "'PCMO'"
-            assert f"AND sector IN ({expected})" in statement
-        assert "SELECT distributor_code, distributor_name, sector " in request.content.decode()
-        assert "FROM prod.resource_planning.dim_distributor " in request.content.decode()
-        return httpx.Response(
-            200,
-            json={
-                "status": {"state": "SUCCEEDED"},
-                "result": {
-                    "data_array": [
-                        ["D1", "Dealer One", "PCMO"],
-                        ["D1", "Duplicate ignored", "PCMO"],
-                        ["D1", "Dealer One", "CRTO"],
-                        ["D2", None, None],
-                    ]
-                },
+class HistoryRepository:
+    async def list_dealers(self, dealer_ids=None, sectors=None):
+        del dealer_ids
+        rows = [
+            {
+                "distributor_code": "D1",
+                "distributor_name": "Dealer One",
+                "sector": "PCMO",
+                "sd": "SD East",
+                "rsm": "RSM 01",
+                "distributor_status": 1,
             },
-        )
-
-    original_client = httpx.AsyncClient
-    monkeypatch.setattr(
-        httpx,
-        "AsyncClient",
-        lambda **kwargs: original_client(
-            transport=httpx.MockTransport(handler), **kwargs
-        ),
-    )
-
-    result = await DatabricksDistributorRepository(settings).list_distributors(sectors)
-
-    assert result == [
-        {"distributor_code": "D1", "distributor_name": "Dealer One", "sector": "PCMO"},
-        {"distributor_code": "D1", "distributor_name": "Dealer One", "sector": "CRTO"},
-        {"distributor_code": "D2", "distributor_name": None, "sector": None},
-    ]
-
-    service = DistributorDirectoryService(settings)
-    assert await service.list_distributors(sectors) == [
-        {"id": "D1", "name": "Dealer One", "sector": "PCMO"},
-        {"id": "D1", "name": "Dealer One", "sector": "CRTO"},
-        {"id": "D2", "name": None, "sector": None},
-    ]
+            {
+                "distributor_code": "D1",
+                "distributor_name": "Second organization",
+                "sector": "PCMO",
+                "sd": "SD East",
+                "rsm": "RSM 01",
+                "distributor_status": "active",
+            },
+            {
+                "distributor_code": "D1",
+                "distributor_name": "Dealer One",
+                "sector": "CRTO",
+                "sd": "SD East",
+                "rsm": "RSM 01",
+                "distributor_status": "active",
+            },
+            {
+                "distributor_code": "D2",
+                "distributor_name": None,
+                "sector": None,
+                "sd": None,
+                "rsm": None,
+                "distributor_status": "newclose",
+            },
+        ]
+        return [row for row in rows if sectors is None or row["sector"] in sectors]
 
 
 @pytest.mark.asyncio
-async def test_missing_databricks_configuration_returns_service_unavailable() -> None:
-    settings = get_settings().model_copy(
-        update={
-            "databricks_server_hostname": "",
-            "databricks_http_path": "",
-            "databricks_client_id": "",
-            "databricks_client_secret": None,
-        }
-    )
+@pytest.mark.parametrize(
+    "sectors,expected",
+    [
+        (("PCMO",), [("D1", "PCMO"), ("D1", "PCMO")]),
+        (("PCMO", "CRTO"), [("D1", "PCMO"), ("D1", "PCMO"), ("D1", "CRTO")]),
+        (None, [("D1", "PCMO"), ("D1", "PCMO"), ("D1", "CRTO")]),
+    ],
+)
+async def test_history_directory_uses_history_rows_and_sector_scope(
+    sectors: tuple[str, ...] | None,
+    expected: list[tuple[str, str | None]],
+) -> None:
+    service = DistributorDirectoryService(None, HistoryRepository())
 
-    with pytest.raises(HTTPException) as error:
-        await DistributorDirectoryService(settings).list_distributors(("PCMO",))
+    result = await service.list_distributors(sectors)
 
-    assert error.value.status_code == 503
+    assert [(row["code"], row["sector"]) for row in result] == expected
+    assert result[0] == {
+        "id": result[0]["id"],
+        "code": "D1",
+        "name": "Dealer One",
+        "sector": "PCMO",
+        "sd": "SD East",
+        "rsm": "RSM 01",
+        "status": "active",
+    }
 
 
 @pytest.mark.asyncio
 async def test_owner_without_a_sector_cannot_load_the_directory() -> None:
     with pytest.raises(HTTPException) as error:
-        await DistributorDirectoryService(get_settings()).list_distributors(())
+        await DistributorDirectoryService(None, HistoryRepository()).list_distributors(())
 
     assert error.value.status_code == 403

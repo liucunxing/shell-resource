@@ -138,10 +138,20 @@ class WorkspaceRepository:
         return await self.session.get(WorkspaceConfigDO, 1)
 
     async def replace_rows(self, budget: BudgetDO, rows: list[dict]) -> None:
+        from app.core.dealer_identity import dealer_identity
+        from app.repositories.reference_repository import ReferenceRepository
+
+        records = await ReferenceRepository(self.session).list_dealers(sectors=(budget.sector,))
+        directory = {dealer_identity(row): row for row in records}
+        existing = {
+            row.history_key or row.distributor_code: row for row in await self.rows_for(budget.id)
+        }
         await self.session.execute(
             delete(BudgetDistributorDO).where(BudgetDistributorDO.budget_id == budget.id)
         )
         for item in rows:
+            source = directory.get(item["dealerId"])
+            old = existing.get(item["dealerId"])
             self.session.add(
                 BudgetDistributorDO(
                     budget_id=budget.id,
@@ -150,7 +160,14 @@ class WorkspaceRepository:
                     department=budget.department,
                     resource_type=budget.resource_type,
                     initiative_name=budget.initiative_name,
-                    distributor_code=item["dealerId"],
+                    distributor_code=source["distributor_code"]
+                    if source
+                    else (old.distributor_code if old else item["dealerId"]),
+                    history_key=item["dealerId"]
+                    if item["dealerId"].startswith("history:")
+                    else None,
+                    sd=source["sd"] if source else (old.sd if old else None),
+                    rsm=source["rsm"] if source else (old.rsm if old else None),
                     distributor_budget_amount=Decimal(item["amount"]),
                     input_source="DRAFT",
                     description=item.get("note"),

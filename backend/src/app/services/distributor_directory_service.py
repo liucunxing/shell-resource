@@ -1,22 +1,20 @@
 from fastapi import HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import Settings
-from app.repositories.distributor_directory_repository import (
-    DatabricksConfigurationError,
-    DatabricksDirectoryError,
-    DatabricksDistributorRepository,
-)
+from app.core.dealer_identity import dealer_identity
+from app.core.distributor_status import distributor_status
+from app.repositories.reference_repository import ReferenceRepository
 
 
 class DistributorDirectoryService:
-    """Expose the Databricks distributor master using the workbench dealer contract."""
+    """Expose the PostgreSQL history list using the workbench dealer contract."""
 
     def __init__(
         self,
-        settings: Settings,
-        repository: DatabricksDistributorRepository | None = None,
+        session: AsyncSession,
+        repository: ReferenceRepository | None = None,
     ) -> None:
-        self.repository = repository or DatabricksDistributorRepository(settings)
+        self.repository = repository or ReferenceRepository(session)
 
     async def list_distributors(self, sectors: tuple[str, ...] | None) -> list[dict]:
         if sectors is not None and not sectors:
@@ -24,26 +22,27 @@ class DistributorDirectoryService:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="当前用户未配置业务线",
             )
-        try:
-            rows = await self.repository.list_distributors(sectors)
-        except DatabricksConfigurationError as error:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Databricks 经销商目录尚未配置",
-            ) from error
-        except DatabricksDirectoryError as error:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="Databricks 经销商目录查询失败，请稍后重试",
-            ) from error
-        return [
-            {
-                "id": row["distributor_code"],
-                "name": row["distributor_name"],
-                "sector": row["sector"],
-            }
-            for row in rows
-        ]
+        rows = await self.repository.list_dealers(sectors=sectors)
+        result: list[dict] = []
+        for row in rows:
+            if distributor_status(row["distributor_status"]) != "active":
+                continue
+            code = str(row["distributor_code"]).strip()
+            sector = row["sector"]
+            if not code:
+                continue
+            result.append(
+                {
+                    "id": dealer_identity(row),
+                    "code": code,
+                    "name": row["distributor_name"],
+                    "sector": sector,
+                    "sd": row["sd"],
+                    "rsm": row["rsm"],
+                    "status": "active",
+                }
+            )
+        return result
 
     async def distributor_codes(self, sectors: tuple[str, ...]) -> set[str]:
         return {item["id"] for item in await self.list_distributors(sectors)}

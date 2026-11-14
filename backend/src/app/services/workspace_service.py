@@ -4,7 +4,6 @@ from typing import Protocol
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings
 from app.core.departments import departments
 from app.core.resource_access import default_department_resources
 from app.dependencies.workbench_user import WorkbenchUser
@@ -37,7 +36,7 @@ class WorkspaceService:
         self.session = session
         self.user = user
         self.repository = WorkspaceRepository(session)
-        self.directory_service = directory_service or DistributorDirectoryService(get_settings())
+        self.directory_service = directory_service or DistributorDirectoryService(session)
 
     async def get_workspace(self, planning_year: int, *, synced_only: bool = False) -> dict:
         department, sector, owner = self._scope()
@@ -65,6 +64,7 @@ class WorkspaceService:
         dealers = await reference_service.get_dealers(
             planning_year,
             self.user.departments if self.user.role in {"owner", "lead"} else None,
+            sectors=self.user.dealer_sectors,
         )
         audit = []
         if self.user.role != "management":
@@ -263,7 +263,9 @@ class WorkspaceService:
                 "readOnly": True,
                 "actorEmail": self.user.preview_actor_email,
                 "actorLabel": self.user.preview_actor_label,
-            } if self.user.preview_actor_email else None,
+            }
+            if self.user.preview_actor_email
+            else None,
         }
 
     @staticmethod
@@ -284,7 +286,10 @@ class WorkspaceService:
             "budget": float(budget.plan_budget_amount),
             "rows": [
                 {
-                    "dealerId": row.distributor_code,
+                    "dealerId": row.history_key or row.distributor_code,
+                    "dealerCode": row.distributor_code,
+                    "sd": row.sd,
+                    "rsm": row.rsm,
                     "amount": float(row.distributor_budget_amount),
                     "note": row.description,
                 }
@@ -347,14 +352,16 @@ class WorkspaceService:
         if len({item.dealerId for item in rows}) != len(rows):
             raise HTTPException(status_code=422, detail="经销商编码不能重复")
         existing = await self.repository.rows_for(budget.id)
-        existing_ids = {item.distributor_code for item in existing}
+        existing_ids = {item.history_key or item.distributor_code for item in existing}
         requested_ids = {item.dealerId for item in rows}
         new_ids = requested_ids - existing_ids
         directory_ids = (
-            await self.directory_service.distributor_codes(self.user.sectors) if new_ids else set()
+            await self.directory_service.distributor_codes((budget.sector,)) if new_ids else set()
         )
         if not new_ids.issubset(directory_ids):
-            raise HTTPException(status_code=422, detail="经销商编码不存在")
+            raise HTTPException(
+                status_code=422, detail="新增经销商必须属于本项目业务线且状态为 active"
+            )
         config = await self.repository.config()
         allowed = {
             str(item.get("id"))

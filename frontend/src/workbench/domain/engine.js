@@ -201,7 +201,14 @@ function validateInitiative(i, data, reasons) {
     data && Object.hasOwn(data, "distributorDirectory")
       ? data.distributorDirectory
       : data?.dealers;
-  const ids = new Set((directoryDealers || []).map((dealer) => String(dealer.id)));
+  const ids = new Set((directoryDealers || [])
+    .filter((dealer) => !i.sector || !dealer.sector || dealer.sector === i.sector)
+    .filter((dealer) => dealer.status == null || dealer.status === "active" || String(dealer.status) === "1")
+    .map((dealer) => String(dealer.id)));
+  // Preserve source allocations when a dealer later closes; only new choices
+  // must come from the active directory. The API enforces the same rule.
+  const saved = data?.initiatives?.find((item) => String(item.id) === String(i.id));
+  for (const row of saved?.rows || []) ids.add(String(row.dealerId));
   const seen = new Set();
   if (!Array.isArray(i.rows)) errors.push("分配明细必须是数组。");
   else
@@ -1530,6 +1537,8 @@ function generateInsight(state, scope, identity, options) {
   if (trendDealer) {
     const h = history(trendDealer.id);
     const pct = (a, b) => ((a / b - 1) * 100).toFixed(2) + "%";
+    const suppliedPct = (value, fallback) =>
+      numeric(value) ? Number(value).toFixed(2) + "%" : fallback;
     results.push(
       make(
         "trend",
@@ -1537,9 +1546,9 @@ function generateInsight(state, scope, identity, options) {
         trendDealer.id,
         trendDealer.id +
           " 的 2025 对 2024 全年 Vol 同比 " +
-          pct(h.vol2025, h.vol2024) +
+          suppliedPct(h.yoyVol2425, pct(h.vol2025, h.vol2024)) +
           "，C3 同比 " +
-          pct(h.c32025, h.c32024) +
+          suppliedPct(h.yoyC32425, pct(h.c32025, h.c32024)) +
           "；2027 本范围计划分配 " +
           format(money(trendDealer.amount)) +
           "。",

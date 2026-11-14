@@ -32,15 +32,18 @@ it.each(["management", "admin"])("%s has the appropriate generation perspective"
   expect(html).not.toContain("分析方案由能力包维护");
 });
 
-it("admin overview offers explicit draft/synced versions and readonly details", () => {
+it("management overview follows the customer V17 readonly board", () => {
   const html = renderToStaticMarkup(<ManagementPage />);
-  expect(html).toContain("当前工作稿（含未同步调整）");
-  expect(html).toContain("各项目最新同步版本");
-  expect(html).toContain("查看明细");
+  expect(html).toContain("全局投资看板");
+  expect(html).toContain("只读，基于已提交方案");
+  expect(html).toContain("① 总盘");
+  expect(html).toContain("② 集中度");
+  expect(html).toContain("经销商明细");
+  expect(html).not.toContain("当前工作稿（含未同步调整）");
   expect(html).not.toContain("查看 / 调整");
   const editor = renderToStaticMarkup(<EditorPage />);
   expect(editor).not.toContain(">保存草稿<");
-  expect(editor).not.toContain(">同步最新分配<");
+  expect(editor).not.toContain(">提交当前方案<");
   expect(editor).not.toContain("可继续修改");
 });
 

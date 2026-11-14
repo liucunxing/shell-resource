@@ -275,6 +275,10 @@ function ReferencePanel() {
         : 0),
     0,
   );
+  const resource2026Total = (model.resources2026Ytd || []).reduce(
+    (total, resource) => total + (Number.isFinite(resource.amount) && resource.amount > 0 ? resource.amount : 0),
+    0,
+  );
   return (
     <>
       <label className="reference-selector">
@@ -297,6 +301,9 @@ function ReferencePanel() {
           ))}
         </select>
       </label>
+      <div className="reference-dealer-meta">
+        <span>{selected.sector || "—"}</span><span>{selected.sd || "SD —"}</span><span>{selected.rsm || "RSM —"}</span><span className={`resource-status ${selected.status || ""}`}>{selected.status || "状态 —"}</span>
+      </div>
       <section className="yield-card" aria-label="2025全年整体Yield">
         <div>
           <span>2025 全年 · Yield</span>
@@ -317,7 +324,8 @@ function ReferencePanel() {
           );
           const prior = fullYears[0]?.[field],
             latest = fullYears[1]?.[field];
-          const delta =
+          const supplied = field === "vol" ? model.yoyVol2425 : model.yoyC32425;
+          const delta = Number.isFinite(supplied) ? supplied :
             Number.isFinite(prior) && prior > 0 && Number.isFinite(latest)
               ? ((latest - prior) / prior) * 100
               : null;
@@ -398,6 +406,10 @@ function ReferencePanel() {
           条形占比以{model.allResources ? "全部" : "当前授权"}资源合计为分母。
         </p>
       </section>
+      {!!model.resources2026Ytd?.length && <section className="resource-chart">
+        <div className="history-chart-title"><h4>2026 YTD 资源构成</h4><span>{model.allResources ? "全部资源" : `${E.departments(identity).join("、")} 授权范围`}</span></div>
+        {model.resources2026Ytd.map((resource) => <div className="resource-bar-row" key={resource.label}><div><span>{resource.label.replace("2026 YTD ", "")}</span><b>{fmt(resource.amount)} K$</b></div><div className="history-bar-track"><i className="resource" style={{ width: `${resource2026Total && Number.isFinite(resource.amount) ? Math.max(0, resource.amount) / resource2026Total * 100 : 0}%` }} /></div></div>)}
+      </section>}
       <p className="reference-footnote">
         Vol 的单位为 KL，C3 与资源的单位为 K$。Yield
         向各角色共享，资源明细按权限展示；历史比值不随 2027 分配变化。

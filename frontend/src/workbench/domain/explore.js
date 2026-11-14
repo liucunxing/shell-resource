@@ -268,24 +268,37 @@ function rawData(state, identity, data, tab) {
       ["c32024", "2024 C3 (K$)"],
       ["vol2025", "2025 Vol (KL)"],
       ["c32025", "2025 C3 (K$)"],
-      ["vol2026Ytd", "2026 1–8月 Vol (KL)"],
-      ["c32026Ytd", "2026 1–8月 C3 (K$)"],
+      ["vol2026Ytd", "2026 YTD Vol (KL)"],
+      ["c32026Ytd", "2026 YTD C3 (K$)"],
     ];
     model.columns = cols([
       ["sector", "业务线"],
       ["dealerCode", "经销商编码"],
       ["dealerName", "经销商名称"],
+      ["sd", "SD"],
+      ["rsm", "RSM"],
+      ["status", "状态"],
       ...history,
+      ["yoyVol2425", "2025 vs 2024 Delivery Vol YoY (%)"],
+      ["yoyC32425", "2025 vs 2024 C3 YoY (%)"],
       ...resources.map((r) => ["resource_" + r, "2025 " + r + " (K$)"]),
+      ...resources.map((r) => ["resource2026_" + r, "2026 YTD " + r + " (K$)"]),
       ["yield", "Yield"],
     ]);
     model.rows = data.dealers.map((d) => {
       const h = d.history || {},
-        row = { sector: d.sector || "—", dealerCode: d.id, dealerName: d.name || "—", dealerId: d.id };
+        row = { sector: d.sector || "—", dealerCode: d.id, dealerName: d.name || "—", dealerId: d.id,
+          sd: d.sd || "—", rsm: d.rsm || "—", status: d.status || "—" };
       history.forEach(([k]) => (row[k] = toDisplayUnit(h[k])));
+      row.yoyVol2425 = Number.isFinite(h.yoyVol2425) ? h.yoyVol2425 : null;
+      row.yoyC32425 = Number.isFinite(h.yoyC32425) ? h.yoyC32425 : null;
       resources.forEach(
         (r) =>
           (row["resource_" + r] = toDisplayUnit((h.resources2025 || {})[r])),
+      );
+      resources.forEach(
+        (r) =>
+          (row["resource2026_" + r] = toDisplayUnit((h.resources2026Ytd || {})[r])),
       );
       row.yield = Number.isFinite(h.yield) ? h.yield : null;
       return row;
@@ -293,7 +306,7 @@ function rawData(state, identity, data, tab) {
     model.scopeLabel = `全部经销商历史 · ${all ? "全部资源列" : E.departments(identity).join("、") + " 授权资源列"}`;
     model.basisLabel = `源历史数据 · 共 ${new Set(data.dealers.map((d) => String(d.id))).size} 家经销商 / ${data.dealers.length} 条业务线记录`;
     model.notes.push(
-      "2024、2025 为全年；2026 为 1–8 月累计，不默认同比或年化。",
+      "2024、2025 为全年；2026 为 YTD 累计，不默认同比或年化。",
       "Yield 向所有角色只读开放，取源数据中的 2025 C3 / 资源原始比值，不转换为百分比。",
       "Vol、C3、Yield 展示全部经销商；可分配经销商仍按业务线授权。历史总资源列不展示。",
       "SP&A 使用全部历史合计，暂不按部门拆分。",
@@ -315,6 +328,8 @@ function historyReference(state, identity, data, dealerId, sector) {
     sector: row.sector,
     scopeLabel: model.scopeLabel,
     yield: row.yield,
+    yoyVol2425: row.yoyVol2425,
+    yoyC32425: row.yoyC32425,
     periods: [
       {
         label: "2024 全年",
@@ -329,7 +344,7 @@ function historyReference(state, identity, data, dealerId, sector) {
         comparable: true,
       },
       {
-        label: "2026 1–8月",
+        label: "2026 YTD",
         vol: row.vol2026Ytd,
         c3: row.c32026Ytd,
         comparable: false,
@@ -337,6 +352,9 @@ function historyReference(state, identity, data, dealerId, sector) {
     ],
     resources: model.columns
       .filter((c) => c.key.startsWith("resource_"))
+      .map((c) => ({ label: c.label, amount: row[c.key] })),
+    resources2026Ytd: model.columns
+      .filter((c) => c.key.startsWith("resource2026_"))
       .map((c) => ({ label: c.label, amount: row[c.key] })),
     allResources: ["management", "admin"].includes(identity.role),
   };

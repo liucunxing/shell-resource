@@ -69,16 +69,16 @@ async def get_workspace(
 @router.get(
     "/distributors",
     response_model=ApiResponse[list[dict]],
-    summary="获取 Databricks 经销商目录",
+    summary="获取历史表经销商目录",
 )
 async def get_distributors(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
     user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
-    settings: Annotated[Settings, Depends(get_settings)],
 ) -> ApiResponse[list[dict]]:
     if user.role not in {"owner", "lead", "admin", "management"}:
         raise HTTPException(status_code=403, detail="当前角色不能查看经销商目录")
     return success(
-        await DistributorDirectoryService(settings).list_distributors(user.dealer_sectors)
+        await DistributorDirectoryService(session).list_distributors(user.dealer_sectors)
     )
 
 

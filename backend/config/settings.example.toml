@@ -51,6 +51,7 @@ azure_blob_container_name = "resource-dev"
 azure_blob_max_upload_bytes = 20971520
 # Set this after the workbench import template has been uploaded to the container.
 azure_blob_workbench_template_name = ""
+# Legacy compatibility only; Resource Studio distributor data now comes from PostgreSQL.
 databricks_server_hostname = ""
 databricks_http_path = ""
 databricks_client_id = ""
@@ -87,6 +88,7 @@ azure_blob_account_key = "REPLACE_WITH_PRODUCTION_STORAGE_CREDENTIAL"
 azure_blob_container_name = "REPLACE_WITH_PRODUCTION_CONTAINER"
 azure_blob_max_upload_bytes = 20971520
 azure_blob_workbench_template_name = ""
+# Legacy compatibility only; Resource Studio distributor data now comes from PostgreSQL.
 databricks_server_hostname = ""
 databricks_http_path = ""
 databricks_client_id = ""

@@ -96,6 +96,8 @@ class Settings(BaseModel):
     azure_blob_max_upload_bytes: int = Field(default=20 * 1024 * 1024, gt=0)
     azure_blob_workbench_template_name: str | None = None
 
+    # Legacy compatibility only. Resource Studio no longer reads its distributor
+    # directory from Databricks; these values remain accepted for old fixtures.
     databricks_server_hostname: str = ""
     databricks_http_path: str = ""
     databricks_client_id: str = ""

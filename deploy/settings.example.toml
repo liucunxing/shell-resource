@@ -40,6 +40,7 @@ azure_blob_container_name = ""
 azure_blob_max_upload_bytes = 20971520
 azure_blob_workbench_template_name = ""
 
+# Legacy compatibility only; Resource Studio distributor data now comes from PostgreSQL.
 databricks_server_hostname = ""
 databricks_http_path = ""
 databricks_client_id = ""
@@ -99,6 +100,7 @@ azure_blob_container_name = ""
 azure_blob_max_upload_bytes = 20971520
 azure_blob_workbench_template_name = ""
 
+# Legacy compatibility only; Resource Studio distributor data now comes from PostgreSQL.
 databricks_server_hostname = ""
 databricks_http_path = ""
 databricks_client_id = ""

@@ -16,22 +16,11 @@ from app.db.session import get_db_session
 from app.models.do.budget import BudgetDO
 from app.models.do.distributor_history import distributor_sellin_resource_history
 from app.models.do.workspace import BudgetChangeLogDO, UserPermissionDO, WorkspaceConfigDO
-from app.repositories.distributor_directory_repository import DatabricksDistributorRepository
 from test_workspace import _session
 
 
 @pytest_asyncio.fixture
-async def api(monkeypatch):
-    async def list_distributors(_self, _sectors):
-        rows = [
-            {"distributor_code": "d1", "distributor_name": "Dealer 1", "sector": "PCMO"},
-            {"distributor_code": "d2", "distributor_name": "Dealer 2", "sector": "PCMO"},
-            {"distributor_code": "d3", "distributor_name": "Dealer 3", "sector": "CRTO"},
-            {"distributor_code": "d1", "distributor_name": "Dealer 1", "sector": "CRTO"},
-        ]
-        return [row for row in rows if _sectors is None or row["sector"] in _sectors]
-
-    monkeypatch.setattr(DatabricksDistributorRepository, "list_distributors", list_distributors)
+async def api():
     seed = await _session()
     engine = seed.bind
     for index, (email, role, dept, sectors) in enumerate(
@@ -78,16 +67,19 @@ def headers(email="a@example.com"):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("role,sectors,expected", [
-    ("owner", ["PCMO"], ["d1", "d2"]),
-    ("lead", ["CRTO"], ["d3"]),
-    ("lead", ["PCMO", "CRTO"], ["d1", "d2", "d3"]),
-    ("lead", ["B2B"], []),
-    ("owner", [], []),
-    ("lead", [], []),
-    ("admin", [], ["d1", "d2", "d3"]),
-    ("management", [], ["d1", "d2", "d3"]),
-])
+@pytest.mark.parametrize(
+    "role,sectors,expected",
+    [
+        ("owner", ["PCMO"], ["d1", "d2"]),
+        ("lead", ["CRTO"], ["d3"]),
+        ("lead", ["PCMO", "CRTO"], ["d1", "d2", "d3"]),
+        ("lead", ["B2B"], []),
+        ("owner", [], []),
+        ("lead", [], []),
+        ("admin", [], ["d1", "d2", "d3"]),
+        ("management", [], ["d1", "d2", "d3"]),
+    ],
+)
 async def test_dealer_sector_scope_for_history_and_directory(api, role, sectors, expected):
     client, engine = api
     email = "a@example.com" if role == "owner" else f"{role}@example.com"
@@ -96,10 +88,17 @@ async def test_dealer_sector_scope_for_history_and_directory(api, role, sectors,
             select(UserPermissionDO).where(UserPermissionDO.email == email)
         )
         permission.sector = sectors
-        await session.execute(distributor_sellin_resource_history.insert(), [{
-            "distributor_code": "d1", "distributor_name": "Dealer 1",
-            "sector": "CRTO", "volume_2025": 999,
-        }])
+        await session.execute(
+            distributor_sellin_resource_history.insert(),
+            [
+                {
+                    "distributor_code": "d1",
+                    "distributor_name": "Dealer 1",
+                    "sector": "CRTO",
+                    "volume_2025": 999,
+                }
+            ],
+        )
         await session.commit()
 
     # Request parameters must never override the authenticated user's sector scope.
@@ -109,27 +108,37 @@ async def test_dealer_sector_scope_for_history_and_directory(api, role, sectors,
     expected_keys = {(code, "CRTO" if code == "d3" else "PCMO") for code in expected}
     if role in {"admin", "management"} or "CRTO" in sectors:
         expected_keys.add(("d1", "CRTO"))
-    assert {(dealer["id"], dealer["sector"]) for dealer in dealers} == {
-        ("d1", "PCMO"), ("d2", "PCMO"), ("d3", "CRTO"), ("d1", "CRTO"),
-    }
-    assert len(dealers) == 4
+    assert {(dealer["id"], dealer["sector"]) for dealer in dealers} == expected_keys
     response = await client.get("distributors?sector=OEM", headers=headers(email))
     if role in {"owner", "lead"} and not sectors:
         assert response.status_code == 403
     else:
         assert response.status_code == 200
-        assert {(dealer["id"], dealer["sector"]) for dealer in response.json()["data"]} == expected_keys
+        assert {
+            (dealer["id"], dealer["sector"]) for dealer in response.json()["data"]
+        } == expected_keys - {("d1", "CRTO")}  # null status remains historical only
 
 
 @pytest.mark.asyncio
 async def test_admin_budget_full_edit_and_delete_http_contract(api):
     client, engine = api
     admin = headers("admin@example.com")
-    item = {"name": "HTTP CRUD", "sector": "PCMO", "department": "MKT",
-            "resourceType": "capex", "ownerId": "a@example.com", "budget": 10}
-    response = await client.post("admin/budgets", headers=admin, json={
-        "planning_year": 2027, "items": [item],
-    })
+    item = {
+        "name": "HTTP CRUD",
+        "sector": "PCMO",
+        "department": "MKT",
+        "resourceType": "capex",
+        "ownerId": "a@example.com",
+        "budget": 10,
+    }
+    response = await client.post(
+        "admin/budgets",
+        headers=admin,
+        json={
+            "planning_year": 2027,
+            "items": [item],
+        },
+    )
     assert response.status_code == 200
     async with AsyncSession(engine) as session:
         budget = await session.scalar(
@@ -137,11 +146,17 @@ async def test_admin_budget_full_edit_and_delete_http_contract(api):
         )
         budget_id = budget.id
     url = f"admin/budgets/{budget_id}"
-    edit = {**item, "name": "HTTP edited", "sector": "B2B",
-            "ownerId": "B@EXAMPLE.COM", "expected_revision": 0}
+    edit = {
+        **item,
+        "name": "HTTP edited",
+        "sector": "B2B",
+        "ownerId": "B@EXAMPLE.COM",
+        "expected_revision": 0,
+    }
     assert (await client.put(url, headers=headers(), json=edit)).status_code == 403
-    assert (await client.request("DELETE", url, headers=headers(),
-                                 json={"expected_revision": 0})).status_code == 403
+    assert (
+        await client.request("DELETE", url, headers=headers(), json={"expected_revision": 0})
+    ).status_code == 403
     response = await client.put(url, headers=admin, json=edit)
     assert response.status_code == 200 and response.json()["data"]["updated_id"] == budget_id
     assert (await client.put(url, headers=admin, json=edit)).status_code == 409
@@ -163,7 +178,8 @@ async def test_http_auth_and_role_boundaries(api):
         await client.get("initiatives/1/draft", headers=headers("lead@example.com"))
     ).status_code == 200
     for email in ("management@example.com", "admin@example.com"):
-        assert (await client.get("initiatives/1/draft", headers=headers(email))).status_code == (200 if email.startswith("admin") else 403)
+        response = await client.get("initiatives/1/draft", headers=headers(email))
+        assert response.status_code == (200 if email.startswith("admin") else 403)
         assert (await client.get("my-initiatives", headers=headers(email))).status_code == 403
     for email in ("lead@example.com", "management@example.com", "admin@example.com"):
         response = await client.put(
@@ -179,18 +195,34 @@ async def test_http_auth_and_role_boundaries(api):
 
 
 @pytest.mark.asyncio
-async def test_owner_loads_sector_history_and_distributor_directory_separately(api):
+async def test_owner_loads_sector_scoped_history_and_distributor_directory(api):
     client, _ = api
     response = await client.get("workspace?planning_year=2027", headers=headers())
     assert response.status_code == 200
     dealers = response.json()["data"]["data"]["dealers"]
-    assert [dealer["id"] for dealer in dealers] == ["d1", "d2", "d3"]
+    assert [dealer["id"] for dealer in dealers] == ["d1", "d2"]
 
     response = await client.get("distributors", headers=headers())
     assert response.status_code == 200
     assert response.json()["data"] == [
-        {"id": "d1", "name": "Dealer 1", "sector": "PCMO"},
-        {"id": "d2", "name": "Dealer 2", "sector": "PCMO"},
+        {
+            "id": "d1",
+            "code": "d1",
+            "name": "Dealer 1",
+            "sector": "PCMO",
+            "sd": None,
+            "rsm": None,
+            "status": "active",
+        },
+        {
+            "id": "d2",
+            "code": "d2",
+            "name": "Dealer 2",
+            "sector": "PCMO",
+            "sd": None,
+            "rsm": None,
+            "status": "active",
+        },
     ]
     assert (
         await client.get("distributors", headers=headers("lead@example.com"))

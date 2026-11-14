@@ -610,7 +610,7 @@ export function AdminPage() {
                 <dd>唯一键、主数据匹配、资源加总和计划金额已通过源数据核对</dd>
               </dl>
               <div className="flow-diagram">
-                <span>Databricks 月度人工推送</span>
+                <span>历史表数据刷新</span>
                 <b>→</b>
                 <span>暂存与校验</span>
                 <b>→</b>

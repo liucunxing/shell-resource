@@ -26,7 +26,7 @@ async def _session() -> AsyncSession:
             BudgetDO(
                 id=1,
                 planning_year=2027,
-                sector="S",
+                sector="PCMO",
                 department="MKT",
                 resource_type="R",
                 initiative_name="A",
@@ -40,7 +40,7 @@ async def _session() -> AsyncSession:
             BudgetDO(
                 id=2,
                 planning_year=2027,
-                sector="S",
+                sector="PCMO",
                 department="MKT",
                 resource_type="R",
                 initiative_name="B",
@@ -73,9 +73,24 @@ async def _session() -> AsyncSession:
     await session.execute(
         distributor_sellin_resource_history.insert(),
         [
-            {"distributor_code": "d1", "distributor_name": "Dealer 1", "sector": "PCMO"},
-            {"distributor_code": "d2", "distributor_name": "Dealer 2", "sector": "PCMO"},
-            {"distributor_code": "d3", "distributor_name": "Dealer 3", "sector": "CRTO"},
+            {
+                "distributor_code": "d1",
+                "distributor_name": "Dealer 1",
+                "sector": "PCMO",
+                "distributor_status": "1",
+            },
+            {
+                "distributor_code": "d2",
+                "distributor_name": "Dealer 2",
+                "sector": "PCMO",
+                "distributor_status": "1",
+            },
+            {
+                "distributor_code": "d3",
+                "distributor_name": "Dealer 3",
+                "sector": "CRTO",
+                "distributor_status": "1",
+            },
         ],
     )
     await session.commit()
@@ -121,18 +136,14 @@ async def test_owner_isolated_revision_and_immutable_publish() -> None:
 @pytest.mark.asyncio
 async def test_role_read_boundaries() -> None:
     session = await _session()
-    lead = _workspace_service(
-        session, WorkbenchUser("lead@example.com", "lead", "MKT", "Lead")
-    )
+    lead = _workspace_service(session, WorkbenchUser("lead@example.com", "lead", "MKT", "Lead"))
     assert (await lead.get_draft(1))["id"] == "1"
     assert await lead.publications(1) == []
     with pytest.raises(HTTPException) as denied:
         await lead.save_draft(1, InitiativeDraftUpdateDTO(expected_revision=0))
     assert denied.value.status_code == 403
     for role in ("management", "admin"):
-        service = _workspace_service(
-            session, WorkbenchUser("x@example.com", role, "MKT", "X")
-        )
+        service = _workspace_service(session, WorkbenchUser("x@example.com", role, "MKT", "X"))
         if role == "admin":
             assert (await service.get_draft(1))["id"] == "1"
         else:
@@ -164,10 +175,86 @@ async def test_admin_and_management_receive_all_distributor_history() -> None:
 
 
 @pytest.mark.asyncio
-async def test_owner_receives_all_history_across_sectors() -> None:
+async def test_owner_history_is_limited_to_authorized_sectors() -> None:
     session = await _session()
     dealers = (await _workspace_service(session, _owner()).get_workspace(2027))["data"]["dealers"]
-    assert [dealer["id"] for dealer in dealers] == ["d1", "d2", "d3"]
+    assert [dealer["id"] for dealer in dealers] == ["d1", "d2"]
+    await session.close()
+
+
+@pytest.mark.asyncio
+async def test_closed_dealer_cannot_be_added_but_existing_allocation_is_preserved() -> None:
+    session = await _session()
+    service = WorkspaceService(session, _owner())
+    await service.save_draft(
+        1, InitiativeDraftUpdateDTO(expected_revision=0, rows=[{"dealerId": "d1", "amount": 50}])
+    )
+    await session.execute(
+        distributor_sellin_resource_history.update().values(distributor_status="0")
+    )
+    await session.commit()
+    saved = await service.save_draft(
+        1, InitiativeDraftUpdateDTO(expected_revision=1, rows=[{"dealerId": "d1", "amount": 100}])
+    )
+    assert saved["rows"][0]["amount"] == 100
+    with pytest.raises(HTTPException) as denied:
+        await service.save_draft(
+            1,
+            InitiativeDraftUpdateDTO(expected_revision=2, rows=[{"dealerId": "d2", "amount": 100}]),
+        )
+    assert denied.value.status_code == 422
+    assert "active" in denied.value.detail
+    await session.close()
+
+
+@pytest.mark.asyncio
+async def test_same_code_different_organization_survives_save_and_publish() -> None:
+    from app.services.distributor_directory_service import DistributorDirectoryService
+
+    session = await _session()
+    await session.execute(
+        distributor_sellin_resource_history.insert(),
+        [
+            {
+                "distributor_code": "shared",
+                "sector": "PCMO",
+                "sd": "East",
+                "rsm": "One",
+                "distributor_status": "1",
+            },
+            {
+                "distributor_code": "shared",
+                "sector": "PCMO",
+                "sd": "East",
+                "rsm": "Two",
+                "distributor_status": "1",
+            },
+        ],
+    )
+    await session.commit()
+    choices = [
+        row
+        for row in await DistributorDirectoryService(session).list_distributors(("PCMO",))
+        if row["code"] == "shared"
+    ]
+    assert len({row["id"] for row in choices}) == 2
+    service = WorkspaceService(session, _owner())
+    saved = await service.save_draft(
+        1,
+        InitiativeDraftUpdateDTO(
+            expected_revision=0,
+            rows=[
+                {"dealerId": choices[0]["id"], "amount": 40},
+                {"dealerId": choices[1]["id"], "amount": 60},
+            ],
+        ),
+    )
+    assert [row["dealerCode"] for row in saved["rows"]] == ["shared", "shared"]
+    assert {row["rsm"] for row in saved["rows"]} == {"One", "Two"}
+    published = await service.publish(1, PublishDTO(expected_revision=1))
+    assert {row["dealerId"] for row in published["initiative"]["rows"]} == {
+        row["id"] for row in choices
+    }
     await session.close()
 
 

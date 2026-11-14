@@ -2,28 +2,33 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   Buildings,
-  ChartPieSlice,
+  ChartDonut,
   ChartLineUp,
-  ChatCircleDots,
-  Database,
+  ClipboardText,
   EnvelopeSimple,
-  Info,
+  GearSix,
   List,
   LockKey,
+  PencilLine,
+  ShieldCheck,
   SlidersHorizontal,
   SquaresFour,
   Stack,
+  UserList,
   X,
 } from "@phosphor-icons/react";
 import { useWorkbench } from "./WorkbenchContext.jsx";
-import { WorkPanel } from "./WorkPanel.jsx";
-import { useWorkPanelWidth } from "./WorkPanelResizer";
 import { ToastNotice } from "./ToastNotice.jsx";
 import { PortalAccessNotice } from "../portal/PortalEntry";
 import { UserPreviewBanner } from "./UserPreviewBanner";
 const loginEmailEditable = import.meta.env.VITE_LOGIN_EMAIL_EDITABLE === "true";
 const HomePage = lazy(() =>
   import("./pages/OverviewPages.jsx").then((m) => ({ default: m.HomePage })),
+);
+const SubmissionPage = lazy(() =>
+  import("./pages/OverviewPages.jsx").then((m) => ({
+    default: m.SubmissionPage,
+  })),
 );
 const DepartmentPage = lazy(() =>
   import("./pages/OverviewPages.jsx").then((m) => ({
@@ -39,27 +44,59 @@ const EditorPage = lazy(() =>
   import("./pages/EditorPage.jsx").then((m) => ({ default: m.EditorPage })),
 );
 const AdminPage = lazy(() =>
-  import("./pages/AdminPage.jsx").then((m) => ({ default: m.AdminPage })),
-);
-const RawPage = lazy(() =>
-  import("./pages/RawPages.jsx").then((m) => ({ default: m.RawPage })),
-);
-const AboutPage = lazy(() =>
-  import("./pages/RawPages.jsx").then((m) => ({ default: m.AboutPage })),
-);
-const TrackingPage = lazy(() =>
-  import("./pages/RawPages.jsx").then((m) => ({ default: m.TrackingPage })),
+  import("./pages/AdminStudioPage.jsx").then((m) => ({
+    default: m.AdminStudioPage,
+  })),
 );
 const pages = {
   home: HomePage,
+  portfolio: DepartmentPage,
   department: DepartmentPage,
   management: ManagementPage,
   editor: EditorPage,
-  admin: AdminPage,
-  raw: RawPage,
-  about: AboutPage,
-  tracking: TrackingPage,
+  submissions: SubmissionPage,
+  "admin-versions": AdminPage,
+  "admin-initiatives": AdminPage,
+  "admin-users": AdminPage,
+  "admin-enums": AdminPage,
+  "admin-thresholds": AdminPage,
+  "admin-audit": AdminPage,
 };
+
+const roleLabel = {
+  owner: "Initiative Owner",
+  lead: "部门负责人",
+  management: "最高管理层",
+  admin: "系统管理员",
+};
+
+function navigationFor(identity, initiativeId) {
+  if (identity.role === "owner")
+    return [
+      ["home", SquaresFour, "我的 Initiative", "负责项目与拆分进度"],
+      ["portfolio", ChartDonut, "我的投入组合", "本人全部 Initiative 叠加分析"],
+      [
+        "editor",
+        PencilLine,
+        "拆分工作台",
+        initiativeId ? "继续当前 Initiative" : "请先选择 Initiative",
+        !initiativeId,
+      ],
+      ["submissions", ClipboardText, "草稿与提交", "批量校验与提交"],
+    ];
+  if (identity.role === "lead")
+    return [["department", Buildings, "部门投入组合", "本部门已提交方案"]];
+  if (identity.role === "management")
+    return [["management", Stack, "全局投资看板", "全部已提交方案"]];
+  return [
+    ["admin-versions", GearSix, "版本与发布", ""],
+    ["admin-initiatives", ClipboardText, "本版项目配置", ""],
+    ["admin-users", UserList, "用户与权限", ""],
+    ["admin-enums", SlidersHorizontal, "组织与枚举", ""],
+    ["admin-thresholds", ShieldCheck, "健康检查阈值", ""],
+    ["admin-audit", List, "操作审计", ""],
+  ];
+}
 
 export function useNarrow(query) {
   const [matches, setMatches] = useState(
@@ -75,33 +112,33 @@ export function useNarrow(query) {
   return matches;
 }
 export function SkipToWorkspace({ portalMode = false }) {
-  return <a className="skip-link" href={portalMode ? window.location.hash : "#main"}
-    onClick={(event) => {
-      event.preventDefault();
-      const main = document.getElementById("main");
-      main?.focus();
-      if (portalMode) main?.scrollIntoView({ block: "start" });
-    }}>跳至工作区</a>;
+  return (
+    <a
+      className="skip-link"
+      href={portalMode ? window.location.hash : "#main"}
+      onClick={(event) => {
+        event.preventDefault();
+        const main = document.getElementById("main");
+        main?.focus();
+        if (portalMode) main?.scrollIntoView({ block: "start" });
+      }}
+    >
+      跳至工作区
+    </a>
+  );
 }
 export default function WorkbenchApp() {
   const {
     state,
     identity,
-    roles,
-    setIdentity,
     page,
     navigate,
-    annotation,
-    setAnnotation,
-    auxiliary,
-    setAuxiliary,
+    initiativeId,
     mobileNav,
     setMobileNav,
-    openAuxiliary,
     storageWarning,
     toast,
     dismissToast,
-    resetScenario,
     scenarioEpoch,
     apiMode,
     portalMode,
@@ -114,23 +151,14 @@ export default function WorkbenchApp() {
     switchingPreview,
     stopUserPreview,
   } = useWorkbench();
-  const [scene, setScene] = useState("");
   const [navCollapsed, setNavCollapsed] = useState(false);
-  const sceneDialog = useRef(null);
   const navRef = useRef(null);
   const navTrigger = useRef(null);
-  const narrow = useNarrow("(width < 1200px)");
   const phone = useNarrow("(width < 760px)");
-  const workOverlay = auxiliary.open && narrow;
-  const panelSize = useWorkPanelWidth(navCollapsed);
   const closeNav = () => {
     setMobileNav(false);
     requestAnimationFrame(() => navTrigger.current?.focus());
   };
-  useEffect(() => {
-    if (scene) sceneDialog.current?.showModal();
-    else sceneDialog.current?.close();
-  }, [scene]);
   useEffect(() => {
     if (!phone && mobileNav) setMobileNav(false);
   }, [phone, mobileNav, setMobileNav]);
@@ -162,12 +190,19 @@ export default function WorkbenchApp() {
     return () => document.removeEventListener("keydown", onKey);
   }, [mobileNav]);
   if (!identity && (previewMode || switchingPreview))
-    return <main className="page">
-      <UserPreviewBanner identity={null} actor={previewActor} busy={switchingPreview} onExit={stopUserPreview} />
-      <div className="empty" role={storageWarning ? "alert" : "status"}>
-        {storageWarning || "正在切换用户视角…"}
-      </div>
-    </main>;
+    return (
+      <main className="page">
+        <UserPreviewBanner
+          identity={null}
+          actor={previewActor}
+          busy={switchingPreview}
+          onExit={stopUserPreview}
+        />
+        <div className="empty" role={storageWarning ? "alert" : "status"}>
+          {storageWarning || "正在切换用户视角…"}
+        </div>
+      </main>
+    );
   if (!identity && portalMode)
     return <PortalAccessNotice loading={loading} message={storageWarning} />;
   if (!identity && apiMode)
@@ -187,28 +222,27 @@ export default function WorkbenchApp() {
         </div>
       </main>
     );
-  const nav = [];
-  if (identity.role === "owner") nav.push(["home", SquaresFour, "我的工作台"]);
-  if (["owner", "lead"].includes(identity.role))
-    nav.push(["department", Buildings, "部门总览"]);
-  if (["management", "admin"].includes(identity.role))
-    nav.push(["management", Stack, identity.role === "admin" ? "分配总览" : "管理层统览"]);
-  if (identity.role === "admin")
-    nav.push(["admin", SlidersHorizontal, "管理后台"]);
-  nav.push(
-    ["raw", Database, "原始数据"],
-    ["about", Info, "数据口径"],
-  );
-  const Page = pages[page] || HomePage;
+  const nav = navigationFor(identity, initiativeId);
+  const Page = pages[page] || pages[nav[0]?.[0]] || HomePage;
+  const userName =
+    identity.label ||
+    identity.name ||
+    identity.email ||
+    roleLabel[identity.role];
+  const userScope =
+    identity.role === "admin"
+      ? "系统配置"
+      : identity.role === "management"
+        ? "全部 Sector / Department"
+        : Array.isArray(identity.department)
+          ? identity.department.join("、")
+          : identity.department || identity.sector || "当前授权范围";
   return (
     <>
       <SkipToWorkspace portalMode={portalMode} />
       <div
-        className={`app-shell ${auxiliary.open ? "work-open" : ""} ${navCollapsed ? "nav-collapsed" : ""}`}
-        style={{ "--work-panel-size": `${panelSize.width}px` }}
-        data-work-resizing={panelSize.resizing || undefined}
+        className={`app-shell studio-shell ${navCollapsed ? "nav-collapsed" : ""}`}
       >
-        {panelSize.resizing && <div className="work-resize-shield" aria-hidden="true" />}
         {mobileNav && (
           <button
             className="mobile-nav-scrim"
@@ -222,17 +256,16 @@ export default function WorkbenchApp() {
           ref={navRef}
           className={`sidebar ${mobileNav ? "mobile-open" : ""}`}
           aria-label="主导航"
-          inert={workOverlay}
         >
           <div className="brand">
             <div className="brandmark">
-              <ChartPieSlice size={24} />
+              <ChartDonut size={24} />
             </div>
             <div>
               <strong>
-                资源<span>投资</span>
+                Resource <span>Studio</span>
               </strong>
-              <small>PLANNING WORKSPACE</small>
+              <small>经销商资源投资规划 · 2027 OP</small>
             </div>
             <button
               className="icon-button nav-mobile-close"
@@ -242,94 +275,60 @@ export default function WorkbenchApp() {
               <X size={18} />
             </button>
           </div>
-          <div className="nav-group-title">年度规划</div>
+          <div className="nav-group-title">{roleLabel[identity.role]}</div>
           <nav className="nav">
-            {nav.map(([id, Icon, label, tag]) => (
+            {nav.map(([id, Icon, label, description, disabled]) => (
               <button
                 key={id}
                 className={page === id ? "active" : ""}
                 aria-current={page === id ? "page" : undefined}
+                disabled={disabled}
                 onClick={() => navigate(id)}
               >
                 <span className="nav-icon">
                   <Icon className="icon" />
                 </span>
-                <span>{label}</span>
-                {tag && <span className="tag-mini">{tag}</span>}
+                <span className="studio-nav-copy">
+                  <b>{label}</b>
+                  {description && <small>{description}</small>}
+                </span>
               </button>
             ))}
           </nav>
-          <div className="nav-group-title">分析助手</div>
-          <nav className="nav">
-            <button onClick={() => openAuxiliary("chat")}>
-              <span className="nav-icon">
-                <ChatCircleDots className="icon" />
-              </span>
-              小One问数Agent
-            </button>
-          </nav>
           <div className="sidebar-bottom">
-            <div className="sidebar-context">
-              <strong>
-                <span className="reference-dot" />
-                2027 年度资源规划
-              </strong>
-              <p>
-                历史参考截至{" "}
-                {apiMode ? state.reference?.asOf || "未知" : "2026.08"}
-                <br />
-                {apiMode ? "按当前参考批次口径展示" : "2026 累计口径为演示假设"}
-              </p>
-            </div>
             <section className="sidebar-profile" aria-label="当前用户">
               <div className="profile-heading">
                 <span className="avatar">
-                  {identity.role === "owner"
-                    ? "MK"
-                    : identity.role === "lead"
-                      ? "DL"
-                      : identity.role === "admin"
-                        ? "AD"
-                        : "MG"}
+                  {String(userName).slice(0, 1).toUpperCase()}
                 </span>
                 <div>
-                  <label htmlFor="role-select">当前用户</label>
+                  <strong>{userName}</strong>
                   <small>
-                    {apiMode
-                      ? identity.email || "服务端身份"
-                      : "演示角色 · 可切换"}
+                    {roleLabel[identity.role]} · {userScope}
                   </small>
                 </div>
               </div>
-              {apiMode ? (
+              {apiMode && (
                 <div className="profile-api-user">
-                  {identity.label}
                   <button
                     className="button subtle small"
-                    title={portalMode ? "退出后须从 Portal 重新进入" : loginEmailEditable ? "退出后可使用工作邮箱重新登录" : "退出后须从帆软 Portal 重新进入"}
+                    title={
+                      portalMode
+                        ? "退出后须从 Portal 重新进入"
+                        : loginEmailEditable
+                          ? "退出后可使用工作邮箱重新登录"
+                          : "退出后须从帆软 Portal 重新进入"
+                    }
                     onClick={() => setDevelopmentEmail("")}
                   >
                     退出工作台
                   </button>
                 </div>
-              ) : (
-                <select
-                  id="role-select"
-                  aria-label="切换演示角色"
-                  value={identity.key}
-                  onChange={(event) => setIdentity(event.target.value)}
-                >
-                  {roles.map((role) => (
-                    <option key={role.key} value={role.key}>
-                      {role.label}
-                    </option>
-                  ))}
-                </select>
               )}
             </section>
           </div>
         </aside>
-        <div className="workspace" inert={workOverlay || mobileNav}>
+        <div className="workspace" inert={mobileNav}>
           <header className="topbar">
             <div className="topbar-left">
               <button
@@ -347,54 +346,42 @@ export default function WorkbenchApp() {
                 className="button subtle small mobile-menu"
                 aria-label="展开导航"
                 onClick={() => {
-                  setAuxiliary((value) => ({ ...value, open: false }));
                   setMobileNav(true);
                 }}
               >
                 <List size={20} />
               </button>
               <span className="breadcrumb">
-                资源规划 <span className="muted">/</span>{" "}
-                <strong>
-                  {nav.find((item) => item[0] === page)?.[2] ||
-                    "Initiative 拆分"}
-                </strong>
+                <strong>Resource Studio</strong>
+                <span>经销商资源投资规划 · 2027 OP</span>
               </span>
             </div>
             <div className="topbar-right">
-              <span className="demo-mark">
-                {apiMode
-                  ? "API · V1.4"
-                  : state.demoScenario?.id === "unallocated"
-                    ? "Mock · 含未分配预算"
-                    : "交互演示 · V1.4"}
+              <span className="topbar-user">
+                <i>{String(userName).slice(0, 1).toUpperCase()}</i>
+                <span>
+                  <b>{userName}</b>
+                  <small>
+                    {roleLabel[identity.role]} · {userScope}
+                  </small>
+                </span>
               </span>
-              <button
-                className={`button small subtle ${annotation ? "active-toggle" : ""}`}
-                aria-pressed={annotation}
-                onClick={() => setAnnotation(!annotation)}
-              >
-                需求标注
-              </button>
-              {!apiMode && (
-                <select
-                  id="scene-select"
-                  aria-label="演示场景"
-                  value=""
-                  onChange={(event) => setScene(event.target.value)}
-                >
-                  <option value="">切换演示场景</option>
-                  <option value="unallocated">含未分配预算示例（Mock）</option>
-                  <option value="working">Owner 拆分起点</option>
-                  <option value="submitted">管理层查看起点</option>
-                </select>
-              )}
             </div>
           </header>
           <main id="main" className="page" tabIndex={-1}>
-            {previewMode && <UserPreviewBanner identity={identity} actor={previewActor || {
-              email: identity.preview?.actorEmail, label: identity.preview?.actorLabel,
-            }} busy={switchingPreview} onExit={stopUserPreview} />}
+            {previewMode && (
+              <UserPreviewBanner
+                identity={identity}
+                actor={
+                  previewActor || {
+                    email: identity.preview?.actorEmail,
+                    label: identity.preview?.actorLabel,
+                  }
+                }
+                busy={switchingPreview}
+                onExit={stopUserPreview}
+              />
+            )}
             {storageWarning && (
               <div className="note-box warn" role="alert">
                 {storageWarning}{" "}
@@ -414,56 +401,21 @@ export default function WorkbenchApp() {
             >
               <Page key={`${identity.key}:${page}:${scenarioEpoch}`} />
             </Suspense>
-            <div className="footer-note">
-              {previewMode ? "模拟查看 · 当前用户权限范围 · 只读" : apiMode
-                ? "服务端工作稿 · 请明确保存后同步 · 金额按源表原值展示"
-                : "本地演示 · 自动保存 · 金额按源表原值展示"}
-            </div>
           </main>
         </div>
-        <WorkPanel
-          key={`${identity.key}:${scenarioEpoch}`}
-          overlay={workOverlay}
-          panelSize={panelSize}
-        />
       </div>
-      <dialog
-        ref={sceneDialog}
-        className="modal scene-dialog"
-        aria-labelledby="scene-title"
-        onCancel={() => setScene("")}
-        onClose={() => setScene("")}
-      >
-        <div className="modal-head">
-          <h2 id="scene-title">切换演示场景</h2>
-        </div>
-        <div className="modal-body">
-          <p>
-            这会替换当前浏览器的预算配置、分配工作稿、同步历史和分析记录。请先导出需要保留的内容。
-          </p>
-          <p className="muted">旧版工作台的本机记录不会被删除。</p>
-        </div>
-        <div className="modal-footer">
-          <button className="button" onClick={() => setScene("")}>
-            取消
-          </button>
-          <button
-            className="button primary"
-            onClick={() => {
-              resetScenario(scene);
-              setScene("");
-            }}
-          >
-            确认切换
-          </button>
-        </div>
-      </dialog>
       {toast && <ToastNotice toast={toast} onDismiss={dismissToast} />}
     </>
   );
 }
 
-export function PortalLogin({ email, loading, onSubmit, error, editable = loginEmailEditable }) {
+export function PortalLogin({
+  email,
+  loading,
+  onSubmit,
+  error,
+  editable = loginEmailEditable,
+}) {
   const [draftEmail, setDraftEmail] = useState(email);
   useEffect(() => setDraftEmail(email), [email]);
   const loginEmail = (editable ? draftEmail : email).trim();
@@ -519,7 +471,11 @@ export function PortalLogin({ email, loading, onSubmit, error, editable = loginE
         >
           <div className="login-card-heading">
             <h2 id="portal-login-title">登录资源投资工作台</h2>
-            <p>{editable ? "请输入已获授权的工作邮箱登录。" : "邮箱由帆软 Portal 自动传入，不能手工修改。"}</p>
+            <p>
+              {editable
+                ? "请输入已获授权的工作邮箱登录。"
+                : "邮箱由帆软 Portal 自动传入，不能手工修改。"}
+            </p>
           </div>
 
           {error && (
@@ -541,7 +497,9 @@ export function PortalLogin({ email, loading, onSubmit, error, editable = loginE
                 aria-readonly={!editable}
                 disabled={loading}
                 required
-                placeholder={editable ? "请输入工作邮箱" : "请从帆软 Portal 进入"}
+                placeholder={
+                  editable ? "请输入工作邮箱" : "请从帆软 Portal 进入"
+                }
               />
             </span>
           </label>
@@ -557,7 +515,9 @@ export function PortalLogin({ email, loading, onSubmit, error, editable = loginE
 
           <p className="login-session-note">
             <LockKey size={15} aria-hidden="true" />
-            {editable ? "仅限已获授权的内部用户使用。" : "请从已授权的帆软 Portal 链接跳转至本系统；直接访问不会建立登录身份。"}
+            {editable
+              ? "仅限已获授权的内部用户使用。"
+              : "请从已授权的帆软 Portal 链接跳转至本系统；直接访问不会建立登录身份。"}
           </p>
         </form>
         <p className="login-footer">壳牌资源投资规划工作台 · 内部系统</p>

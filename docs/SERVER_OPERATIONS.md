@@ -100,7 +100,7 @@ sudo docker compose --env-file deploy/.env logs --tail=100 -f app
 
 ## 不改代码时的重启
 
-修改 `deploy/settings.toml` 中的数据库、百炼或 Databricks 等后端配置后，执行：
+修改 `deploy/settings.toml` 中的数据库、百炼或 Blob 等后端配置后，执行：
 
 ```bash
 cd /opt/shell-forecast

@@ -2,7 +2,17 @@
 
 [data_preparation_v1.sql](data_preparation_v1.sql) 是当前唯一的完整建表脚本，适用于已经删除旧表的空 PostgreSQL 数据库。脚本在一个事务中创建全部 12 张表，并初始化 `data.workspace_config` 的单行配置；不插入用户或业务数据。如果同名表仍存在，脚本会报错，不会把已有结构当作最新结构跳过。
 
-预算业务键为 `planning_year + sector + department + resource_type + initiative_name`。`data.budgets.owner_email` 记录 Initiative 执行人；`data.user_permissions.sector` 记录人员被授权的业务线：Owner 恰好一条，部门负责人（Lead）一至四条，管理层和管理员不配置。经销商分配记录通过 `budget_id` 关联预算；V1.4 工作台直接读取 `data.distributor_sellin_resource_history` 中的历史表现，`btl_2025` 在接口中映射为 `SP&A`，`yield_2025` 作为原始 Yield 值下发。
+预算业务键为 `planning_year + sector + department + resource_type + initiative_name`。`data.budgets.owner_email` 记录 Initiative 执行人；`data.user_permissions.sector` 记录人员被授权的业务线：Owner 恰好一条，部门负责人（Lead）一至四条，管理层和管理员不配置。经销商分配记录通过 `budget_id` 关联预算。
+
+Resource Studio V17 的经销商目录和历史表现统一读取已导入的 `data.distributor_sellin_resource_history`，不再依赖 Databricks 经销商维表。2026-11-13 确认：`distributor_status` 的源值 `1 = active`、`0 = closed`（客户称 close）；兼容数字和文本 1/0，接口统一返回英文状态。Initiative 选择列表只列 active；新增分配必须同时匹配项目业务线与 active 状态。closed 保留历史展示及已有分配，不因状态变更自动删行；未明确状态不可新选，不推导 newclose。
+
+`btl_2025 / btl_2026` 在接口中映射为 `SP&A`。2025 为全年，2026 业务量、C3、四类资源及 Yield 均为 YTD。`yield_2025 / yield_2026` 直接作为对应期间原始比值展示，不用当前角色可见的部分资源重算。`yoy_vol_24_25 / yoy_c3_24_25` 为数据团队提供的同比小数比率（0.125 = 12.5%），接口转成百分比数值；前端不重复计算同比。Vol 原值 L、C3/资源原值 $ 保留在接口和计算中，页面展示除以 1000 为 KL/K$。0 与缺失值分开处理；完整历史投资合计要求四类资源均可见且非空。
+
+已确认的 24 个字段不包含合同量，应用不新增或假设 `contract_2025/contract_2026`；原型合同量和 Phasing 显示 `—`。数据已导入的数据库无需重建表或重新导入。
+
+2026-11-14：同编码历史按 `sector + distributor_code + sd + rsm` 独立展示和分配，不再按编码去重。API 的 `id` 为稳定记录标识，`code` 为原始经销商编码；前端选择、试算与分配使用 `id`，显示和导出保留 `code`。迁移 `20261114_01` 给 `data.budgets_distributor` 添加可空 `history_key/sd/rsm`，不改动源表及旧分配。旧分配没有归属时保持原编码，不猜测应归到哪个 RSM。Excel 模板新增 SD/RSM 和隐藏记录标识列，导入可按编码、SD、RSM 匹配记录。
+
+已有数据库使用迁移 `20261112_01` 补齐上述字段。该迁移采用 `ADD COLUMN IF NOT EXISTS`，因此兼容 DBA 已提前执行部分或全部 DDL 的数据库；回滚应用时不删除这些数据源列。
 
 建表后先维护 `data.user_permissions`，再创建预算并设置 `owner_email`。本地或 UAT 联调可执行 [quickwin_v14_test_seed.sql](quickwin_v14_test_seed.sql)，它插入测试身份和 Initiative。正式业务邮箱和真实项目负责人需单独核对录入。
 

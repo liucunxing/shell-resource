@@ -21,10 +21,14 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Portal navigation boundaries", () => {
-  it("offers the Data Agent action on both isolated entry modes", () => {
-    expect(renderToStaticMarkup(<WorkbenchApp />)).toContain("小One问数Agent");
+  it("shows only the customer V17 owner navigation in both entry modes", () => {
+    const portal = renderToStaticMarkup(<WorkbenchApp />);
+    expect(portal).toContain("我的 Initiative");
+    expect(portal).toContain("草稿与提交");
+    expect(portal).not.toContain("小One问数Agent");
+    expect(portal).not.toContain("原始数据");
     shared.portalMode = false;
-    expect(renderToStaticMarkup(<WorkbenchApp />)).toContain("小One问数Agent");
+    expect(renderToStaticMarkup(<WorkbenchApp />)).not.toContain("小One问数Agent");
   });
 
   it("focuses and scrolls the workspace without replacing the instance fragment", () => {

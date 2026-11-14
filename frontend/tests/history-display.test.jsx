@@ -5,7 +5,7 @@ import D from "../src/workbench/domain/demo-data.json";
 
 it("puts Sector first and displays/exports Yield with one decimal without rounding the source", () => {
   const data = { ...D, dealers: D.dealers.map((dealer, index) => index === 0 ? { ...dealer, sector: "PCMO", history: { ...dealer.history, yield: 6.769 } } : dealer) };
-  const model = X.rawData(E.createState(data, "working"), { role: "admin" }, data, "history");
+  const model = X.rawData(E.createState(D, "working"), { role: "admin" }, data, "history");
   expect(model.columns[0].key).toBe("sector");
   expect(model.rows[0].sector).toBe("PCMO");
   expect(model.rows[0].yield).toBe(6.769);

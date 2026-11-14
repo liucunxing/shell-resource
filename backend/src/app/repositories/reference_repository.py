@@ -16,7 +16,7 @@ class ReferenceRepository:
         dealer_ids: list[str] | None = None,
         sectors: tuple[str, ...] | None = None,
     ) -> Sequence[RowMapping]:
-        statement = select(distributor_sellin_resource_history).distinct()
+        statement = select(distributor_sellin_resource_history)
         if dealer_ids is not None:
             statement = statement.where(
                 distributor_sellin_resource_history.c.distributor_code.in_(dealer_ids)

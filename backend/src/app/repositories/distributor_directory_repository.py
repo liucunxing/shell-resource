@@ -1,3 +1,9 @@
+"""Legacy Databricks directory adapter retained for compatibility fixtures.
+
+Resource Studio runtime directory endpoints use ``ReferenceRepository`` against
+``data.distributor_sellin_resource_history`` and do not instantiate this class.
+"""
+
 import re
 from typing import Any
 from urllib.parse import urlparse
@@ -16,7 +22,7 @@ class DatabricksDirectoryError(RuntimeError):
 
 
 class DatabricksDistributorRepository:
-    """Read the approved distributor directory through Databricks SQL REST APIs."""
+    """Read the legacy distributor directory through Databricks SQL REST APIs."""
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings

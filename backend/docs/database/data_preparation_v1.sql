@@ -63,6 +63,11 @@ COMMENT ON TABLE data.budgets_distributor IS '按 Distributor 分配的 Initiati
 CREATE INDEX ix_budgets_distributor_budget_id
     ON data.budgets_distributor (budget_id);
 
+ALTER TABLE data.budgets_distributor
+    ADD COLUMN history_key VARCHAR(80),
+    ADD COLUMN sd VARCHAR(255),
+    ADD COLUMN rsm VARCHAR(255);
+
 -- Historical source loaded by the data team and read directly by the V1.4 workbench.
 CREATE TABLE data.distributor_sellin_resource_history (
     distributor_code VARCHAR(255),
@@ -77,12 +82,22 @@ CREATE TABLE data.distributor_sellin_resource_history (
     reb_2025 NUMERIC(10, 2),
     btl_2025 NUMERIC(10, 2),
     capex_2025 NUMERIC(10, 2),
+    mrd_2026 NUMERIC(10, 2),
+    reb_2026 NUMERIC(10, 2),
+    btl_2026 NUMERIC(10, 2),
+    capex_2026 NUMERIC(10, 2),
     yield_2025 NUMERIC(10, 2),
+    yield_2026 NUMERIC(10, 2),
+    sd VARCHAR(255),
+    rsm VARCHAR(255),
+    distributor_status VARCHAR(255),
+    yoy_vol_24_25 NUMERIC(10, 2),
+    yoy_c3_24_25 NUMERIC(10, 2),
     sector VARCHAR(100)
 );
 
 COMMENT ON TABLE data.distributor_sellin_resource_history IS
-    '经销商历史 Vol、C3、资源和 Yield 数据；Yield 为原始比值，不是百分比';
+    '经销商层级、状态、历史 Vol、C3、资源、Yield 和同比；状态1=active、0=closed，仅1可新选；Yield为原始比值，YOY为百分比数值';
 
 -- Legacy data-preparation history remains available for compatibility.
 CREATE TABLE data.historical_performance (
