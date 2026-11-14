@@ -1,3 +1,12 @@
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowClockwise,
@@ -48,7 +57,9 @@ export function WorkPanel({ overlay, panelSize }) {
     portalMode,
     previewMode,
   } = useWorkbench();
-  const config = apiMode ? { url: "", error: "" } : buildYiwenUrl(import.meta.env.VITE_YIWEN_IFRAME_URL, identity.email);
+  const config = apiMode
+    ? { url: "", error: "" }
+    : buildYiwenUrl(import.meta.env.VITE_YIWEN_IFRAME_URL, identity.email);
   const panel = useRef(null);
   const closeButton = useRef(null);
   const [chatVisited, setChatVisited] = useState(false);
@@ -59,7 +70,12 @@ export function WorkPanel({ overlay, panelSize }) {
     if (!auxiliary.open) return;
     if (overlay) closeButton.current?.focus();
     const onKey = (event) => {
-      if (document.querySelector("dialog[open]")) return;
+      if (
+        document.querySelector(
+          '[data-slot="dialog-content"][data-state="open"]',
+        )
+      )
+        return;
       if (event.key === "Escape") {
         event.preventDefault();
         closeAuxiliary();
@@ -101,8 +117,9 @@ export function WorkPanel({ overlay, panelSize }) {
   return (
     <>
       {auxiliary.open && overlay && (
-        <button
-          className="work-scrim"
+        <Button
+          variant="outline"
+          className="work-scrim h-auto rounded-none border-0 bg-black/30 p-0"
           aria-label="收起工作栏"
           onClick={closeAuxiliary}
         />
@@ -119,122 +136,131 @@ export function WorkPanel({ overlay, panelSize }) {
         {auxiliary.open && panelSize && !panelSize.phone && (
           <WorkPanelResizer {...panelSize} />
         )}
-        <div className="work-rail">
-          <div className="work-tabs" role="tablist" aria-label="工作栏工具">
-            {tabs.map(([id, Icon, label]) => (
-              <button
-                key={id}
-                className={`work-tab ${auxiliary.open && auxiliary.tab === id ? "active" : ""}`}
-                role="tab"
-                aria-label={label}
-                aria-selected={auxiliary.open && auxiliary.tab === id}
-                aria-controls={`work-${id}`}
-                data-work-tab={id}
-                title={label}
-                onClick={() =>
-                  auxiliary.open && auxiliary.tab === id
-                    ? closeAuxiliary()
-                    : openAuxiliary(id)
-                }
-              >
-                <Icon className="icon" />
-                <span>{label}</span>
-              </button>
-            ))}
+        <Tabs
+          value={auxiliary.open ? auxiliary.tab : ""}
+          onValueChange={(tab) => openAuxiliary(tab)}
+          className="contents"
+        >
+          <div className="work-rail">
+            <TabsList className="work-tabs" aria-label="工作栏工具">
+              {tabs.map(([id, Icon, label]) => (
+                <TabsTrigger
+                  value={id}
+                  key={id}
+                  className={`work-tab ${auxiliary.open && auxiliary.tab === id ? "active" : ""}`}
+                  aria-label={label}
+                  aria-controls={`work-${id}`}
+                  data-work-tab={id}
+                  title={label}
+                >
+                  <Icon className="icon" />
+                  <span>{label}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            {auxiliary.open && (
+              <div className="work-window-actions">
+                <Button
+                  variant="ghost"
+                  ref={closeButton}
+                  className="icon-button work-close"
+                  aria-label="收起工作栏"
+                  onClick={closeAuxiliary}
+                >
+                  <SidebarSimple />
+                </Button>
+              </div>
+            )}
           </div>
-          {auxiliary.open && (
-            <div className="work-window-actions">
-              <button
-                ref={closeButton}
-                className="icon-button work-close"
-                aria-label="收起工作栏"
-                onClick={closeAuxiliary}
-              >
-                <SidebarSimple />
-              </button>
-            </div>
-          )}
-        </div>
-        <div hidden={!auxiliary.open} className="work-title">
-          <h2>
-            {auxiliary.tab === "chat"
-              ? "小One问数Agent"
-              : auxiliary.tab === "insight"
-                ? "Insight 分析"
-                : "历史参考"}
-          </h2>
-          <span className="small-text muted">
-            {E.departments(identity).join("、") || "全局"}
-          </span>
-        </div>
-        <div
-          id="work-reference"
-          className="work-content"
-          role="tabpanel"
-          aria-label="历史参考"
-          hidden={!auxiliary.open || auxiliary.tab !== "reference"}
-        >
-          <ReferencePanel />
-        </div>
-        <div
-          id="work-insight"
-          className="work-content"
-          role="tabpanel"
-          aria-label="Insight 分析"
-          hidden={!auxiliary.open || auxiliary.tab !== "insight"}
-        >
-          {identity.role === "admin" && !apiMode && (
-            <label className="form-field">
-              分析范围
-              <select
-                value={scope}
-                onChange={(event) =>
-                  setAuxiliary((value) => ({
-                    ...value,
-                    scope: event.target.value,
-                  }))
+          <div hidden={!auxiliary.open} className="work-title">
+            <h2>
+              {auxiliary.tab === "chat"
+                ? "小One问数Agent"
+                : auxiliary.tab === "insight"
+                  ? "Insight 分析"
+                  : "历史参考"}
+            </h2>
+            <span className="small-text muted">
+              {E.departments(identity).join("、") || "全局"}
+            </span>
+          </div>
+          <TabsContent
+            forceMount
+            value="reference"
+            id="work-reference"
+            className="work-content"
+            aria-label="历史参考"
+            hidden={!auxiliary.open || auxiliary.tab !== "reference"}
+          >
+            <ReferencePanel />
+          </TabsContent>
+          <TabsContent
+            forceMount
+            value="insight"
+            id="work-insight"
+            className="work-content"
+            aria-label="Insight 分析"
+            hidden={!auxiliary.open || auxiliary.tab !== "insight"}
+          >
+            {identity.role === "admin" && !apiMode && (
+              <Label className="form-field">
+                分析范围
+                <NativeSelect
+                  value={scope}
+                  onChange={(event) =>
+                    setAuxiliary((value) => ({
+                      ...value,
+                      scope: event.target.value,
+                    }))
+                  }
+                >
+                  {["global", ...E.DEPARTMENTS].map((value) => (
+                    <NativeSelectOption key={value} value={value}>
+                      {value === "global" ? "全局" : `${value} 部门`}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </Label>
+            )}
+            <InsightPanel key={scope} scope={scope} />
+          </TabsContent>
+          <TabsContent
+            forceMount
+            value="chat"
+            id="work-chat"
+            className="work-content is-chat"
+            aria-label="小One问数Agent"
+            hidden={!auxiliary.open || auxiliary.tab !== "chat"}
+          >
+            {previewMode ? (
+              <div className="work-empty">
+                <h3>模拟查看期间暂停问数</h3>
+                <p>请返回管理员后打开 Data Agent。</p>
+              </div>
+            ) : apiMode ? (
+              <DataAgentFrame
+                key={identity.email}
+                portalMode={portalMode}
+                visible={auxiliary.open && auxiliary.tab === "chat"}
+              />
+            ) : config.url ? (
+              <EmbeddedAsk
+                key={config.url}
+                url={config.url}
+                loaded={
+                  chatVisited || (auxiliary.open && auxiliary.tab === "chat")
                 }
-              >
-                {["global", ...E.DEPARTMENTS].map((value) => (
-                  <option key={value} value={value}>
-                    {value === "global" ? "全局" : `${value} 部门`}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <InsightPanel key={scope} scope={scope} />
-        </div>
-        <div
-          id="work-chat"
-          className="work-content is-chat"
-          role="tabpanel"
-          aria-label="小One问数Agent"
-          hidden={!auxiliary.open || auxiliary.tab !== "chat"}
-        >
-          {previewMode ? (
-            <div className="work-empty"><h3>模拟查看期间暂停问数</h3>
-              <p>请返回管理员后打开 Data Agent。</p></div>
-          ) : apiMode ? (
-            <DataAgentFrame key={identity.email} portalMode={portalMode}
-              visible={auxiliary.open && auxiliary.tab === "chat"} />
-          ) : config.url ? (
-            <EmbeddedAsk
-              key={config.url}
-              url={config.url}
-              loaded={
-                chatVisited || (auxiliary.open && auxiliary.tab === "chat")
-              }
-            />
-          ) : config.error ? (
-            <div className="work-empty">
-              <h3>问数接入地址配置有误</h3>
-              <p>{config.error} 当前预算工作区仍可使用。</p>
-            </div>
-          ) : (
-            <LocalChat />
-          )}
-        </div>
+              />
+            ) : config.error ? (
+              <div className="work-empty">
+                <h3>问数接入地址配置有误</h3>
+                <p>{config.error} 当前预算工作区仍可使用。</p>
+              </div>
+            ) : (
+              <LocalChat />
+            )}
+          </TabsContent>
+        </Tabs>
       </aside>
     </>
   );
@@ -261,10 +287,20 @@ function ReferencePanel() {
     );
   const initiative = view.initiatives.find((item) => item.id === initiativeId);
   const preferredSector = auxiliary.dealerSector ?? initiative?.sector;
-  const candidates = data.dealers.filter((dealer) => String(dealer.id) === String(selectedId));
-  const selected = candidates.find((dealer) => dealer.sector === preferredSector) || candidates[0];
+  const candidates = data.dealers.filter(
+    (dealer) => String(dealer.id) === String(selectedId),
+  );
+  const selected =
+    candidates.find((dealer) => dealer.sector === preferredSector) ||
+    candidates[0];
   if (!selected) return <div className="empty">暂无历史数据。</div>;
-  const model = A.historyReference(state, identity, data, selected.id, selected.sector || "—");
+  const model = A.historyReference(
+    state,
+    identity,
+    data,
+    selected.id,
+    selected.sector || "—",
+  );
   const fullYears = model.periods.filter((period) => period.comparable);
   const ytd = model.periods.find((period) => !period.comparable);
   const resourceTotal = model.resources.reduce(
@@ -276,14 +312,18 @@ function ReferencePanel() {
     0,
   );
   const resource2026Total = (model.resources2026Ytd || []).reduce(
-    (total, resource) => total + (Number.isFinite(resource.amount) && resource.amount > 0 ? resource.amount : 0),
+    (total, resource) =>
+      total +
+      (Number.isFinite(resource.amount) && resource.amount > 0
+        ? resource.amount
+        : 0),
     0,
   );
   return (
     <>
-      <label className="reference-selector">
+      <Label className="reference-selector">
         经销商
-        <select
+        <NativeSelect
           aria-label="历史参考经销商"
           value={JSON.stringify([String(selected.id), selected.sector || ""])}
           onChange={(event) =>
@@ -295,25 +335,35 @@ function ReferencePanel() {
           }
         >
           {data.dealers.map((dealer) => (
-            <option key={JSON.stringify([dealer.id, dealer.sector || ""])} value={JSON.stringify([String(dealer.id), dealer.sector || ""])}>
+            <NativeSelectOption
+              key={JSON.stringify([dealer.id, dealer.sector || ""])}
+              value={JSON.stringify([String(dealer.id), dealer.sector || ""])}
+            >
               {dealer.id} · {dealer.name || "—"} · {dealer.sector || "—"}
-            </option>
+            </NativeSelectOption>
           ))}
-        </select>
-      </label>
+        </NativeSelect>
+      </Label>
       <div className="reference-dealer-meta">
-        <span>{selected.sector || "—"}</span><span>{selected.sd || "SD —"}</span><span>{selected.rsm || "RSM —"}</span><span className={`resource-status ${selected.status || ""}`}>{selected.status || "状态 —"}</span>
+        <span>{selected.sector || "—"}</span>
+        <span>{selected.sd || "SD —"}</span>
+        <span>{selected.rsm || "RSM —"}</span>
+        <span className={`resource-status ${selected.status || ""}`}>
+          {selected.status || "状态 —"}
+        </span>
       </div>
-      <section className="yield-card" aria-label="2025全年整体Yield">
+      <Card className="yield-card" aria-label="2025全年整体Yield">
         <div>
           <span>2025 全年 · Yield</span>
           <strong>{fmt(model.yield)}</strong>
         </div>
         <p>2025 C3 ÷ 资源</p>
         <small>
-          {model.yield == null ? "源数据暂未提供 Yield" : "源数据原始比值 · 只读参考"}
+          {model.yield == null
+            ? "源数据暂未提供 Yield"
+            : "源数据原始比值 · 只读参考"}
         </small>
-      </section>
+      </Card>
       <div className="history-chart-pair">
         {["vol", "c3"].map((field) => {
           const maximum = Math.max(
@@ -324,11 +374,9 @@ function ReferencePanel() {
           );
           const prior = fullYears[0]?.[field],
             latest = fullYears[1]?.[field];
-          const supplied = field === "vol" ? model.yoyVol2425 : model.yoyC32425;
-          const delta = Number.isFinite(supplied) ? supplied :
-            Number.isFinite(prior) && prior > 0 && Number.isFinite(latest)
-              ? ((latest - prior) / prior) * 100
-              : null;
+          const delta = Number.isFinite(prior) && prior > 0 && Number.isFinite(latest)
+            ? ((latest - prior) / prior) * 100
+            : null;
           return (
             <section
               className="history-chart"
@@ -339,7 +387,7 @@ function ReferencePanel() {
                 <h4>{field === "vol" ? "Vol (KL)" : "C3 (K$)"}</h4>
                 <span>
                   {delta == null
-                    ? "2024 / 2025 全年"
+                    ? Number.isFinite(prior) && prior <= 0 ? "无基期" : "2025 同比数据未提供"
                     : `2025 较上年 ${delta > 0 ? "+" : ""}${delta.toFixed(1)}%`}
                 </span>
               </div>
@@ -406,20 +454,45 @@ function ReferencePanel() {
           条形占比以{model.allResources ? "全部" : "当前授权"}资源合计为分母。
         </p>
       </section>
-      {!!model.resources2026Ytd?.length && <section className="resource-chart">
-        <div className="history-chart-title"><h4>2026 YTD 资源构成</h4><span>{model.allResources ? "全部资源" : `${E.departments(identity).join("、")} 授权范围`}</span></div>
-        {model.resources2026Ytd.map((resource) => <div className="resource-bar-row" key={resource.label}><div><span>{resource.label.replace("2026 YTD ", "")}</span><b>{fmt(resource.amount)} K$</b></div><div className="history-bar-track"><i className="resource" style={{ width: `${resource2026Total && Number.isFinite(resource.amount) ? Math.max(0, resource.amount) / resource2026Total * 100 : 0}%` }} /></div></div>)}
-      </section>}
+      {!!model.resources2026Ytd?.length && (
+        <section className="resource-chart">
+          <div className="history-chart-title">
+            <h4>2026 YTD 资源构成</h4>
+            <span>
+              {model.allResources
+                ? "全部资源"
+                : `${E.departments(identity).join("、")} 授权范围`}
+            </span>
+          </div>
+          {model.resources2026Ytd.map((resource) => (
+            <div className="resource-bar-row" key={resource.label}>
+              <div>
+                <span>{resource.label.replace("2026 YTD ", "")}</span>
+                <b>{fmt(resource.amount)} K$</b>
+              </div>
+              <div className="history-bar-track">
+                <i
+                  className="resource"
+                  style={{
+                    width: `${resource2026Total && Number.isFinite(resource.amount) ? (Math.max(0, resource.amount) / resource2026Total) * 100 : 0}%`,
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
       <p className="reference-footnote">
         Vol 的单位为 KL，C3 与资源的单位为 K$。Yield
         向各角色共享，资源明细按权限展示；历史比值不随 2027 分配变化。
       </p>
-      <button
+      <Button
+        variant="outline"
         className="button small"
         onClick={() => openRaw("history", String(selected.id))}
       >
         查看历史原始数据
-      </button>
+      </Button>
     </>
   );
 }
@@ -436,7 +509,8 @@ export function EmbeddedAsk({ loaded, url }) {
     <div className="embedded-ask">
       <div className="embedded-toolbar">
         <span>Data Agent 问数界面</span>
-        <button
+        <Button
+          variant="outline"
           className="button small"
           onClick={() => {
             setLoading(true);
@@ -446,7 +520,7 @@ export function EmbeddedAsk({ loaded, url }) {
         >
           <ArrowClockwise size={16} />
           重新加载
-        </button>
+        </Button>
         <a href={url} target="_blank" rel="noopener noreferrer">
           独立打开 <ArrowSquareOut size={15} />
         </a>
@@ -593,13 +667,14 @@ function LocalChat() {
   return (
     <div className="chat-shell">
       <header className="chat-top">
-        <button
+        <Button
+          variant="ghost"
           className="icon-button"
           aria-label="查看对话记录"
           onClick={() => setHistoryOpen(!historyOpen)}
         >
           <List />
-        </button>
+        </Button>
         <span className="nora-pill">
           <span className="nora-avatar">
             <User />
@@ -609,7 +684,8 @@ function LocalChat() {
         <span className="chat-new-label">
           {messages.length ? "当前对话" : "新对话"}
         </span>
-        <button
+        <Button
+          variant="ghost"
           className="icon-button"
           aria-label="新建对话"
           onClick={() => {
@@ -620,21 +696,23 @@ function LocalChat() {
           }}
         >
           <PlusCircle />
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="ghost"
           className="icon-button"
           aria-label="查看当前问数上下文"
           onClick={() => setContextOpen(!contextOpen)}
         >
           <FileText />
-        </button>
+        </Button>
       </header>
       {historyOpen && (
         <div className="chat-records">
           <b>本次会话记录</b>
           {history.length ? (
             history.map((record, index) => (
-              <button
+              <Button
+                variant="link"
                 className="button link"
                 key={index}
                 onClick={() => {
@@ -648,7 +726,7 @@ function LocalChat() {
                 }}
               >
                 {record[0].text}
-              </button>
+              </Button>
             ))
           ) : (
             <p>新建对话后，上一段会保留在这里；切换角色后清空。</p>
@@ -673,12 +751,13 @@ function LocalChat() {
                 )}
                 <p>{message.text}</p>
                 {message.callback && (
-                  <button
+                  <Button
+                    variant="outline"
                     className="button small"
                     onClick={() => callback(message.callback)}
                   >
                     {message.callback.label}
-                  </button>
+                  </Button>
                 )}
               </div>
             ))}
@@ -696,14 +775,15 @@ function LocalChat() {
             <div className="chat-examples">
               {["预算分配了多少", "分配占比", "2026 可以同比吗"].map(
                 (question) => (
-                  <button
+                  <Button
+                    variant="outline"
                     className="chat-example"
                     key={question}
                     onClick={() => send(question)}
                   >
                     {question}
                     <ArrowUpRight />
-                  </button>
+                  </Button>
                 ),
               )}
             </div>
@@ -712,7 +792,7 @@ function LocalChat() {
       </div>
       <div className="chat-bottom">
         <div className="chat-composer">
-          <textarea
+          <Textarea
             ref={input}
             rows={2}
             maxLength={1000}
@@ -735,13 +815,14 @@ function LocalChat() {
             <span className="muted small-text">
               Enter 发送 · Shift + Enter 换行
             </span>
-            <button
+            <Button
+              variant="outline"
               className="chat-send"
               aria-label="发送问题"
               onClick={() => send()}
             >
               <PaperPlaneTilt />
-            </button>
+            </Button>
           </div>
         </div>
         <p className="chat-context">

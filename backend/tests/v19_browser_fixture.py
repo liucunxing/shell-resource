@@ -1,6 +1,7 @@
 """Persistent local V19 acceptance app, synthetic data and SQLite only.
 
-Run: python -m uvicorn tests.v19_browser_fixture:app --app-dir src --port 8019
+Run: python -m uvicorn tests.v19_browser_fixture:app --app-dir src --host 127.0.0.1 --port 8019
+Open http://127.0.0.1:8019/ directly; test roles are selectable without login.
 This module never reads developer credentials or contacts PostgreSQL/AI services.
 """
 
@@ -16,6 +17,7 @@ os.environ["APP_SETTINGS_FILE"] = str(ROOT / "config" / "settings.example.toml")
 
 from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from tests.local_preview import install_local_preview
 
 from app.core.config import get_settings
 from app.db.session import get_db_session
@@ -220,3 +222,4 @@ settings.db_echo = False
 app = create_app()
 app.router.lifespan_context = lifespan
 app.dependency_overrides[get_db_session] = local_session
+install_local_preview(app, Path(settings.frontend_dist_path))

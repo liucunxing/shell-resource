@@ -1,3 +1,4 @@
+import { getLocalPreviewConfig, getLocalPreviewEmail, setLocalPreviewEmail } from "./localPreview";
 import { assertPreviewResponseCurrent, getPreviewEpoch, getPreviewUserEmail } from "./userPreview";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/api/v1/workbench").replace(/\/$/, "");
@@ -15,12 +16,15 @@ export class ApiError extends Error {
 
 export function getDevelopmentEmail() {
   if (isPortalEntry()) return "";
+  const localConfig = getLocalPreviewConfig();
+  if (localConfig) return getLocalPreviewEmail(localConfig);
   if (typeof sessionStorage === "undefined") return "";
   return String(sessionStorage.getItem(DEV_EMAIL_KEY) || "").trim();
 }
 
 export function setDevelopmentEmail(email) {
   if (isPortalEntry()) return;
+  if (getLocalPreviewConfig()) { setLocalPreviewEmail(String(email || "").trim()); return; }
   const value = String(email || "").trim();
   if (typeof sessionStorage === "undefined") return;
   if (value) sessionStorage.setItem(DEV_EMAIL_KEY, value);
@@ -29,7 +33,7 @@ export function setDevelopmentEmail(email) {
 
 // Temporary FineReport Portal handoff; permissions are always resolved by the API.
 export function acceptPortalEmail() {
-  if (isPortalEntry()) return;
+  if (isPortalEntry() || getLocalPreviewConfig()) return;
   if (typeof window === "undefined") return;
   const url = new URL(window.location.href);
   const entries = [...url.searchParams].filter(([key]) => key.trim() === "user_email");

@@ -1,3 +1,19 @@
+import { AlertDescription } from "@/components/ui/alert";
+import { Alert } from "../../components/ui/alert";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "../../components/ui/accordion";
+import { Label } from "../../components/ui/label";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "../../components/ui/native-select";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Textarea } from "../../components/ui/textarea";
 import { useEffect, useRef, useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
@@ -40,7 +56,12 @@ export function updateInsightGeneration(current, action) {
 export function InsightPanel({ scope }) {
   const { identity, apiMode } = useWorkbench();
   if (apiMode && identity.role === "admin")
-    return <AdminInsightPreview key={identity.email} PromptEditor={BusinessPromptEditor} />;
+    return (
+      <AdminInsightPreview
+        key={identity.email}
+        PromptEditor={BusinessPromptEditor}
+      />
+    );
   return <StandardInsightPanel scope={scope} />;
 }
 function StandardInsightPanel({ scope }) {
@@ -150,9 +171,9 @@ function StandardInsightPanel({ scope }) {
   return (
     <div className="insight-panel">
       {identity.role === "lead" && E.departments(identity).length > 1 && (
-        <label className="form-field insight-scope-select">
+        <Label className="form-field insight-scope-select">
           分析部门
-          <select
+          <NativeSelect
             aria-label="分析部门"
             value={effective}
             onChange={(event) =>
@@ -164,17 +185,17 @@ function StandardInsightPanel({ scope }) {
             }
           >
             {E.departments(identity).map((dep) => (
-              <option key={dep} value={dep}>
+              <NativeSelectOption key={dep} value={dep}>
                 {dep}
-              </option>
+              </NativeSelectOption>
             ))}
-          </select>
-        </label>
+          </NativeSelect>
+        </Label>
       )}
       {own && (
-        <label className="form-field insight-scope-select">
+        <Label className="form-field insight-scope-select">
           分析范围
-          <select
+          <NativeSelect
             value={effective}
             onChange={(e) =>
               setSelection({
@@ -184,21 +205,21 @@ function StandardInsightPanel({ scope }) {
               })
             }
           >
-            <option value={"owner:" + identity.ownerId}>
+            <NativeSelectOption value={"owner:" + identity.ownerId}>
               我的全部 Initiative
-            </option>
+            </NativeSelectOption>
             {view.initiatives.map((i) => (
-              <option key={i.id} value={"initiative:" + i.id}>
+              <NativeSelectOption key={i.id} value={"initiative:" + i.id}>
                 {i.name} · {i.resourceType} / {i.sector}
-              </option>
+              </NativeSelectOption>
             ))}
-          </select>
-        </label>
+          </NativeSelect>
+        </Label>
       )}
       {apiMode && (
-        <label className="form-field insight-preset">
+        <Label className="form-field insight-preset">
           分析方案
-          <select
+          <NativeSelect
             value={preset}
             disabled={busy}
             onChange={(event) => {
@@ -212,39 +233,59 @@ function StandardInsightPanel({ scope }) {
             }}
           >
             {(remote.presets || defaultPresets).map((item) => (
-              <option key={item.id} value={item.id}>
+              <NativeSelectOption key={item.id} value={item.id}>
                 {item.label}
-              </option>
+              </NativeSelectOption>
             ))}
-          </select>
-        </label>
+          </NativeSelect>
+        </Label>
       )}
-      {synced && <p className="small-text muted">范围：全部已同步项目；每项取最新同步版本，不包含未同步草稿。</p>}
-      {apiMode && remote.prompt?.editable && <BusinessPromptEditor
-        key={`${identityKey}-${remote.prompt.version}`} prompt={remote.prompt}
-        disabled={busy || previewMode} onSaved={(prompt) => {
-          setRemote((current) => ({ ...current, prompt, record: current.record ? { ...current.record, stale: true } : null }));
-          notify("关注点已保存，下次生成生效。");
-        }}
-      />}
+      {synced && (
+        <p className="small-text muted">
+          范围：全部已同步项目；每项取最新同步版本，不包含未同步草稿。
+        </p>
+      )}
+      {apiMode && remote.prompt?.editable && (
+        <BusinessPromptEditor
+          key={`${identityKey}-${remote.prompt.version}`}
+          prompt={remote.prompt}
+          disabled={busy || previewMode}
+          onSaved={(prompt) => {
+            setRemote((current) => ({
+              ...current,
+              prompt,
+              record: current.record
+                ? { ...current.record, stale: true }
+                : null,
+            }));
+            notify("关注点已保存，下次生成生效。");
+          }}
+        />
+      )}
       <div className="insight-toolbar">
         <div>
-          <span className="badge">
+          <Badge variant="secondary" className="badge">
             {apiMode
               ? synced
                 ? "百炼 Insight · 最新同步数据"
                 : "百炼 Insight"
               : "模拟分析"}
-          </span>
+          </Badge>
           {record && (
-            <span className={"badge " + (record.stale ? "amber" : "teal")}>
+            <Badge
+              variant="secondary"
+              className={"badge " + (record.stale ? "amber" : "teal")}
+            >
               {record.stale ? "待更新" : readOnly ? "只读预览" : "当前版本"}
-            </span>
+            </Badge>
           )}
         </div>
         {!readOnly && (apiMode || identity.role !== "admin") && (
-          <button
-            className="button primary small"
+          <Button
+            variant="default"
+            size="sm"
+            type="button"
+
             disabled={busy || remote.loading || previewMode}
             onClick={async () => {
               if (!apiMode)
@@ -294,7 +335,7 @@ function StandardInsightPanel({ scope }) {
                 : record
                   ? "更新分析"
                   : "生成分析"}
-          </button>
+          </Button>
         )}
       </div>
       <p className="work-caption">
@@ -302,10 +343,12 @@ function StandardInsightPanel({ scope }) {
         {record?.basisLabel && " · " + record.basisLabel}
       </p>
       {failure && (
-        <div className="note-box warn" role="alert">
-          {failure}
-          {record && <p>下方保留上次成功结果，本次分析未更新。</p>}
-        </div>
+        <Alert variant="destructive" className="note-box warn" role="alert">
+          <AlertDescription>
+            {failure}
+            {record && <p>下方保留上次成功结果，本次分析未更新。</p>}
+          </AlertDescription>
+        </Alert>
       )}
       {apiMode && remote.loading && (
         <div className="empty" role="status">
@@ -313,16 +356,20 @@ function StandardInsightPanel({ scope }) {
         </div>
       )}
       {busy && (
-        <div className="note-box" role="status">
-          正在分析 · 已等待 {elapsed} 秒。
-          {record ? "下方保留上次结果。" : "完成后将在这里显示结果。"}
-          {elapsed >= 15 && " 本次处理较慢，可以继续查看工作台。"}
-        </div>
+        <Alert className="note-box" role="status">
+          <AlertDescription>
+            正在分析 · 已等待 {elapsed} 秒。
+            {record ? "下方保留上次结果。" : "完成后将在这里显示结果。"}
+            {elapsed >= 15 && " 本次处理较慢，可以继续查看工作台。"}
+          </AlertDescription>
+        </Alert>
       )}
       {record?.stale && (
-        <div className="note-box warn">
-          分配或分析依据已变化，请更新后查看最新结论。
-        </div>
+        <Alert variant="destructive" role="note" className="note-box warn">
+          <AlertDescription>
+            分配或分析依据已变化，请更新后查看最新结论。
+          </AlertDescription>
+        </Alert>
       )}
       {!record?.result &&
         record?.evidence?.datasets
@@ -352,17 +399,19 @@ function StandardInsightPanel({ scope }) {
                 <span className="item-number">
                   {String(n + 1).padStart(2, "0")}
                 </span>
-                <span className="insight-status">
+                <Badge variant="secondary" className="insight-status">
                   {item.status === "limited"
                     ? "待补充信息"
                     : item.status === "review"
                       ? "建议关注"
                       : "已核对事实"}
-                </span>
+                </Badge>
               </div>
               <h3>{titles[n]}</h3>
               <p className="insight-copy">
-                {formatInsightCopy(item.text || item.evidence + " " + item.review)}
+                {formatInsightCopy(
+                  item.text || item.evidence + " " + item.review,
+                )}
               </p>
             </article>
           ))
@@ -370,9 +419,7 @@ function StandardInsightPanel({ scope }) {
       ) : (
         <>
           <div className="empty">
-            <strong>
-              围绕六个问题查看资源分配
-            </strong>
+            <strong>围绕六个问题查看资源分配</strong>
             <p>
               {own
                 ? "仅使用本人配置的 Initiative 与授权历史参考。"
@@ -391,41 +438,66 @@ function StandardInsightPanel({ scope }) {
         </>
       )}
       {record && (
-        <details className="insight-basis-details">
-          <summary>分析依据</summary>
-          <p>
-            范围：{scopeLabel}
-            <br />
-            参考批次：{record.reference?.batchId || "—"}
-            <br />
-            指南 v{record.guideVersion} · 业务提示词 v{record.promptVersion || 0}
-            <br />
-            {readOnly
-              ? "根据最新同步结果即时展示"
-              : new Date(record.createdAt).toLocaleString("zh-CN")}
-          </p>
-          <p>{record.basisLabel} · {record.disclaimer}</p>
-          {synced && record.dataVersions?.map((item) => <p key={item.initiativeId}>
-            项目 {item.initiativeId} · 同步修订 {item.revision ?? "—"} · {item.publishedAt ? new Date(item.publishedAt).toLocaleString("zh-CN") : "—"}
-          </p>)}
-          {record.metadata && (
-            <p>
-              方案：
-              {(remote.presets || defaultPresets).find(
-                (item) =>
-                  item.id === (record.presetId || record.result?.preset_id),
-              )?.label || "综合体检"}
-              <br />
-              方案版本：{record.metadata.preset_version || "—"}
-            </p>
-          )}
-          {record.guideText && (
-            <details>
-              <summary>生成时使用的指南</summary>
-              <p style={{ whiteSpace: "pre-wrap" }}>{record.guideText}</p>
-            </details>
-          )}
-        </details>
+        <Accordion type="single" collapsible className="insight-basis-details">
+          <AccordionItem value="content">
+            <AccordionTrigger>分析依据</AccordionTrigger>
+            <AccordionContent
+              forceMount
+              className="[[data-state=closed]_&]:hidden"
+            >
+              <p>
+                范围：{scopeLabel}
+                <br />
+                参考批次：{record.reference?.batchId || "—"}
+                <br />
+                指南 v{record.guideVersion} · 业务提示词 v
+                {record.promptVersion || 0}
+                <br />
+                {readOnly
+                  ? "根据最新同步结果即时展示"
+                  : new Date(record.createdAt).toLocaleString("zh-CN")}
+              </p>
+              <p>
+                {record.basisLabel} · {record.disclaimer}
+              </p>
+              {synced &&
+                record.dataVersions?.map((item) => (
+                  <p key={item.initiativeId}>
+                    项目 {item.initiativeId} · 同步修订 {item.revision ?? "—"} ·{" "}
+                    {item.publishedAt
+                      ? new Date(item.publishedAt).toLocaleString("zh-CN")
+                      : "—"}
+                  </p>
+                ))}
+              {record.metadata && (
+                <p>
+                  方案：
+                  {(remote.presets || defaultPresets).find(
+                    (item) =>
+                      item.id === (record.presetId || record.result?.preset_id),
+                  )?.label || "综合体检"}
+                  <br />
+                  方案版本：{record.metadata.preset_version || "—"}
+                </p>
+              )}
+              {record.guideText && (
+                <Accordion type="single" collapsible>
+                  <AccordionItem value="content">
+                    <AccordionTrigger>生成时使用的指南</AccordionTrigger>
+                    <AccordionContent
+                      forceMount
+                      className="[[data-state=closed]_&]:hidden"
+                    >
+                      <p style={{ whiteSpace: "pre-wrap" }}>
+                        {record.guideText}
+                      </p>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       )}
     </div>
   );
@@ -435,27 +507,71 @@ export function BusinessPromptEditor({ prompt, disabled, onSaved }) {
   const [text, setText] = useState(prompt.version ? prompt.text : "");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-  return <details className="insight-basis-details">
-    <summary>调整分析关注点 · v{prompt.version}</summary>
-    <p>用于本年度各范围的后续分析。保存后下次生成生效，已有摘要保留原版本；金额计算和事实核对规则保持不变。</p>
-    <label className="form-field">业务关注点与表达要求
-      <textarea rows={5} maxLength={12000} value={text} disabled={disabled || saving}
-        onChange={(event) => setText(event.target.value)} />
-    </label>
-    <button className="button small" disabled={disabled || saving || !text.trim()}
-      onClick={async () => {
-        setSaving(true); setMessage("");
-        try {
-          const updated = await api.saveInsightPrompt("global", text, prompt.version);
-          onSaved(updated);
-        } catch (error) { setMessage(error.message); }
-        finally { setSaving(false); }
-      }}>{saving ? "保存中…" : "保存，下次生成生效"}</button>
-    {message && <p role="alert">{message}</p>}
-    {prompt.versions?.length > 0 && <details><summary>历史版本（{prompt.versions.length}）</summary>
-      {[...prompt.versions].reverse().map((version) => <div key={version.version}>
-        <strong>v{version.version}</strong><p style={{ whiteSpace: "pre-wrap" }}>{version.text}</p>
-      </div>)}
-    </details>}
-  </details>;
+  return (
+    <Accordion type="single" collapsible className="insight-basis-details">
+      <AccordionItem value="content">
+        <AccordionTrigger>调整分析关注点 · v{prompt.version}</AccordionTrigger>
+        <AccordionContent forceMount className="[[data-state=closed]_&]:hidden">
+          <p>
+            用于本年度各范围的后续分析。保存后下次生成生效，已有摘要保留原版本；金额计算和事实核对规则保持不变。
+          </p>
+          <Label className="form-field">
+            业务关注点与表达要求
+            <Textarea
+              rows={5}
+              maxLength={12000}
+              value={text}
+              disabled={disabled || saving}
+              onChange={(event) => setText(event.target.value)}
+            />
+          </Label>
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            disabled={disabled || saving || !text.trim()}
+            onClick={async () => {
+              setSaving(true);
+              setMessage("");
+              try {
+                const updated = await api.saveInsightPrompt(
+                  "global",
+                  text,
+                  prompt.version,
+                );
+                onSaved(updated);
+              } catch (error) {
+                setMessage(error.message);
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            {saving ? "保存中…" : "保存，下次生成生效"}
+          </Button>
+          {message && <p role="alert">{message}</p>}
+          {prompt.versions?.length > 0 && (
+            <Accordion type="single" collapsible>
+              <AccordionItem value="content">
+                <AccordionTrigger>
+                  历史版本（{prompt.versions.length}）
+                </AccordionTrigger>
+                <AccordionContent
+                  forceMount
+                  className="[[data-state=closed]_&]:hidden"
+                >
+                  {[...prompt.versions].reverse().map((version) => (
+                    <div key={version.version}>
+                      <strong>v{version.version}</strong>
+                      <p style={{ whiteSpace: "pre-wrap" }}>{version.text}</p>
+                    </div>
+                  ))}
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          )}
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
+  );
 }

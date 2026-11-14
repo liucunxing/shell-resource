@@ -1,28 +1,354 @@
+import { Card } from "../../components/ui/card";
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from "../../components/ui/table";
+import { Input } from "../../components/ui/input";
+import { Button } from "../../components/ui/button";
+import { Checkbox } from "../../components/ui/checkbox";
+import { Label } from "../../components/ui/label";
 import { useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
+import { configuredYtdLabel } from "../domain/dealer-history";
 
 export function StudioConfiguration({ thresholds = false }) {
-  const { state, saveConfig, previewMode } = useWorkbench();
-  const [reasons, setReasons] = useState(() => structuredClone(state.budgetReasons || []));
-  const [values, setValues] = useState(state.healthThresholds || { concentrationYellow: 5, concentrationRed: 10, dealerYellow: 3, dealerRed: 6 });
-  const [busy, setBusy] = useState(false), [label, setLabel] = useState("");
-  const save = async () => { setBusy(true); try { await saveConfig(thresholds ? { healthThresholds: values } : { budgetReasons: reasons }); } finally { setBusy(false); } };
-  if (thresholds) return <section className="panel studio-admin-panel">
-    <div className="panel-header"><div><h2>健康检查阈值</h2><p>差值仅提示复核，不替代业务判断。单位为百分点（pp）。</p></div></div>
-    <table><thead><tr><th>指标</th><th>黄色阈值</th><th>红色阈值</th></tr></thead><tbody>
-      {[["concentration", "集中度偏离"], ["dealer", "经销商超配 / 低配"]].map(([key, title]) => <tr key={key}><th>{title}</th>{["Yellow", "Red"].map((severity) => <td key={severity}><input aria-label={`${title}${severity === "Yellow" ? "黄色" : "红色"}阈值`} type="number" min="0" max="100" step="0.1" value={values[key + severity]} onChange={(event) => setValues({ ...values, [key + severity]: Number(event.target.value) })} /></td>)}</tr>)}
-    </tbody></table><div className="actions studio-admin-save"><button className="button primary" disabled={busy || previewMode} onClick={save}>{busy ? "保存中…" : "保存阈值"}</button></div>
-  </section>;
+  const { state, view, data, saveConfig, previewMode } = useWorkbench();
+  const [reasons, setReasons] = useState(() =>
+    structuredClone(state.budgetReasons || []),
+  );
+  const [values, setValues] = useState(
+    state.healthThresholds || {
+      concentrationYellow: 5,
+      concentrationRed: 10,
+      dealerYellow: 3,
+      dealerRed: 6,
+    },
+  );
+  const [busy, setBusy] = useState(false),
+    [label, setLabel] = useState("");
+  const [ytdMonth, setYtdMonth] = useState(state.ytdCutoffMonth ?? 10);
+  const validMonth =
+    Number.isInteger(ytdMonth) && ytdMonth >= 1 && ytdMonth <= 12;
+  const save = async () => {
+    setBusy(true);
+    try {
+      await saveConfig(
+        thresholds ? { healthThresholds: values } : { budgetReasons: reasons },
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (thresholds)
+    return (
+      <Card className="panel studio-admin-panel gap-4 p-4">
+        <div className="panel-header">
+          <div>
+            <h2>健康检查阈值</h2>
+            <p>差值仅提示复核，不替代业务判断。单位为百分点（pp）。</p>
+          </div>
+        </div>
+        <Table containerClassName="overflow-visible">
+          <TableHeader>
+            <TableRow>
+              <TableHead>指标</TableHead>
+              <TableHead>黄色阈值</TableHead>
+              <TableHead>红色阈值</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {[
+              ["concentration", "集中度偏离"],
+              ["dealer", "经销商超配 / 低配"],
+            ].map(([key, title]) => (
+              <TableRow key={key}>
+                <TableHead>{title}</TableHead>
+                {["Yellow", "Red"].map((severity) => (
+                  <TableCell key={severity}>
+                    <Input
+                      aria-label={`${title}${severity === "Yellow" ? "黄色" : "红色"}阈值`}
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      value={values[key + severity]}
+                      onChange={(event) =>
+                        setValues({
+                          ...values,
+                          [key + severity]: Number(event.target.value),
+                        })
+                      }
+                    />
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <div className="actions studio-admin-save">
+          <Button
+            variant="default"
+            type="button"
+            disabled={busy || previewMode}
+            onClick={save}
+          >
+            {busy ? "保存中…" : "保存阈值"}
+          </Button>
+        </div>
+      </Card>
+    );
   const metadata = state.reference || {};
-  return <>
-    <section className="panel studio-admin-panel"><div className="panel-header"><div><h2>预留原因</h2><p>Owner 从启用原因中选择。已使用原因不能改名或删除，可以停用；历史记录保留。</p></div></div>
-      <table><thead><tr><th>编码</th><th>原因名称</th><th>启用</th><th>操作</th></tr></thead><tbody>{reasons.map((reason, index) => <tr key={reason.id}><td>{reason.id}</td><td><input aria-label={`预留原因 ${index + 1}`} value={reason.label} onChange={(event) => setReasons(reasons.map((item) => item.id === reason.id ? { ...item, label: event.target.value } : item))} /></td><td><input aria-label={`启用 ${reason.label}`} type="checkbox" checked={reason.enabled} onChange={(event) => setReasons(reasons.map((item) => item.id === reason.id ? { ...item, enabled: event.target.checked } : item))} /></td><td><button className="button small" disabled={busy || previewMode} onClick={() => setReasons(reasons.filter((item) => item.id !== reason.id))}>删除未使用原因</button></td></tr>)}</tbody></table>
-      <div className="studio-inline-controls"><label>新增原因<input value={label} maxLength="120" onChange={(event) => setLabel(event.target.value)} /></label><button className="button" disabled={!label.trim() || previewMode} onClick={() => { setReasons([...reasons, { id: `reason-${crypto.randomUUID()}`, label: label.trim(), enabled: true }]); setLabel(""); }}>添加原因</button>
-        <button className="button primary" disabled={busy || previewMode} onClick={save}>{busy ? "保存中…" : "保存原因配置"}</button></div>
-    </section>
-    <section className="panel studio-admin-panel"><div className="panel-header"><div><h2>组织与历史数据</h2><p>业务线、资源大类采用现有业务字典；所属部门与授权范围在用户页维护。历史期间随数据源快照更新。</p></div></div>
-      <div className="studio-enum-grid"><article className="studio-enum-card"><h3>业务线 / 资源大类</h3><p>PCMO · CRTO · B2B · OEM</p><p>MRD · SP&amp;A · ICE Rebate · Capex</p></article>
-        <article className="studio-enum-card"><h3>历史数据来源</h3><p>{metadata.source || "等待来源信息"}</p><p>Actual 最新月份：{metadata.actual?.latestMonth || "来源未提供"}</p><p>历史费用最新月份：{metadata.investment?.latestMonth || "来源未提供"}</p><p>月份不齐或无法核对时，不计算跨月 Yield。</p></article></div>
-    </section>
-  </>;
+  return (
+    <>
+      <OrganizationReferencePanels
+        metadata={metadata}
+        items={view?.initiatives || []}
+        dealers={data?.dealers || []}
+      />
+      <Card className="panel studio-admin-panel gap-4 p-4">
+        <h2>YTD 截止月份配置</h2>
+        <Label htmlFor="ytd-cutoff-month">2026 YTD 截止月份</Label>
+        <Input
+          id="ytd-cutoff-month"
+          type="number"
+          min="1"
+          max="12"
+          step="1"
+          value={ytdMonth}
+          disabled={busy || previewMode}
+          onChange={(event) =>
+            setYtdMonth(
+              event.target.value === "" ? "" : Number(event.target.value),
+            )
+          }
+        />
+        <p>
+          {validMonth ? configuredYtdLabel(ytdMonth) : "请输入 1–12 的整数月份"}
+        </p>
+        <p className="small-text muted">
+          默认 10 月。此项设置页面期间标签；Actual
+          与历史费用的真实覆盖月份须另行核对，配置不会补齐源数据或解除 YTD Yield
+          的期间校验。
+        </p>
+        <Button
+          disabled={busy || previewMode || !validMonth}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              await saveConfig({ ytdCutoffMonth: ytdMonth });
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          保存截止月份
+        </Button>
+      </Card>
+      <Card className="panel studio-admin-panel gap-4 p-4">
+        <div className="panel-header">
+          <div>
+            <h2>预留原因</h2>
+            <p>
+              Owner
+              从启用原因中选择。已使用原因不能改名或删除，可以停用；历史记录保留。
+            </p>
+          </div>
+        </div>
+        <Table containerClassName="overflow-visible">
+          <TableHeader>
+            <TableRow>
+              <TableHead>编码</TableHead>
+              <TableHead>原因名称</TableHead>
+              <TableHead>启用</TableHead>
+              <TableHead>操作</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {reasons.map((reason, index) => (
+              <TableRow key={reason.id}>
+                <TableCell>{reason.id}</TableCell>
+                <TableCell>
+                  <Input
+                    aria-label={`预留原因 ${index + 1}`}
+                    value={reason.label}
+                    onChange={(event) =>
+                      setReasons(
+                        reasons.map((item) =>
+                          item.id === reason.id
+                            ? { ...item, label: event.target.value }
+                            : item,
+                        ),
+                      )
+                    }
+                  />
+                </TableCell>
+                <TableCell>
+                  <Checkbox
+                    aria-label={`启用 ${reason.label}`}
+                    checked={reason.enabled}
+                    onCheckedChange={(checked) =>
+                      setReasons(
+                        reasons.map((item) =>
+                          item.id === reason.id
+                            ? { ...item, enabled: checked === true }
+                            : item,
+                        ),
+                      )
+                    }
+                  />
+                </TableCell>
+                <TableCell>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    disabled={busy || previewMode}
+                    onClick={() =>
+                      setReasons(
+                        reasons.filter((item) => item.id !== reason.id),
+                      )
+                    }
+                  >
+                    删除未使用原因
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <div className="studio-inline-controls">
+          <Label>
+            新增原因
+            <Input
+              value={label}
+              maxLength="120"
+              onChange={(event) => setLabel(event.target.value)}
+            />
+          </Label>
+          <Button
+            variant="outline"
+            type="button"
+            disabled={!label.trim() || previewMode}
+            onClick={() => {
+              setReasons([
+                ...reasons,
+                {
+                  id: `reason-${crypto.randomUUID()}`,
+                  label: label.trim(),
+                  enabled: true,
+                },
+              ]);
+              setLabel("");
+            }}
+          >
+            添加原因
+          </Button>
+          <Button
+            variant="default"
+            type="button"
+            disabled={busy || previewMode}
+            onClick={save}
+          >
+            {busy ? "保存中…" : "保存原因配置"}
+          </Button>
+        </div>
+      </Card>
+    </>
+  );
+}
+
+function OrganizationReferencePanels({ metadata, items, dealers }) {
+  const groups = [
+    ["Sector", "sector", ["PCMO", "B2B", "CRTO", "OEM"]],
+    ["Department", "department", ["MKT", "ICE", "CAPEX"]],
+    ["资源大类", "resourceType", ["ICE Rebate", "MRD", "SP&A", "Capex"]],
+  ];
+  const sdCounts = new Map();
+  const dealerKeys = new Set();
+  for (const dealer of dealers) {
+    const key = `${dealer.sector}:${dealer.id}`;
+    if (dealerKeys.has(key)) continue;
+    dealerKeys.add(key);
+    const sd = dealer.sd || "未提供 SD";
+    sdCounts.set(sd, (sdCounts.get(sd) || 0) + 1);
+  }
+  return (
+    <>
+      <div className="v19-org-grid">
+        {groups.map(([title, key, defaults]) => (
+          <Card className="panel studio-admin-panel" key={key}>
+            <div className="panel-header">
+              <h2>{title}</h2>
+            </div>
+            <div className="v19-org-values">
+              {[
+                ...new Set([
+                  ...defaults,
+                  ...items.map((item) => item[key]).filter(Boolean),
+                ]),
+              ].map((value) => (
+                <div key={value}>
+                  <span>{value}</span>
+                  <small>
+                    {items.filter((item) => item[key] === value).length} 个项目
+                  </small>
+                </div>
+              ))}
+            </div>
+            <p className="small-text muted">当前业务字典 · 只读</p>
+          </Card>
+        ))}
+      </div>
+      <Card className="panel studio-admin-panel">
+        <div className="panel-header">
+          <h2>历史数据源覆盖</h2>
+        </div>
+        <p>{metadata.source || "来源信息未提供"}</p>
+        <Table containerClassName="overflow-visible">
+          <TableHeader>
+            <TableRow>
+              <TableHead>数据集</TableHead>
+              <TableHead>最新数据月份</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {[
+              ["Actual Vol / C3", metadata.actual?.latestMonth],
+              ["历史投资 / 费用明细", metadata.investment?.latestMonth],
+              ["合同量", metadata.contract?.latestMonth],
+            ].map(([label, month]) => (
+              <TableRow key={label}>
+                <TableCell>{label}</TableCell>
+                <TableCell>{month || "来源未提供"}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <p className="small-text muted">
+          真实覆盖月份由数据源元数据提供，与管理端期间配置分别保存。月份不齐或无法核对时，不计算跨月
+          Yield。
+        </p>
+      </Card>
+      <Card className="panel studio-admin-panel">
+        <div className="panel-header">
+          <h2>经销商主数据（只读）</h2>
+        </div>
+        <div className="v19-org-values">
+          {[...sdCounts].map(([sd, count]) => (
+            <div key={sd}>
+              <span>{sd}</span>
+              <small>{count} 家</small>
+            </div>
+          ))}
+        </div>
+        <p className="small-text muted">
+          当前已加载数据范围，共 {dealerKeys.size} 家；不代表完整主数据覆盖。
+        </p>
+      </Card>
+    </>
+  );
 }

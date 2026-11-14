@@ -3,6 +3,9 @@ import {
   historyDisplayValue,
   historyInvestment,
   historyYield,
+  historyPhasing,
+  historyYoyLabel,
+  configuredYtdLabel,
   initiativeDealers,
   isActiveDealer,
 } from "../src/workbench/domain/dealer-history";
@@ -11,15 +14,30 @@ import E from "../src/workbench/domain/engine.js";
 
 describe("imported distributor history", () => {
   it("uses public totals independently of expense-column permission", () => {
-    const history = { totalInvestment2025: 120, resources2025: { MRD: 10 }, restrictedResources2025: ["Capex"] };
+    const history = {
+      totalInvestment2025: 120,
+      resources2025: { MRD: 10 },
+      restrictedResources2025: ["Capex"],
+    };
     expect(historyInvestment(history, "2025")).toBe(120);
-    expect(historyInvestment({ ...history, totalInvestment2025: null }, "2025")).toBeNull();
-    expect(historyInvestment({ ...history, totalInvestment2025: 0 }, "2025")).toBe(0);
-    expect(historyInvestment({ totalInvestment2026Ytd: 80 }, "2026Ytd")).toBe(80);
+    expect(
+      historyInvestment({ ...history, totalInvestment2025: null }, "2025"),
+    ).toBeNull();
+    expect(
+      historyInvestment({ ...history, totalInvestment2025: 0 }, "2025"),
+    ).toBe(0);
+    expect(historyInvestment({ totalInvestment2026Ytd: 80 }, "2026Ytd")).toBe(
+      80,
+    );
   });
 
   it("suppresses YTD Yield when coverage cannot be aligned", () => {
-    expect(historyYield({ yield2026Ytd: 12, ytdYieldUnavailableReason: "月份未提供" }, "2026Ytd")).toBeNull();
+    expect(
+      historyYield(
+        { yield2026Ytd: 12, ytdYieldUnavailableReason: "月份未提供" },
+        "2026Ytd",
+      ),
+    ).toBeNull();
   });
 
   it("combines metadata and metrics only within the initiative sector", () => {
@@ -43,17 +61,37 @@ describe("imported distributor history", () => {
     expect(historyDisplayValue(NaN)).toBeNull();
   });
 
-  it("uses imported yield even with zero values or restricted resources", () => {
+  it("calculates Yield from positive public totals without exposing protected expense details", () => {
     const h = {
-      yield: 0,
-      yield2026Ytd: 7.3,
+      c32025: 240,
+      totalInvestment2025: 120,
+      yield: 99,
       resources2025: { MRD: 10 },
       restrictedResources2025: ["Capex"],
     };
-    expect(historyYield(h, "2025")).toBe(0);
-    expect(historyYield(h, "2026Ytd")).toBe(7.3);
-    expect(historyYield({}, "2026Ytd")).toBeNull();
-    expect(historyInvestment(h, "2025")).toBeNull();
+    expect(historyYield(h, "2025")).toBe(2);
+    expect(historyYield({ ...h, c32025: 0 }, "2025")).toBeNull();
+    expect(historyYield({ ...h, c32025: -10 }, "2025")).toBeNull();
+    expect(
+      historyYield({ ...h, totalInvestment2025: null }, "2025"),
+    ).toBeNull();
+    expect(historyYield({ ...h, totalInvestment2025: -1 }, "2025")).toBeNull();
+  });
+
+  it("applies V2 contract, YoY and display-month rules without assuming coverage", () => {
+    expect(historyPhasing({ vol2025: 2500, contract2025: 5000 }, "2025")).toBe(
+      0.5,
+    );
+    expect(
+      historyPhasing({ vol2025: 2500, contract2025: 0 }, "2025"),
+    ).toBeNull();
+    expect(historyPhasing({ vol2025: 2500 }, "2025")).toBeNull();
+    expect(historyYoyLabel({ vol2024: 0, vol2025: 100 }, "vol")).toBe("无基期");
+    expect(historyYoyLabel({ c32024: -1, c32025: 100 }, "c3")).toBe("无基期");
+    expect(historyYoyLabel({ vol2024: 100, vol2025: 125 }, "vol")).toBe("25%");
+    expect(historyYoyLabel({ vol2025: 125 }, "vol")).toBe("—");
+    expect(configuredYtdLabel(9)).toBe("2026 YTD（1–9月）");
+    expect(configuredYtdLabel()).toBe("2026 YTD（1–10月）");
   });
 
   it("allocates YTD investment using all four complete source resource values", () => {
@@ -70,7 +108,7 @@ describe("imported distributor history", () => {
       { id: "C", history: { resources2026Ytd: { MRD: 100 } } },
     ];
     const result = allocateByHistory(rows, dealers, 10000, "investment2026Ytd");
-    expect(result.rows.map((row) => row.amount)).toEqual([33.33, 66.67, 0]);
+    expect(result.rows.map((row) => row.amount)).toEqual([33, 67, 0]);
     expect(result.unavailable).toHaveLength(1);
     expect(historyInvestment({ resources2025: resources(0) }, "2025")).toBe(0);
   });

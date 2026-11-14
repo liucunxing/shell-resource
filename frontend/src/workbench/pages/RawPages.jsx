@@ -1,3 +1,21 @@
+import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { Card } from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { Label } from "../../components/ui/label";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "../../components/ui/native-select";
+import { Input } from "../../components/ui/input";
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from "../../components/ui/table";
+import { Badge } from "../../components/ui/badge";
 import { useEffect, useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import A from "../domain/explore.js";
@@ -41,7 +59,11 @@ export function RawPage() {
   const model = A.rawData(state, identity, data, tab || undefined),
     filters =
       model.tab === "history"
-        ? { dealerCode: dealerCodeSearch, dealerName: dealerNameSearch, sector: sectorFilter }
+        ? {
+            dealerCode: dealerCodeSearch,
+            dealerName: dealerNameSearch,
+            sector: sectorFilter,
+          }
         : model.tab === "budgets"
           ? {
               initiative: initiativeSearch,
@@ -69,7 +91,8 @@ export function RawPage() {
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       notify("已导出当前筛选的数据。");
     } catch {
-      if (previewEpoch === getPreviewEpoch()) notify("导出失败，请重试。", true);
+      if (previewEpoch === getPreviewEpoch())
+        notify("导出失败，请重试。", true);
     }
   };
   return (
@@ -78,7 +101,7 @@ export function RawPage() {
         title="原始数据"
         description="查询与导出当前角色权限内的数据。"
       />
-      <section className="panel raw-panel">
+      <Card className="panel raw-panel gap-4 p-4">
         <div className="panel-head">
           <div>
             <h2>{model.title}</h2>
@@ -86,48 +109,56 @@ export function RawPage() {
               {model.scopeLabel} · {model.basisLabel}
             </p>
           </div>
-          <button className="button" onClick={exportCsv}>
+          <Button variant="outline" type="button" onClick={exportCsv}>
             导出当前筛选 CSV
-          </button>
+          </Button>
         </div>
         <div className="toolbar">
-          {model.tabs.map((t) => (
-            <button
-              key={t.id}
-              className={`button ${t.id === model.tab ? "primary" : ""}`}
-              aria-pressed={t.id === model.tab}
-              onClick={() => {
-                setTab(t.id);
-                setSearch("");
-                setDealerCodeSearch("");
-                setDealerNameSearch("");
-                setSectorFilter("");
-                setInitiativeSearch("");
-                setDepartmentSearch("");
-                setOwnerSearch("");
-                setPage(1);
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
+          <Tabs value={model.tab}>
+            <TabsList aria-label="原始数据类别" className="flex-wrap h-auto">
+              {model.tabs.map((t) => (
+                <TabsTrigger
+                  value={t.id}
+                  key={t.id}
+                  onClick={() => {
+                    setTab(t.id);
+                    setSearch("");
+                    setDealerCodeSearch("");
+                    setDealerNameSearch("");
+                    setSectorFilter("");
+                    setInitiativeSearch("");
+                    setDepartmentSearch("");
+                    setOwnerSearch("");
+                    setPage(1);
+                  }}
+                >
+                  {t.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
           {model.tab === "history" ? (
             <div className="raw-history-search">
-              <label>
+              <Label>
                 Sector 业务线
-                <select value={sectorFilter} onChange={(event) => {
-                  setSectorFilter(event.target.value);
-                  setPage(1);
-                }}>
-                  <option value="">全部业务线</option>
+                <NativeSelect
+                  value={sectorFilter}
+                  onChange={(event) => {
+                    setSectorFilter(event.target.value);
+                    setPage(1);
+                  }}
+                >
+                  <NativeSelectOption value="">全部业务线</NativeSelectOption>
                   {["PCMO", "CRTO", "B2B", "OEM"].map((sector) => (
-                    <option key={sector} value={sector}>{sector}</option>
+                    <NativeSelectOption key={sector} value={sector}>
+                      {sector}
+                    </NativeSelectOption>
                   ))}
-                </select>
-              </label>
-              <label>
+                </NativeSelect>
+              </Label>
+              <Label>
                 经销商编码
-                <input
+                <Input
                   type="search"
                   value={dealerCodeSearch}
                   placeholder="模糊搜索经销商编码"
@@ -136,10 +167,10 @@ export function RawPage() {
                     setPage(1);
                   }}
                 />
-              </label>
-              <label>
+              </Label>
+              <Label>
                 经销商名称
-                <input
+                <Input
                   type="search"
                   value={dealerNameSearch}
                   placeholder="模糊搜索经销商名称"
@@ -148,13 +179,13 @@ export function RawPage() {
                     setPage(1);
                   }}
                 />
-              </label>
+              </Label>
             </div>
           ) : model.tab === "budgets" ? (
             <div className="raw-budget-search">
-              <label>
+              <Label>
                 Initiative
-                <input
+                <Input
                   type="search"
                   value={initiativeSearch}
                   placeholder="模糊搜索 Initiative"
@@ -163,10 +194,10 @@ export function RawPage() {
                     setPage(1);
                   }}
                 />
-              </label>
-              <label>
+              </Label>
+              <Label>
                 部门
-                <input
+                <Input
                   type="search"
                   value={departmentSearch}
                   placeholder="模糊搜索部门"
@@ -175,10 +206,10 @@ export function RawPage() {
                     setPage(1);
                   }}
                 />
-              </label>
-              <label>
+              </Label>
+              <Label>
                 Owner
-                <input
+                <Input
                   type="search"
                   value={ownerSearch}
                   placeholder="模糊搜索 Owner"
@@ -187,12 +218,12 @@ export function RawPage() {
                     setPage(1);
                   }}
                 />
-              </label>
+              </Label>
             </div>
           ) : (
-            <label>
+            <Label>
               搜索{" "}
-              <input
+              <Input
                 type="search"
                 value={search}
                 placeholder="搜索当前权限内的数据"
@@ -201,54 +232,64 @@ export function RawPage() {
                   setPage(1);
                 }}
               />
-            </label>
+            </Label>
           )}
         </div>
         <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
+          <Table containerClassName="overflow-visible">
+            <TableHeader>
+              <TableRow>
                 {model.columns.map((c) => (
-                  <th key={c.key}>{c.label}</th>
+                  <TableHead key={c.key}>{c.label}</TableHead>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.slice((current - 1) * 15, current * 15).map((r, n) => (
-                <tr key={`${model.tab}-${current}-${n}`}>
+                <TableRow key={`${model.tab}-${current}-${n}`}>
                   {model.columns.map((c) => (
-                    <td key={c.key}>
-                      {typeof r[c.key] === "number" ? (c.key === "yield" ? r[c.key].toFixed(1) : fmt(r[c.key])) : r[c.key]}
-                    </td>
+                    <TableCell key={c.key}>
+                      {typeof r[c.key] === "number"
+                        ? c.key === "yield"
+                          ? r[c.key].toFixed(1)
+                          : fmt(r[c.key])
+                        : r[c.key]}
+                    </TableCell>
                   ))}
-                </tr>
+                </TableRow>
               ))}
               {!rows.length && (
-                <tr>
-                  <td colSpan={model.columns.length}>暂无匹配数据</td>
-                </tr>
+                <TableRow>
+                  <TableCell colSpan={model.columns.length}>
+                    暂无匹配数据
+                  </TableCell>
+                </TableRow>
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
         <div className="toolbar raw-pagination">
           <span>
             共 {rows.length} 行 · 第 {current} / {pages} 页
           </span>
-          <button
-            className="button"
+          <Button
+            variant="outline"
+            type="button"
+
             disabled={current === 1}
             onClick={() => setPage(current - 1)}
           >
             上一页
-          </button>
-          <button
-            className="button"
+          </Button>
+          <Button
+            variant="outline"
+            type="button"
+
             disabled={current === pages}
             onClick={() => setPage(current + 1)}
           >
             下一页
-          </button>
+          </Button>
         </div>
         <div className="raw-notes">
           {model.notes.map((n) => (
@@ -257,7 +298,7 @@ export function RawPage() {
             </p>
           ))}
         </div>
-      </section>
+      </Card>
     </>
   );
 }
@@ -277,18 +318,24 @@ export function TrackingPage() {
         title="执行追踪"
         description="后续规划 · 一期聚焦年度资源分配与持续更新。"
       />
-      <section className="panel">
+      <Card className="panel gap-0 py-0">
         <div className="empty" style={{ padding: "65px 24px" }}>
-          <span className="badge blue">功能预留</span>
+          <Badge variant="secondary" className="badge blue">
+            功能预留
+          </Badge>
           <h2 style={{ margin: "15px 0 8px" }}>2027 执行 Tracking 尚未定义</h2>
           <p>
             未来可基于年度资源方案继续跟踪。指标、数据来源和业务流程需另行确认，当前不展示虚构的实际支出、利用率或季度分析。
           </p>
-          <button className="button" onClick={() => navigate(home)}>
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => navigate(home)}
+          >
             返回当前工作区
-          </button>
+          </Button>
         </div>
-      </section>
+      </Card>
     </>
   );
 }
@@ -319,7 +366,7 @@ export function AboutPage() {
       />
       <div className="columns">
         <div className="main-column">
-          <section className="panel">
+          <Card className="panel gap-0 py-0">
             <div className="panel-header">
               <h2>源数据与计算口径</h2>
             </div>
@@ -330,11 +377,13 @@ export function AboutPage() {
                 ))}
               </dl>
             </div>
-          </section>
-          <section className="panel">
+          </Card>
+          <Card className="panel gap-0 py-0">
             <div className="panel-header">
               <h2>一期目标架构</h2>
-              <span className="badge">未接通</span>
+              <Badge variant="secondary" className="badge">
+                未接通
+              </Badge>
             </div>
             <div className="panel-body">
               <div className="flow-diagram">
@@ -349,10 +398,10 @@ export function AboutPage() {
                 提取授权事实调用允许的 LLM，并保存 Insight 与依据版本。
               </p>
             </div>
-          </section>
+          </Card>
         </div>
         <aside className="aside-stack">
-          <section className="panel">
+          <Card className="panel gap-0 py-0">
             <div className="panel-header">
               <h2>演示能力边界</h2>
             </div>
@@ -377,8 +426,8 @@ export function AboutPage() {
                 </div>
               ))}
             </div>
-          </section>
-          <section className="panel">
+          </Card>
+          <Card className="panel gap-0 py-0">
             <div className="panel-header">
               <h2>快速演示顺序</h2>
             </div>
@@ -392,7 +441,7 @@ export function AboutPage() {
                 <li>Marketer 再次调整并同步，最新更新时间随之刷新</li>
               </ol>
             </div>
-          </section>
+          </Card>
         </aside>
       </div>
     </>

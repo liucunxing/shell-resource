@@ -1,0 +1,127 @@
+import { describe, expect, it } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
+import {
+  SdAnalysis,
+  sdGroupsWithComparison,
+  sdPresentationGroups,
+} from "../src/workbench/pages/SdAnalysis.jsx";
+
+const items = [
+  {
+    id: "current",
+    initiativeKey: "stable",
+    name: "已提交项目",
+    sector: "PCMO",
+    resourceType: "MRD",
+    ownerName: "Owner A",
+    workflow: { submitted: true },
+    selected: ["a", "b"],
+    rows: [
+      { dealerId: "a", amount: 45000 },
+      { dealerId: "b", amount: 5000 },
+    ],
+  },
+];
+const dealers = [
+  {
+    id: "a",
+    name: "经销商 A",
+    sector: "PCMO",
+    sd: "东区",
+    history: {
+      vol2025: 3000,
+      c32025: 600,
+      contract2025: 6000,
+      totalInvestment2025: 400,
+    },
+  },
+  {
+    id: "b",
+    name: "经销商 B",
+    sector: "PCMO",
+    sd: "西区",
+    history: {
+      vol2025: 1000,
+      c32025: 400,
+      contract2025: 2000,
+      totalInvestment2025: 100,
+    },
+  },
+];
+const summary = (source = dealers) =>
+  sdPresentationGroups(
+    sdGroupsWithComparison(items, null, source, "sd", "c3", "2025"),
+  );
+
+describe("V19 SD presentation", () => {
+  it("uses independent actual shares and weighted totals without averaging ratios", () => {
+    const { groups, totals } = summary();
+    expect(groups.find((group) => group.key === "东区")).toMatchObject({
+      amount: 45000,
+      average: 45000,
+      allocatedCount: 1,
+      selectedCount: 1,
+      volShare: 75,
+      c3Share: 60,
+      historyShare: 80,
+    });
+    expect(totals).toMatchObject({
+      amount: 50000,
+      average: 25000,
+      historicalVol: 4000,
+      historicalC3: 1000,
+      historicalInvestment: 500,
+      phasing: 0.5,
+      historicalYield: 2,
+    });
+  });
+
+  it("preserves missing historical denominators instead of displaying partial shares", () => {
+    const missing = dealers.map((dealer) =>
+      dealer.id === "b"
+        ? {
+            ...dealer,
+            history: { ...dealer.history, totalInvestment2025: null },
+          }
+        : dealer,
+    );
+    const { groups, totals } = summary(missing);
+    expect(totals.historicalInvestment).toBeNull();
+    expect(totals.historicalYield).toBeNull();
+    expect(groups.every((group) => group.historyShare === null)).toBe(true);
+  });
+
+  it("renders the V19 columns, Wan units, baseline matrix and only submitted department projects", () => {
+    const html = renderToStaticMarkup(
+      <SdAnalysis
+        items={[
+          ...items,
+          {
+            ...items[0],
+            id: "draft",
+            name: "未提交草稿",
+            workflow: { submitted: false },
+          },
+        ]}
+        dealers={dealers}
+        showOwner
+      />,
+    );
+    for (const label of [
+      "分配 / 名单",
+      "投资金额（万）",
+      "客均（万）",
+      "Delivery Vol 占比",
+      "C3 占比",
+      "历史资源占比",
+      "参照：本部门叠加",
+      "最大偏离",
+      "合计",
+    ])
+      expect(html).toContain(label);
+    expect(html).toContain(">4.5</b>");
+    expect(html).toContain("待配置");
+    expect(html).not.toContain("未提交草稿");
+    expect(html).not.toContain("名单覆盖率");
+  });
+});

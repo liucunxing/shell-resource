@@ -427,6 +427,7 @@ def test_config_initializes_and_server_versions_guide():
             AdminConfigDTO(expected_revision=0, guide={"version": 999, "text": "Guide"})
         )
         assert first["revision"] == 1 and first["guide"]["version"] < 999
+        assert first["ytdCutoffMonth"] == 10
         assert len(first["budgetReasons"]) == 3
         second = await service.update_config(
             AdminConfigDTO(expected_revision=1, guide={"version": -20, "text": "Updated"})
@@ -435,6 +436,67 @@ def test_config_initializes_and_server_versions_guide():
         with pytest.raises(HTTPException) as error:
             await service.update_config(AdminConfigDTO(expected_revision=1))
         assert error.value.status_code == 409
+
+    asyncio.run(database_case(run))
+
+
+def test_ytd_config_persists_audits_and_stays_independent_of_source_coverage():
+    async def run(session, service):
+        initial = await service.get_workspace(2027)
+        assert initial["state"]["ytdCutoffMonth"] == 10
+        saved = await service.update_config(AdminConfigDTO(expected_revision=0, ytdCutoffMonth=1))
+        assert saved["ytdCutoffMonth"] == 1
+        config = await session.get(WorkspaceConfigDO, 1)
+        assert config.reference["displaySettings"]["ytdCutoffMonth"] == 1
+        log = (await session.scalars(select(BudgetChangeLogDO))).one()
+        assert log.operation_type == "CONFIG_UPDATE"
+        assert log.before_data["ytdCutoffMonth"] == 10
+        assert log.after_data["ytdCutoffMonth"] == 1
+
+        await service.import_reference(reference(1))
+        current = await service.get_workspace(2027)
+        assert current["state"]["ytdCutoffMonth"] == 1
+        manifest = current["data"]["historySnapshot"]["manifest"]
+        assert manifest["configuredYtdCutoffMonth"] == 1
+        assert manifest["actual"]["latestMonth"] is None
+        assert manifest["investment"]["latestMonth"] is None
+        assert manifest["ytdYieldComparable"] is False
+
+        saved = await service.update_config(AdminConfigDTO(expected_revision=2, ytdCutoffMonth=12))
+        assert saved["ytdCutoffMonth"] == 12
+        with pytest.raises(HTTPException) as error:
+            await service.update_config(AdminConfigDTO(expected_revision=2, ytdCutoffMonth=9))
+        assert error.value.status_code == 409
+        current = await service.get_workspace(2027)
+        assert current["state"]["ytdCutoffMonth"] == 12
+
+    asyncio.run(database_case(run))
+
+
+@pytest.mark.parametrize("month", [0, 13, -1, 1.5, True, "9"])
+def test_ytd_config_rejects_out_of_range_and_noninteger_values(month):
+    with pytest.raises(ValidationError):
+        AdminConfigDTO(expected_revision=0, ytdCutoffMonth=month)
+
+
+def test_ytd_config_rejects_nonadmin_and_rolls_back_if_audit_fails():
+    async def run(session, service):
+        owner = AdminService(session, WorkbenchUser("owner@x.com", "owner", "MKT", "Owner"))
+        with pytest.raises(HTTPException) as error:
+            await owner.update_config(AdminConfigDTO(expected_revision=0, ytdCutoffMonth=9))
+        assert error.value.status_code == 403
+        await service.update_config(AdminConfigDTO(expected_revision=0, ytdCutoffMonth=9))
+
+        def fail(*args, **kwargs):
+            raise RuntimeError("injected audit failure")
+
+        service.repository.add_log = fail
+        with pytest.raises(RuntimeError, match="injected audit failure"):
+            await service.update_config(AdminConfigDTO(expected_revision=1, ytdCutoffMonth=12))
+        config = await session.get(WorkspaceConfigDO, 1)
+        assert config.revision == 1
+        assert config.reference["displaySettings"]["ytdCutoffMonth"] == 9
+        assert await session.scalar(select(func.count()).select_from(BudgetChangeLogDO)) == 1
 
     asyncio.run(database_case(run))
 
@@ -480,7 +542,7 @@ def test_distributor_history_field_mapping_and_department_scope():
         assert dealer["history"]["vol2024"] == 1
         assert dealer["history"]["vol2025"] == 3
         assert dealer["history"]["c32026Ytd"] == 6
-        assert dealer["history"]["yield"] == 11
+        assert dealer["history"]["yield"] == pytest.approx(4 / 34)
         assert dealer["history"]["resources2025"] == {"MRD": 7, "SP&A": 9}
         assert dealer["history"]["totalInvestment2025"] == 34
         assert dealer["history"]["totalInvestment2026Ytd"] is None

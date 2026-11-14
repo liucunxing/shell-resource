@@ -13,8 +13,14 @@ export function allocateByHistory(
   sector?: string,
   directory: Dealer[] = [],
 ) {
-  if (!Number.isSafeInteger(availableCents) || availableCents < 0)
-    throw Error("其他预算安排超过总预算或可分配预算无效，无法辅助填充。");
+  if (
+    !Number.isSafeInteger(availableCents) ||
+    availableCents < 0 ||
+    availableCents % 100 !== 0
+  )
+    throw Error("可分配预算须为非负整数元，无法辅助填充。");
+  // Keep the caller's cents contract, but V2.0 §12.4 assigns whole yuan.
+  const availableYuan = availableCents / 100;
   const scoped = sector
     ? dealers.filter((dealer) => dealer.sector === sector || !dealer.sector)
     : dealers;
@@ -43,11 +49,11 @@ export function allocateByHistory(
   });
   const sum = weighted.reduce((total, dealer) => total + dealer.weight, 0);
   const exact = weighted.map((dealer) =>
-    sum ? availableCents * (dealer.weight / sum) : 0,
+    sum ? availableYuan * (dealer.weight / sum) : 0,
   );
   const cents = exact.map(Math.floor);
   const left = sum
-    ? availableCents - cents.reduce((total, value) => total + value, 0)
+    ? availableYuan - cents.reduce((total, value) => total + value, 0)
     : 0;
   const order = exact
     .map((value, index) => ({ index, fraction: value - cents[index] }))
@@ -55,7 +61,7 @@ export function allocateByHistory(
     .sort((a, b) => b.fraction - a.fraction || a.index - b.index);
   for (let n = 0; n < left; n++) cents[order[n % order.length].index]++;
   return {
-    rows: rows.map((row, index) => ({ ...row, amount: cents[index] / 100 })),
+    rows: rows.map((row, index) => ({ ...row, amount: cents[index] })),
     unavailable: weighted
       .filter((dealer) => dealer.weight === 0)
       .map((dealer) => dealer.name),

@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.departments import departments
+from app.core.history_policy import configured_ytd_cutoff
 from app.dependencies.workbench_user import WorkbenchUser
 from app.models.do.base import BaseDO
 from app.models.do.budget import BudgetDO
@@ -534,6 +535,7 @@ class AdminService(WorkspaceService):
             if config.revision != payload.expected_revision:
                 raise HTTPException(status_code=409, detail="配置已被修改，请刷新后重试")
             previous_resource_mapping = config.department_resources
+            previous_ytd_month = configured_ytd_cutoff(config.reference)
             if payload.budgetReasons is not None:
                 ids = [reason["id"] for reason in payload.budgetReasons]
                 used = await self.admin_repository.used_reason_ids()
@@ -560,6 +562,10 @@ class AdminService(WorkspaceService):
                 config.role_resources = payload.roleResources
             if payload.healthThresholds is not None:
                 config.health_thresholds = payload.healthThresholds
+            if payload.ytdCutoffMonth is not None:
+                display_settings = dict(config.reference.get("displaySettings", {}))
+                display_settings["ytdCutoffMonth"] = payload.ytdCutoffMonth
+                config.reference = {**config.reference, "displaySettings": display_settings}
             config.revision += 1
             result = {
                 "revision": config.revision,
@@ -568,18 +574,28 @@ class AdminService(WorkspaceService):
                 "departmentResources": config.department_resources,
                 "roleResources": config.role_resources,
                 "healthThresholds": config.health_thresholds,
+                "ytdCutoffMonth": configured_ytd_cutoff(config.reference),
                 "guide": config.guide,
                 "reference": config.reference,
             }
+            before: dict = {}
+            after: dict = {"revision": config.revision}
+            notes = []
+            if payload.departmentResources is not None:
+                before["departmentResources"] = previous_resource_mapping
+                after["departmentResources"] = config.department_resources
+                notes.append("更新历史资源列权限")
+            if payload.ytdCutoffMonth is not None:
+                before["ytdCutoffMonth"] = previous_ytd_month
+                after["ytdCutoffMonth"] = payload.ytdCutoffMonth
+                notes.append("更新 YTD 展示截止月份（不代表源数据覆盖）")
             self.repository.add_log(
                 0,
                 "CONFIG_UPDATE",
                 self.user.email,
-                {"departmentResources": previous_resource_mapping}
-                if payload.departmentResources is not None else None,
-                {"revision": config.revision, "departmentResources": config.department_resources}
-                if payload.departmentResources is not None else {"revision": config.revision},
-                "更新历史资源列权限" if payload.departmentResources is not None else None,
+                before or None,
+                after,
+                "；".join(notes) or None,
             )
             await self.session.commit()
         except Exception:
@@ -617,6 +633,9 @@ class AdminService(WorkspaceService):
                     )
                 )
             config.reference = {
+                "displaySettings": {
+                    "ytdCutoffMonth": configured_ytd_cutoff(config.reference),
+                },
                 "batchId": payload.batchId,
                 "asOf": payload.asOf,
                 "importedAt": datetime.now(UTC).isoformat(),

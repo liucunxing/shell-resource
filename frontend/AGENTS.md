@@ -1,157 +1,39 @@
-# Frontend AGENTS.md
+# Frontend 协作规则
 
-## 1. Role
+先遵循 [根规则](../AGENTS.md) 和 [当前业务需求](../docs/CURRENT_REQUIREMENTS.md)。
 
-You are the senior frontend engineer responsible for the frontend application.
+## 组件与样式
 
-Current known frontend stack:
+- 统一 React 19 + shadcn/ui（Radix）+ Tailwind；以 `package.json` / lockfile 为实际版本依据。TypeScript 用于新增公共组件；现有业务 JSX / JS 可渐进迁移，不声称 `allowJs` 等于完整类型检查。
+- `src/components/ui/` 保存共享 shadcn 组件，`components.json` 保存生成约定；页面通过组合组件实现业务，不复制粘贴另一套基础控件。
+- 按钮、输入框、选择框、复选框、表格、标签、卡片、提示、Tabs、Dialog 等使用对应共享组件。简单选择可用 shadcn `NativeSelect`，保留浏览器选项和原有表单事件语义。
+- V19 完整原型是视觉基线：主操作使用原型黄色，顶部深灰蓝导航与黄色选中态按最终覆盖还原；不得自行改成红色主操作、默认 shadcn 灰白风格或重新排版。通过共享主题 token、variant 和组件组合实现原型外观，避免全局 CSS 破坏键盘焦点和禁用语义。
+- 保留原型导航顺序、页内 Tabs、模块出现顺序、图表种类/图例色标/分组、表格列序/淡色分组、抽屉和弹窗宽度。统一组件不得把图表改成简表、把 Tabs 改成长页锚点或省略模块。
+- 实施前检查 V19 完整 HTML 中最后生效的 CSS/JS 及 `v19-parts` 最终补丁；原型含历次覆盖，早期 V17/V18 函数不代表最新界面。
+- Dialog 保留标题、说明、焦点约束、Escape、取消无写入及关闭后焦点恢复。图标按钮必须提供可访问名称；表单 label 与控件关联，错误不能只依赖颜色。
+- 表格沿用 TanStack 的排序、筛选和分页能力，使用共享 Table 呈现；长表在容器内滚动，保留可访问的标题、表头与数值对齐。
+- 普通排版容器、业务图形和已归档原型不要求转换成 UI 基础组件。归档原型只作证据，不当作生产组件来源。
+- 不引入 Ant Design、Fluent UI 或其他重复组件库。若组件选择会改变交互或业务含义，提出具体方案请用户确认；调整完必须给出可审阅结果，请用户确认效果。
 
-- React
-- TypeScript
-- Ant Design
-- Enterprise web application
-- Backend API provided by FastAPI
-- Enterprise SSO authentication
+## 业务与数据
 
-Always inspect package.json and existing source code before assuming exact versions or additional libraries.
+- API 模式失败必须显示错误，不能回退到 demo 数据。Portal 入口强制真实 API，会话与 CSRF 逻辑不得绕过。
+- Owner 三步编辑、保存草稿、提交冻结、部门齐交确认、撤回与定向退回的差别必须保留；管理层仅统计已确认快照。
+- 用户所属 Sector/Department 与业务授权范围分别显示和维护；受限历史费用不得先送至浏览器再隐藏。
+- 缺失月份、PPP、合同量或汇率明确标为未提供，不做看似完整的补值；金额和月份以接口来源信息为准。
+- 依据 [V2.0指标映射](../docs/METRIC_DEFINITIONS.md) 统一历史助手与组合/编辑页：合同、Vol显示KL，金额历史显示K$；Phasing合同>0，Yield两项>0，YoY基期≤0显示“无基期”。聚合比率先求和再除，不能平均单行比率。
+- 试算负权归0、总权0不能计算；不能偷偷均分或据此改写源负数。YTD配置1–12默认10只调整配置标签，数据来源仍显示各自实际覆盖或“未提供”。V2.0已知算法的工程差异直接修复，不伪装成待业务确认。
+- Excel 读写继续在按需模块 Worker 内执行。取消导入不写入，确认前保留错误检查、版本和身份校验。
+- 统一通过现有 `workbench/api.js` 与 Portal 请求封装访问后端；前端不持有 PG、Databricks 或模型密钥。
 
+## 验证
 
----
+在 `frontend` 运行 `npm test`、`npm run build`、`npm run check:bundle`。构建包含 TypeScript 检查，当前项目没有独立 lint script，勿报告不存在的命令。
 
-## 2. Primary Goal
+组件迁移还需浏览器检查桌面和窄屏、键盘焦点、选择与输入、表格滚动、弹窗、取消和提交结果；不要仅凭截图判定流程正确。不要提高包体阈值或引入 ExcelJS 主线程副本来绕过检查。测试、构建和截图须对应本次修改后的代码。
 
-Deliver frontend features that are:
+## 本地验收入口
 
-- Correct
-- Maintainable
-- Type-safe
-- Consistent with the existing application
-- Suitable for enterprise users
-- Easy to integrate with backend APIs
+用户于 2026-11-15 明确：原型演示数据仅导入本地 SQLite，远端 PG 保留真实业务数据，两者不得混用。本地直接访问，无需登录或帆软跳转。`tests.v19_prototype_fixture` 从最新 V19 原型导出文件导入隔离 `.cache/v19-prototype`；旧 `tests.v19_browser_fixture` 的简化合成数据留在 `.cache/v19-final`，不能覆盖。仅 loopback fixture 注入 `example.test` 合成身份和角色切换；普通 API/Portal 入口继续原有校验。原型的模拟月份、合同或指标不能用于填补远端源缺失。
 
-Do not only generate UI mockups.
-
-A completed feature should include all necessary behavior such as:
-
-- Data loading
-- Error handling
-- Empty state
-- Form validation
-- Permissions
-- API integration
-- User feedback
-
-
----
-
-## 3. Inspect Existing Project First
-
-Before implementing a significant task, inspect relevant files such as:
-
-- package.json
-- src/main.*
-- src/App.*
-- src/routes or router configuration
-- src/pages
-- src/components
-- src/hooks
-- src/services
-- src/api
-- src/store
-- src/context
-- src/types
-- src/utils
-- src/styles
-- environment files
-
-Determine:
-
-- React version
-- Ant Design version
-- Routing library
-- State management library
-- API/request library
-- Existing layout system
-- Permission mechanism
-- Existing reusable components
-- Naming conventions
-
-Do not introduce a second solution if one already exists.
-
-
----
-
-## 4. React Standards
-
-Prefer modern React patterns.
-
-Use:
-
-- Functional components
-- Hooks
-- TypeScript
-- Clear component composition
-
-Avoid class components unless the existing project already relies on them.
-
-Components should remain focused.
-
-A page should not become a single extremely large component containing:
-
-- API calls
-- forms
-- tables
-- dialogs
-- charts
-- permissions
-- complex transformations
-
-all in one file.
-
-Extract components when doing so improves:
-
-- Readability
-- Reusability
-- Testability
-- Separation of responsibility
-
-Do not over-componentize trivial JSX.
-
-
----
-
-## 5. TypeScript
-
-TypeScript is required.
-
-Avoid:
-
-any
-
-unless integration with an untyped external dependency makes it genuinely necessary.
-
-Prefer:
-
-- interface
-- type
-- generic types
-- discriminated unions when appropriate
-
-Define types for:
-
-- API request parameters
-- API responses
-- Table records
-- Form models
-- Component props
-- Business entities
-
-Example:
-
-```ts
-export interface Distributor {
-  id: string;
-  name: string;
-  region: string;
-  status: 'active' | 'inactive';
-}
+2026-11-14 用户已否定此前工程的 V19 视觉一致性。既有组件测试、构建、无溢出和无异常只能证明其各自检查，不是视觉验收。每个角色必须以相同视口和同一选中 Tab 并排对照原型，检查颜色、布局、顺序和图表后再提交用户确认。

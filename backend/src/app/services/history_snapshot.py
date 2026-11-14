@@ -7,10 +7,15 @@ history snapshot. The data pipeline must supply those fields before they are use
 
 from typing import Any
 
+from app.core.history_policy import DEFAULT_YTD_CUTOFF_MONTH
+
 HISTORY_SOURCE = "data.distributor_sellin_resource_history"
 
 
-def history_manifest(planning_year: int, records: list[dict[str, Any]]) -> dict[str, Any]:
+def history_manifest(
+    planning_year: int, records: list[dict[str, Any]],
+    *, ytd_cutoff_month: int = DEFAULT_YTD_CUTOFF_MONTH,
+) -> dict[str, Any]:
     years = [
         year
         for year, fields in (
@@ -36,6 +41,49 @@ def history_manifest(planning_year: int, records: list[dict[str, Any]]) -> dict[
         "priorYear": 2024,
         "fullYear": 2025,
         "ytdYear": 2026,
+        "configuredYtdCutoffMonth": ytd_cutoff_month,
+        "configuredPeriodLabel": f"2026 YTD（1–{ytd_cutoff_month}月）",
+        "configuredMonthIsCoverageEvidence": False,
+        "units": {
+            "source": {"volume": "L", "c3": "$", "investment": "$"},
+            "api": {"volume": "L", "c3": "$", "investment": "$"},
+            "display": {"volume": "KL", "c3": "K$", "investment": "K$"},
+            "displayDivisor": 1000,
+        },
+        "metricRules": {
+            "yield": {
+                "formula": "C3 / (ICE Rebate + MRD + SP&A + Capex)",
+                "eligibility": "c3 > 0 and all four expenses present and totalInvestment > 0",
+                "unit": "multiple",
+                "sourceYieldUsed": False,
+            },
+            "yoy": {
+                "formula": "(value2025 - value2024) / value2024 * 100",
+                "metrics": ["volume", "c3"],
+                "unit": "percent",
+                "nonPositiveBaseReason": "no_base",
+                "nonPositiveBaseLabel": "无基期",
+            },
+            "phasing": {
+                "formula": "deliveryVolume / contractVolume * 100",
+                "eligibility": "contractVolume > 0 and deliveryVolume is present",
+                "unit": "percent",
+                "reference": "sum(deliveryVolume) / sum(contractVolume) for eligible rows",
+                "trafficLight": {
+                    "relativeYellowBand": 0.1,
+                    "aboveBand": "green",
+                    "belowBand": "red",
+                },
+                "available": False,
+                "unavailableReason": "missing_contract_volume",
+            },
+            "ppp": {
+                "defined": False,
+                "available": False,
+                "unavailableReason": "undefined_business_definition",
+                "note": "PPP 口径未定义，不能使用合同量或其他字段替代。",
+            },
+        },
         "asOf": None,
         "actual": {
             "source": HISTORY_SOURCE,
@@ -77,6 +125,12 @@ def history_manifest(planning_year: int, records: list[dict[str, Any]]) -> dict[
     }
 
 
-def history_snapshot(planning_year: int, records: list[dict[str, Any]]) -> dict[str, Any]:
+def history_snapshot(
+    planning_year: int, records: list[dict[str, Any]],
+    *, ytd_cutoff_month: int = DEFAULT_YTD_CUTOFF_MONTH,
+) -> dict[str, Any]:
     """Return the manifest and its authorized records as one API value."""
-    return {"manifest": history_manifest(planning_year, records), "records": records}
+    return {
+        "manifest": history_manifest(planning_year, records, ytd_cutoff_month=ytd_cutoff_month),
+        "records": records,
+    }

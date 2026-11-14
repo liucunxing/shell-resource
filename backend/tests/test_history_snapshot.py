@@ -28,3 +28,30 @@ def test_missing_data_is_not_zero_and_count_uses_authorized_records():
     assert snapshot["manifest"]["count"] == 1
     assert snapshot["manifest"]["missingExpectedYears"] == [2025, 2026]
     assert history_snapshot(2027, [])["records"] == []
+
+
+def test_configured_month_does_not_create_actual_coverage_or_enable_ytd_yield():
+    default = history_snapshot(2027, [])["manifest"]
+    assert default["configuredYtdCutoffMonth"] == 10
+    for month in (1, 9, 12):
+        manifest = history_snapshot(2027, [], ytd_cutoff_month=month)["manifest"]
+        assert manifest["configuredYtdCutoffMonth"] == month
+        assert manifest["configuredPeriodLabel"] == f"2026 YTD（1–{month}月）"
+        assert manifest["configuredMonthIsCoverageEvidence"] is False
+        assert manifest["actual"]["latestMonth"] is None
+        assert manifest["investment"]["latestMonth"] is None
+        assert manifest["ytdYieldComparable"] is False
+
+
+def test_manifest_declares_units_and_unavailable_metrics_without_substitution():
+    manifest = history_snapshot(2027, [])["manifest"]
+    assert manifest["units"]["api"] == {"volume": "L", "c3": "$", "investment": "$"}
+    assert manifest["units"]["display"] == {"volume": "KL", "c3": "K$", "investment": "K$"}
+    assert manifest["units"]["displayDivisor"] == 1000
+    rules = manifest["metricRules"]
+    assert rules["yield"]["sourceYieldUsed"] is False
+    assert rules["yoy"]["nonPositiveBaseReason"] == "no_base"
+    assert rules["phasing"]["available"] is False
+    assert rules["phasing"]["unavailableReason"] == "missing_contract_volume"
+    assert rules["phasing"]["trafficLight"]["relativeYellowBand"] == 0.1
+    assert rules["ppp"]["defined"] is False

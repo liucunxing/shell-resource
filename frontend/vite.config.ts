@@ -1,10 +1,12 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 import { cpSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 export default defineConfig({
   plugins: [
     react(),
+    tailwindcss(),
     {
       name: "preserve-customer-prototypes",
       closeBundle() {
@@ -16,8 +18,9 @@ export default defineConfig({
       },
     },
   ],
+  resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
   server: {
-    host: '127.0.0.1',
+    host: "127.0.0.1",
     port: 5175,
     strictPort: true,
     proxy: {
@@ -28,11 +31,8 @@ export default defineConfig({
     },
   },
   worker: { format: "es" },
-  preview: { host: '127.0.0.1', port: 5175, strictPort: true },
+  preview: { host: "127.0.0.1", port: 5175, strictPort: true },
   build: {
     manifest: true,
-    rollupOptions: {
-      output: { manualChunks: { fluent: ["@fluentui/react-components"] } },
-    },
   },
 });

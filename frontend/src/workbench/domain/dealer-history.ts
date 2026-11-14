@@ -18,6 +18,10 @@ export interface DealerHistory {
   c32026Ytd?: number | null;
   yield?: number | null;
   yield2026Ytd?: number | null;
+  contract2025?: number | null;
+  contract2026Ytd?: number | null;
+  vol2024?: number | null;
+  c32024?: number | null;
   resources2025?: ResourceValues;
   resources2026Ytd?: ResourceValues;
   restrictedResources2025?: string[];
@@ -53,7 +57,8 @@ export function historyInvestment(
   history: DealerHistory | undefined,
   period: HistoryPeriod,
 ): number | null {
-  const publicKey = period === "2025" ? "totalInvestment2025" : "totalInvestment2026Ytd";
+  const publicKey =
+    period === "2025" ? "totalInvestment2025" : "totalInvestment2026Ytd";
   // A public total is computed before expense-column authorization. Never replace
   // an explicit null with the sum of a partial or authorized subset.
   if (history && Object.hasOwn(history, publicKey))
@@ -78,9 +83,50 @@ export function historyYield(
   period: HistoryPeriod,
 ): number | null {
   if (period !== "2025" && history?.ytdYieldUnavailableReason) return null;
-  return finiteHistoryValue(
-    period === "2025" ? history?.yield : history?.yield2026Ytd,
+  const c3 = finiteHistoryValue(
+    period === "2025" ? history?.c32025 : history?.c32026Ytd,
   );
+  const investment = historyInvestment(history, period);
+  return c3 !== null && c3 > 0 && investment !== null && investment > 0
+    ? c3 / investment
+    : null;
+}
+
+// V2.0 §11: source Vol and contract must use the same unit and period.
+export function historyPhasing(
+  history: DealerHistory | undefined,
+  period: HistoryPeriod,
+): number | null {
+  const vol = finiteHistoryValue(
+    period === "2025" ? history?.vol2025 : history?.vol2026Ytd,
+  );
+  const contract = finiteHistoryValue(
+    period === "2025" ? history?.contract2025 : history?.contract2026Ytd,
+  );
+  return vol !== null && contract !== null && contract > 0
+    ? vol / contract
+    : null;
+}
+
+export function historyYoyLabel(
+  history: DealerHistory | undefined,
+  basis: "vol" | "c3",
+): string {
+  const prior = finiteHistoryValue(
+    basis === "vol" ? history?.vol2024 : history?.c32024,
+  );
+  const current = finiteHistoryValue(
+    basis === "vol" ? history?.vol2025 : history?.c32025,
+  );
+  if (prior !== null && prior <= 0) return "无基期";
+  if (prior === null || current === null) return "—";
+  return `${(((current - prior) / prior) * 100).toLocaleString("zh-CN", { maximumFractionDigits: 2 })}%`;
+}
+
+export function configuredYtdLabel(month: number = 10): string {
+  const safeMonth =
+    Number.isInteger(month) && month >= 1 && month <= 12 ? month : 10;
+  return `2026 YTD（1–${safeMonth}月）`;
 }
 
 export function allocationHistoryField(

@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.departments import departments
+from app.core.history_policy import configured_ytd_cutoff
 from app.core.resource_access import default_department_resources
 from app.core.timestamps import iso_timestamp
 from app.dependencies.workbench_user import WorkbenchUser
@@ -135,7 +136,8 @@ class WorkspaceService:
             sectors=self.user.dealer_sectors,
             user=self.user,
         )
-        snapshot = history_snapshot(planning_year, dealers)
+        ytd_cutoff_month = configured_ytd_cutoff(config.reference if config else None)
+        snapshot = history_snapshot(planning_year, dealers, ytd_cutoff_month=ytd_cutoff_month)
         audit = []
         if self.user.role != "management":
             audit = [
@@ -151,6 +153,7 @@ class WorkspaceService:
             "planningVersions": [version_view(v) for v in await planning.versions(planning_year)],
             "roleResources": config.role_resources if config else {},
             "healthThresholds": config.health_thresholds if config else {},
+            "ytdCutoffMonth": ytd_cutoff_month,
             "departmentResources": config.department_resources
             if config
             else default_department_resources(),
@@ -197,7 +200,11 @@ class WorkspaceService:
             sectors=self.user.dealer_sectors,
             user=self.user,
         )
-        return dict(history_snapshot(planning_year, dealers)["manifest"])
+        config = await self.repository.config()
+        return dict(history_snapshot(
+            planning_year, dealers,
+            ytd_cutoff_month=configured_ytd_cutoff(config.reference if config else None),
+        )["manifest"])
 
     async def get_draft(self, budget_id: int) -> dict:
         budget = await self._scoped_budget(budget_id, writable=False)

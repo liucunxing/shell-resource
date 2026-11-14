@@ -1,4 +1,40 @@
-import { useEffect, useRef, useState } from "react";
+import { SdAnalysis } from "./SdAnalysis.jsx";
+import "../v19-editor.css";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
+import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
 import { allocateByHistory } from "../domain/history-allocation";
@@ -7,12 +43,13 @@ import {
   historyDisplayValue,
   historyInvestment,
   historyYield,
+  historyPhasing,
+  historyYoyLabel,
+  configuredYtdLabel,
   initiativeDealers,
   isActiveDealer,
 } from "../domain/dealer-history";
 import { exportExcelInWorker, previewExcelInWorker } from "../file-import.js";
-import { PlanningVersionBar } from "./PlanningVersionBar.jsx";
-import { SdAnalysis } from "./SdAnalysis.jsx";
 import { concentration, portfolioRows } from "../domain/portfolio-analytics.js";
 import * as api from "../api.js";
 const fmt = (n) =>
@@ -22,12 +59,18 @@ const histFmt = (value) =>
 const pct = (n, d) => (d ? ((n / d) * 100).toFixed(2) : "0.00");
 const time = (v) => (v ? new Date(v).toLocaleString("zh-CN") : "尚未提交");
 export function dealerBusinessCode(dealerId, dealer = {}, row = {}) {
-  return [dealer.code, row.dealerCode, dealerId].find((value) => value && !String(value).startsWith("history:")) || "编码未提供";
+  return (
+    [dealer.code, row.dealerCode, dealerId].find(
+      (value) => value && !String(value).startsWith("history:"),
+    ) || "编码未提供"
+  );
 }
 export function dealerDisplayLabel(dealerId, dealer = {}, row = {}) {
   const code = dealerBusinessCode(dealerId, dealer, row);
   const name = dealer.name ? `${dealer.name}（${code}）` : code;
-  const organization = [dealer.sd || row.sd, dealer.rsm || row.rsm].filter(Boolean).join(" / ");
+  const organization = [dealer.sd || row.sd, dealer.rsm || row.rsm]
+    .filter(Boolean)
+    .join(" / ");
   return organization ? `${name} · ${organization}` : name;
 }
 export function uniqueDealersByCode(dealers) {
@@ -99,15 +142,17 @@ export function balanceSelectedDealers(rows, selectedIds, pendingAmount) {
 export function MissingHistoryNotice({ metricLabel, unavailable, hasHistory }) {
   if (!unavailable.length) return null;
   return (
-    <div role="status" className="notice">
-      <p>以下经销商无有效的 {metricLabel} 数据，本次分配默认为 0：</p>
-      <ul>
-        {unavailable.map((name) => (
-          <li key={name}>{name}</li>
-        ))}
-      </ul>
-      {!hasHistory && <p>全部经销商均无量，可分配预算保留为未分配差额。</p>}
-    </div>
+    <Alert role="status" className="notice">
+      <AlertDescription>
+        <p>以下经销商无有效的 {metricLabel} 数据，本次分配默认为 0：</p>
+        <ul>
+          {unavailable.map((name) => (
+            <li key={name}>{name}</li>
+          ))}
+        </ul>
+        {!hasHistory && <p>全部经销商均无量，可分配预算保留为未分配差额。</p>}
+      </AlertDescription>
+    </Alert>
   );
 }
 
@@ -122,6 +167,135 @@ export function canSynchronizeLatest({
   );
 }
 
+export function weightedAllocationYield(rows, dealerById, period) {
+  if (!rows.length) return null;
+  let output = 0,
+    investment = 0;
+  for (const row of rows) {
+    const history = dealerById.get(String(row.dealerId))?.history;
+    const c3 = history?.[period === "2025" ? "c32025" : "c32026Ytd"];
+    const expense = historyInvestment(history, period);
+    if (
+      typeof c3 !== "number" ||
+      !Number.isFinite(c3) ||
+      expense == null ||
+      (period === "2026Ytd" && history?.ytdYieldUnavailableReason)
+    )
+      return null;
+    output += c3;
+    investment += expense;
+  }
+  return output > 0 && investment > 0 ? output / investment : null;
+}
+
+export function sortedAllocationRows(rows, valueFor, direction = "desc") {
+  return rows
+    .map((row, index) => ({ row, index, value: valueFor(row) }))
+    .sort((left, right) => {
+      const missing = (value) =>
+        value == null || (typeof value === "number" && !Number.isFinite(value));
+      if (missing(left.value) || missing(right.value))
+        return missing(left.value) === missing(right.value)
+          ? left.index - right.index
+          : missing(left.value)
+            ? 1
+            : -1;
+      const comparison =
+        typeof left.value === "number" && typeof right.value === "number"
+          ? left.value - right.value
+          : String(left.value).localeCompare(String(right.value), "zh-CN", {
+              numeric: true,
+            });
+      return (
+        (direction === "desc" ? -comparison : comparison) ||
+        left.index - right.index
+      );
+    })
+    .map(({ row }) => row);
+}
+
+function SortHead({ sortKey, sort, onSort, children, ...props }) {
+  return (
+    <TableHead
+      {...props}
+      aria-sort={
+        sort.key === sortKey
+          ? sort.direction === "asc"
+            ? "ascending"
+            : "descending"
+          : "none"
+      }
+    >
+      <Button variant="ghost" onClick={() => onSort(sortKey)}>
+        {children}
+        <span aria-hidden="true">
+          {sort.key === sortKey ? (sort.direction === "asc" ? "↑" : "↓") : "↕"}
+        </span>
+      </Button>
+    </TableHead>
+  );
+}
+
+function RatioIndicator({ value, average }) {
+  if (value == null) return <span>—</span>;
+  const tone =
+    average > 0
+      ? value > average * 1.1
+        ? "good"
+        : value < average * 0.9
+          ? "bad"
+          : "mid"
+      : "none";
+  return (
+    <span className={`v19-ratio ${tone}`}>
+      <b>{value.toFixed(2)}x</b>
+      {tone !== "none" && (
+        <small>
+          {tone === "good" ? "优" : tone === "bad" ? "关注" : "近均"}
+        </small>
+      )}
+    </span>
+  );
+}
+
+function HistoryControls({
+  period,
+  onPeriodChange,
+  metric,
+  onMetricChange,
+  ytdCutoffMonth = 10,
+}) {
+  return (
+    <div className="v19-editor-history">
+      <span>历史参考</span>
+      <Tabs value={period} onValueChange={onPeriodChange}>
+        <TabsList aria-label="历史期间">
+          <TabsTrigger value="2025">2025 全年</TabsTrigger>
+          <TabsTrigger value="2026Ytd">
+            {configuredYtdLabel(ytdCutoffMonth)}
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+      {onMetricChange && (
+        <Tabs
+          value={metric === "vol" ? "vol" : "c3"}
+          onValueChange={onMetricChange}
+        >
+          <TabsList aria-label="历史产出口径">
+            <TabsTrigger value="vol">Vol</TabsTrigger>
+            <TabsTrigger value="c3">C3</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      )}
+      <span
+        className="v19-history-info"
+        title="页面月份由管理端配置；真实 Actual / 费用覆盖单独核实。合同缺失或非正数时不算 Phasing，PPP 口径待确认。"
+      >
+        !
+      </span>
+    </div>
+  );
+}
 function AmountInput({ value, label, save, disabled = false }) {
   const [raw, setRaw] = useState(null);
   const [failed, setFailed] = useState(false);
@@ -129,7 +303,7 @@ function AmountInput({ value, label, save, disabled = false }) {
     raw === null ||
     (/^\d+(\.\d{0,2})?$/.test(raw) && E.validMoney(Number(raw)));
   return (
-    <input
+    <Input
       type="text"
       inputMode="decimal"
       disabled={disabled}
@@ -151,51 +325,40 @@ function AmountInput({ value, label, save, disabled = false }) {
   );
 }
 function EditorDialog({ title, children, action, close }) {
-  const ref = useRef(null);
-  useEffect(() => {
-    const previous = document.activeElement;
-    const d = ref.current;
-    d.showModal();
-    return () => {
-      d.close();
-      previous?.focus();
-    };
-  }, []);
+  const previous = useRef(
+    typeof document === "undefined" ? null : document.activeElement,
+  );
   return (
-    <dialog
-      ref={ref}
-      className="modal"
-      aria-label={title}
-      onCancel={(e) => {
-        e.preventDefault();
-        close();
-      }}
-      style={{
-        width: "min(1480px, 96vw)",
-        maxHeight: "85dvh",
-        overflow: "auto",
-        padding: 24,
-        border: "1px solid #d9e1e8",
-        borderRadius: 12,
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) close();
       }}
     >
-      <div className="panel-header">
-        <h2>{title}</h2>
-        <button className="button subtle" onClick={close} aria-label="关闭弹窗">
-          关闭
-        </button>
-      </div>
-      {children}
-      <div
-        className="actions"
-        style={{ marginTop: 20, justifyContent: "flex-end" }}
+      <DialogContent
+        className="w-[96vw] sm:max-w-[1480px] max-h-[85dvh] overflow-auto"
+        showCloseButton={false}
+        aria-describedby={undefined}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          if (previous.current?.isConnected) previous.current.focus();
+        }}
       >
-        <button className="button" onClick={close}>
-          取消 / 返回
-        </button>
-        {action}
-      </div>
-    </dialog>
+        <DialogHeader className="flex-row items-center justify-between gap-4">
+          <DialogTitle>{title}</DialogTitle>
+          <Button variant="ghost" onClick={close} aria-label="关闭弹窗">
+            关闭
+          </Button>
+        </DialogHeader>
+        {children}
+        <DialogFooter>
+          <Button variant="outline" onClick={close}>
+            取消 / 返回
+          </Button>
+          {action}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 export function EditorPage() {
@@ -235,16 +398,27 @@ function EditorContent({
     [trialPeriod, setTrialPeriod] = useState("2025"),
     [activeStep, setActiveStep] = useState(1),
     [balanceIds, setBalanceIds] = useState([]),
-    [scopeSelected, setScopeSelected] = useState([]),
     [scopeSearch, setScopeSearch] = useState(""),
     [scopeSd, setScopeSd] = useState("all"),
     [scopeRsm, setScopeRsm] = useState("all"),
     [scopeStatus, setScopeStatus] = useState("all"),
     [scopePage, setScopePage] = useState(1),
-    [acknowledged, setAcknowledged] = useState(false),
-    [changeReason, setChangeReason] = useState(() => view.initiatives.find((item) => item.id === initiativeId)?.changeReason || ""),
+    [trialCompare, setTrialCompare] = useState(false),
+    [allocationQuery, setAllocationQuery] = useState(""),
+    [allocatedOnly, setAllocatedOnly] = useState(false),
+    [allocationSort, setAllocationSort] = useState({
+      key: "amount",
+      direction: "desc",
+    }),
+    [allocationPage, setAllocationPage] = useState(1),
+    [changeReason, setChangeReason] = useState(
+      () =>
+        view.initiatives.find((item) => item.id === initiativeId)
+          ?.changeReason || "",
+    ),
     [undo, setUndo] = useState(null),
     [busy, setBusy] = useState(false);
+  const allocationScroll = useRef(null);
   const fileRef = useRef(null),
     alive = useRef(true);
   useEffect(() => {
@@ -268,8 +442,8 @@ function EditorContent({
     i.publishedRevision != null && i.publishedRevision === i.revision;
   const canSynchronize =
     editable &&
-    acknowledged &&
-    (!state.planningVersion?.sourceVersionId || changeReason.trim().length > 0) &&
+    (!state.planningVersion?.sourceVersionId ||
+      changeReason.trim().length > 0) &&
     canSynchronizeLatest({
       savedForSync,
       hasUnsavedChanges,
@@ -287,8 +461,13 @@ function EditorContent({
     return true;
   };
   const update = (patch) => {
-    const previous = { rows: structuredClone(i.rows), otherBudgets: structuredClone(i.otherBudgets) };
-    const changed = mutate((s) => E.updateInitiative(s, i.id, patch, identity, data));
+    const previous = {
+      rows: structuredClone(i.rows),
+      otherBudgets: structuredClone(i.otherBudgets),
+    };
+    const changed = mutate((s) =>
+      E.updateInitiative(s, i.id, patch, identity, data),
+    );
     if (changed) setUndo(previous);
     return changed;
   };
@@ -318,14 +497,24 @@ function EditorContent({
   const dealerName = (dealerId) =>
     dealerById.get(String(dealerId))?.name || "—";
   const dealerMeta = (dealerId) => dealerById.get(String(dealerId)) || {};
-  const dealerCode = (dealerId) => dealerBusinessCode(dealerId, dealerMeta(dealerId), i.rows.find((row) => row.dealerId === dealerId));
-  const dealerLabel = (dealerId) => dealerDisplayLabel(dealerId, dealerMeta(dealerId), i.rows.find((row) => row.dealerId === dealerId));
+  const dealerCode = (dealerId) =>
+    dealerBusinessCode(
+      dealerId,
+      dealerMeta(dealerId),
+      i.rows.find((row) => row.dealerId === dealerId),
+    );
+  const dealerLabel = (dealerId) =>
+    dealerDisplayLabel(
+      dealerId,
+      dealerMeta(dealerId),
+      i.rows.find((row) => row.dealerId === dealerId),
+    );
   const searchedDealers = filterDealers(
     available,
     dealerCodeSearch,
     dealerNameSearch,
   );
-  const scopeDealers = available.filter((dealer) => {
+  const scopeDealers = dealers.filter((dealer) => {
     const term = scopeSearch.trim().toLowerCase();
     return (
       (!term ||
@@ -338,31 +527,43 @@ function EditorContent({
     );
   });
   const scopeOptions = (key) =>
-    [...new Set(available.map((dealer) => dealer[key]).filter(Boolean))].sort();
-  const addScopeDealers = () => {
-    if (!scopeSelected.length) return;
-    if (
-      update({
-        rows: [
-          ...i.rows,
-          ...scopeSelected.map((dealerId) => ({
-            dealerId,
-            amount: 0,
-            note: "",
-          })),
-        ],
-      })
-    )
-      setScopeSelected([]);
-  };
+    [...new Set(dealers.map((dealer) => dealer[key]).filter(Boolean))].sort();
   const changeRow = (n, amount) =>
     update({
       rows: i.rows.map((r, index) => (index === n ? { ...r, amount } : r)),
     });
+  const addReserve = () =>
+    doGuard(() => {
+      const reason = state.budgetReasons.find((item) => item.enabled);
+      if (!reason) return notify("请先由管理员启用预算原因。", true);
+      update({
+        otherBudgets: [
+          ...i.otherBudgets,
+          {
+            id: "OB-" + crypto.randomUUID(),
+            reasonId: reason.id,
+            amount: 0,
+            note: i.workflow ? reason.label : "",
+          },
+        ],
+      });
+    });
   const changeOther = (n, field, value) =>
     update({
       otherBudgets: i.otherBudgets.map((r, index) =>
-        index === n ? { ...r, [field]: value, ...(field === "reasonId" && i.workflow ? { note: state.budgetReasons.find((reason) => reason.id === value)?.label || "" } : {}) } : r,
+        index === n
+          ? {
+              ...r,
+              [field]: value,
+              ...(field === "reasonId" && i.workflow
+                ? {
+                    note:
+                      state.budgetReasons.find((reason) => reason.id === value)
+                        ?.label || "",
+                  }
+                : {}),
+            }
+          : r,
       ),
     });
   const close = () => setModal(null);
@@ -379,7 +580,13 @@ function EditorContent({
       const exportData = { ...data, distributorDirectory: directory };
       const bytes = directoryOnly
         ? await exportExcelInWorker("directory", exportData)
-        : await exportExcelInWorker("allocation", state, i.id, identity, exportData);
+        : await exportExcelInWorker(
+            "allocation",
+            state,
+            i.id,
+            identity,
+            exportData,
+          );
       await validatePortalSession();
       assertPreviewResponseCurrent(previewEpoch);
       if (!alive.current) return;
@@ -446,7 +653,9 @@ function EditorContent({
           metricLabel: label,
           ...allocation,
           unavailable: allocation.unavailable.map((label) => {
-            const row = i.rows.find((entry) => label.endsWith(`（${entry.dealerId}）`));
+            const row = i.rows.find((entry) =>
+              label.endsWith(`（${entry.dealerId}）`),
+            );
             return row ? dealerLabel(row.dealerId) : label;
           }),
         });
@@ -460,34 +669,59 @@ function EditorContent({
     setBusy(true);
     try {
       const source = await api.workspace(state.planningVersion.sourceVersionId);
-      const prior = source.state.initiatives.find((item) => String(item.initiativeKey || item.id) === String(i.initiativeKey || i.id));
-      const submitted = prior && source.state.publications?.[prior.id]?.at(-1)?.initiative;
+      const prior = source.state.initiatives.find(
+        (item) =>
+          String(item.initiativeKey || item.id) ===
+          String(i.initiativeKey || i.id),
+      );
+      const submitted =
+        prior && source.state.publications?.[prior.id]?.at(-1)?.initiative;
       if (!submitted) throw Error("来源版本没有本项目的已提交快照。");
-      setModal({ type: "restore", title: "复制来源版本最后已提交方案", rows: submitted.rows || [], otherBudgets: (submitted.otherBudgets || []).map((row) => ({ ...row, id: "OB-" + crypto.randomUUID() })) });
-    } catch (failure) { notify(failure.message, true); }
-    finally { setBusy(false); }
+      setModal({
+        type: "restore",
+        title: "复制来源版本最后已提交方案",
+        rows: submitted.rows || [],
+        otherBudgets: (submitted.otherBudgets || []).map((row) => ({
+          ...row,
+          id: "OB-" + crypto.randomUUID(),
+        })),
+      });
+    } catch (failure) {
+      notify(failure.message, true);
+    } finally {
+      setBusy(false);
+    }
   };
-  const otherInitiatives = (dealerId) => view.initiatives.filter((item) => item.id !== i.id && item.ownerId === i.ownerId && item.sector === i.sector)
-    .flatMap((item) => (item.rows || []).filter((row) => String(row.dealerId) === String(dealerId)).map((row) => ({ item, row })));
+  const otherInitiatives = (dealerId) =>
+    view.initiatives
+      .filter(
+        (item) =>
+          item.id !== i.id &&
+          item.ownerId === i.ownerId &&
+          item.sector === i.sector,
+      )
+      .flatMap((item) =>
+        (item.rows || [])
+          .filter((row) => String(row.dealerId) === String(dealerId))
+          .map((row) => ({ item, row })),
+      );
   const selectedInvestment = (period) => {
-    const values = i.rows.map((row) => historyInvestment(dealerMeta(row.dealerId).history, period));
-    return values.every((value) => value != null) ? values.reduce((sum, value) => sum + value, 0) : null;
+    const values = i.rows.map((row) =>
+      historyInvestment(dealerMeta(row.dealerId).history, period),
+    );
+    return values.every((value) => value != null)
+      ? values.reduce((sum, value) => sum + value, 0)
+      : null;
   };
   const investmentShareFor = (dealerId, period) => {
-    const total = selectedInvestment(period), value = historyInvestment(dealerMeta(dealerId).history, period);
-    return i.rows.some((row) => row.dealerId === dealerId) && value != null && total > 0 ? value / total * 100 : null;
+    const total = selectedInvestment(period),
+      value = historyInvestment(dealerMeta(dealerId).history, period);
+    return i.rows.some((row) => row.dealerId === dealerId) &&
+      value != null &&
+      total > 0
+      ? (value / total) * 100
+      : null;
   };
-  const parts = [
-    ["经销商分配", totals.allocated, "#3c9b8b"],
-    ...state.budgetReasons.map((r) => [
-      r.label,
-      (i.otherBudgets || [])
-        .filter((b) => b.reasonId === r.id)
-        .reduce((s, b) => s + b.amount, 0),
-      "#9ac7bb",
-    ]),
-    ["未安排", Math.max(0, totals.gap), "#dde4ed"],
-  ];
   const historyVolKey = historyPeriod === "2026Ytd" ? "vol2026Ytd" : "vol2025";
   const historyC3Key = historyPeriod === "2026Ytd" ? "c32026Ytd" : "c32025";
   const scopeHistoryTotals = i.rows.reduce(
@@ -501,6 +735,90 @@ function EditorContent({
     },
     { vol: 0, c3: 0, volComplete: true, c3Complete: true },
   );
+  const weightedYield = weightedAllocationYield(
+    i.rows,
+    dealerById,
+    historyPeriod,
+  );
+  const allocationInvestmentTotal = selectedInvestment(historyPeriod);
+  const allocationOutputTotal = !i.rows.length
+    ? null
+    : historyMetric === "vol"
+      ? scopeHistoryTotals.volComplete
+        ? scopeHistoryTotals.vol
+        : null
+      : scopeHistoryTotals.c3Complete
+        ? scopeHistoryTotals.c3
+        : null;
+  const allocationValue = (row, key) => {
+    const dealer = dealerMeta(row.dealerId),
+      history = dealer.history || {};
+    const outputKey = historyMetric === "vol" ? historyVolKey : historyC3Key;
+    const total =
+      historyMetric === "vol" ? scopeHistoryTotals.vol : scopeHistoryTotals.c3;
+    const complete =
+      historyMetric === "vol"
+        ? scopeHistoryTotals.volComplete
+        : scopeHistoryTotals.c3Complete;
+    const share =
+      complete && total > 0 && history[outputKey] != null
+        ? (Number(history[outputKey]) / total) * 100
+        : null;
+    const amountShare =
+      totals.allocated > 0 ? (row.amount / totals.allocated) * 100 : null;
+    return {
+      name: dealer.name || dealerCode(row.dealerId),
+      amount: row.amount,
+      investment: historyInvestment(history, historyPeriod),
+      yield: historyYield(history, historyPeriod),
+      historicalShare: investmentShareFor(row.dealerId, historyPeriod),
+      sd: dealer.sd,
+      rsm: dealer.rsm,
+      amountShare,
+      outputShare: share,
+      difference:
+        amountShare == null || share == null ? null : amountShare - share,
+      contract: null,
+      contractShare: null,
+      actual: history[outputKey],
+      phasing: null,
+      support: otherInitiatives(row.dealerId).length,
+      note: row.note || "",
+    }[key];
+  };
+  const allocationFiltered = i.rows.filter(
+    (row) =>
+      (!allocatedOnly || row.amount > 0) &&
+      (!allocationQuery.trim() ||
+        dealerLabel(row.dealerId)
+          .toLocaleLowerCase()
+          .includes(allocationQuery.trim().toLocaleLowerCase())),
+  );
+  const allocationSorted = sortedAllocationRows(
+    allocationFiltered,
+    (row) => allocationValue(row, allocationSort.key),
+    allocationSort.direction,
+  );
+  const allocationPages = Math.max(1, Math.ceil(allocationSorted.length / 20));
+  const currentAllocationPage = Math.min(allocationPage, allocationPages);
+  const displayedAllocationRows = allocationSorted.slice(
+    (currentAllocationPage - 1) * 20,
+    currentAllocationPage * 20,
+  );
+  const sortAllocation = (key) => {
+    setAllocationSort((value) => ({
+      key,
+      direction:
+        value.key === key && value.direction === "desc" ? "asc" : "desc",
+    }));
+    setAllocationPage(1);
+  };
+  const jumpAllocation = (group) => {
+    const container = allocationScroll.current,
+      target = container?.querySelector(`[data-v19-column-group="${group}"]`);
+    if (container && target)
+      container.scrollTo({ left: target.offsetLeft, behavior: "smooth" });
+  };
   return (
     <>
       {operation && (
@@ -519,19 +837,22 @@ function EditorContent({
           </div>
         </>
       )}
-      <div inert={operation !== null} aria-busy={operation !== null}>
+      <div
+        className="v19-editor"
+        inert={operation !== null}
+        aria-busy={operation !== null}
+      >
         <div className="page-heading">
           <div>
-            <span className="resource-eyebrow">
-              OWNER / INITIATIVE WORKBENCH
-            </span>
+            <span className="resource-eyebrow">ALLOCATION WORKSPACE</span>
             <h1>{i.name}</h1>
             <p>
               {i.id} · {i.sector} / {i.department} · {i.resourceType} · Owner{" "}
               {i.ownerId}
             </p>
           </div>
-          <button
+          <Button
+            variant="outline"
             className="button"
             onClick={() =>
               doGuard(() =>
@@ -540,190 +861,128 @@ function EditorContent({
             }
           >
             返回列表
-          </button>
+          </Button>
         </div>
-        <PlanningVersionBar fixed />
-        <div className="editor-meta">
+        <div className="v19-work-version">
           <span>
-            {time(i.publishedAt)}
-            {i.publishedAt &&
-              (i.publishedRevision !== i.revision
-                ? " · 有新调整，待重新提交"
-                : " · 已提交当前修订")}
+            当前版本{" "}
+            <strong>
+              {state.planningVersion?.id} · {state.planningVersion?.name}
+            </strong>
           </span>
+          <Badge variant="secondary">
+            {editable ? "开放提交" : i.workflow?.submitted ? "已提交" : "只读"}
+          </Badge>
         </div>
-        <nav className="resource-editor-steps" aria-label="Initiative 配置步骤">
+        <Tabs
+          value={String(activeStep)}
+          onValueChange={(step) => setActiveStep(Number(step))}
+          className="v19-workspace-tabs"
+        >
+          <TabsList aria-label="拆分工作台">
+            <TabsTrigger value="1">预算与预留</TabsTrigger>
+            <TabsTrigger value="2">经销商范围</TabsTrigger>
+            <TabsTrigger value="3">试算、微调与提交</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <div className="v19-work-budget-cards" aria-label="项目预算概况">
           {[
-            [1, "预算与预留"],
-            [2, "经销商范围"],
-            [3, "试算、微调与提交"],
-          ].map(([step, label]) => (
-            <button
-              key={step}
-              className={activeStep === step ? "active" : ""}
-              aria-current={activeStep === step ? "step" : undefined}
-              onClick={() => setActiveStep(step)}
+            ["本版总预算", totals.budget, "这个项目在当前版本可用的全部预算"],
+            [
+              "预留不分配",
+              totals.otherBudget,
+              "暂不分给经销商的钱；每笔需说明原因",
+            ],
+            [
+              "当前已分配",
+              totals.allocated,
+              "草稿中已分给经销商的钱，提交后上级才会看到",
+            ],
+            ["待分配", totals.gap, "还没安排的钱，可继续分配或填写原因后预留"],
+          ].map(([label, value, note], index) => (
+            <Card
+              key={label}
+              className={
+                index === 0 ? "v19-budget-card accent" : "v19-budget-card"
+              }
             >
-              <span>{step}</span>
-              <b>{label}</b>
-            </button>
-          ))}
-        </nav>
-        {!editable && (
-          <div className="note-box">
-            {i.workflow?.submitted ? "方案已提交，当前为只读。需修改时请由部门负责人退回该项目；撤回部门确认本身不会开放编辑。" : "当前方案只读，请核对版本开放状态、截止时间和 Owner 归属。"}
-          </div>
-        )}
-        {i.workflow?.requiresResubmission && <div className="note-box warn">待重新提交 · {i.workflow.returnReason}</div>}
-        {activeStep === 1 && (
-          <div className="resource-stage-intro">
-            <div>
-              <strong>Step 1 · 确认预算与主动预留</strong>
-              <p>预留不会被试算或配平自动消耗；每笔预留从管理员启用的固定原因中选择。</p>
-            </div>
-          </div>
-        )}
-        {activeStep === 1 && (
-          <div className="budget-summary">
-            {[
-              ["总预算 · 只读", totals.budget],
-              ["预留", totals.otherBudget],
-              ["已分配到经销商", totals.allocated],
-              ["待分配", Math.max(0, totals.gap)],
-            ].map(([label, value], n) => (
-              <div
-                key={label}
-                className={n === 3 ? "gap " + (value ? "unbalanced" : "") : ""}
-              >
-                <label>{label}</label>
-                <strong>{fmt(value)}</strong>
-              </div>
-            ))}
-          </div>
-        )}
-        {activeStep === 1 && (
-          <section className="budget-composition" aria-label="预算分配占比">
-            <div className="composition-heading">
-              <span>
-                预算分配 <small>金额 · 占本项预算</small>
-              </span>
+              <span>{label}</span>
               <strong>
-                已安排 {pct(totals.allocated + totals.otherBudget, i.budget)}%
+                {(value / 10000).toLocaleString("zh-CN", {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                })}
+                <small> 万</small>
               </strong>
-            </div>
-            <div className="composition-track">
-              {parts.map(([label, amount, color]) => (
-                <span
-                  className="composition-segment"
-                  key={label}
-                  style={{
-                    width:
-                      (amount /
-                        Math.max(
-                          i.budget,
-                          totals.allocated + totals.otherBudget,
-                          1,
-                        )) *
-                        100 +
-                      "%",
-                    background: color,
-                  }}
-                  title={`${label} ${fmt(amount)}`}
-                />
-              ))}
-            </div>
-            <div className="composition-legend">
-              {parts.map(([label, amount, color]) => (
-                <span key={label}>
-                  <i style={{ background: color }} />
-                  {label} <b>{fmt(amount)}</b>
-                  <small>{pct(amount, i.budget)}%</small>
-                </span>
-              ))}
-            </div>
-            {totals.gap < 0 && (
-              <div className="note-box warn">
-                已超出预算 {fmt(-totals.gap)}，请减少分配金额，配平后才能提交。
-              </div>
-            )}
-          </section>
+              <p>{note}</p>
+            </Card>
+          ))}
+        </div>
+        {!editable && (
+          <Alert className="note-box">
+            <AlertDescription>
+              {i.workflow?.submitted
+                ? "方案已提交，当前为只读。需修改时请由部门负责人退回该项目；撤回部门确认本身不会开放编辑。"
+                : "当前方案只读，请核对版本开放状态、截止时间和 Owner 归属。"}
+            </AlertDescription>
+          </Alert>
         )}
-        {activeStep === 1 && (
-          <section className="panel studio-budget-ack">
-            <label>
-              <input
-                type="checkbox"
-                disabled={!editable}
-                checked={acknowledged}
-                onChange={(event) => setAcknowledged(event.target.checked)}
-              />{" "}
-              我已核对本版预算、预留金额与用途；预留不会被试算或配平自动消耗。
-            </label>
-            <label>
-              本次调整原因{state.planningVersion?.sourceVersionId ? "（必填）" : ""}
-              <textarea
-                rows="2"
-                maxLength="160"
-                disabled={!editable}
-                value={changeReason}
-                onChange={(event) => setChangeReason(event.target.value)}
-                placeholder="说明本次名单、预算或拆分调整的原因"
-              />
-            </label>
-          </section>
-        )}
-        {activeStep === 2 && (
-          <div className="resource-stage-intro">
-            <div>
-              <strong>Step 2 · 定义本版适用经销商</strong>
-              <p>经销商直接来自历史列表，仅 active 经销商可加入本项目。</p>
-            </div>
-          </div>
-        )}
-        {activeStep === 3 && (
-          <div className="resource-stage-intro">
-            <div>
-              <strong>Step 3 · 试算、微调与提交</strong>
-              <p>
-                并排比较 Delivery Vol、C3
-                与历史投资三种试算，再微调、配平并提交。
-              </p>
-            </div>
-          </div>
+        {i.workflow?.requiresResubmission && (
+          <Alert className="note-box warn">
+            <AlertDescription>
+              待重新提交 · {i.workflow.returnReason}
+            </AlertDescription>
+          </Alert>
         )}
         <div className="editor-layout">
           {activeStep === 2 && (
             <>
-              <section className="panel studio-scope-panel">
+              <Card className="panel studio-scope-panel">
                 <div className="panel-header">
                   <div>
-                    <h2>
-                      经销商主数据 <small>{available.length} 家可选</small>
-                    </h2>
+                    <h2>定义适用经销商</h2>
                     <p className="small-text muted">
                       直接来自历史列表；SD、RSM、状态及历史指标只读。
                     </p>
                   </div>
-                  {editable && (
-                    <button
-                      className="button primary"
-                      disabled={!scopeSelected.length}
-                      onClick={addScopeDealers}
-                    >
-                      加入已选（{scopeSelected.length}）
-                    </button>
-                  )}
                 </div>
                 <div className="studio-scope-summary">
-                  {scopeOptions("sd").map((sd) => (
-                    <span key={sd}>
-                      <b>{sd}</b>
-                      {available.filter((dealer) => dealer.sd === sd).length} 家
-                    </span>
-                  ))}
+                  {scopeOptions("sd").map((sd) => {
+                    const all = dealers.filter((dealer) => dealer.sd === sd);
+                    const picked = all.filter((dealer) =>
+                      i.rows.some((row) => row.dealerId === dealer.id),
+                    );
+                    const coverage = (key) => {
+                      if (all.some((dealer) => dealer.history?.[key] == null))
+                        return "—";
+                      const total = all.reduce(
+                        (sum, dealer) => sum + Number(dealer.history[key]),
+                        0,
+                      );
+                      return total > 0
+                        ? `${((picked.reduce((sum, dealer) => sum + Number(dealer.history[key]), 0) / total) * 100).toFixed(1)}%`
+                        : "—";
+                    };
+                    return (
+                      <div key={sd}>
+                        <b>{sd}</b>
+                        <p>
+                          已选 {picked.length} / {all.length} 家
+                        </p>
+                        <small>
+                          2025 · Vol 覆盖 {coverage("vol2025")} · C3 覆盖{" "}
+                          {coverage("c32025")}
+                        </small>
+                        <small>
+                          2026 YTD · Vol 覆盖 {coverage("vol2026Ytd")} · C3 覆盖{" "}
+                          {coverage("c32026Ytd")}
+                        </small>
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="studio-table-toolbar">
-                  <input
+                  <Input
                     type="search"
                     placeholder="搜索经销商名称 / 编码"
                     value={scopeSearch}
@@ -732,163 +991,287 @@ function EditorContent({
                       setScopePage(1);
                     }}
                   />
-                  <select
+                  <NativeSelect
                     value={scopeSd}
                     onChange={(event) => {
                       setScopeSd(event.target.value);
                       setScopePage(1);
                     }}
                   >
-                    <option value="all">全部 SD</option>
+                    <NativeSelectOption value="all">全部 SD</NativeSelectOption>
                     {scopeOptions("sd").map((value) => (
-                      <option key={value}>{value}</option>
+                      <NativeSelectOption key={value}>
+                        {value}
+                      </NativeSelectOption>
                     ))}
-                  </select>
-                  <select
+                  </NativeSelect>
+                  <NativeSelect
                     value={scopeRsm}
                     onChange={(event) => {
                       setScopeRsm(event.target.value);
                       setScopePage(1);
                     }}
                   >
-                    <option value="all">全部 RSM</option>
+                    <NativeSelectOption value="all">
+                      全部 RSM
+                    </NativeSelectOption>
                     {scopeOptions("rsm").map((value) => (
-                      <option key={value}>{value}</option>
+                      <NativeSelectOption key={value}>
+                        {value}
+                      </NativeSelectOption>
                     ))}
-                  </select>
-                  <select
+                  </NativeSelect>
+                  <NativeSelect
                     value={scopeStatus}
                     onChange={(event) => {
                       setScopeStatus(event.target.value);
                       setScopePage(1);
                     }}
                   >
-                    <option value="all">全部状态</option>
+                    <NativeSelectOption value="all">
+                      全部状态
+                    </NativeSelectOption>
                     {scopeOptions("status").map((value) => (
-                      <option key={value}>{value}</option>
+                      <NativeSelectOption key={value}>
+                        {value}
+                      </NativeSelectOption>
                     ))}
-                  </select>
+                  </NativeSelect>
                   {editable && (
-                    <button
+                    <Button
+                      variant="outline"
                       className="button small"
                       disabled={!scopeDealers.length}
                       onClick={() => {
-                        setScopeSelected(
-                          scopeDealers.map((dealer) => dealer.id),
+                        doGuard(() =>
+                          update({
+                            rows: [
+                              ...i.rows,
+                              ...scopeDealers
+                                .filter(
+                                  (dealer) =>
+                                    isActiveDealer(dealer) &&
+                                    !i.rows.some(
+                                      (row) => row.dealerId === dealer.id,
+                                    ),
+                                )
+                                .map((dealer) => ({
+                                  dealerId: dealer.id,
+                                  amount: 0,
+                                  note: "",
+                                })),
+                            ],
+                          }),
                         );
                       }}
                     >
                       加入筛选结果
-                    </button>
+                    </Button>
                   )}
                 </div>
                 <div className="table-scroll studio-wide-table">
-                  <table>
-                    <thead>
-                      <tr>
-                        {editable && <th aria-label="选择" />}
-                        <th>经销商</th>
-                        <th>SD / RSM</th>
-                        <th>状态</th>
-                        <th className="num">2025 Delivery Vol（KL）</th>
-                        <th className="num">2025 C3（K$）</th>
-                        <th className="num">Phasing</th>
-                        <th className="num">Yield</th>
-                        <th className="num">2026 YTD Delivery Vol（KL）</th>
-                        <th className="num">2026 YTD C3（K$）</th>
-                        <th className="num">2026 YTD Phasing</th><th className="num">2026 YTD Yield</th>
-                        <th className="num">2025 历史投资（K$）</th><th className="num">2026 YTD 历史投资（K$）</th><th>本人其他 Initiative</th>
-                        <th className="num">YoY Vol 25 vs 24</th>
-                        <th className="num">YoY C3 25 vs 24</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table
+                    containerClassName="overflow-visible"
+                    className="v19-scope-review"
+                  >
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead rowSpan={2}>选择</TableHead>
+                        <TableHead rowSpan={2}>经销商</TableHead>
+                        <TableHead rowSpan={2}>SD / RSM</TableHead>
+                        <TableHead rowSpan={2}>状态</TableHead>
+                        <TableHead
+                          colSpan={4}
+                          className="v19-scope-group-annual"
+                        >
+                          2025 全年 Actual
+                        </TableHead>
+                        <TableHead colSpan={4} className="v19-scope-group-ytd">
+                          2026 YTD Actual
+                        </TableHead>
+                        <TableHead colSpan={2} className="v19-scope-group-yoy">
+                          YoY 2025 vs 2024
+                        </TableHead>
+                        <TableHead
+                          colSpan={4}
+                          className="v19-scope-group-investment"
+                        >
+                          历史投资 · 已选名单
+                        </TableHead>
+                        <TableHead rowSpan={2}>本人其他 Initiative</TableHead>
+                      </TableRow>
+                      <TableRow>
+                        {["2025", "2026Ytd"].map((period) =>
+                          ["Vol（KL）", "C3（K$）", "Phasing", "Yield"].map(
+                            (label) => (
+                              <TableHead className="num" key={period + label}>
+                                {label}
+                              </TableHead>
+                            ),
+                          ),
+                        )}
+                        <TableHead className="num">Vol</TableHead>
+                        <TableHead className="num">C3</TableHead>
+                        <TableHead className="num">2025 投资（K$）</TableHead>
+                        <TableHead className="num">2025 资源占比</TableHead>
+                        <TableHead className="num">
+                          2026 YTD 投资（K$）
+                        </TableHead>
+                        <TableHead className="num">2026 YTD 资源占比</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {scopeDealers
                         .slice((scopePage - 1) * 20, scopePage * 20)
                         .map((dealer) => {
-                          const h = dealer.history || {};
+                          const h = dealer.history || {},
+                            selected = i.rows.find(
+                              (row) => row.dealerId === dealer.id,
+                            );
                           return (
-                            <tr key={`${dealer.sector || ""}:${dealer.id}`}>
-                              {editable && (
-                                <td>
-                                  <input
-                                    type="checkbox"
-                                    checked={scopeSelected.includes(dealer.id)}
-                                    aria-label={`选择 ${dealerLabel(dealer.id)}`}
-                                    onChange={() => {
-                                      setScopeSelected((current) =>
-                                        toggleDealerSelection(
-                                          current,
-                                          dealer.id,
-                                        ),
-                                      );
-                                    }}
-                                  />
-                                </td>
-                              )}
-                              <td>
+                            <TableRow key={dealer.id}>
+                              <TableCell>
+                                <Checkbox
+                                  aria-label={`选择 ${dealerLabel(dealer.id)}`}
+                                  checked={!!selected}
+                                  disabled={
+                                    !editable ||
+                                    (!isActiveDealer(dealer) && !selected)
+                                  }
+                                  onCheckedChange={(checked) =>
+                                    doGuard(() => {
+                                      if (checked && !selected)
+                                        update({
+                                          rows: [
+                                            ...i.rows,
+                                            {
+                                              dealerId: dealer.id,
+                                              amount: 0,
+                                              note: "",
+                                            },
+                                          ],
+                                        });
+                                      else if (!checked && selected?.amount > 0)
+                                        setModal({
+                                          type: "remove",
+                                          dealerId: dealer.id,
+                                          amount: selected.amount,
+                                        });
+                                      else if (!checked)
+                                        update({
+                                          rows: i.rows.filter(
+                                            (row) => row.dealerId !== dealer.id,
+                                          ),
+                                        });
+                                    })
+                                  }
+                                />
+                              </TableCell>
+                              <TableCell>
                                 <strong>{dealer.name || "—"}</strong>
                                 <small>{dealerCode(dealer.id)}</small>
-                              </td>
-                              <td>
-                                {dealer.sd || "—"}
-                                <small>{dealer.rsm || "—"}</small>
-                              </td>
-                              <td>
-                                <span
-                                  className={`resource-status ${dealer.status || ""}`}
-                                >
+                              </TableCell>
+                              <TableCell>
+                                {dealer.sd || "—"} / {dealer.rsm || "—"}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="secondary">
                                   {dealer.status || "—"}
-                                </span>
-                              </td>
-                              <td className="num">{histFmt(h.vol2025)}</td>
-                              <td className="num">{histFmt(h.c32025)}</td>
-                              <td className="num">
-                                <span title="历史数据未提供合同量，无法计算 Phasing">
-                                  —
-                                </span>
-                              </td>
-                              <td className="num">
-                                {h.yield == null
-                                  ? "—"
-                                  : `${Number(h.yield).toFixed(2)}x`}
-                              </td>
-                              <td className="num">{histFmt(h.vol2026Ytd)}</td>
-                              <td className="num">{histFmt(h.c32026Ytd)}</td>
-                              <td className="num">—</td><td className="num">{historyYield(h, "2026Ytd") == null ? "—" : `${fmt(historyYield(h, "2026Ytd"))}x`}</td>
-                              <td className="num">{histFmt(historyInvestment(h, "2025"))}</td><td className="num">{histFmt(historyInvestment(h, "2026Ytd"))}</td>
-                              <td><button className="button small" disabled={!otherInitiatives(dealer.id).length} onClick={() => setModal({ type: "other", dealerId: dealer.id })}>{otherInitiatives(dealer.id).length} 项 / {fmt(otherInitiatives(dealer.id).reduce((sum, entry) => sum + entry.row.amount, 0))} 元</button></td>
-                              <td className="num">
-                                {h.yoyVol2425 == null
-                                  ? "—"
-                                  : `${fmt(h.yoyVol2425)}%`}
-                              </td>
-                              <td className="num">
-                                {h.yoyC32425 == null
-                                  ? "—"
-                                  : `${fmt(h.yoyC32425)}%`}
-                              </td>
-                            </tr>
+                                </Badge>
+                              </TableCell>
+                              {["2025", "2026Ytd"].map((period) => (
+                                <Fragment key={period}>
+                                  <TableCell className="num">
+                                    {histFmt(
+                                      h[
+                                        period === "2025"
+                                          ? "vol2025"
+                                          : "vol2026Ytd"
+                                      ],
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="num">
+                                    {histFmt(
+                                      h[
+                                        period === "2025"
+                                          ? "c32025"
+                                          : "c32026Ytd"
+                                      ],
+                                    )}
+                                  </TableCell>
+                                  <TableCell
+                                    className="num"
+                                    title="Phasing = Delivery Vol ÷ 同期合同量；合同量须大于 0"
+                                  >
+                                    {historyPhasing(h, period) == null
+                                      ? "—"
+                                      : `${fmt(historyPhasing(h, period) * 100)}%`}
+                                  </TableCell>
+                                  <TableCell className="num">
+                                    {historyYield(h, period) == null
+                                      ? "—"
+                                      : `${fmt(historyYield(h, period))}x`}
+                                  </TableCell>
+                                </Fragment>
+                              ))}
+                              <TableCell className="num">
+                                {historyYoyLabel(h, "vol")}
+                              </TableCell>
+                              <TableCell className="num">
+                                {historyYoyLabel(h, "c3")}
+                              </TableCell>
+                              {["2025", "2026Ytd"].map((period) => (
+                                <Fragment key={period}>
+                                  <TableCell className="num">
+                                    {histFmt(historyInvestment(h, period))}
+                                  </TableCell>
+                                  <TableCell className="num">
+                                    {investmentShareFor(dealer.id, period) ==
+                                    null
+                                      ? "—"
+                                      : `${fmt(investmentShareFor(dealer.id, period))}%`}
+                                  </TableCell>
+                                </Fragment>
+                              ))}
+                              <TableCell>
+                                <Button
+                                  variant="link"
+                                  disabled={!otherInitiatives(dealer.id).length}
+                                  onClick={() =>
+                                    setModal({
+                                      type: "other",
+                                      dealerId: dealer.id,
+                                    })
+                                  }
+                                >
+                                  {otherInitiatives(dealer.id).length
+                                    ? `${otherInitiatives(dealer.id).length} 项 · ${fmt(otherInitiatives(dealer.id).reduce((sum, entry) => sum + entry.row.amount, 0) / 10000)} 万`
+                                    : "—"}
+                                </Button>
+                              </TableCell>
+                            </TableRow>
                           );
                         })}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
                 <div className="table-footer">
                   <span>显示 {scopeDealers.length} 家 · 每页 20 行</span>
                   <div className="actions">
-                    <button
+                    <Button
+                      variant="outline"
                       className="button small"
                       disabled={scopePage === 1}
                       onClick={() => setScopePage((page) => page - 1)}
                     >
                       上一页
-                    </button>
+                    </Button>
                     <span>
                       {scopePage} /{" "}
                       {Math.max(1, Math.ceil(scopeDealers.length / 20))}
                     </span>
-                    <button
+                    <Button
+                      variant="outline"
                       className="button small"
                       disabled={
                         scopePage >= Math.ceil(scopeDealers.length / 20)
@@ -896,207 +1279,206 @@ function EditorContent({
                       onClick={() => setScopePage((page) => page + 1)}
                     >
                       下一页
-                    </button>
+                    </Button>
                   </div>
                 </div>
-              </section>
-              <section className="panel resource-roster-panel">
-                <div className="panel-header">
-                  <div>
-                    <h2>
-                      最终名单 <small>{i.rows.length} 家</small>
-                    </h2>
-                    <p className="small-text muted">
-                      Excel 名单列：编码、名称、SD、RSM、状态。
-                    </p>
-                  </div>
-                  {editable && (
-                    <div className="actions">
-                      <button
-                        className="button small"
-                        onClick={() => download(true)}
-                      >
-                        下载名单
-                      </button>
-                      <button
-                        className="button primary"
-                        onClick={() => {
-                          setNewDealers([]);
-                          setDealerCodeSearch("");
-                          setDealerNameSearch("");
-                          setModal({ type: "add" });
-                        }}
-                      >
-                        添加一批
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>经销商编码</th>
-                        <th>名称</th>
-                        <th>SD</th>
-                        <th>RSM</th>
-                        <th>状态</th>
-                        <th className="num">已分配（元）</th><th className="num">2025 历史投资（K$）</th><th className="num">名单资源占比</th><th className="num">2026 YTD 历史投资（K$）</th><th className="num">名单资源占比</th><th>本人其他 Initiative</th>
-                        {editable && <th />}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {i.rows.map((row) => {
-                        const dealer = dealerMeta(row.dealerId);
-                        return (
-                          <tr key={row.dealerId}>
-                            <td>{dealerCode(row.dealerId)}</td>
-                            <td>{dealer.name || "—"}</td>
-                            <td>{dealer.sd || "—"}</td>
-                            <td>{dealer.rsm || "—"}</td>
-                            <td>
-                              <span
-                                className={`resource-status ${dealer.status || ""}`}
-                              >
-                                {dealer.status || "—"}
-                              </span>
-                            </td>
-                            <td className="num">{fmt(row.amount)}</td>
-                            <td className="num">{histFmt(historyInvestment(dealer.history, "2025"))}</td><td className="num">{investmentShareFor(row.dealerId, "2025") == null ? "—" : `${fmt(investmentShareFor(row.dealerId, "2025"))}%`}</td>
-                            <td className="num">{histFmt(historyInvestment(dealer.history, "2026Ytd"))}</td><td className="num">{investmentShareFor(row.dealerId, "2026Ytd") == null ? "—" : `${fmt(investmentShareFor(row.dealerId, "2026Ytd"))}%`}</td>
-                            <td><button className="button small" disabled={!otherInitiatives(row.dealerId).length} onClick={() => setModal({ type: "other", dealerId: row.dealerId })}>{otherInitiatives(row.dealerId).length} 项 / {fmt(otherInitiatives(row.dealerId).reduce((sum, entry) => sum + entry.row.amount, 0))} 元</button></td>
-                            {editable && (
-                              <td>
-                                <button
-                                  className="button subtle small"
-                                  onClick={() =>
-                                    setModal({
-                                      type: "remove",
-                                      dealerId: row.dealerId,
-                                      amount: row.amount,
-                                    })
-                                  }
-                                >
-                                  移除
-                                </button>
-                              </td>
-                            )}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                {!i.rows.length && (
-                  <div className="empty">尚未选择经销商。</div>
-                )}
-              </section>
+              </Card>
             </>
           )}
           {activeStep === 3 && (
-            <section className="panel studio-trial-panel">
+            <Card className="panel studio-trial-panel">
               <div className="panel-header">
                 <div>
-                  <h2>三种试算并排比较</h2>
+                  <h2>试算方案</h2>
                   <p className="small-text muted">
                     采用试算会覆盖当前金额，保留名单与主动预留；确认前显示预览。
                   </p>
                 </div>
-                <label>
-                  试算历史期间
-                  <select
-                    value={trialPeriod}
-                    onChange={(event) => setTrialPeriod(event.target.value)}
-                  >
-                    <option value="2025">2025 全年</option>
-                    <option value="2026Ytd">2026 YTD</option>
-                  </select>
-                </label>
               </div>
-              <div className="studio-trial-grid">
+              <HistoryControls
+                ytdCutoffMonth={state.ytdCutoffMonth}
+                period={trialPeriod}
+                onPeriodChange={setTrialPeriod}
+                metric={historyMetric}
+                onMetricChange={setHistoryMetric}
+              />
+              <div className="v19-trial-tools">
+                <strong>快捷方案选择</strong>
                 {[
-                  ["Delivery Vol", "vol", "按历史规模拆分"],
-                  ["C3", "c3", "按历史贡献拆分"],
-                  ["历史投资", "investment", "按四类历史投资合计拆分"],
-                ].map(([label, metric, note]) => {
-                  let trial = null;
-                  try { trial = allocateByHistory(i.rows, dealers, E.cents(i.budget - totals.otherBudget), allocationHistoryField(metric, trialPeriod), i.sector, directoryDealers); } catch (_) { /* The card explains unavailable data through a disabled action. */ }
-                  const impact = trial?.hasHistory ? concentration(portfolioRows([{ ...i, rows: trial.rows }], dealers, "c3", trialPeriod), 20) : null;
-                  return <article key={metric}>
-                    <span>试算</span>
-                    <h3>{label}</h3>
-                    <p>{note}</p>
-                    <strong>
-                      {i.rows.length} 家 ·{" "}
-                      {fmt(Math.max(0, i.budget - totals.otherBudget))} 元
-                    </strong>
-                    <p>{trial?.hasHistory ? `${trial.rows.filter((row) => row.amount > 0).length} 家获配 · ${trial.unavailable.length} 家无有效历史` : "缺少有效历史，暂不可采用"}</p>
-                    <p>Top 20% 投资 / C3 偏离：{impact ? `${impact.gap.toFixed(1)} pp` : "—"}</p>
-                    <button
-                      className="button primary small"
-                      disabled={
-                        !trial?.hasHistory || !editable ||
-                        !i.rows.length ||
-                        (metric === "investment" &&
-                          !i.rows.some(
-                            (row) =>
-                              historyInvestment(
-                                dealerMeta(row.dealerId).history,
-                                trialPeriod,
-                              ) > 0,
-                          ))
-                      }
-                      title={
-                        metric === "investment"
-                          ? "使用公共历史投资合计；缺少对应期间数据时不能试算"
-                          : undefined
-                      }
-                      onClick={() => {
-                        setHistoryMetric(metric);
-                        historyFill(metric, trialPeriod);
-                      }}
-                    >
-                      采用此试算
-                    </button>
-                  </article>;
-                })}
+                  ["按Actual Delivery Vol采用", "vol"],
+                  ["按Actual C3采用", "c3"],
+                  ["按历史投资总额采用", "investment"],
+                ].map(([label, metric]) => (
+                  <Button
+                    key={metric}
+                    variant="outline"
+                    disabled={!editable || !i.rows.length}
+                    onClick={() => historyFill(metric, trialPeriod)}
+                  >
+                    {label}
+                  </Button>
+                ))}
+                <Button
+                  disabled={!i.rows.length}
+                  onClick={() => setTrialCompare(true)}
+                >
+                  ⇄ 对比三种试算方案
+                </Button>
               </div>
+              {trialCompare && (
+                <EditorDialog
+                  title="对比三种试算方案"
+                  close={() => setTrialCompare(false)}
+                  action={null}
+                >
+                  <div className="studio-trial-grid">
+                    {[
+                      ["Delivery Vol", "vol", "按历史规模拆分"],
+                      ["C3", "c3", "按历史贡献拆分"],
+                      ["历史投资", "investment", "按四类历史投资合计拆分"],
+                    ].map(([label, metric, note]) => {
+                      let trial = null;
+                      try {
+                        trial = allocateByHistory(
+                          i.rows,
+                          dealers,
+                          E.cents(i.budget - totals.otherBudget),
+                          allocationHistoryField(metric, trialPeriod),
+                          i.sector,
+                          directoryDealers,
+                        );
+                      } catch (_) {
+                        /* The card explains unavailable data through a disabled action. */
+                      }
+                      const impact = trial?.hasHistory
+                        ? concentration(
+                            portfolioRows(
+                              [{ ...i, rows: trial.rows }],
+                              dealers,
+                              "c3",
+                              trialPeriod,
+                            ),
+                            20,
+                          )
+                        : null;
+                      return (
+                        <article key={metric}>
+                          <span>试算</span>
+                          <h3>{label}</h3>
+                          <p>{note}</p>
+                          <strong>
+                            {i.rows.length} 家 ·{" "}
+                            {fmt(Math.max(0, i.budget - totals.otherBudget))} 元
+                          </strong>
+                          <p>
+                            {trial?.hasHistory
+                              ? `${trial.rows.filter((row) => row.amount > 0).length} 家获配 · ${trial.unavailable.length} 家无有效历史`
+                              : "缺少有效历史，暂不可采用"}
+                          </p>
+                          <p>
+                            Top 20% 投资 / C3 偏离：
+                            {impact ? `${impact.gap.toFixed(1)} pp` : "—"}
+                          </p>
+                          <Button
+                            variant="default"
+                            className="button primary small"
+                            disabled={
+                              !trial?.hasHistory ||
+                              !editable ||
+                              !i.rows.length ||
+                              (metric === "investment" &&
+                                !i.rows.some(
+                                  (row) =>
+                                    historyInvestment(
+                                      dealerMeta(row.dealerId).history,
+                                      trialPeriod,
+                                    ) > 0,
+                                ))
+                            }
+                            title={
+                              metric === "investment"
+                                ? "使用公共历史投资合计；缺少对应期间数据时不能试算"
+                                : undefined
+                            }
+                            onClick={() => {
+                              setTrialCompare(false);
+                              setHistoryMetric(metric);
+                              historyFill(metric, trialPeriod);
+                            }}
+                          >
+                            采用此试算
+                          </Button>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </EditorDialog>
+              )}
               <div className="actions">
-                <button className="button small" disabled={!editable || busy || !state.planningVersion?.sourceVersionId} onClick={restoreSource}>复制来源版已提交方案</button>
-                <button className="button small" disabled={!editable || !undo} onClick={() => setModal({ type: "restore", title: "撤销上一步", ...undo })}>撤销上一步</button>
-                <button
+                <Button
+                  variant="outline"
+                  className="button small"
+                  disabled={
+                    !editable || busy || !state.planningVersion?.sourceVersionId
+                  }
+                  onClick={restoreSource}
+                >
+                  复制来源版已提交方案
+                </Button>
+                <Button
+                  variant="outline"
+                  className="button small"
+                  disabled={!editable || !undo}
+                  onClick={() =>
+                    setModal({ type: "restore", title: "撤销上一步", ...undo })
+                  }
+                >
+                  撤销上一步
+                </Button>
+                <Button
+                  variant="outline"
                   className="button small"
                   onClick={() => setModal({ type: "history" })}
                 >
                   查看本项目提交历史
-                </button>
-
+                </Button>
               </div>
-            </section>
+            </Card>
           )}
           {activeStep === 3 && (
-            <section className="panel">
+            <SdAnalysis
+              variant="editor"
+              items={[i]}
+              dealers={dealers}
+              metadata={state.reference}
+              threshold={state.healthThresholds?.dealerYellow ?? 3}
+              sourceVersionId={state.planningVersion?.sourceVersionId}
+              comparisonIdentity={identity.email}
+            />
+          )}
+          {activeStep === 3 && (
+            <Card className="panel">
               <div className="panel-header">
-                <h2>
-                  分配明细与历史对照 <small>{i.rows.length} 行</small>
-                </h2>
+                <h2>经销商分配明细</h2>
                 {editable && (
                   <div className="actions">
-                    <button
+                    <Button
+                      variant="outline"
                       className="button small"
                       disabled={busy}
                       onClick={() => download()}
                     >
-                      下载模板
-                    </button>
-                    <button
+                      ↓ 完整金额Excel
+                    </Button>
+                    <Button
+                      variant="outline"
                       className="button small"
                       disabled={busy}
                       onClick={() => doGuard(() => fileRef.current.click())}
                     >
-                      {busy ? "正在处理…" : "导入 Excel"}
-                    </button>
-                    <input
+                      {busy ? "正在处理…" : "↑ 上传完整方案"}
+                    </Button>
+                    <Input
                       ref={fileRef}
                       type="file"
                       accept=".xlsx"
@@ -1108,40 +1490,8 @@ function EditorContent({
                         importFile(file);
                       }}
                     />
-                    <label className="history-fill-control">
-                      <span>历史期间</span>
-                      <select
-                        value={historyPeriod}
-                        onChange={(event) =>
-                          setHistoryPeriod(event.target.value)
-                        }
-                        aria-label="试算历史期间"
-                      >
-                        <option value="2025">2025 全年</option>
-                        <option value="2026Ytd">2026 YTD</option>
-                      </select>
-                    </label>
-                    <label className="history-fill-control">
-                      <span>拆分依据</span>
-                      <select
-                        value={historyMetric}
-                        onChange={(event) =>
-                          setHistoryMetric(event.target.value)
-                        }
-                        aria-label="按比例分配依据"
-                      >
-                        <option value="c3">C3</option>
-                        <option value="vol">Delivery Vol</option>
-                        <option value="investment">历史投资</option>
-                      </select>
-                    </label>
-                    <button
-                      className="button small"
-                      onClick={() => historyFill(historyMetric)}
-                    >
-                      按比例分配
-                    </button>
-                    <button
+                    <Button
+                      variant="outline"
                       className="button small"
                       disabled={!balanceIds.length || totals.gap === 0}
                       onClick={() => {
@@ -1168,130 +1518,388 @@ function EditorContent({
                       }}
                     >
                       指定经销商配平
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>
+              <HistoryControls
+                ytdCutoffMonth={state.ytdCutoffMonth}
+                period={historyPeriod}
+                onPeriodChange={setHistoryPeriod}
+                metric={historyMetric}
+                onMetricChange={setHistoryMetric}
+              />
               {editable && (
                 <p className="work-caption">
                   经销商列表已包含在下载模板的「经销商列表」工作表中，业务线为第一列。
                 </p>
               )}
-              <div className="table-scroll allocation-scroll" tabIndex={0} role="region" aria-label="经销商分配明细，可横向滚动">
-                <table className="allocation-table allocation-table-simple">
-                  <thead>
-                    <tr>
-                      {editable && <th className="allocation-select" aria-label="选择配平经销商" />}
-                      <th className="allocation-code">经销商编码</th>
-                      <th className="allocation-name">经销商名称</th>
-                      <th className="allocation-organization">SD / RSM</th>
-                      <th>状态</th>
-                      <th className="num allocation-amount">
-                        分配金额（元）<small>2027 计划</small>
-                      </th>
-                      <th className="num">投资占比</th>
-                      <th className="num">Delivery Vol占比</th>
-                      <th className="num">C3占比</th>
-                      <th className="num">投资−Delivery Vol</th>
-                      <th className="num">投资−C3</th>
-                      <th className="num">合同量（KL）</th>
-                      <th className="num">Delivery Vol（KL）</th>
-                      <th className="num">Actual C3（K$）</th>
-                      <th className="num">Phasing</th>
-                      <th className="num">历史投资（K$）</th>
-                      <th className="num">Yield</th>
-                      <th className="allocation-note">调整说明</th>
-                      {editable && <th className="allocation-action">操作</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {i.rows.map((r, n) => {
-                      const dealer = dealerMeta(r.dealerId),
-                        history = dealer.history || {};
-                      const vol = Number(history[historyVolKey]) || 0,
-                        c3 = Number(history[historyC3Key]) || 0;
-                      const investment = historyInvestment(
-                        history,
-                        historyPeriod,
+              <div className="v19-allocation-filters">
+                <Input
+                  type="search"
+                  value={allocationQuery}
+                  onChange={(event) => {
+                    setAllocationQuery(event.target.value);
+                    setAllocationPage(1);
+                  }}
+                  placeholder="搜索经销商 / 编码 / SD / RSM"
+                  aria-label="查找经销商分配"
+                />
+                <Label>
+                  <Checkbox
+                    checked={allocatedOnly}
+                    onCheckedChange={(checked) => {
+                      setAllocatedOnly(checked === true);
+                      setAllocationPage(1);
+                    }}
+                  />
+                  只看已获配
+                </Label>
+              </div>
+              <div className="v19-ratio-legend">
+                <span title="Phasing = 实际 Delivery Vol 合计 ÷ 合同量合计；当前源未提供合同量。">
+                  加权平均 Phasing <b>— ↑</b>
+                </span>
+                <span title="Yield = 名单 C3 合计 ÷ 同期间历史投资合计；不平均各家比率，数据不完整或 YTD 覆盖未知时显示 —。">
+                  加权平均 Yield{" "}
+                  <b>
+                    {weightedYield == null
+                      ? "—"
+                      : `${weightedYield.toFixed(2)}x`}{" "}
+                    ↑
+                  </b>
+                </span>
+                <span className="good">优于平均</span>
+                <span className="mid">±10%近均</span>
+                <span className="bad">需关注</span>
+              </div>
+              <div className="v19-table-jumps">
+                <span>快速定位列组</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => jumpAllocation("investment")}
+                >
+                  历史投资 / Yield
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => jumpAllocation("share")}
+                >
+                  占比与差值
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => jumpAllocation("contract")}
+                >
+                  合同 / Actual
+                </Button>
+              </div>
+              <div
+                ref={allocationScroll}
+                className="table-scroll allocation-scroll"
+                tabIndex={0}
+                role="region"
+                aria-label="经销商分配明细，可横向滚动"
+              >
+                <Table
+                  containerClassName="overflow-visible"
+                  className="allocation-table v19-allocation-table"
+                >
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead
+                        colSpan={editable ? 3 : 2}
+                        className="v19-group-plan"
+                      >
+                        本次投资
+                      </TableHead>
+                      <TableHead
+                        colSpan={3}
+                        className="v19-group-history"
+                        data-v19-column-group="investment"
+                      >
+                        历史投资 ·{" "}
+                        {historyPeriod === "2025" ? "2025 全年" : "2026 YTD"}
+                      </TableHead>
+                      <TableHead colSpan={2}>组织属性</TableHead>
+                      <TableHead
+                        colSpan={3}
+                        className="v19-group-share"
+                        data-v19-column-group="share"
+                      >
+                        投入与历史产出
+                      </TableHead>
+                      <TableHead
+                        colSpan={4}
+                        className="v19-group-actual"
+                        data-v19-column-group="contract"
+                      >
+                        合同与 Actual
+                      </TableHead>
+                      <TableHead colSpan={editable ? 3 : 2}>
+                        支持与说明
+                      </TableHead>
+                    </TableRow>
+                    <TableRow>
+                      {editable && (
+                        <TableHead aria-label="选择配平经销商">选择</TableHead>
+                      )}
+                      <SortHead
+                        sort={allocationSort}
+                        onSort={sortAllocation}
+                        sortKey="name"
+                      >
+                        经销商 / 编码
+                      </SortHead>
+                      <SortHead
+                        sort={allocationSort}
+                        onSort={sortAllocation}
+                        sortKey="amount"
+                        className="num"
+                      >
+                        分配金额（元）
+                      </SortHead>
+                      <SortHead
+                        sort={allocationSort}
+                        onSort={sortAllocation}
+                        sortKey="investment"
+                        className="num"
+                      >
+                        历史投资总额（K$）
+                      </SortHead>
+                      <SortHead
+                        sort={allocationSort}
+                        onSort={sortAllocation}
+                        sortKey="yield"
+                        className="num"
+                      >
+                        Yield（C3÷投资）
+                      </SortHead>
+                      <SortHead
+                        sort={allocationSort}
+                        onSort={sortAllocation}
+                        sortKey="historicalShare"
+                        className="num"
+                      >
+                        历史资源占比
+                      </SortHead>
+                      <SortHead
+                        sort={allocationSort}
+                        onSort={sortAllocation}
+                        sortKey="sd"
+                      >
+                        SD
+                      </SortHead>
+                      <SortHead
+                        sort={allocationSort}
+                        onSort={sortAllocation}
+                        sortKey="rsm"
+                      >
+                        RSM
+                      </SortHead>
+                      <SortHead
+                        sort={allocationSort}
+                        onSort={sortAllocation}
+                        sortKey="amountShare"
+                        className="num"
+                      >
+                        投资金额占比
+                      </SortHead>
+                      <SortHead
+                        sort={allocationSort}
+                        onSort={sortAllocation}
+                        sortKey="outputShare"
+                        className="num"
+                      >
+                        {historyMetric === "vol" ? "Vol" : "C3"}占比
+                      </SortHead>
+                      <SortHead
+                        sort={allocationSort}
+                        onSort={sortAllocation}
+                        sortKey="difference"
+                        className="num"
+                      >
+                        投资金额−{historyMetric === "vol" ? "Vol" : "C3"}
+                      </SortHead>
+                      <SortHead
+                        sort={allocationSort}
+                        onSort={sortAllocation}
+                        sortKey="contract"
+                        className="num"
+                      >
+                        合同量（KL）
+                      </SortHead>
+                      <SortHead
+                        sort={allocationSort}
+                        onSort={sortAllocation}
+                        sortKey="contractShare"
+                        className="num"
+                      >
+                        合同量占比
+                      </SortHead>
+                      <SortHead
+                        sort={allocationSort}
+                        onSort={sortAllocation}
+                        sortKey="actual"
+                        className="num"
+                      >
+                        Actual{" "}
+                        {historyMetric === "vol"
+                          ? "Delivery Vol（KL）"
+                          : "C3（K$）"}
+                      </SortHead>
+                      <SortHead
+                        sort={allocationSort}
+                        onSort={sortAllocation}
+                        sortKey="phasing"
+                        className="num"
+                      >
+                        Phasing
+                      </SortHead>
+                      <SortHead
+                        sort={allocationSort}
+                        onSort={sortAllocation}
+                        sortKey="support"
+                      >
+                        本人其他 Initiative
+                      </SortHead>
+                      <SortHead
+                        sort={allocationSort}
+                        onSort={sortAllocation}
+                        sortKey="note"
+                      >
+                        调整说明
+                      </SortHead>
+                      {editable && <TableHead>操作</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {displayedAllocationRows.map((r) => {
+                      const n = i.rows.findIndex(
+                        (row) => row.dealerId === r.dealerId,
                       );
-                      const yieldValue = historyYield(history, historyPeriod);
-                      const investmentShare = totals.allocated
-                        ? (r.amount / totals.allocated) * 100
-                        : 0;
-                      const volShare = scopeHistoryTotals.volComplete && scopeHistoryTotals.vol > 0 ? (vol / scopeHistoryTotals.vol) * 100 : null;
-                      const c3Share = scopeHistoryTotals.c3Complete && scopeHistoryTotals.c3 > 0 ? (c3 / scopeHistoryTotals.c3) * 100 : null;
+                      const dealer = dealerMeta(r.dealerId),
+                        h = dealer.history || {},
+                        investment = historyInvestment(h, historyPeriod),
+                        yieldValue = historyYield(h, historyPeriod);
+                      const metricKey =
+                        historyMetric === "vol" ? historyVolKey : historyC3Key;
+                      const metricTotal =
+                        historyMetric === "vol"
+                          ? scopeHistoryTotals.vol
+                          : scopeHistoryTotals.c3;
+                      const metricComplete =
+                        historyMetric === "vol"
+                          ? scopeHistoryTotals.volComplete
+                          : scopeHistoryTotals.c3Complete;
+                      const outputShare =
+                        metricComplete &&
+                        metricTotal > 0 &&
+                        h[metricKey] != null
+                          ? (Number(h[metricKey]) / metricTotal) * 100
+                          : null;
+                      const amountShare =
+                        totals.allocated > 0
+                          ? (r.amount / totals.allocated) * 100
+                          : null;
                       return (
-                        <tr key={r.dealerId}>
+                        <TableRow key={r.dealerId}>
                           {editable && (
-                            <td className="allocation-select">
-                              <input
-                                type="checkbox"
+                            <TableCell>
+                              <Checkbox
                                 aria-label={`选择 ${dealerLabel(r.dealerId)} 参与配平`}
                                 checked={balanceIds.includes(r.dealerId)}
-                                onChange={() =>
+                                onCheckedChange={() =>
                                   setBalanceIds((current) =>
                                     toggleDealerSelection(current, r.dealerId),
                                   )
                                 }
                               />
-                            </td>
+                            </TableCell>
                           )}
-                          <td className="allocation-code">{dealerCode(r.dealerId)}</td>
-                          <td className="allocation-name">{dealerName(r.dealerId)}</td>
-                          <td className="allocation-organization">
-                            {dealer.sd || "—"}
-                            <small>{dealer.rsm || "—"}</small>
-                          </td>
-                          <td>
-                            <span
-                              className={`resource-status ${dealer.status || ""}`}
-                            >
-                              {dealer.status || "—"}
-                            </span>
-                          </td>
-                          <td className="num allocation-amount">
+                          <TableCell className="v19-dealer-name">
+                            <strong>{dealerName(r.dealerId)}</strong>
+                            <small>
+                              {dealerCode(r.dealerId)} · {dealer.status || "—"}
+                            </small>
+                          </TableCell>
+                          <TableCell className="num v19-money-cell">
                             {editable ? (
                               <AmountInput
                                 value={r.amount}
                                 label={dealerLabel(r.dealerId) + " 分配金额"}
-                                save={(v) => changeRow(n, v)}
+                                save={(value) => changeRow(n, value)}
                               />
                             ) : (
                               fmt(r.amount)
                             )}
-                          </td>
-                          <td className="num">{fmt(investmentShare)}%</td>
-                          <td className="num">{volShare == null ? "—" : `${fmt(volShare)}%`}</td>
-                          <td className="num">{c3Share == null ? "—" : `${fmt(c3Share)}%`}</td>
-                          <td className="num">
-                            {volShare == null ? "—" : `${investmentShare - volShare >= 0 ? "+" : ""}${fmt(investmentShare - volShare)}pp`}
-                          </td>
-                          <td className="num">
-                            {c3Share == null ? "—" : `${investmentShare - c3Share >= 0 ? "+" : ""}${fmt(investmentShare - c3Share)}pp`}
-                          </td>
-                          <td className="num">
-                            <span title="历史数据未提供合同量">—</span>
-                          </td>
-                          <td className="num">
-                            {histFmt(history[historyVolKey])}
-                          </td>
-                          <td className="num">
-                            {histFmt(history[historyC3Key])}
-                          </td>
-                          <td className="num">
-                            <span title="历史数据未提供合同量，无法计算 Phasing">
-                              —
-                            </span>
-                          </td>
-                          <td className="num">{histFmt(investment)}</td>
-                          <td className="num">
-                            {yieldValue !== null
-                              ? `${yieldValue.toFixed(2)}x`
-                              : "—"}
-                          </td>
-                          <td className="allocation-note">
+                          </TableCell>
+                          <TableCell className="num">
+                            {histFmt(investment)}
+                          </TableCell>
+                          <TableCell className="num">
+                            <RatioIndicator
+                              value={yieldValue}
+                              average={weightedYield}
+                            />
+                          </TableCell>
+                          <TableCell className="num">
+                            {investmentShareFor(r.dealerId, historyPeriod) ==
+                            null
+                              ? "—"
+                              : `${fmt(investmentShareFor(r.dealerId, historyPeriod))}%`}
+                          </TableCell>
+                          <TableCell>{dealer.sd || "—"}</TableCell>
+                          <TableCell>{dealer.rsm || "—"}</TableCell>
+                          <TableCell className="num">
+                            {amountShare == null ? "—" : `${fmt(amountShare)}%`}
+                          </TableCell>
+                          <TableCell className="num">
+                            {outputShare == null ? "—" : `${fmt(outputShare)}%`}
+                          </TableCell>
+                          <TableCell className="num">
+                            {amountShare == null || outputShare == null
+                              ? "—"
+                              : `${amountShare - outputShare >= 0 ? "+" : ""}${fmt(amountShare - outputShare)}pp`}
+                          </TableCell>
+                          <TableCell
+                            className="num"
+                            title="历史数据未提供合同量"
+                          >
+                            —
+                          </TableCell>
+                          <TableCell className="num">—</TableCell>
+                          <TableCell className="num">
+                            {histFmt(h[metricKey])}
+                          </TableCell>
+                          <TableCell
+                            className="num"
+                            title="Phasing = Delivery Vol ÷ 同期合同量；合同量须大于 0"
+                          >
+                            {historyPhasing(h, historyPeriod) == null
+                              ? "—"
+                              : `${fmt(historyPhasing(h, historyPeriod) * 100)}%`}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="link"
+                              disabled={!otherInitiatives(r.dealerId).length}
+                              onClick={() =>
+                                setModal({
+                                  type: "other",
+                                  dealerId: r.dealerId,
+                                })
+                              }
+                            >
+                              {otherInitiatives(r.dealerId).length} 项
+                            </Button>
+                          </TableCell>
+                          <TableCell className="allocation-note">
                             {editable ? (
-                              <input
+                              <Input
                                 value={r.note || ""}
                                 aria-label={`${dealerLabel(r.dealerId)} 调整说明`}
                                 onChange={(event) =>
@@ -1307,12 +1915,14 @@ function EditorContent({
                             ) : (
                               r.note || "—"
                             )}
-                          </td>
+                          </TableCell>
                           {editable && (
-                            <td className="allocation-action">
-                              <button
-                                className="button subtle small"
-                                aria-label={"移除经销商 " + dealerLabel(r.dealerId)}
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                aria-label={
+                                  "移除经销商 " + dealerLabel(r.dealerId)
+                                }
                                 onClick={() =>
                                   doGuard(() =>
                                     setModal({
@@ -1324,14 +1934,90 @@ function EditorContent({
                                 }
                               >
                                 移除
-                              </button>
-                            </td>
+                              </Button>
+                            </TableCell>
                           )}
-                        </tr>
+                        </TableRow>
                       );
                     })}
-                  </tbody>
-                </table>
+                    {!displayedAllocationRows.length && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={editable ? 18 : 16}
+                          className="empty"
+                        >
+                          暂无匹配经销商
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell colSpan={editable ? 2 : 1}>
+                        范围合计 / 加权值
+                      </TableCell>
+                      <TableCell className="num v19-money-cell">
+                        {fmt(totals.allocated)}
+                      </TableCell>
+                      <TableCell className="num">
+                        {histFmt(allocationInvestmentTotal)}
+                      </TableCell>
+                      <TableCell className="num">
+                        {weightedYield == null
+                          ? "—"
+                          : `${weightedYield.toFixed(2)}x`}
+                      </TableCell>
+                      <TableCell className="num">
+                        {allocationInvestmentTotal > 0 ? "100.0%" : "—"}
+                      </TableCell>
+                      <TableCell />
+                      <TableCell />
+                      <TableCell className="num">
+                        {totals.allocated > 0 ? "100.0%" : "—"}
+                      </TableCell>
+                      <TableCell className="num">
+                        {allocationOutputTotal > 0 ? "100.0%" : "—"}
+                      </TableCell>
+                      <TableCell className="num">—</TableCell>
+                      <TableCell className="num">—</TableCell>
+                      <TableCell className="num">—</TableCell>
+                      <TableCell className="num">
+                        {histFmt(allocationOutputTotal)}
+                      </TableCell>
+                      <TableCell className="num">—</TableCell>
+                      <TableCell />
+                      <TableCell />
+                      {editable && <TableCell />}
+                    </TableRow>
+                  </TableFooter>
+                </Table>
+              </div>
+              <div className="v19-allocation-pagination">
+                <span>
+                  显示 {allocationFiltered.length} / {i.rows.length} 家 ·
+                  占比与加权值按完整名单计算
+                </span>
+                <div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentAllocationPage <= 1}
+                    onClick={() => setAllocationPage(currentAllocationPage - 1)}
+                  >
+                    上一页
+                  </Button>
+                  <span>
+                    {currentAllocationPage} / {allocationPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentAllocationPage >= allocationPages}
+                    onClick={() => setAllocationPage(currentAllocationPage + 1)}
+                  >
+                    下一页
+                  </Button>
+                </div>
               </div>
               <div className="table-footer">
                 <span>
@@ -1343,14 +2029,16 @@ function EditorContent({
                 </span>
                 {editable && (
                   <div className="actions">
-                    <button
+                    <Button
+                      variant="link"
                       className="button link"
                       disabled={busy}
                       onClick={() => download(true)}
                     >
                       下载经销商
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="link"
                       className="button link"
                       onClick={() =>
                         doGuard(() => {
@@ -1362,85 +2050,40 @@ function EditorContent({
                       }
                     >
                       + 添加经销商
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>
-            </section>
+            </Card>
           )}
           {activeStep === 1 && (
-            <section className="panel other-budget-panel">
+            <Card className="panel other-budget-panel">
               <div className="panel-header">
                 <div>
-                  <h2>
-                    其他预算安排 <small>{i.otherBudgets.length} 行</small>
-                  </h2>
+                  <h2>多笔预留 · 原因与金额</h2>
                   <p className="small-text muted">
                     按原因逐项登记，可添加多行；金额纳入本项预算平衡。
                   </p>
                 </div>
-                {editable && (
-                  <div className="actions">
-                    <button
-                      className="button small"
-                      disabled={totals.gap === 0}
-                      title="仅调整专用找平行，不改动手工安排"
-                      onClick={() =>
-                        doGuard(() =>
-                          mutate(
-                            (s) =>
-                              E.balanceOtherBudget(s, i.id, identity, data),
-                            "已找平，请核对具体原因。",
-                          ),
-                        )
-                      }
-                    >
-                      一键找平
-                    </button>
-                    <button
-                      className="button small"
-                      onClick={() =>
-                        doGuard(() => {
-                          const reason = state.budgetReasons.find(
-                            (r) => r.enabled,
-                          );
-                          if (!reason)
-                            return notify("请先由管理员启用预算原因。", true);
-                          update({
-                            otherBudgets: [
-                              ...i.otherBudgets,
-                              {
-                                id: "OB-" + crypto.randomUUID(),
-                                reasonId: reason.id,
-                                amount: 0,
-                                note: i.workflow ? reason.label : "",
-                              },
-                            ],
-                          });
-                        })
-                      }
-                    >
-                      + 添加安排
-                    </button>
-                  </div>
-                )}
               </div>
               <div className="table-scroll">
-                <table className="other-budget-table">
-                  <thead>
-                    <tr>
-                      <th>原因类型</th>
-                      <th className="num">金额</th>
-                      <th>具体原因</th>
-                      {editable && <th />}
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table
+                  containerClassName="overflow-visible"
+                  className="other-budget-table"
+                >
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>原因 / 用途</TableHead>
+                      <TableHead className="num">金额（元）</TableHead>
+                      {editable && <TableHead>操作</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {i.otherBudgets.map((r, n) => (
-                      <tr key={r.id}>
-                        <td>
+                      <TableRow key={r.id}>
+                        <TableCell>
                           {editable ? (
-                            <select
+                            <NativeSelect
                               aria-label={`第 ${n + 1} 项安排原因类型`}
                               value={r.reasonId}
                               onChange={(e) =>
@@ -1453,23 +2096,36 @@ function EditorContent({
                                     reason.enabled || reason.id === r.reasonId,
                                 )
                                 .map((reason) => (
-                                  <option
+                                  <NativeSelectOption
                                     key={reason.id}
                                     value={reason.id}
                                     disabled={!reason.enabled}
                                   >
                                     {reason.label}
                                     {!reason.enabled && "（已停用）"}
-                                  </option>
+                                  </NativeSelectOption>
                                 ))}
-                            </select>
+                            </NativeSelect>
                           ) : (
                             state.budgetReasons.find(
                               (reason) => reason.id === r.reasonId,
                             )?.label || r.reasonId
                           )}
-                        </td>
-                        <td className="num">
+                          {!i.workflow &&
+                            (editable ? (
+                              <Input
+                                aria-label={`第 ${n + 1} 项安排具体原因`}
+                                placeholder="填写具体原因或用途"
+                                value={r.note}
+                                onChange={(event) =>
+                                  changeOther(n, "note", event.target.value)
+                                }
+                              />
+                            ) : (
+                              <small>{r.note || "—"}</small>
+                            ))}
+                        </TableCell>
+                        <TableCell className="num">
                           {editable ? (
                             <AmountInput
                               label={`第 ${n + 1} 项安排金额`}
@@ -1479,15 +2135,11 @@ function EditorContent({
                           ) : (
                             fmt(r.amount)
                           )}
-                        </td>
-                        <td>
-                          {i.workflow ? <span>{state.budgetReasons.find((reason) => reason.id === r.reasonId)?.label || "请重新选择启用原因"}</span> : editable ? (
-                            <input aria-label={`第 ${n + 1} 项安排具体原因`} placeholder="填写具体原因或用途" value={r.note} onChange={(e) => changeOther(n, "note", e.target.value)} />
-                          ) : (r.note || "—")}
-                        </td>
+                        </TableCell>
                         {editable && (
-                          <td>
-                            <button
+                          <TableCell>
+                            <Button
+                              variant="ghost"
                               className="button subtle small"
                               aria-label={`移除第 ${n + 1} 项预算安排`}
                               onClick={() =>
@@ -1501,37 +2153,87 @@ function EditorContent({
                               }
                             >
                               移除
-                            </button>
-                          </td>
+                            </Button>
+                          </TableCell>
                         )}
-                      </tr>
+                      </TableRow>
                     ))}
-                    {!i.otherBudgets.length && (
-                      <tr>
-                        <td colSpan={4}>
-                          <div className="empty">
-                            暂无其他预算安排，可按需要添加。
-                          </div>
-                        </td>
-                      </tr>
+                    {editable ? (
+                      <TableRow>
+                        <TableCell colSpan={3}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={addReserve}
+                          >
+                            ＋ 添加预留
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      !i.otherBudgets.length && (
+                        <TableRow>
+                          <TableCell colSpan={2}>暂无预留安排。</TableCell>
+                        </TableRow>
+                      )
                     )}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
-            </section>
+              <div className="v19-reserve-intro">
+                <strong>先定义预留，再拆分能明确到经销商的预算。</strong>{" "}
+                暂不能明确对象或用途的部分，请设置预留并说明原因。允许有原因的100%预留，不为了配平强行分摊。预留不会因手工微调自动消耗。
+              </div>
+            </Card>
           )}
-          {errors.length ? (
-            <div className="note-box warn">
-              {errors.map((e) => (
-                <div key={e}>{e.replace("标记完成", "提交当前方案")}</div>
-              ))}
-            </div>
-          ) : (
-            <div className="note-box success">
-              {i.workflow ? i.workflow.submitted ? "当前方案已提交，进入只读。" : "分配与预算平衡；提交后进入只读，退回后才可重新编辑。" : "分配与预算平衡，可以提交。"}
-            </div>
+          {activeStep === 1 && (
+            <Card className="panel v19-adjustment-reason">
+              <h2>调整依据说明</h2>
+              <Input
+                aria-label="调整依据说明"
+                maxLength="160"
+                disabled={!editable}
+                value={changeReason}
+                onChange={(event) => setChangeReason(event.target.value)}
+                placeholder="说明本版名单、金额或预留变化原因"
+              />
+            </Card>
           )}
-          <div className="save-bar">
+          {activeStep === 3 &&
+            (errors.length ? (
+              <Alert className="note-box warn">
+                <AlertDescription>
+                  {errors.map((e) => (
+                    <div key={e}>{e.replace("标记完成", "提交当前方案")}</div>
+                  ))}
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Alert className="note-box success">
+                <AlertDescription>
+                  {i.workflow
+                    ? i.workflow.submitted
+                      ? "当前方案已提交，进入只读。"
+                      : "分配与预算平衡；提交后进入只读，退回后才可重新编辑。"
+                    : "分配与预算平衡，可以提交。"}
+                </AlertDescription>
+              </Alert>
+            ))}
+          <div className="save-bar v19-sticky-actions">
+            <Button
+              variant="outline"
+              onClick={() =>
+                activeStep === 1
+                  ? doGuard(() =>
+                      navigate(
+                        identity.role === "owner" ? "home" : "department",
+                      ),
+                    )
+                  : setActiveStep(activeStep - 1)
+              }
+            >
+              {activeStep === 1 ? "← 返回项目" : "← 上一步"}
+            </Button>
             <div className="save-label">
               <strong>
                 {apiMode
@@ -1545,40 +2247,50 @@ function EditorContent({
                   : "有效修改自动保存到本机"}
               </strong>{" "}
               · {time(i.savedAt)}
-              <br />
-              最新提交：{time(i.publishedAt)}
             </div>
             {editable && (
               <div className="actions">
-                <button
+                <Button
+                  variant="outline"
                   className="button"
                   disabled={operation !== null}
                   onClick={handleSaveDraft}
                 >
                   {operation === "save" ? "正在保存…" : "保存草稿"}
-                </button>
-                <button
-                  className="button primary"
-                  disabled={!canSynchronize}
-                  title={
-                    !savedForSync || hasUnsavedChanges
-                      ? "请先保存草稿，再提交当前方案"
-                      : errors.length > 0
-                        ? "请先修正当前分配问题"
-                        : undefined
-                  }
-                  onClick={handlePublish}
-                >
-                  {operation === "publish" ? "正在提交…" : "提交当前方案"}
-                </button>
+                </Button>
+                {activeStep < 3 ? (
+                  <Button
+                    onClick={() => doGuard(() => setActiveStep(activeStep + 1))}
+                  >
+                    下一步 →
+                  </Button>
+                ) : (
+                  <Button
+                    variant="default"
+                    className="button primary"
+                    disabled={!canSynchronize}
+                    title={
+                      !savedForSync || hasUnsavedChanges
+                        ? "请先保存草稿，再提交当前方案"
+                        : errors.length > 0
+                          ? "请先修正当前分配问题"
+                          : undefined
+                    }
+                    onClick={handlePublish}
+                  >
+                    {operation === "publish"
+                      ? "正在提交…"
+                      : `提交到 ${state.planningVersion?.id || "当前版本"} →`}
+                  </Button>
+                )}
               </div>
             )}
           </div>
         </div>
-        {activeStep === 3 && <SdAnalysis items={[i]} dealers={dealers} metadata={state.reference} threshold={state.healthThresholds?.dealerYellow ?? 3} sourceVersionId={state.planningVersion?.sourceVersionId} comparisonIdentity={identity.email} />}
         {modal && (
           <EditorDialog
-            title={modal.title ||
+            title={
+              modal.title ||
               {
                 add: "添加经销商",
                 remove: "移除经销商分配",
@@ -1591,8 +2303,27 @@ function EditorContent({
             }
             close={close}
             action={
-              modal.type === "restore" ? <button className="button primary" onClick={() => { if (update({ rows: modal.rows, otherBudgets: modal.otherBudgets })) { setChangeReason(""); close(); } }}>确认采用</button> : modal.type === "add" ? (
-                <button
+              modal.type === "restore" ? (
+                <Button
+                  variant="default"
+                  className="button primary"
+                  onClick={() => {
+                    if (
+                      update({
+                        rows: modal.rows,
+                        otherBudgets: modal.otherBudgets,
+                      })
+                    ) {
+                      setChangeReason("");
+                      close();
+                    }
+                  }}
+                >
+                  确认采用
+                </Button>
+              ) : modal.type === "add" ? (
+                <Button
+                  variant="default"
                   className="button primary"
                   disabled={!newDealers.length}
                   onClick={() => {
@@ -1612,9 +2343,10 @@ function EditorContent({
                   }}
                 >
                   确认添加
-                </button>
+                </Button>
               ) : modal.type === "remove" ? (
-                <button
+                <Button
+                  variant="destructive"
                   className="button danger"
                   onClick={() => {
                     if (
@@ -1628,20 +2360,25 @@ function EditorContent({
                   }}
                 >
                   确认移除
-                </button>
+                </Button>
               ) : modal.type === "fill" ? (
-                <button
+                <Button
+                  variant="default"
                   className="button primary"
+                  disabled={!modal.hasHistory}
                   onClick={() => {
+                    if (!modal.hasHistory)
+                      return notify("历史权重合计为 0，不能应用试算。", true);
                     if (i.revision !== modal.revision)
                       return notify("工作稿已变化，请重新预览。", true);
                     if (update({ rows: modal.rows })) close();
                   }}
                 >
                   应用本次填充
-                </button>
+                </Button>
               ) : modal.type === "balance" ? (
-                <button
+                <Button
+                  variant="default"
                   className="button primary"
                   onClick={() => {
                     if (update({ rows: modal.rows })) {
@@ -1651,9 +2388,10 @@ function EditorContent({
                   }}
                 >
                   确认配平
-                </button>
+                </Button>
               ) : modal.type === "import" ? (
-                <button
+                <Button
+                  variant="default"
                   className="button primary"
                   disabled={modal.preview.errors.length > 0}
                   onClick={async () => {
@@ -1666,104 +2404,169 @@ function EditorContent({
                   }}
                 >
                   确认写入
-                </button>
+                </Button>
               ) : null
             }
           >
-            {modal.type === "other" && <><p>{dealerLabel(modal.dealerId)} · 仅列出本人其他项目的当前草稿投入。</p><div className="table-scroll"><table><thead><tr><th>Initiative</th><th>资源大类</th><th>金额</th><th>本项目投资占比</th><th>说明</th></tr></thead><tbody>{otherInitiatives(modal.dealerId).sort((a,b) => b.row.amount-a.row.amount).map(({ item, row }) => <tr key={item.id}><td><button className="button link" onClick={() => { close(); navigate("editor", item.id); }}>{item.name}</button></td><td>{item.resourceType}</td><td>{fmt(row.amount)}</td><td>{pct(row.amount, E.totals([item]).allocated)}%</td><td>{row.note || "—"}</td></tr>)}</tbody></table></div></>}
-            {modal.type === "restore" && <><p>将恢复 {modal.rows.length} 家经销商及对应金额、预留和逐家说明，金额不会按本版预算自动缩放；本次调整原因需重新填写。</p><p>经销商分配合计 {fmt(modal.rows.reduce((sum,row) => sum+row.amount,0))} 元 · 预留 {fmt(modal.otherBudgets.reduce((sum,row) => sum+row.amount,0))} 元</p></>}
+            {modal.type === "other" && (
+              <>
+                <p>
+                  {dealerLabel(modal.dealerId)} ·
+                  仅列出本人其他项目的当前草稿投入。
+                </p>
+                <div className="table-scroll">
+                  <Table containerClassName="overflow-visible">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Initiative</TableHead>
+                        <TableHead>资源大类</TableHead>
+                        <TableHead>金额</TableHead>
+                        <TableHead>本项目投资占比</TableHead>
+                        <TableHead>说明</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {otherInitiatives(modal.dealerId)
+                        .sort((a, b) => b.row.amount - a.row.amount)
+                        .map(({ item, row }) => (
+                          <TableRow key={item.id}>
+                            <TableCell>
+                              <Button
+                                variant="link"
+                                className="button link"
+                                onClick={() => {
+                                  close();
+                                  navigate("editor", item.id);
+                                }}
+                              >
+                                {item.name}
+                              </Button>
+                            </TableCell>
+                            <TableCell>{item.resourceType}</TableCell>
+                            <TableCell>{fmt(row.amount)}</TableCell>
+                            <TableCell>
+                              {pct(row.amount, E.totals([item]).allocated)}%
+                            </TableCell>
+                            <TableCell>{row.note || "—"}</TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            )}
+            {modal.type === "restore" && (
+              <>
+                <p>
+                  将恢复 {modal.rows.length}{" "}
+                  家经销商及对应金额、预留和逐家说明，金额不会按本版预算自动缩放；本次调整原因需重新填写。
+                </p>
+                <p>
+                  经销商分配合计{" "}
+                  {fmt(modal.rows.reduce((sum, row) => sum + row.amount, 0))} 元
+                  · 预留{" "}
+                  {fmt(
+                    modal.otherBudgets.reduce(
+                      (sum, row) => sum + row.amount,
+                      0,
+                    ),
+                  )}{" "}
+                  元
+                </p>
+              </>
+            )}
             {modal.type === "add" && (
               <>
                 <div className="dealer-search-grid">
-                  <label className="form-field">
+                  <Label className="form-field">
                     经销商编码
-                    <input
+                    <Input
                       type="search"
                       autoFocus
                       value={dealerCodeSearch}
                       placeholder="模糊搜索经销商编码"
                       onChange={(e) => setDealerCodeSearch(e.target.value)}
                     />
-                  </label>
-                  <label className="form-field">
+                  </Label>
+                  <Label className="form-field">
                     经销商名称
-                    <input
+                    <Input
                       type="search"
                       value={dealerNameSearch}
                       placeholder="模糊搜索经销商名称"
                       onChange={(e) => setDealerNameSearch(e.target.value)}
                     />
-                  </label>
+                  </Label>
                 </div>
                 <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th aria-label="选择经销商" />
-                        <th>业务线</th>
-                        <th>经销商编码</th>
-                        <th>经销商名称</th>
-                        <th>SD</th>
-                        <th>RSM</th>
-                        <th>状态</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table containerClassName="overflow-visible">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead aria-label="选择经销商" />
+                        <TableHead>业务线</TableHead>
+                        <TableHead>经销商编码</TableHead>
+                        <TableHead>经销商名称</TableHead>
+                        <TableHead>SD</TableHead>
+                        <TableHead>RSM</TableHead>
+                        <TableHead>状态</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {searchedDealers.map((dealer) => (
-                        <tr key={dealer.id}>
-                          <td>
-                            <input
-                              type="checkbox"
+                        <TableRow key={dealer.id}>
+                          <TableCell>
+                            <Checkbox
                               aria-label={`选择经销商 ${dealerLabel(dealer.id)}`}
                               checked={newDealers.includes(dealer.id)}
-                              onChange={() =>
+                              onCheckedChange={() =>
                                 setNewDealers((current) =>
                                   toggleDealerSelection(current, dealer.id),
                                 )
                               }
                             />
-                          </td>
-                          <td>{dealer.sector || "—"}</td>
-                          <td>{dealerCode(dealer.id)}</td>
-                          <td>{dealer.name || "—"}</td>
-                          <td>{dealer.sd || "—"}</td>
-                          <td>{dealer.rsm || "—"}</td>
-                          <td>
+                          </TableCell>
+                          <TableCell>{dealer.sector || "—"}</TableCell>
+                          <TableCell>{dealerCode(dealer.id)}</TableCell>
+                          <TableCell>{dealer.name || "—"}</TableCell>
+                          <TableCell>{dealer.sd || "—"}</TableCell>
+                          <TableCell>{dealer.rsm || "—"}</TableCell>
+                          <TableCell>
                             <span
                               className={`resource-status ${dealer.status || ""}`}
                             >
                               {dealer.status || "—"}
                             </span>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ))}
                       {!searchedDealers.length && (
-                        <tr>
-                          <td colSpan={7}>
+                        <TableRow>
+                          <TableCell colSpan={7}>
                             {directoryStatus === "loading" ? (
                               "正在加载历史表经销商目录…"
                             ) : directoryStatus === "error" ? (
                               <>
                                 经销商目录加载失败，请稍后重试。
-                                <button
+                                <Button
+                                  variant="ghost"
                                   className="button subtle small"
                                   onClick={() =>
                                     loadDistributorDirectory({ force: true })
                                   }
                                 >
                                   重新加载
-                                </button>
+                                </Button>
                               </>
                             ) : available.length ? (
                               "没有匹配的经销商"
                             ) : (
                               "已无可添加经销商"
                             )}
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       )}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               </>
             )}
@@ -1790,24 +2593,24 @@ function EditorContent({
                   </p>
                 )}
                 <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>经销商</th>
-                        <th>当前金额</th>
-                        <th>预览金额</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table containerClassName="overflow-visible">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>经销商</TableHead>
+                        <TableHead>当前金额</TableHead>
+                        <TableHead>预览金额</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {modal.rows.map((r, n) => (
-                        <tr key={r.dealerId}>
-                          <td>{dealerCode(r.dealerId)}</td>
-                          <td>{fmt(i.rows[n].amount)}</td>
-                          <td>{fmt(r.amount)}</td>
-                        </tr>
+                        <TableRow key={r.dealerId}>
+                          <TableCell>{dealerCode(r.dealerId)}</TableCell>
+                          <TableCell>{fmt(i.rows[n].amount)}</TableCell>
+                          <TableCell>{fmt(r.amount)}</TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               </>
             )}
@@ -1818,16 +2621,16 @@ function EditorContent({
                   家经销商之间均摊；余数按当前金额降序、编码升序逐家分配。
                 </p>
                 <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>经销商</th>
-                        <th className="num">当前金额</th>
-                        <th className="num">配平后</th>
-                        <th className="num">变化</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table containerClassName="overflow-visible">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>经销商</TableHead>
+                        <TableHead className="num">当前金额</TableHead>
+                        <TableHead className="num">配平后</TableHead>
+                        <TableHead className="num">变化</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {i.rows
                         .filter((row) => balanceIds.includes(row.dealerId))
                         .map((row) => {
@@ -1835,23 +2638,29 @@ function EditorContent({
                             (value) => value.dealerId === row.dealerId,
                           );
                           return (
-                            <tr key={row.dealerId}>
-                              <td>{dealerCode(row.dealerId)}</td>
-                              <td className="num">{fmt(row.amount)}</td>
-                              <td className="num">{fmt(after.amount)}</td>
-                              <td className="num">
+                            <TableRow key={row.dealerId}>
+                              <TableCell>{dealerCode(row.dealerId)}</TableCell>
+                              <TableCell className="num">
+                                {fmt(row.amount)}
+                              </TableCell>
+                              <TableCell className="num">
+                                {fmt(after.amount)}
+                              </TableCell>
+                              <TableCell className="num">
                                 {after.amount - row.amount >= 0 ? "+" : ""}
                                 {fmt(after.amount - row.amount)}
-                              </td>
-                            </tr>
+                              </TableCell>
+                            </TableRow>
                           );
                         })}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
-                <div className="note-box success">
-                  确认后待分配为 0；主动预留不参与本次配平。
-                </div>
+                <Alert className="note-box success">
+                  <AlertDescription>
+                    确认后待分配为 0；主动预留不参与本次配平。
+                  </AlertDescription>
+                </Alert>
               </>
             )}
             {modal.type === "import" && (
@@ -1869,110 +2678,124 @@ function EditorContent({
                     ))}
                   </ul>
                 )}
-                <div className="note-box">
-                  导入前安排 {fmt(modal.preview.summary.before)} · 导入后安排{" "}
-                  {fmt(modal.preview.summary.after)} · 导入后差额{" "}
-                  {fmt(modal.preview.summary.gap)}
-                </div>
+                <Alert className="note-box">
+                  <AlertDescription>
+                    导入前安排 {fmt(modal.preview.summary.before)} · 导入后安排{" "}
+                    {fmt(modal.preview.summary.after)} · 导入后差额{" "}
+                    {fmt(modal.preview.summary.gap)}
+                  </AlertDescription>
+                </Alert>
                 <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>经销商</th>
-                        <th>导入前</th>
-                        <th>导入后</th>
-                        <th>变化</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table containerClassName="overflow-visible">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>经销商</TableHead>
+                        <TableHead>导入前</TableHead>
+                        <TableHead>导入后</TableHead>
+                        <TableHead>变化</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {modal.preview.changes
                         .filter((c) => !c.otherBudgets)
                         .map((c) => (
-                          <tr key={c.dealerId}>
-                            <td>{dealerLabel(c.dealerId)}</td>
-                            <td>{c.before ? fmt(c.before.amount) : "—"}</td>
-                            <td>{c.after ? fmt(c.after.amount) : "—"}</td>
-                            <td>
+                          <TableRow key={c.dealerId}>
+                            <TableCell>{dealerLabel(c.dealerId)}</TableCell>
+                            <TableCell>
+                              {c.before ? fmt(c.before.amount) : "—"}
+                            </TableCell>
+                            <TableCell>
+                              {c.after ? fmt(c.after.amount) : "—"}
+                            </TableCell>
+                            <TableCell>
                               {!c.before ? "新增" : !c.after ? "删除" : "修改"}
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
                 <h3>
                   其他预算安排 · {modal.preview.otherBudgets?.length || 0} 行
                 </h3>
                 <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>原因类型</th>
-                        <th>金额</th>
-                        <th>具体原因</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table containerClassName="overflow-visible">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>原因 / 用途</TableHead>
+                        <TableHead>金额</TableHead>
+                        <TableHead>具体原因</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {modal.preview.otherBudgets?.map((r, n) => (
-                        <tr key={n}>
-                          <td>
+                        <TableRow key={n}>
+                          <TableCell>
                             {state.budgetReasons.find(
                               (reason) => reason.id === r.reasonId,
                             )?.label || r.reasonId}
-                          </td>
-                          <td>{fmt(r.amount)}</td>
-                          <td>{r.note || "—"}</td>
-                        </tr>
+                          </TableCell>
+                          <TableCell>{fmt(r.amount)}</TableCell>
+                          <TableCell>{r.note || "—"}</TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
-                <p className="note-box">
-                  确认时再次校验身份、修订号与原因配置；未同步前不影响管理层数据。
-                </p>
+                <Alert className="note-box">
+                  <AlertDescription>
+                    确认时再次校验身份、修订号与原因配置；未同步前不影响管理层数据。
+                  </AlertDescription>
+                </Alert>
               </>
             )}
             {modal.type === "history" && (
               <>
                 {history.length ? (
                   [...history].reverse().map((record) => (
-                    <details key={record.id}>
-                      <summary>
-                        第 {record.number} 次同步 · {time(record.publishedAt)} ·
-                        修订 {record.publishedRevision}
-                      </summary>
-                      <p>
-                        预算 {fmt(record.initiative.budget)} · 经销商分配{" "}
-                        {fmt(E.totals([record.initiative]).allocated)} ·
-                        参考批次 {record.reference.batchId}
-                      </p>
-                      <div className="table-scroll">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>经销商</th>
-                              <th>同步金额</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {record.initiative.rows.map((r) => (
-                              <tr key={r.dealerId}>
-                                <td>{dealerCode(r.dealerId)}</td>
-                                <td>{fmt(r.amount)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      {record.initiative.otherBudgets?.map((r) => (
-                        <p key={r.id}>
-                          {state.budgetReasons.find(
-                            (reason) => reason.id === r.reasonId,
-                          )?.label || r.reasonId}{" "}
-                          · {fmt(r.amount)} · {r.note}
-                        </p>
-                      ))}
-                    </details>
+                    <Accordion key={record.id} type="single" collapsible>
+                      <AccordionItem value={String(record.id)}>
+                        <AccordionTrigger>
+                          第 {record.number} 次同步 · {time(record.publishedAt)}{" "}
+                          · 修订 {record.publishedRevision}
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <p>
+                            预算 {fmt(record.initiative.budget)} · 经销商分配{" "}
+                            {fmt(E.totals([record.initiative]).allocated)} ·
+                            参考批次 {record.reference.batchId}
+                          </p>
+                          <div className="table-scroll">
+                            <Table containerClassName="overflow-visible">
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>经销商</TableHead>
+                                  <TableHead>同步金额</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {record.initiative.rows.map((r) => (
+                                  <TableRow key={r.dealerId}>
+                                    <TableCell>
+                                      {dealerCode(r.dealerId)}
+                                    </TableCell>
+                                    <TableCell>{fmt(r.amount)}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                          {record.initiative.otherBudgets?.map((r) => (
+                            <p key={r.id}>
+                              {state.budgetReasons.find(
+                                (reason) => reason.id === r.reasonId,
+                              )?.label || r.reasonId}{" "}
+                              · {fmt(r.amount)} · {r.note}
+                            </p>
+                          ))}
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
                   ))
                 ) : (
                   <div className="empty">

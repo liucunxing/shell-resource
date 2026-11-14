@@ -72,13 +72,14 @@ describe("user preview read-only surfaces", () => {
   it("disables account creation and permission changes for a simulated administrator", () => {
     shared.context.identity.role = "admin";
     const users = renderToStaticMarkup(<AdminUsersPanel />);
-    expect(users).toMatch(/<button[^>]*disabled=""[^>]*>新增人员<\/button>/);
+    expect(users).toMatch(/<button[^>]*disabled=""[^>]*>＋ 新增用户<\/button>/);
     const settings = renderToStaticMarkup(<HistoricalResourceSettings mapping={{ MKT: ["MRD"] }}
       departments={["MKT"]} saveConfig={vi.fn()} readOnly />);
     expect(settings).toMatch(/<input[^>]*disabled=""/);
-    expect(settings).toMatch(/<button[^>]*disabled=""[^>]*>保存费用列权限<\/button>/);
+    expect(settings).toMatch(/<button[^>]*disabled=""[^>]*>保存权限<\/button>/);
+    expect(settings).toMatch(/<button[^>]*disabled=""[^>]*>保存部门默认<\/button>/);
     const insight = renderToStaticMarkup(<InsightPanel />);
-    expect(insight).toMatch(/<select aria-label="模拟用户视角" disabled=""/);
+    expect(insight).toMatch(/<select\b(?=[^>]*aria-label="模拟用户视角")(?=[^>]*disabled="")[^>]*>/);
     expect(insight).toMatch(/<button[^>]*disabled=""[^>]*>试用分析<\/button>/);
   });
 });

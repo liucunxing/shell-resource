@@ -45,8 +45,8 @@ describe("full investment comparison", () => {
     expect(html).not.toContain("未分配对象");
     expect(html).not.toContain("缺失计划对象");
     expect(html).toContain("极小金额对象");
-    expect(html).toContain("<td>0.00</td>");
-    expect(html).toContain("<td>125.68</td>");
+    expect(html).toContain(">0.00</td>");
+    expect(html).toContain(">125.68</td>");
     expect(html).toContain("2025资源投入(K$)");
     expect(html).toContain("本次计划(K$)");
     expect(html).toContain("差额(K$)");
@@ -67,7 +67,7 @@ describe("full investment comparison", () => {
       blocks: [{ id: "b", kind: "visual", dataset_id: "budget-compare", title: "负责预算与已安排", body: "重复图表", status: "clear", fact_ids: [] }], limitations: [],
     };
     const html = renderToString(<InsightCapabilityResult evidence={evidence} result={result} />);
-    expect(html).toContain('<details open="">');
+    expect(html).toMatch(/<button[^>]*aria-expanded="true"[^>]*data-slot="accordion-trigger"[^>]*>查看本项说明/);
     expect(html).toContain("预算完整性");
     expect(html).toContain("经销商甲预算已核对。\n经销商乙预算已核对。");
     expect(html).not.toContain("负责预算与已安排");
@@ -98,16 +98,16 @@ describe("full investment comparison", () => {
       <InvestmentReview dataset={dataset} scopeLabel="本人范围" />,
     );
     for (const text of [
-      "<td>100.00</td>",
-      "<td>1,000.00</td>",
-      "<td>900.00</td>",
+      ">100.00</td>",
+      ">1,000.00</td>",
+      ">900.00</td>",
       "10.0 倍",
       "2025 实际 / 2027 计划",
       "本人范围",
       "下一页",
     ])
       expect(html).toContain(text);
-    expect(html.match(/<th scope="row">/g)).toHaveLength(20);
+    expect(html.match(/<th\b[^>]*scope="row"[^>]*>/g)).toHaveLength(20);
   });
   it("distinguishes missing actual from real zero and never invents a multiple", () => {
     const html = renderToString(
@@ -128,7 +128,7 @@ describe("full investment comparison", () => {
       />,
     );
     expect(html).toContain("缺失");
-    expect(html).toContain("<td>0.00</td>");
+    expect(html).toContain(">0.00</td>");
     expect(html).toContain("不适用（实际为 0）");
   });
   it("shows comparison even if the model returns no blocks, and rejects other scopes", () => {
@@ -150,7 +150,7 @@ describe("full investment comparison", () => {
       renderToString(
         <InsightCapabilityResult result={result} evidence={evidence} />,
       ),
-    ).toContain("<td>100.00</td>");
+    ).toContain(">100.00</td>");
     expect(
       renderToString(
         <InsightCapabilityResult
@@ -158,7 +158,7 @@ describe("full investment comparison", () => {
           evidence={{ ...evidence, scope: { id: "other" } }}
         />,
       ),
-    ).not.toContain("<td>100.00</td>");
+    ).not.toContain(">100.00</td>");
   });
 });
 describe("generation failure persistence", () => {

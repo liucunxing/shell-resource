@@ -32,12 +32,12 @@ it.each(["management", "admin"])("%s has the appropriate generation perspective"
   expect(html).not.toContain("分析方案由能力包维护");
 });
 
-it("management overview follows the customer V17 readonly board", () => {
+it("management overview follows the customer V19 readonly board", () => {
   const html = renderToStaticMarkup(<ManagementPage />);
   expect(html).toContain("全局投资看板");
   expect(html).toContain("只读，基于部门已确认方案");
-  expect(html).toContain("① 总盘");
-  expect(html).toContain("② 集中度");
+  expect(html).toContain("总盘 · 资源大类");
+  expect(html).toContain("集中度");
   expect(html).toContain("经销商明细");
   expect(html).not.toContain("当前工作稿（含未同步调整）");
   expect(html).not.toContain("查看 / 调整");
@@ -50,8 +50,11 @@ it("management overview follows the customer V17 readonly board", () => {
 it("the resource settings support shared resource types and explain the historical aggregate", () => {
   const html = renderToStaticMarkup(<HistoricalResourceSettings
     mapping={{ MKT: ["MRD", "SP&A"], ICE: ["SP&A"] }} departments={["NEW"]} saveConfig={vi.fn()} />);
-  expect(html).toContain('aria-label="ICE 可查看 SP&amp;A" checked=""');
-  expect(html).toContain('aria-label="PCMO|MKT 可查看 MRD"');
+  expect(html).toContain('aria-label="历史费用默认权限所属部门"');
+  expect(html).toMatch(/<option[^>]*value="ICE"[^>]*>ICE<\/option>/);
+  expect(html).toMatch(/<option[^>]*value="PCMO\|MKT"[^>]*>PCMO \/ MKT<\/option>/);
+  expect(html).toContain("按用户覆盖");
+  expect(html).toContain("保存部门默认");
   expect(html).toContain("暂不拆部门");
 });
 

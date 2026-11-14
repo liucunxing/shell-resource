@@ -1,0 +1,93 @@
+/* shadcn/ui New York, Tailwind v4. Layout remains in the legacy layer. */
+@layer theme, base, legacy, components, utilities;
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "./styles.css" layer(legacy);
+@import "./workbench/v19-fidelity.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: Arial, "Microsoft YaHei", sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.4375rem;
+  --background: #e9edf0;
+  --foreground: #30383f;
+  --card: #ffffff;
+  --card-foreground: #404040;
+  --popover: #ffffff;
+  --popover-foreground: #20252b;
+  --primary: #fbce07;
+  --primary-foreground: #404040;
+  --secondary: #fff7d1;
+  --secondary-foreground: #53440c;
+  --muted: #f1f3f5;
+  --muted-foreground: #65717c;
+  --accent: #f1f3f5;
+  --accent-foreground: #20252b;
+  --destructive: #dd1d21;
+  --border: #cbd7e2;
+  --input: #dce1e6;
+  --ring: #c59e00;
+  /* Shared legacy layout tokens now follow the same neutral palette. */
+  --ink: var(--foreground);
+  --line: var(--border);
+  --canvas: var(--background);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+}
+
+/* A forced mounted tab panel must remain hidden despite utility display classes. */
+[hidden] {
+  display: none !important;
+}
+
+@layer components {
+  [data-slot="label"]:has(
+    input:not([type="checkbox"]),
+    textarea,
+    [data-slot="native-select"]
+  ) {
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.5;
+  }
+  [data-slot="label"] > [data-slot="native-select-wrapper"] {
+    width: 100%;
+  }
+  [data-slot="label"]:has([data-slot="checkbox"]) {
+    flex-direction: row;
+    align-items: center;
+  }
+}

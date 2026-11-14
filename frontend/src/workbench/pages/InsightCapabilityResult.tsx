@@ -1,3 +1,27 @@
+import { AlertDescription } from "@/components/ui/alert";
+import { Alert } from "../../components/ui/alert";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "../../components/ui/accordion";
+import { Label } from "../../components/ui/label";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "../../components/ui/native-select";
+import { Input } from "../../components/ui/input";
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from "../../components/ui/table";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
 import { useState } from "react";
 import "./insight-capability.css";
 export type Status = "review" | "clear" | "observed" | "limited";
@@ -97,12 +121,20 @@ export function formatEvidence(value: Cell | undefined, unit = ""): string {
 export function formatInsightCopy(value: Cell | undefined): string {
   const text = String(value ?? "");
   return text
-    .replace(/([+\-−]?\d[\d,]*(?:\.\d+)?)\s*(万元|元)/g, (_, value, unit) =>
-      `${(Number(value.replaceAll(",", "").replace("−", "-")) / (unit === "元" ? 10000 : 1)).toLocaleString("zh-CN", { maximumFractionDigits: 2 })}万元`,
+    .replace(
+      /([+\-−]?\d[\d,]*(?:\.\d+)?)\s*(万元|元)/g,
+      (_, value, unit) =>
+        `${(Number(value.replaceAll(",", "").replace("−", "-")) / (unit === "元" ? 10000 : 1)).toLocaleString("zh-CN", { maximumFractionDigits: 2 })}万元`,
     )
-    .replace(/((?:Yield|投入产出比)[^。；;，\n]{0,24}?)([+\-]?\d+(?:\.\d+)?)\s*倍/gi, (_, prefix, value) => `${prefix}${Number(value).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false })}倍`)
-    .replace(/(?<![\w./])([+\-−]?\d[\d,]*\.\d{3,})(\s*(?:%|％|倍|K\$|KL|吨|升))(?![A-Za-z])/g, (_, value, unit) =>
-      `${Number(value.replaceAll(",", "").replace("−", "-")).toLocaleString("zh-CN", { maximumFractionDigits: 2 })}${unit}`,
+    .replace(
+      /((?:Yield|投入产出比)[^。；;，\n]{0,24}?)([+\-]?\d+(?:\.\d+)?)\s*倍/gi,
+      (_, prefix, value) =>
+        `${prefix}${Number(value).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false })}倍`,
+    )
+    .replace(
+      /(?<![\w./])([+\-−]?\d[\d,]*\.\d{3,})(\s*(?:%|％|倍|K\$|KL|吨|升))(?![A-Za-z])/g,
+      (_, value, unit) =>
+        `${Number(value.replaceAll(",", "").replace("−", "-")).toLocaleString("zh-CN", { maximumFractionDigits: 2 })}${unit}`,
     );
 }
 const investmentPageSize = 20;
@@ -136,7 +168,9 @@ export function investmentPage(
     .filter(
       (row) =>
         canCompareInvestment(row) &&
-        (status === "all" || row.status === status || (status === "observed" && row.status === "clear")) &&
+        (status === "all" ||
+          row.status === status ||
+          (status === "observed" && row.status === "clear")) &&
         (!search ||
           [row.dealer, row.dealer_id, row.sector, row.resource_type].some(
             (value) =>
@@ -182,32 +216,35 @@ export function InvestmentReview({
         {scopeLabel} · {dataset.period}
       </p>
       <p className="ic-caption">
-        仅展示本次计划金额大于 0 的已分配记录，完整名单不受分析摘要篇幅影响。标记仅供复核，不代表分配错误。
+        仅展示本次计划金额大于 0
+        的已分配记录，完整名单不受分析摘要篇幅影响。标记仅供复核，不代表分配错误。
       </p>
       <p className="ic-caption">{formatInsightCopy(dataset.note)}</p>
       <p>
-        共 {allocatedRows.length} 项 · 建议复核 {count("review")} 项 · 历史信息不足{" "}
-        {count("limited")} 项
+        共 {allocatedRows.length} 项 · 建议复核 {count("review")} 项 ·
+        历史信息不足 {count("limited")} 项
       </p>
       <div className="ic-review-controls">
-        <label className="form-field">
+        <Label className="form-field">
           核对状态
-          <select
+          <NativeSelect
             value={status}
             onChange={(event) => {
               setStatus(event.target.value);
               setPage(1);
             }}
           >
-            <option value="all">全部</option>
-            <option value="review">建议复核</option>
-            <option value="limited">历史信息不足</option>
-            <option value="observed">已核对</option>
-          </select>
-        </label>
-        <label className="form-field">
+            <NativeSelectOption value="all">全部</NativeSelectOption>
+            <NativeSelectOption value="review">建议复核</NativeSelectOption>
+            <NativeSelectOption value="limited">
+              历史信息不足
+            </NativeSelectOption>
+            <NativeSelectOption value="observed">已核对</NativeSelectOption>
+          </NativeSelect>
+        </Label>
+        <Label className="form-field">
           查找经销商名称、代码、Sector 或资源类型
-          <input
+          <Input
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);
@@ -215,7 +252,7 @@ export function InvestmentReview({
             }}
             placeholder="输入关键词"
           />
-        </label>
+        </Label>
       </div>
       <div
         className="ic-review-scroll"
@@ -223,9 +260,12 @@ export function InvestmentReview({
         role="region"
         aria-label="投入核对明细，可横向滚动"
       >
-        <table className="ic-review-table">
-          <thead>
-            <tr>
+        <Table
+          containerClassName="overflow-visible"
+          className="ic-review-table"
+        >
+          <TableHeader>
+            <TableRow>
               {[
                 "经销商",
                 "Sector",
@@ -236,62 +276,73 @@ export function InvestmentReview({
                 "计划 / 实际",
                 "核对状态",
               ].map((label) => (
-                <th key={label} scope="col">
+                <TableHead key={label} scope="col">
                   {label}
-                </th>
+                </TableHead>
               ))}
-            </tr>
-          </thead>
-          <tbody>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {shown.rows.map((row) => (
-              <tr key={row.id}>
-                <th scope="row">
+              <TableRow key={row.id}>
+                <TableHead scope="row">
                   {row.dealer}
                   {row.dealer_id && row.dealer_id !== row.dealer && (
                     <small className="ic-dealer-code">{row.dealer_id}</small>
                   )}
-                </th>
-                <td>{row.sector || "未指定"}</td>
-                <td>{row.resource_type}</td>
-                <td>{formatInvestmentAmount(row.historical_actual)}</td>
-                <td>{formatInvestmentAmount(row.plan)}</td>
-                <td>{formatInvestmentAmount(row.delta)}</td>
-                <td>
+                </TableHead>
+                <TableCell>{row.sector || "未指定"}</TableCell>
+                <TableCell>{row.resource_type}</TableCell>
+                <TableCell>
+                  {formatInvestmentAmount(row.historical_actual)}
+                </TableCell>
+                <TableCell>{formatInvestmentAmount(row.plan)}</TableCell>
+                <TableCell>{formatInvestmentAmount(row.delta)}</TableCell>
+                <TableCell>
                   {row.multiple == null
                     ? row.historical_actual === 0
                       ? "不适用（实际为 0）"
                       : "缺失"
                     : formatEvidence(row.multiple, "multiple")}
-                </td>
-                <td>
-                  <span className={`ic-status ${row.status}`}>
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    variant="secondary"
+                    className={`ic-status ${row.status}`}
+                  >
                     {investmentStatuses[String(row.status)] || row.status}
-                  </span>
-                </td>
-              </tr>
+                  </Badge>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
       {shown.total === 0 && <p>没有匹配的核对记录。</p>}
       <nav className="ic-review-pagination" aria-label="投入核对分页">
-        <button
-          className="button small"
+        <Button
+          variant="outline"
+          size="sm"
+          type="button"
+
           disabled={shown.page === 1}
           onClick={() => setPage(shown.page - 1)}
         >
           上一页
-        </button>
+        </Button>
         <span aria-live="polite">
           第 {shown.page} / {shown.pages} 页 · 筛选后 {shown.total} 项
         </span>
-        <button
-          className="button small"
+        <Button
+          variant="outline"
+          size="sm"
+          type="button"
+
           disabled={shown.page === shown.pages}
           onClick={() => setPage(shown.page + 1)}
         >
           下一页
-        </button>
+        </Button>
       </nav>
     </section>
   );
@@ -407,19 +458,19 @@ function Quadrant({ dataset }: { dataset: Dataset }) {
         {formatEvidence(dataset.y.cutoff, dataset.y.unit)}
       </p>
       <p>{dataset.cutoff_note}</p>
-      <label className="form-field">
+      <Label className="form-field">
         选择对象
-        <select
+        <NativeSelect
           value={row.id}
           onChange={(event) => setSelected(event.target.value)}
         >
           {dataset.rows.map((item) => (
-            <option key={item.id} value={item.id}>
+            <NativeSelectOption key={item.id} value={item.id}>
               {item.label || item.id}
-            </option>
+            </NativeSelectOption>
           ))}
-        </select>
-      </label>
+        </NativeSelect>
+      </Label>
       <p className="ic-selected">
         {row.label}：{formatEvidence(row.x, dataset.x.unit)} ×{" "}
         {formatEvidence(row.y, dataset.y.unit)} · {row.group}
@@ -427,10 +478,17 @@ function Quadrant({ dataset }: { dataset: Dataset }) {
           ? ` · 同坐标 ${coincident} 个对象，可通过列表逐一选择`
           : ""}
       </p>
-      <details>
-        <summary>完整队列（{dataset.rows.length}）</summary>
-        <EvidenceRows dataset={dataset} />
-      </details>
+      <Accordion type="single" collapsible>
+        <AccordionItem value="content">
+          <AccordionTrigger>完整队列（{dataset.rows.length}）</AccordionTrigger>
+          <AccordionContent
+            forceMount
+            className="[[data-state=closed]_&]:hidden"
+          >
+            <EvidenceRows dataset={dataset} />
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </>
   );
 }
@@ -488,12 +546,15 @@ export function InsightChart({ dataset }: { dataset: Dataset }) {
             ))}
           </div>
           {dataset.kind === "ranked_bar" && dataset.rows.length > 5 && (
-            <button
-              className="button small"
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+
               onClick={() => setExpanded(!expanded)}
             >
               {expanded ? "收起" : `查看完整列表（${dataset.rows.length}）`}
-            </button>
+            </Button>
           )}
           <p className="ic-caption">
             零基线金额条 · 显示 {shown.length}／{dataset.rows.length} 项
@@ -573,20 +634,24 @@ function FactReferences({
   );
   if (!facts.length) return null;
   return (
-    <details className="ic-facts">
-      <summary>核对依据（{facts.length}）</summary>
-      {facts.map((fact) => (
-        <p key={fact.id}>
-          <strong>
-            {investmentFactText(fact) ??
-              `${fact.label}：${formatEvidence(fact.value, fact.unit)}`}
-          </strong>
-          <br />
-          {fact.period} · {formatFactSource(fact.source)}
-          {fact.note && ` · ${formatInsightCopy(fact.note)}`}
-        </p>
-      ))}
-    </details>
+    <Accordion type="single" collapsible className="ic-facts">
+      <AccordionItem value="content">
+        <AccordionTrigger>核对依据（{facts.length}）</AccordionTrigger>
+        <AccordionContent forceMount className="[[data-state=closed]_&]:hidden">
+          {facts.map((fact) => (
+            <p key={fact.id}>
+              <strong>
+                {investmentFactText(fact) ??
+                  `${fact.label}：${formatEvidence(fact.value, fact.unit)}`}
+              </strong>
+              <br />
+              {fact.period} · {formatFactSource(fact.source)}
+              {fact.note && ` · ${formatInsightCopy(fact.note)}`}
+            </p>
+          ))}
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 }
 export function InsightCapabilityResult({
@@ -609,7 +674,11 @@ export function InsightCapabilityResult({
       <h3>{formatInsightCopy(result.headline)}</h3>
       <p className="ic-body">{formatInsightCopy(result.summary)}</p>
       {evidence.provenance.kind === "synthetic" && (
-        <p className="note-box">合成数据：{evidence.provenance.description}</p>
+        <Alert role="note" className="note-box">
+          <AlertDescription>
+            合成数据：{evidence.provenance.description}
+          </AlertDescription>
+        </Alert>
       )}
       {investment && (
         <InvestmentReview
@@ -627,7 +696,9 @@ export function InsightCapabilityResult({
       )}
       {investment && <h3>分析解读</h3>}
       <p className="ic-caption">
-        文中列举的经销商是分析样例：优先关注需要复核的投入变化，再结合高低 Yield、投入占比及不同投入与 Yield 象限选取代表对象，并非固定前几名或全部经销商排名。
+        文中列举的经销商是分析样例：优先关注需要复核的投入变化，再结合高低
+        Yield、投入占比及不同投入与 Yield
+        象限选取代表对象，并非固定前几名或全部经销商排名。
         {investment && "已分配明细可在上方表格查阅。"}
       </p>
       <ul className="ic-checks" aria-label="六维检查摘要">
@@ -640,15 +711,25 @@ export function InsightCapabilityResult({
             <li key={check.dimension_id}>
               <div>
                 <strong>{dimensions[check.dimension_id]}</strong>
-                <span className={`ic-status ${check.status}`}>
+                <Badge
+                  variant="secondary"
+                  className={`ic-status ${check.status}`}
+                >
                   {statuses[check.status]}
-                </span>
+                </Badge>
               </div>
               {investment && ["clear", "observed"].includes(check.status) ? (
-                <details open>
-                  <summary>查看本项说明</summary>
-                  <p>{formatInsightCopy(check.summary)}</p>
-                </details>
+                <Accordion type="single" collapsible defaultValue="content">
+                  <AccordionItem value="content">
+                    <AccordionTrigger>查看本项说明</AccordionTrigger>
+                    <AccordionContent
+                      forceMount
+                      className="[[data-state=closed]_&]:hidden"
+                    >
+                      <p>{formatInsightCopy(check.summary)}</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               ) : (
                 <p>{formatInsightCopy(check.summary)}</p>
               )}
@@ -656,16 +737,20 @@ export function InsightCapabilityResult({
           ))}
       </ul>
       {result.blocks.map((block) => {
-        if (result.preset_id === "comprehensive" && block.dataset_id === "budget-compare") return null;
+        if (
+          result.preset_id === "comprehensive" &&
+          block.dataset_id === "budget-compare"
+        )
+          return null;
         const dataset = evidence.datasets.find(
           (item) =>
             item.id === block.dataset_id && item.scope_id === evidence.scope.id,
         );
         return (
           <article className="ic-block" key={block.id}>
-            <span className={`ic-status ${block.status}`}>
+            <Badge variant="secondary" className={`ic-status ${block.status}`}>
               {statuses[block.status]}
-            </span>
+            </Badge>
             {block.title && <h3>{formatInsightCopy(block.title)}</h3>}
             <p className="ic-body">{formatInsightCopy(block.body)}</p>
             {block.kind === "visual" &&

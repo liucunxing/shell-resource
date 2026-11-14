@@ -1,3 +1,24 @@
+import { AlertDescription } from "@/components/ui/alert";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
+import { Alert } from "../../components/ui/alert";
+import { Card } from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from "../../components/ui/table";
+import { Badge } from "../../components/ui/badge";
+import { Label } from "../../components/ui/label";
+import { Checkbox } from "../../components/ui/checkbox";
+import { Textarea } from "../../components/ui/textarea";
 import { useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
@@ -17,36 +38,59 @@ const num = (value, digits = 1) =>
 const time = (value) => (value ? new Date(value).toLocaleString("zh-CN") : "—");
 const ADMIN_META = {
   "admin-versions": [
-    "ADMINISTRATION / VERSIONS",
+    "VERSIONS",
     "版本与发布",
     "创建、发布规划版本；控制开放 / 关闭提交",
   ],
   "admin-initiatives": [
-    "ADMINISTRATION / INITIATIVES",
+    "CATALOG",
     "本版项目配置",
     "每个版本独立维护 Initiative 清单、预算、资源大类与 Owner",
   ],
   "admin-users": [
-    "ADMINISTRATION / ACCESS",
+    "USERS & ACCESS",
     "用户与权限",
     "维护登录账号、角色和 Sector / Department 数据范围",
   ],
   "admin-enums": [
-    "ADMINISTRATION / ENUMS",
+    "ORGANIZATION",
     "组织与枚举",
     "维护 Sector、Department、资源大类和历史数据期间",
   ],
   "admin-thresholds": [
-    "ADMINISTRATION / HEALTH RULES",
+    "HEALTH RULES",
     "健康检查阈值",
     "配置集中度和经销商超配 / 低配的提醒阈值",
   ],
   "admin-audit": [
-    "ADMINISTRATION / AUDIT",
+    "AUDIT",
     "操作审计",
     "查看版本、配置、草稿和提交的关键操作记录",
   ],
 };
+
+export function initiativePayload(row) {
+  const budget = Number(row.budget);
+  if (
+    !row.name?.trim() ||
+    !row.ownerId?.trim() ||
+    !row.reason?.trim() ||
+    !Number.isSafeInteger(budget) ||
+    budget < 0
+  )
+    throw Error("请完整填写名称、Owner、变化原因与非负整数元预算。");
+  return {
+    id: row.id,
+    name: row.name.trim(),
+    sector: row.sector,
+    department: row.department,
+    resourceType: row.resourceType,
+    ownerId: row.ownerId.trim(),
+    budget,
+    enabled: row.enabled !== false,
+    reason: row.reason.trim(),
+  };
+}
 
 function InitiativesPage({
   items,
@@ -59,212 +103,451 @@ function InitiativesPage({
   state,
   previewMode,
 }) {
-  const [query, setQuery] = useState(""),
-    [editing, setEditing] = useState(null),
-    [busy, setBusy] = useState(false), [error, setError] = useState("");
-  const filtered = items.filter((item) =>
-    `${item.id} ${item.name} ${item.ownerId}`
+  const [query, setQuery] = useState("");
+  const [editMode, setEditMode] = useState(false);
+  const [drafts, setDrafts] = useState({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const rows = [
+    ...items.map((item) => ({
+      ...item,
+      reason: "",
+      ...drafts[item.id],
+      _key: String(item.id),
+    })),
+    ...Object.entries(drafts)
+      .filter(([key]) => key.startsWith("new:"))
+      .map(([key, value]) => ({ ...value, _key: key })),
+  ];
+  const filtered = rows.filter((row) =>
+    `${row.id || ""} ${row.name} ${row.ownerId}`
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
-  const open = (item = null) => { setError(""); setEditing(
-      item
-        ? { ...item, budgetWan: item.budget / 10000, reason: "" }
-        : {
-            id: "",
-            name: "",
-            sector: "PCMO",
-            department: "MKT",
-            resourceType: "MRD",
-            ownerId: "",
-            budgetWan: 0,
-            enabled: true,
-            reason: "",
-          },
-    ); };
+  const edit = (row, key, value) =>
+    setDrafts((old) => ({ ...old, [row._key]: { ...row, [key]: value } }));
+  const owners = roles
+    .filter((user) => user.role === "owner")
+    .map((user) => ({
+      value: user.email || user.ownerId || user.key,
+      label: user.display_name || user.label || user.email || user.ownerId,
+    }));
+  const add = () => {
+    const key = `new:${crypto.randomUUID()}`;
+    setDrafts((old) => ({
+      ...old,
+      [key]: {
+        name: "",
+        sector: "PCMO",
+        department: "MKT",
+        resourceType: "MRD",
+        ownerId: "",
+        budget: 0,
+        enabled: true,
+        reason: "",
+      },
+    }));
+  };
   const save = async () => {
-    const payload = {
-      id: editing.id,
-      name: editing.name.trim(),
-      sector: editing.sector,
-      department: editing.department,
-      resourceType: editing.resourceType,
-      ownerId: editing.ownerId,
-      budget: Math.round(Number(editing.budgetWan) * 10000),
-      enabled: editing.enabled !== false,
-      reason: editing.reason.trim(),
-    };
-    if (!payload.name || !payload.ownerId || !Number.isFinite(payload.budget) || payload.budget < 0 || (state.planningVersion && !payload.reason))
-      return notify("请完整填写名称、Owner、变更原因与非负预算。", true);
-    setBusy(true);
+    let pending;
     try {
-      if (apiMode)
-        await manageAdminBudget(
-          items.some((item) => item.id === editing.id) ? "edit" : "create",
-          editing,
-          payload,
-        );
-      else
-        mutate((draft) => {
-          const exists = draft.initiatives.some(
-            (item) => item.id === editing.id,
-          );
-          if (exists)
-            E.editAdminBudget(draft, editing.id, payload, identity, roles);
-          else E.applyAdminConfiguration(draft, [], identity, roles, [payload]);
-        }, "本版项目配置已更新。");
-      setEditing(null);
+      pending = Object.entries(drafts).map(([key, row]) => ({
+        key,
+        row,
+        payload: initiativePayload(row),
+      }));
     } catch (failure) {
       setError(failure.message);
+      return;
+    }
+    setBusy(true);
+    setError("");
+    let saved = 0;
+    try {
+      for (const { key, row, payload } of pending) {
+        if (apiMode) {
+          const ok = await manageAdminBudget(
+            key.startsWith("new:") ? "create" : "edit",
+            row,
+            payload,
+          );
+          if (!ok) throw Error("当前会话或版本已变化，请重新检查未保存项目。");
+        } else {
+          mutate((draft) =>
+            key.startsWith("new:")
+              ? E.applyAdminConfiguration(draft, [], identity, roles, [payload])
+              : E.editAdminBudget(draft, row.id, payload, identity, roles),
+          );
+        }
+        saved += 1;
+        setDrafts((old) => {
+          const next = { ...old };
+          delete next[key];
+          return next;
+        });
+      }
+      setEditMode(false);
+      notify(`已保存 ${saved} 个 Initiative。`);
+    } catch (failure) {
+      setError(
+        `${saved ? `已保存 ${saved} 项；其余修改仍保留。` : ""}${failure.message}`,
+      );
     } finally {
       setBusy(false);
     }
   };
+  const choice = (row, key, values, label) => (
+    <NativeSelect
+      aria-label={`${row.name || "新增项目"} ${label}`}
+      value={row[key]}
+      disabled={busy || previewMode}
+      onChange={(event) => edit(row, key, event.target.value)}
+    >
+      {[...new Set([row[key], ...values])].map((value) => (
+        <NativeSelectOption key={value} value={value}>
+          {value || "请选择"}
+        </NativeSelectOption>
+      ))}
+    </NativeSelect>
+  );
+  if (!editMode)
+    return (
+      <>
+        <VersionBar />
+        <Card className="panel studio-admin-panel">
+          <div className="panel-header">
+            <h2>{state.currentVersionId || "当前版本"} · 项目清单与预算</h2>
+            <div className="actions">
+              <Button
+                disabled={previewMode}
+                onClick={() => {
+                  setEditMode(true);
+                  add();
+                }}
+              >
+                ＋ 本版新增 Initiative
+              </Button>
+              <Button disabled={previewMode} onClick={() => setEditMode(true)}>
+                编辑
+              </Button>
+            </div>
+          </div>
+          <div className="table-scroll">
+            <Table containerClassName="overflow-visible">
+              <TableHeader>
+                <TableRow>
+                  {[
+                    "编码 / Initiative",
+                    "Sector",
+                    "Department",
+                    "Resource Type",
+                    "Owner",
+                    "预算（万）",
+                    "本版状态",
+                    "操作",
+                  ].map((label) => (
+                    <TableHead key={label}>{label}</TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {items.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <span>{item.name}</span>
+                      <small className="block muted">
+                        {item.initiativeKey || item.id}
+                      </small>
+                    </TableCell>
+                    <TableCell>{item.sector}</TableCell>
+                    <TableCell>{item.department}</TableCell>
+                    <TableCell>{item.resourceType}</TableCell>
+                    <TableCell>
+                      {owners.find((owner) => owner.value === item.ownerId)
+                        ?.label || item.ownerId}
+                    </TableCell>
+                    <TableCell>{num(item.budget / 10000)}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="secondary"
+                        className={
+                          item.enabled === false
+                            ? "v19-disabled-status"
+                            : "v19-enabled-status"
+                        }
+                      >
+                        {item.enabled === false ? "本版取消" : "启用"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={previewMode}
+                        onClick={() => setEditMode(true)}
+                      >
+                        编辑
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      </>
+    );
   return (
     <>
       <VersionBar />
-      <section className="panel studio-admin-panel">
+      <Card className="panel studio-admin-panel v19-inline-config">
         <div className="panel-header">
           <div>
-            <h2>{state.planningVersion?.name || "历史工作区"} · 项目清单与预算</h2>
+            <h2>本版项目配置 · 编辑中</h2>
             <p>
-              {items.length} 项 · 总预算 {num(E.totals(items).budget / 10000)}{" "}
+              {rows.length} 项 · 总预算{" "}
+              {num(
+                rows.reduce((sum, row) => sum + (Number(row.budget) || 0), 0) /
+                  10000,
+              )}{" "}
               万
             </p>
           </div>
-          <button className="button primary" disabled={previewMode} onClick={() => open()}>
-            ＋ 本版新增 Initiative
-          </button>
+          <div className="actions">
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => {
+                setDrafts({});
+                setError("");
+                setEditMode(false);
+              }}
+            >
+              取消修改
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy || previewMode}
+              onClick={add}
+            >
+              ＋ 新增 Initiative
+            </Button>
+            <Button
+              disabled={busy || previewMode || !Object.keys(drafts).length}
+              onClick={save}
+            >
+              {busy ? "保存中…" : "统一保存"}
+            </Button>
+          </div>
         </div>
         <div className="studio-table-toolbar">
-          <input
+          <Input
             type="search"
             placeholder="搜索编码 / Initiative / Owner"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
           <span>
-            显示 {filtered.length} / {items.length} 项
+            显示 {filtered.length} / {rows.length} 项
           </span>
         </div>
+        {error && (
+          <Alert variant="destructive" role="alert">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
         <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>编码 / Initiative</th>
-                <th>Sector / 部门</th>
-                <th>Resource Type</th>
-                <th>Owner</th>
-                <th className="num">预算（万）</th>
-                <th>本版状态</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((item) => (
-                <tr key={item.id}>
-                  <td>
-                    <strong>{item.name}</strong>
-                    <small>{item.id}</small>
-                  </td>
-                  <td>
-                    {item.sector}
-                    <small>{item.department}</small>
-                  </td>
-                  <td>{item.resourceType}</td>
-                  <td>{item.ownerId}</td>
-                  <td className="num">{num(item.budget / 10000)}</td>
-                  <td>
-                    <span className={`resource-status ${item.enabled === false ? "editing" : "done"}`}>{item.enabled === false ? "停用" : "启用"}</span>
-                  </td>
-                  <td>
-                    <button className="button small" disabled={previewMode} onClick={() => open(item)}>
-                      编辑
-                    </button>
-                  </td>
-                </tr>
+          <Table containerClassName="overflow-visible">
+            <TableHeader>
+              <TableRow>
+                {[
+                  "编码 / Initiative",
+                  "Sector",
+                  "部门",
+                  "资源大类",
+                  "Owner",
+                  "预算（元）",
+                  "状态",
+                  "变化原因",
+                  "承接编码",
+                ].map((label) => (
+                  <TableHead key={label}>{label}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((row) => (
+                <TableRow key={row._key} data-dirty={!!drafts[row._key]}>
+                  <TableCell>
+                    <small>{row.initiativeKey || row.id || "保存后生成"}</small>
+                    <Input
+                      aria-label={`${row.id || "新增项目"} Initiative 名称`}
+                      value={row.name}
+                      disabled={busy || previewMode}
+                      onChange={(event) =>
+                        edit(row, "name", event.target.value)
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {choice(
+                      row,
+                      "sector",
+                      ["PCMO", "CRTO", "B2B", "OEM"],
+                      "Sector",
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {choice(row, "department", ["MKT", "ICE", "CAPEX"], "部门")}
+                  </TableCell>
+                  <TableCell>
+                    {choice(
+                      row,
+                      "resourceType",
+                      ["MRD", "SP&A", "ICE Rebate", "Capex"],
+                      "资源大类",
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <NativeSelect
+                      aria-label={`${row.name || "新增项目"} Owner`}
+                      value={row.ownerId}
+                      disabled={busy || previewMode}
+                      onChange={(event) =>
+                        edit(row, "ownerId", event.target.value)
+                      }
+                    >
+                      <NativeSelectOption value="">请选择</NativeSelectOption>
+                      {row.ownerId &&
+                        !owners.some(
+                          (owner) => owner.value === row.ownerId,
+                        ) && (
+                          <NativeSelectOption value={row.ownerId}>
+                            {row.ownerId}
+                          </NativeSelectOption>
+                        )}
+                      {owners.map((owner) => (
+                        <NativeSelectOption
+                          key={owner.value}
+                          value={owner.value}
+                        >
+                          {owner.label}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      aria-label={`${row.name || "新增项目"} 预算（元）`}
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={row.budget}
+                      disabled={busy || previewMode}
+                      onChange={(event) =>
+                        edit(row, "budget", event.target.value)
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <NativeSelect
+                      aria-label={`${row.name || "新增项目"} 状态`}
+                      value={row.enabled === false ? "off" : "on"}
+                      disabled={busy || previewMode}
+                      onChange={(event) =>
+                        edit(row, "enabled", event.target.value === "on")
+                      }
+                    >
+                      <NativeSelectOption value="on">启用</NativeSelectOption>
+                      <NativeSelectOption value="off">停用</NativeSelectOption>
+                    </NativeSelect>
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      aria-label={`${row.name || "新增项目"} 变化原因`}
+                      placeholder="填写变化原因"
+                      value={row.reason}
+                      maxLength={160}
+                      disabled={busy || previewMode}
+                      onChange={(event) =>
+                        edit(row, "reason", event.target.value)
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>{row.initiativeKey || "—"}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
-      </section>
-      {editing && (
-        <WorkflowDialog title={editing.id ? "编辑 Initiative" : "本版新增 Initiative"} busy={busy} onClose={() => setEditing(null)} onConfirm={save} confirmLabel="保存项目">
-          <p>预算与归属变更保留原名单和金额，撤回对应提交与部门确认；版本需重新发布。</p>
-          <div className="v19-form-grid">
-          {[
-            ["Initiative 名称", "name"],
-            ["Sector", "sector"],
-            ["Department", "department"],
-            ["Resource Type", "resourceType"],
-            ["Owner", "ownerId"],
-            ["预算（万）", "budgetWan"],
-          ].map(([label, key]) => (
-            <label key={key}>
-              {label}
-              <input
-                type={key === "budgetWan" ? "number" : "text"}
-                value={editing[key]}
-                disabled={
-                  key === "id" && items.some((item) => item.id === editing.id)
-                }
-                onChange={(event) =>
-                  setEditing({ ...editing, [key]: event.target.value })
-                }
-              />
-            </label>
-          ))}
-          </div>
-          <label className="v19-scope-label"><input type="checkbox" checked={editing.enabled !== false} onChange={(event) => setEditing({ ...editing, enabled: event.target.checked })} />本版启用</label>
-          <label>变更原因（必填）<textarea value={editing.reason} onChange={(event) => setEditing({ ...editing, reason: event.target.value })} /></label>
-          {error && <p className="note-box warn" role="alert">{error}</p>}
-        </WorkflowDialog>
-      )}
+        <p className="footerhint">
+          预算与归属变化保留原名单和金额，变更后需重新发布；取消项目保留编码和历史。承接编码使用已有版本关联，不能手工猜配。
+        </p>
+      </Card>
     </>
   );
 }
 
 export function AuditPage({ audit }) {
   const [query, setQuery] = useState("");
-  const filtered = audit.filter((row) => JSON.stringify(row).toLowerCase().includes(query.toLowerCase()));
+  const filtered = audit.filter((row) =>
+    JSON.stringify(row).toLowerCase().includes(query.toLowerCase()),
+  );
   return (
-    <section className="panel studio-admin-panel">
+    <Card className="panel studio-admin-panel gap-4 p-4">
       <div className="studio-table-toolbar">
         <span>共 {filtered.length} 条操作记录</span>
-        <input type="search" placeholder="搜索操作人 / 对象 / 动作" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <Input
+          type="search"
+          placeholder="搜索操作人 / 对象 / 动作"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
       </div>
       <div className="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>时间</th>
-              <th>操作人</th>
-              <th>动作</th>
-              <th>对象</th>
-              <th>摘要</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table containerClassName="overflow-visible">
+          <TableHeader>
+            <TableRow>
+              <TableHead>时间</TableHead>
+              <TableHead>操作人</TableHead>
+              <TableHead>动作</TableHead>
+              <TableHead>对象</TableHead>
+              <TableHead>摘要</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {filtered.map((row, index) => (
-              <tr key={row.id || index}>
-                <td>{time(row.at || row.createdAt)}</td>
-                <td>{typeof row.actor === "object" ? row.actor?.label || row.operator || "—" : row.actor || row.user || row.operator || "—"}</td>
-                <td>{row.action || row.type || "—"}</td>
-                <td>{row.object || row.target || row.scope || row.initiativeId || "—"}</td>
-                <td>{row.detail || row.note || row.message || row.summary || "—"}</td>
-              </tr>
+              <TableRow key={row.id || index}>
+                <TableCell>{time(row.at || row.createdAt)}</TableCell>
+                <TableCell>
+                  {typeof row.actor === "object"
+                    ? row.actor?.label || row.operator || "—"
+                    : row.actor || row.user || row.operator || "—"}
+                </TableCell>
+                <TableCell>{row.action || row.type || "—"}</TableCell>
+                <TableCell>
+                  {row.object ||
+                    row.target ||
+                    row.scope ||
+                    row.initiativeId ||
+                    "—"}
+                </TableCell>
+                <TableCell>
+                  {row.detail || row.note || row.message || row.summary || "—"}
+                </TableCell>
+              </TableRow>
             ))}
             {!filtered.length && (
-              <tr>
-                <td colSpan="5">
+              <TableRow>
+                <TableCell colSpan="5">
                   <div className="empty">暂无操作审计记录。</div>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
-    </section>
+    </Card>
   );
 }
 
@@ -287,12 +570,11 @@ export function AdminStudioPage() {
     meta = ADMIN_META[page] || ADMIN_META["admin-versions"];
   return (
     <>
-      <PageHead eyebrow={meta[0]} title={meta[1]} description={meta[2]} />
-      {page === "admin-versions" && (
-        <PlanningVersionsPage />
-      )}
+      <PageHead eyebrow={meta[0]} title={meta[1]} />
+      {page === "admin-versions" && <PlanningVersionsPage />}
       {page === "admin-initiatives" && (
         <InitiativesPage
+          key={state.currentVersionId || "legacy"}
           items={items}
           state={state}
           previewMode={context.previewMode}
@@ -305,8 +587,18 @@ export function AdminStudioPage() {
         />
       )}
       {page === "admin-users" && (
-        <><section className="panel studio-admin-panel"><AdminUsersPanel /></section>
-          <HistoricalResourceSettings mapping={state.departmentResources || {}} roleMapping={state.roleResources} departments={[...new Set(items.map((item) => item.department))]} saveConfig={context.saveConfig} readOnly={context.previewMode} /></>
+        <>
+          <Card className="panel studio-admin-panel gap-4 p-4">
+            <AdminUsersPanel />
+          </Card>
+          <HistoricalResourceSettings
+            mapping={state.departmentResources || {}}
+            roleMapping={state.roleResources}
+            departments={[...new Set(items.map((item) => item.department))]}
+            saveConfig={context.saveConfig}
+            readOnly={context.previewMode}
+          />
+        </>
       )}
       {page === "admin-enums" && <StudioConfiguration />}
       {page === "admin-thresholds" && <StudioConfiguration thresholds />}

@@ -25,12 +25,23 @@ const items = [{ name: "I", resourceType: "MRD", sector: "S", rows: [
 
 describe("Resource Studio portfolio calculations", () => {
   it("excludes no-history dealers and applies the documented Top 20% ordering", () => {
-    const result = concentration(portfolioRows(items, dealers), 20);
+    const yuanItems = items.map(item => ({ ...item, rows: item.rows.map(row => ({ ...row, amount: row.amount * 10000 })) }));
+    const result = concentration(portfolioRows(yuanItems, dealers), 20);
     expect(result.n).toBe(1);
     expect(result.top[0].id).toBe("B");
     expect(result.amountShare).toBeCloseTo(40);
     expect(result.metricShare).toBeCloseTo(30);
     expect(result.gap).toBeCloseTo(10);
+  });
+
+  it("uses hundred-yuan ties, output, then business code and rejects zero denominators", () => {
+    const rows = [{ id: "z", code: "A", amount: 1001, metric: 40 }, { id: "a", code: "B", amount: 1049, metric: 30 }];
+    expect(concentration(rows, 20).top[0].code).toBe("A");
+    expect(concentration(rows.map(row => ({ ...row, metric: 0 })), 20)).toBeNull();
+    expect(concentration(rows.map(row => ({ ...row, amount: 0 })), 20)).toBeNull();
+    const noHistory = portfolioRows(items, dealers.map(dealer => ({ ...dealer, history: { c32025: 0, vol2025: 0 } })));
+    expect(concentration(noHistory)).toBeNull();
+    expect(dealerDeviations(noHistory)).toEqual([]);
   });
 
   it("calculates single-dealer over and under allocation gaps", () => {

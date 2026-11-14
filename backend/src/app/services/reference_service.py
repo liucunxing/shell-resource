@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -58,10 +59,8 @@ class ReferenceService:
                 "c32025": row["c3_2025"],
                 "vol2026Ytd": row["volume_2026"],
                 "c32026Ytd": row["c3_2026"],
-                "yield": row["yield_2025"],
+                "yield": None,
                 "yield2026Ytd": None,
-                "yoyVol2425": row["yoy_vol_24_25"],
-                "yoyC32425": row["yoy_c3_24_25"],
             }
             history: dict[str, Any] = {
                 key: float(value) if value is not None else None
@@ -77,11 +76,33 @@ class ReferenceService:
                     if all(value is not None for value in values.values()) else None
                 )
             history["expenseAccess"] = access
-            # Imported YoY values are ratios (0.125 = 12.5%); keep the UI contract
-            # in percentage points. Do not recompute the data team's supplied values.
-            for key in ("yoyVol2425", "yoyC32425"):
-                if history[key] is not None:
-                    history[key] *= 100
+            # Apply the agreed formulas to raw metrics; source ratios can disagree
+            # with them. The raw database values are never changed by this projection.
+            c3 = row["c3_2025"]
+            investment = history["totalInvestment2025"]
+            if c3 is None or investment is None:
+                history["yieldUnavailableReason"] = "missing_inputs"
+            elif c3 <= 0 or investment <= 0:
+                history["yieldUnavailableReason"] = "non_positive_inputs"
+            else:
+                total = sum(Decimal(str(value)) for value in resources.values())
+                history["yield"] = float(Decimal(str(c3)) / total)
+                history["yieldUnavailableReason"] = None
+            for key, metric in (("yoyVol2425", "volume"), ("yoyC32425", "c3")):
+                base, current = row[f"{metric}_2024"], row[f"{metric}_2025"]
+                reason = None
+                value = None
+                if base is None:
+                    reason = "missing_base"
+                elif base <= 0:
+                    reason = "no_base"
+                elif current is None:
+                    reason = "missing_current"
+                else:
+                    base_decimal = Decimal(str(base))
+                    value = float((Decimal(str(current)) - base_decimal) / base_decimal * 100)
+                history[key] = value
+                history[f"{key}UnavailableReason"] = reason
             history["resources2025"] = {
                 key: float(value) if value is not None else None
                 for key, value in resources.items()

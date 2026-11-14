@@ -1,11 +1,47 @@
+import { AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "../../components/ui/dialog";
+import { Alert } from "../../components/ui/alert";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from "../../components/ui/table";
+import { Badge } from "../../components/ui/badge";
+import { Textarea } from "../../components/ui/textarea";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "../../components/ui/native-select";
 import { useEffect, useRef, useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
 import AX from "../domain/admin-excel.js";
 import { HistoricalResourceSettings } from "./HistoricalResourceSettings.jsx";
-import { exportExcelInWorker, parseReferenceInWorker, previewExcelInWorker } from "../file-import.js";
+import {
+  exportExcelInWorker,
+  parseReferenceInWorker,
+  previewExcelInWorker,
+} from "../file-import.js";
 import { AdminUsersPanel } from "./AdminUsersPanel.jsx";
-import { AdminBudgetFields, budgetForm, budgetPayload } from "./AdminBudgetFields.jsx";
+import {
+  AdminBudgetFields,
+  budgetForm,
+  budgetPayload,
+} from "./AdminBudgetFields.jsx";
 
 const money = (value) =>
   Number.isFinite(value)
@@ -15,8 +51,14 @@ const money = (value) =>
       })
     : "无效值";
 export function filterAdminInitiatives(items, query) {
-  const term = String(query || "").trim().toLocaleLowerCase();
-  return items.filter((item) => String(item.name || "").toLocaleLowerCase().includes(term));
+  const term = String(query || "")
+    .trim()
+    .toLocaleLowerCase();
+  return items.filter((item) =>
+    String(item.name || "")
+      .toLocaleLowerCase()
+      .includes(term),
+  );
 }
 const time = (value) => (value ? new Date(value).toLocaleString("zh-CN") : "—");
 const tabs = [
@@ -51,57 +93,39 @@ function AdminDialog({
   disabled = false,
   error = "",
 }) {
-  const ref = useRef(null);
-  useEffect(() => {
-    const previous = document.activeElement;
-    const dialog = ref.current;
-    dialog.showModal();
-    return () => {
-      dialog.close();
-      if (previous instanceof HTMLElement && previous.isConnected)
-        previous.focus();
-    };
-  }, []);
   return (
-    <dialog
-      ref={ref}
-      className="modal wide"
-      aria-labelledby="admin-dialog-title"
-      onCancel={(event) => {
-        event.preventDefault();
-        onClose();
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
       }}
-      style={{ border: 0, padding: 0, maxHeight: "88dvh", overflow: "auto" }}
     >
-      <div className="modal-head">
-        <h2 id="admin-dialog-title">{title}</h2>
-        <button
-          className="button"
-          type="button"
-          onClick={onClose}
-          aria-label="关闭弹窗"
-        >
-          ×
-        </button>
-      </div>
-      {error && <div className="admin-dialog-error" role="alert">{error}</div>}
-      <div className="modal-body">{children}</div>
-      <div className="modal-foot">
-        <button className="button" type="button" onClick={onClose}>
-          {onConfirm ? "取消" : "关闭"}
-        </button>
-        {onConfirm && (
-          <button
-            type="button"
-            className="button primary"
-            disabled={disabled}
-            onClick={onConfirm}
-          >
-            {confirmLabel}
-          </button>
+      <DialogContent
+        className="sm:max-w-4xl max-h-[88dvh] overflow-y-auto"
+        showCloseButton={false}
+        aria-describedby={undefined}
+      >
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
-      </div>
-    </dialog>
+        <div className="modal-body">{children}</div>
+        <DialogFooter>
+          <Button variant="outline" type="button" onClick={onClose}>
+            {onConfirm ? "取消" : "关闭"}
+          </Button>
+          {onConfirm && (
+            <Button type="button" disabled={disabled} onClick={onConfirm}>
+              {confirmLabel}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -178,16 +202,20 @@ export function AdminPage() {
     const { kind, item } = modal;
     setBudgetError("");
     try {
-      const payload = kind === "delete" ? null : budgetPayload(modal.form, apiMode);
+      const payload =
+        kind === "delete" ? null : budgetPayload(modal.form, apiMode);
       if (kind !== "delete") {
         const candidate = structuredClone(state);
-        if (kind === "edit") E.editAdminBudget(candidate, item.id, payload, identity, roles);
-        else E.applyAdminConfiguration(candidate, [], identity, roles, [payload]);
+        if (kind === "edit")
+          E.editAdminBudget(candidate, item.id, payload, identity, roles);
+        else
+          E.applyAdminConfiguration(candidate, [], identity, roles, [payload]);
       }
       if (!apiMode) {
         change((draft) => {
           if (kind === "delete") E.deleteAdminBudget(draft, item.id, identity);
-          else if (kind === "edit") E.editAdminBudget(draft, item.id, payload, identity, roles);
+          else if (kind === "edit")
+            E.editAdminBudget(draft, item.id, payload, identity, roles);
           else E.applyAdminConfiguration(draft, [], identity, roles, [payload]);
         }, "项目配置已更新。");
         return;
@@ -198,7 +226,11 @@ export function AdminPage() {
         const ok = await manageAdminBudget(kind, item, payload);
         if (ok && request === saveSequence.current) {
           close();
-          notify(kind === "delete" ? "项目已删除，删除前快照保留在服务端操作日志。" : "项目已保存，已有分配保留，请重新复核并同步。");
+          notify(
+            kind === "delete"
+              ? "项目已删除，删除前快照保留在服务端操作日志。"
+              : "项目已保存，已有分配保留，请重新复核并同步。",
+          );
         }
       } finally {
         if (request === saveSequence.current) setSavingBudgets(false);
@@ -363,21 +395,17 @@ export function AdminPage() {
           <p>维护预算、参考数据和分析依据。业务工作稿按操作即时保存。</p>
         </div>
       </div>
-      <div className="tabs" aria-label="管理后台栏目">
-        {tabs.map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            className={tab === id ? "active" : ""}
-            aria-pressed={tab === id}
-            onClick={() => switchTab(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <Tabs value={tab} onValueChange={switchTab}>
+        <TabsList aria-label="管理后台栏目" className="flex-wrap h-auto">
+          {tabs.map(([id, label]) => (
+            <TabsTrigger key={id} value={id}>
+              {label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
       {tab === "budgets" && (
-        <section className="panel" aria-busy={budgetPending}>
+        <Card className="panel gap-0 py-0" aria-busy={budgetPending}>
           <div className="panel-header admin-config-header">
             <div>
               <h2>预算与 Owner 映射</h2>
@@ -386,22 +414,36 @@ export function AdminPage() {
               </p>
             </div>
             <div className="actions">
-              <button className="button small" disabled={budgetPending || previewMode} onClick={() => setModal({ kind: "create", form: budgetForm() })}>新增</button>
-              <button
-                className="button small"
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                disabled={budgetPending || previewMode}
+                onClick={() => setModal({ kind: "create", form: budgetForm() })}
+              >
+                新增
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+
                 disabled={budgetPending}
                 onClick={exportConfig}
               >
                 导出配置
-              </button>
-              <button
-                className="button primary small"
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                type="button"
+
                 disabled={budgetPending || previewMode}
                 onClick={() => upload.current.click()}
               >
                 {budgetPending ? "数据更新中…" : "导入 Excel"}
-              </button>
-              <input
+              </Button>
+              <Input
                 ref={upload}
                 className="upload-input"
                 type="file"
@@ -417,70 +459,88 @@ export function AdminPage() {
             Initiative；导入时统一预览新增与修改。未列出的已有项目保持不变。
           </div>
           <div className="toolbar">
-            <label className="form-field">
+            <Label className="form-field">
               Initiative
-              <input
+              <Input
                 type="search"
                 value={initiativeSearch}
                 placeholder="模糊搜索 Initiative"
                 onChange={(event) => setInitiativeSearch(event.target.value)}
               />
-            </label>
-            <span className="small-text muted">显示 {matchedItems.length} / {items.length} 项</span>
+            </Label>
+            <span className="small-text muted">
+              显示 {matchedItems.length} / {items.length} 项
+            </span>
           </div>
           <div
             className={`admin-config-list ${budgetPending ? "is-loading" : ""}`}
           >
             <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Initiative</th>
-                    <th>Sector</th>
-                    <th>资源类型</th>
-                    <th>部门 / Owner</th>
-                    <th className="num">预算</th>
-                    <th>操作</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table containerClassName="overflow-visible">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Initiative</TableHead>
+                    <TableHead>Sector</TableHead>
+                    <TableHead>资源类型</TableHead>
+                    <TableHead>部门 / Owner</TableHead>
+                    <TableHead className="num">预算</TableHead>
+                    <TableHead>操作</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {matchedItems.map((item) => (
-                    <tr key={item.id}>
-                      <td>
+                    <TableRow key={item.id}>
+                      <TableCell>
                         {item.name}
                         <div className="table-sub">{item.id}</div>
-                      </td>
-                      <td>{item.sector}</td>
-                      <td>{item.resourceType}</td>
-                      <td>
+                      </TableCell>
+                      <TableCell>{item.sector}</TableCell>
+                      <TableCell>{item.resourceType}</TableCell>
+                      <TableCell>
                         {item.department} / {item.ownerId}
-                      </td>
-                      <td className="num">{money(item.budget)}</td>
-                      <td>
+                      </TableCell>
+                      <TableCell className="num">
+                        {money(item.budget)}
+                      </TableCell>
+                      <TableCell>
                         <div className="actions">
-                          <button
-                            className="button small"
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            type="button"
+
                             disabled={budgetPending || previewMode}
-                            onClick={() => setModal({ kind: "edit", item, form: budgetForm(item) })}
+                            onClick={() =>
+                              setModal({
+                                kind: "edit",
+                                item,
+                                form: budgetForm(item),
+                              })
+                            }
                           >
                             编辑
-                          </button>
-                          <button
-                            className="button small"
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            type="button"
+
                             disabled={budgetPending || previewMode}
                             onClick={() => setModal({ kind: "delete", item })}
                           >
                             删除
-                          </button>
+                          </Button>
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
                   {matchedItems.length === 0 && (
-                    <tr><td colSpan={6}>没有匹配的 Initiative。</td></tr>
+                    <TableRow>
+                      <TableCell colSpan={6}>没有匹配的 Initiative。</TableCell>
+                    </TableRow>
                   )}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
             {budgetPending && (
               <div
@@ -498,10 +558,10 @@ export function AdminPage() {
             预算与归属可持续调整；不会自动重分配。共享结果在 Marketer
             再次同步后更新。
           </div>
-        </section>
+        </Card>
       )}
       {tab === "reasons" && (
-        <section className="panel">
+        <Card className="panel gap-0 py-0">
           <div className="panel-header">
             <div>
               <h2>其他预算原因</h2>
@@ -509,42 +569,54 @@ export function AdminPage() {
                 用于 Marketer 添加预算安排时的下拉选项；停用后保留已有记录。
               </p>
             </div>
-            <button
-              className="button primary small"
+            <Button
+              variant="default"
+              size="sm"
+              type="button"
+
               disabled={previewMode}
               onClick={() => edit("reason", null, "")}
             >
               + 添加原因
-            </button>
+            </Button>
           </div>
           <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>原因名称</th>
-                  <th>状态</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table containerClassName="overflow-visible">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>原因名称</TableHead>
+                  <TableHead>状态</TableHead>
+                  <TableHead>操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {state.budgetReasons.map((reason) => (
-                  <tr key={reason.id}>
-                    <td>{reason.label}</td>
-                    <td>
-                      <span className={`badge ${reason.enabled ? "teal" : ""}`}>
+                  <TableRow key={reason.id}>
+                    <TableCell>{reason.label}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="secondary"
+                        className={`badge ${reason.enabled ? "teal" : ""}`}
+                      >
                         {reason.enabled ? "启用" : "停用"}
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        className="button small"
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        type="button"
+
                         disabled={previewMode}
                         onClick={() => edit("reason", reason, reason.label)}
                       >
                         改名
-                      </button>{" "}
-                      <button
-                        className="button small"
+                      </Button>{" "}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        type="button"
+
                         disabled={previewMode}
                         onClick={() =>
                           apiMode
@@ -571,23 +643,23 @@ export function AdminPage() {
                         }
                       >
                         {reason.enabled ? "停用" : "启用"}
-                      </button>
-                    </td>
-                  </tr>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
-        </section>
+        </Card>
       )}
       {tab === "reference" && (
         <>
-          <section className="panel">
+          <Card className="panel gap-0 py-0">
             <div className="panel-header">
               <h2>历史参考数据批次</h2>
-              <span className="badge">
+              <Badge variant="secondary" className="badge">
                 {apiMode ? "服务端批次" : "本地模拟"}
-              </span>
+              </Badge>
             </div>
             <div className="panel-body">
               <dl className="definition-grid">
@@ -616,22 +688,26 @@ export function AdminPage() {
                 <b>→</b>
                 <span>发布到 PostgreSQL</span>
               </div>
-              <div className="note-box">
-                {apiMode
-                  ? "上传 JSON 后由服务端核验并整批写入；缺失历史值请使用 null，不补零。"
-                  : "当前仅模拟发布状态与版本变化，沿用同一份历史数值，不补造下个月业绩。"}
-              </div>
+              <Alert role="note" className="note-box">
+                <AlertDescription>
+                  {apiMode
+                    ? "上传 JSON 后由服务端核验并整批写入；缺失历史值请使用 null，不补零。"
+                    : "当前仅模拟发布状态与版本变化，沿用同一份历史数值，不补造下个月业绩。"}
+                </AlertDescription>
+              </Alert>
               <div className="actions">
                 {apiMode ? (
                   <>
-                    <button
-                      className="button primary"
+                    <Button
+                      variant="default"
+                      type="button"
+
                       disabled={previewMode}
                       onClick={() => referenceUpload.current?.click()}
                     >
                       导入历史 JSON
-                    </button>
-                    <input
+                    </Button>
+                    <Input
                       ref={referenceUpload}
                       disabled={previewMode}
                       type="file"
@@ -642,27 +718,33 @@ export function AdminPage() {
                   </>
                 ) : (
                   <>
-                    <button
-                      className="button primary"
+                    <Button
+                      variant="default"
+                      type="button"
+
                       onClick={() => setModal({ kind: "reference" })}
                     >
                       校验并模拟发布新批次
-                    </button>
-                    <button
-                      className="button"
+                    </Button>
+                    <Button
+                      variant="outline"
+                      type="button"
+
                       onClick={() => setModal({ kind: "reference-fail" })}
                     >
                       模拟校验失败
-                    </button>
+                    </Button>
                   </>
                 )}
               </div>
             </div>
-          </section>
-          <section className="panel">
+          </Card>
+          <Card className="panel gap-0 py-0">
             <div className="panel-header">
               <h2>预期表现数据</h2>
-              <span className="badge">未提供</span>
+              <Badge variant="secondary" className="badge">
+                未提供
+              </Badge>
             </div>
             <div className="panel-body">
               <p className="small-text muted">
@@ -670,43 +752,52 @@ export function AdminPage() {
                 预算及分配，不生成预测或 Tracking。
               </p>
             </div>
-          </section>
+          </Card>
         </>
       )}
       {tab === "permissions" && (
-        <section className="panel">
+        <Card className="panel gap-0 py-0">
           <div className="panel-header">
             <h2>{apiMode ? "人员与权限映射" : "演示人员与权限映射"}</h2>
-            <span className="badge">{apiMode ? "服务端配置" : "模拟配置"}</span>
+            <Badge variant="secondary" className="badge">
+              {apiMode ? "服务端配置" : "模拟配置"}
+            </Badge>
           </div>
           <div className="panel-body">
-            <div className="note-box">
-              {apiMode
-                ? "管理员可维护人员账号与权限。已关联 Initiative 的用户不可修改或删除；权限由服务端执行。"
-                : "部门并非 Excel 原始字段。本原型用资源类型映射部门，并为每个部门配置两位 Owner。此处展示演示权限。"}
-            </div>
-            {apiMode ? <AdminUsersPanel /> : (
+            <Alert role="note" className="note-box">
+              <AlertDescription>
+                {apiMode
+                  ? "管理员可维护人员账号与权限。已关联 Initiative 的用户不可修改或删除；权限由服务端执行。"
+                  : "部门并非 Excel 原始字段。本原型用资源类型映射部门，并为每个部门配置两位 Owner。此处展示演示权限。"}
+              </AlertDescription>
+            </Alert>
+            {apiMode ? (
+              <AdminUsersPanel />
+            ) : (
               <>
                 <div className="table-scroll">
-                  <table className="contract-table">
-                    <thead>
-                      <tr>
-                        <th>角色</th>
-                        <th>分配操作</th>
-                        <th>历史资源范围</th>
-                        <th>协作权限</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table
+                    containerClassName="overflow-visible"
+                    className="contract-table"
+                  >
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>角色</TableHead>
+                        <TableHead>分配操作</TableHead>
+                        <TableHead>历史资源范围</TableHead>
+                        <TableHead>协作权限</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {E.DEPARTMENTS.map((department) => (
-                        <tr key={department}>
-                          <td>{department} Marketer 1 / 2</td>
-                          <td>
+                        <TableRow key={department}>
+                          <TableCell>{department} Marketer 1 / 2</TableCell>
+                          <TableCell>
                             仅本人 Initiative
                             <br />
                             可看部门汇总，不可打开同事明细
-                          </td>
-                          <td>
+                          </TableCell>
+                          <TableCell>
                             {department === "MKT"
                               ? "MRD、SP&A"
                               : department === "ICE"
@@ -714,50 +805,66 @@ export function AdminPage() {
                                 : "Capex"}
                             <br />
                             Vol / C3 按演示共享授权
-                          </td>
-                          <td>保存、导入、反复同步、本人 Insight</td>
-                        </tr>
+                          </TableCell>
+                          <TableCell>
+                            保存、导入、反复同步、本人 Insight
+                          </TableCell>
+                        </TableRow>
                       ))}
-                      <tr>
-                        <td>部门负责人</td>
-                        <td>本部门明细只读</td>
-                        <td>本部门授权资源</td>
-                        <td>本部门只读汇总、部门 Insight</td>
-                      </tr>
-                      <tr>
-                        <td>管理层</td>
-                        <td>各部门同步快照只读</td>
-                        <td>全局同步结果及授权整体参考</td>
-                        <td>最新同步结果只读、筛选排序、线下沟通</td>
-                      </tr>
-                      <tr>
-                        <td>管理员</td>
-                        <td>维护预算、Owner；不代改分配</td>
-                        <td>维护参考数据与权限配置</td>
-                        <td>变更记录、分析指南维护</td>
-                      </tr>
-                    </tbody>
-                  </table>
+                      <TableRow>
+                        <TableCell>部门负责人</TableCell>
+                        <TableCell>本部门明细只读</TableCell>
+                        <TableCell>本部门授权资源</TableCell>
+                        <TableCell>本部门只读汇总、部门 Insight</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>管理层</TableCell>
+                        <TableCell>各部门同步快照只读</TableCell>
+                        <TableCell>全局同步结果及授权整体参考</TableCell>
+                        <TableCell>
+                          最新同步结果只读、筛选排序、线下沟通
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>管理员</TableCell>
+                        <TableCell>维护预算、Owner；不代改分配</TableCell>
+                        <TableCell>维护参考数据与权限配置</TableCell>
+                        <TableCell>变更记录、分析指南维护</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
                 </div>
               </>
             )}
           </div>
-        </section>
+        </Card>
       )}
-      {tab === "permissions" && apiMode && <HistoricalResourceSettings
-        key={state.configRevision} mapping={state.departmentResources || {}}
-        departments={[...new Set([...state.initiatives.map((item) => item.department), ...roles.flatMap((user) => E.departments(user))])]}
-        saveConfig={saveConfig} readOnly={previewMode} />}
+      {tab === "permissions" && apiMode && (
+        <HistoricalResourceSettings
+          key={state.configRevision}
+          mapping={state.departmentResources || {}}
+          departments={[
+            ...new Set([
+              ...state.initiatives.map((item) => item.department),
+              ...roles.flatMap((user) => E.departments(user)),
+            ]),
+          ]}
+          saveConfig={saveConfig}
+          readOnly={previewMode}
+        />
+      )}
       {tab === "guide" && (
-        <section className="panel">
+        <Card className="panel gap-0 py-0">
           <div className="panel-header">
             <h2>业务分析指南</h2>
-            <span className="badge blue">v{state.guide.version}</span>
+            <Badge variant="secondary" className="badge blue">
+              v{state.guide.version}
+            </Badge>
           </div>
           <div className="panel-body">
-            <label className="form-field">
+            <Label className="form-field">
               指南内容
-              <textarea
+              <Textarea
                 rows={7}
                 readOnly={previewMode}
                 value={guide}
@@ -767,9 +874,11 @@ export function AdminPage() {
                 固定输出：发现 / 证据 / 对象 /
                 复核方向。指南变更使旧分析标为待更新。
               </small>
-            </label>
-            <button
-              className="button primary"
+            </Label>
+            <Button
+              variant="default"
+              type="button"
+
               disabled={previewMode}
               onClick={() =>
                 apiMode
@@ -781,17 +890,19 @@ export function AdminPage() {
               }
             >
               保存为新指南版本
-            </button>
-            <div className="note-box">
-              {apiMode
-                ? "指南由服务端保存并用于后续六点分析；保存后旧分析需更新。"
-                : "本原型只演示指南保存、版本与失效关系。模拟分析为确定性模板。"}
-            </div>
+            </Button>
+            <Alert role="note" className="note-box">
+              <AlertDescription>
+                {apiMode
+                  ? "指南由服务端保存并用于后续六点分析；保存后旧分析需更新。"
+                  : "本原型只演示指南保存、版本与失效关系。模拟分析为确定性模板。"}
+              </AlertDescription>
+            </Alert>
           </div>
-        </section>
+        </Card>
       )}
       {tab === "audit" && (
-        <section className="panel">
+        <Card className="panel gap-0 py-0">
           <div className="panel-header">
             <h2>操作与版本记录</h2>
             <span className="small-text muted">
@@ -799,59 +910,100 @@ export function AdminPage() {
             </span>
           </div>
           <div className="table-scroll">
-            <table className="audit-table">
-              <thead>
-                <tr>
-                  <th>时间</th>
-                  <th>角色</th>
-                  <th>动作</th>
-                  <th>对象</th>
-                  <th>说明</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table
+              containerClassName="overflow-visible"
+              className="audit-table"
+            >
+              <TableHeader>
+                <TableRow>
+                  <TableHead>时间</TableHead>
+                  <TableHead>角色</TableHead>
+                  <TableHead>动作</TableHead>
+                  <TableHead>对象</TableHead>
+                  <TableHead>说明</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {state.audit
                   .slice()
                   .reverse()
                   .map((entry, index) => (
-                    <tr key={entry.id || index}>
-                      <td>{time(entry.createdAt)}</td>
-                      <td>
+                    <TableRow key={entry.id || index}>
+                      <TableCell>{time(entry.createdAt)}</TableCell>
+                      <TableCell>
                         {entry.actor.label ||
                           entry.actor.ownerId ||
                           E.departments(entry.actor).join("、") ||
                           entry.actor.role}
-                      </td>
-                      <td>{actionNames[entry.action] || entry.action}</td>
-                      <td>{entry.object}</td>
-                      <td>{entry.detail || "—"}</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell>
+                        {actionNames[entry.action] || entry.action}
+                      </TableCell>
+                      <TableCell>{entry.object}</TableCell>
+                      <TableCell>{entry.detail || "—"}</TableCell>
+                    </TableRow>
                   ))}
                 {!state.audit.length && (
-                  <tr>
-                    <td colSpan={5}>尚无操作记录。</td>
-                  </tr>
+                  <TableRow>
+                    <TableCell colSpan={5}>尚无操作记录。</TableCell>
+                  </TableRow>
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
-        </section>
+        </Card>
       )}
       {modal && ["create", "edit", "delete"].includes(modal.kind) && (
         <AdminDialog
-          title={{ create: "新增 Initiative", edit: "编辑 Initiative", delete: "删除 Initiative" }[modal.kind]}
-          onClose={() => { if (!savingBudgets) close(); }}
+          title={
+            {
+              create: "新增 Initiative",
+              edit: "编辑 Initiative",
+              delete: "删除 Initiative",
+            }[modal.kind]
+          }
+          onClose={() => {
+            if (!savingBudgets) close();
+          }}
           onConfirm={saveBudgetOperation}
           error={budgetError}
           disabled={budgetPending}
-          confirmLabel={savingBudgets ? "正在保存…" : modal.kind === "delete" ? "确认删除" : "保存"}
+          confirmLabel={
+            savingBudgets
+              ? "正在保存…"
+              : modal.kind === "delete"
+                ? "确认删除"
+                : "保存"
+          }
         >
-          {modal.kind === "delete" ? <div className="note-box warn">
-            确认删除“{modal.item.name}”（ID：{modal.item.id}）？此操作将删除该项目及其经销商分配、其他预算和同步记录，无法在页面撤销。删除前快照保留在服务端操作日志。
-          </div> : <>
-            <AdminBudgetFields value={modal.form} onChange={(form) => setModal((current) => ({ ...current, form }))} users={roles} apiMode={apiMode} disabled={budgetPending} />
-            {modal.kind === "edit" && <div className="note-box">修改字段后保留已有分配，历史同步版本保持原样，需由 Owner 重新复核并同步。</div>}
-          </>}
+          {modal.kind === "delete" ? (
+            <Alert variant="destructive" role="note" className="note-box warn">
+              <AlertDescription>
+                确认删除“{modal.item.name}”（ID：{modal.item.id}
+                ）？此操作将删除该项目及其经销商分配、其他预算和同步记录，无法在页面撤销。删除前快照保留在服务端操作日志。
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <>
+              <AdminBudgetFields
+                value={modal.form}
+                onChange={(form) =>
+                  setModal((current) => ({ ...current, form }))
+                }
+                users={roles}
+                apiMode={apiMode}
+                disabled={budgetPending}
+              />
+              {modal.kind === "edit" && (
+                <Alert role="note" className="note-box">
+                  <AlertDescription>
+                    修改字段后保留已有分配，历史同步版本保持原样，需由 Owner
+                    重新复核并同步。
+                  </AlertDescription>
+                </Alert>
+              )}
+            </>
+          )}
         </AdminDialog>
       )}
       {modal && ["budget", "owner", "reason"].includes(modal.kind) && (
@@ -873,27 +1025,33 @@ export function AdminPage() {
           )}
           {modal.kind === "budget" && (
             <>
-              <label className="form-field">
+              <Label className="form-field">
                 新的 Initiative 总预算
-                <input
+                <Input
                   type="number"
                   min="0"
                   step="0.01"
                   value={value}
                   onChange={(event) => setValue(event.target.value)}
                 />
-              </label>
-              <div className="note-box warn">
-                仅变更预算上限，不自动改分配。需要 Marketer
-                重新平衡并同步，旧分析将待更新。
-              </div>
+              </Label>
+              <Alert
+                variant="destructive"
+                role="note"
+                className="note-box warn"
+              >
+                <AlertDescription>
+                  仅变更预算上限，不自动改分配。需要 Marketer
+                  重新平衡并同步，旧分析将待更新。
+                </AlertDescription>
+              </Alert>
             </>
           )}
           {modal.kind === "owner" && (
             <>
-              <label className="form-field">
+              <Label className="form-field">
                 部门内 Owner
-                <select
+                <NativeSelect
                   value={value}
                   onChange={(event) => setValue(event.target.value)}
                 >
@@ -909,30 +1067,32 @@ export function AdminPage() {
                         label: `${modal.item.department}-${n}`,
                       }))
                   ).map((owner) => (
-                    <option
+                    <NativeSelectOption
                       key={owner.key || owner.ownerId || owner.email}
                       value={owner.ownerId || owner.email}
                     >
                       {owner.label || owner.display_name || owner.email}
-                    </option>
+                    </NativeSelectOption>
                   ))}
-                </select>
-              </label>
-              <div className="note-box">
-                不改变部门与资源类型归属；变更后由新的 Owner 复核并同步。
-              </div>
+                </NativeSelect>
+              </Label>
+              <Alert role="note" className="note-box">
+                <AlertDescription>
+                  不改变部门与资源类型归属；变更后由新的 Owner 复核并同步。
+                </AlertDescription>
+              </Alert>
             </>
           )}
           {modal.kind === "reason" && (
-            <label className="form-field">
+            <Label className="form-field">
               原因名称
-              <input
+              <Input
                 maxLength={80}
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
                 placeholder="如：新增经销商预留"
               />
-            </label>
+            </Label>
           )}
         </AdminDialog>
       )}
@@ -948,24 +1108,30 @@ export function AdminPage() {
             )
           }
         >
-          <div className="note-box success">
-            源数据唯一键、经销商匹配、资源加总核对通过。
-          </div>
+          <Alert role="note" className="note-box success">
+            <AlertDescription>
+              源数据唯一键、经销商匹配、资源加总核对通过。
+            </AlertDescription>
+          </Alert>
           <p>
             本次演示复用当前 60
             个经销商的历史值，只更新批次号和导入时间；数据截至期保持{" "}
             {state.reference.asOf}。
           </p>
-          <div className="note-box">
-            发布不修改预算、分配或已同步快照。后续草稿分析使用新批次，旧分析标为待更新。
-          </div>
+          <Alert role="note" className="note-box">
+            <AlertDescription>
+              发布不修改预算、分配或已同步快照。后续草稿分析使用新批次，旧分析标为待更新。
+            </AlertDescription>
+          </Alert>
         </AdminDialog>
       )}
       {modal?.kind === "reference-fail" && (
         <AdminDialog title="模拟批次校验失败" onClose={close}>
-          <div className="note-box error">
-            模拟错误：暂存批次出现重复经销商主键。未发布任何数据。
-          </div>
+          <Alert variant="destructive" role="note" className="note-box error">
+            <AlertDescription>
+              模拟错误：暂存批次出现重复经销商主键。未发布任何数据。
+            </AlertDescription>
+          </Alert>
           <p>
             继续使用当前批次 <b>{state.reference.batchId}</b>，截至{" "}
             {state.reference.asOf}。这只是失败状态演示，源数据并无此错误。
@@ -1008,20 +1174,24 @@ export function AdminPage() {
             项修改 · {modal.result.unchanged} 项不变
           </p>
           {modal.result.errors.length ? (
-            <div className="note-box error">
-              <strong>校验未通过，整份文件不会写入</strong>
-              <ul className="import-errors">
-                {modal.result.errors.map((error, index) => (
-                  <li key={index}>{error}</li>
-                ))}
-              </ul>
-            </div>
+            <Alert variant="destructive" role="note" className="note-box error">
+              <AlertDescription>
+                <strong>校验未通过，整份文件不会写入</strong>
+                <ul className="import-errors">
+                  {modal.result.errors.map((error, index) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
           ) : (
-            <div className="note-box warn">
-              {modal.result.changes.length || modal.result.creates.length
-                ? "确认后将新增和修改整批写入；任一行失败则全部不写入。已有项目的原经销商分配保留，受影响项目需复核并重新同步。"
-                : "导入配置与当前一致，无需写入。"}
-            </div>
+            <Alert variant="destructive" role="note" className="note-box warn">
+              <AlertDescription>
+                {modal.result.changes.length || modal.result.creates.length
+                  ? "确认后将新增和修改整批写入；任一行失败则全部不写入。已有项目的原经销商分配保留，受影响项目需复核并重新同步。"
+                  : "导入配置与当前一致，无需写入。"}
+              </AlertDescription>
+            </Alert>
           )}
           <div className="admin-import-summary">
             <span>
@@ -1037,64 +1207,64 @@ export function AdminPage() {
             </span>
           </div>
           <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>类型</th>
-                  <th>Initiative / 部门</th>
-                  <th>预算变化</th>
-                  <th>Owner 变化</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table containerClassName="overflow-visible">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>类型</TableHead>
+                  <TableHead>Initiative / 部门</TableHead>
+                  <TableHead>预算变化</TableHead>
+                  <TableHead>Owner 变化</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {modal.result.changes.map((row) => (
-                  <tr key={row.id}>
-                    <td>修改</td>
-                    <td>
+                  <TableRow key={row.id}>
+                    <TableCell>修改</TableCell>
+                    <TableCell>
                       <b>{row.name}</b>
                       <div className="table-sub">
                         {row.id} · {row.department}
                       </div>
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell>
                       {money(row.before.budget)} →{" "}
                       <b>{money(row.after.budget)}</b>
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell>
                       {row.before.ownerId} →{" "}
                       <b>{row.after.ownerId || "未填写"}</b>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
                 {modal.result.creates.map((row) => (
-                  <tr key={`create-${row.row}`}>
-                    <td>
+                  <TableRow key={`create-${row.row}`}>
+                    <TableCell>
                       <b>新增</b>
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell>
                       <b>{row.name}</b>
                       <div className="table-sub">
                         新项目 · {row.department} · {row.resourceType}
                       </div>
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell>
                       — → <b>{money(row.budget)}</b>
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell>
                       — → <b>{row.ownerId}</b>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
                 {!modal.result.changes.length &&
                   !modal.result.creates.length && (
-                    <tr>
-                      <td colSpan={4}>
+                    <TableRow>
+                      <TableCell colSpan={4}>
                         <div className="empty">没有配置差异</div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           <p className="small-text muted">
             新增行请将 Initiative

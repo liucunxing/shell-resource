@@ -1,0 +1,100 @@
+import { describe, expect, it, vi } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
+import {
+  beijingDeadlineInput,
+  deadlineUpdate,
+  displayVersionOrder,
+  PlanningVersionsPage,
+  versionSummary,
+} from "../src/workbench/pages/PlanningVersionsPage.jsx";
+import { useWorkbench } from "../src/workbench/WorkbenchContext.jsx";
+
+vi.mock("../src/workbench/WorkbenchContext.jsx", () => ({
+  useWorkbench: vi.fn(),
+}));
+
+const current = {
+  id: "202702",
+  name: "第二版",
+  published: true,
+  open: true,
+  revision: 5,
+  deadline: "2026-12-01T09:30:00Z",
+};
+
+describe("V19 version table and deadlines", () => {
+  it("displays real version IDs oldest first without changing the source selector order", () => {
+    const versions = [{ id: "202703" }, { id: "202701" }, { id: "202702" }];
+    expect(displayVersionOrder(versions).map((version) => version.id)).toEqual(["202701", "202702", "202703"]);
+    expect(versions.map((version) => version.id)).toEqual(["202703", "202701", "202702"]);
+  });
+  it("counts only enabled current-version budgets and does not invent unloaded totals", () => {
+    const state = {
+      currentVersionId: "202702",
+      initiatives: [
+        { budget: 100000 },
+        { budget: 50000, enabled: false },
+        { budget: 20000 },
+      ],
+    };
+    expect(versionSummary(current, state)).toEqual({
+      count: 2,
+      budget: 120000,
+    });
+    expect(versionSummary({ id: "202701" }, state)).toBeNull();
+    expect(
+      versionSummary(current, { ...state, initiatives: [{ budget: null }] }),
+    ).toEqual({ count: 1, budget: null });
+  });
+  it("uses Beijing time independent of browser timezone and clears without reopening", () => {
+    expect(beijingDeadlineInput(current.deadline)).toBe("2026-12-01T17:30");
+    expect(deadlineUpdate(current, "2026-12-01T17:30", 0)).toEqual({
+      expected_revision: 5,
+      deadline: current.deadline.replace("Z", ".000Z"),
+    });
+    expect(deadlineUpdate({ ...current, open: false }, "")).toEqual({
+      expected_revision: 5,
+      deadline: null,
+    });
+  });
+  it("closes an open version when saving an already expired deadline", () => {
+    expect(
+      deadlineUpdate(
+        current,
+        "2026-11-01T08:00",
+        Date.parse("2026-11-14T00:00:00Z"),
+      ),
+    ).toEqual({
+      expected_revision: 5,
+      deadline: "2026-11-01T00:00:00.000Z",
+      open: false,
+    });
+  });
+  it("renders table totals, a separate deadline panel and read-only preview controls", () => {
+    useWorkbench.mockReturnValue({
+      state: {
+        planningVersions: [
+          current,
+          {
+            id: "202701",
+            name: "第一版",
+            published: true,
+            open: false,
+            revision: 3,
+          },
+        ],
+        currentVersionId: current.id,
+        initiatives: [{ budget: 100000 }],
+      },
+      previewMode: true,
+      apiMode: true,
+    });
+    const html = renderToStaticMarkup(<PlanningVersionsPage />);
+    expect(html).toContain("启用 Initiative");
+    expect(html).toContain("预算合计（万）");
+    expect(html).toContain("提交截止时间");
+    expect(html).toContain("2026-12-01T17:30");
+    expect(html).toMatch(/disabled=""[^>]*>撤回发布/);
+    expect(html).toMatch(/disabled=""[^>]*>保存截止时间/);
+  });
+});

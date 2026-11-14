@@ -287,6 +287,7 @@ class AdminConfigDTO(BaseModel):
     departmentResources: dict[str, list[str]] | None = None
     roleResources: dict[str, list[str]] | None = None
     healthThresholds: dict[str, float] | None = None
+    ytdCutoffMonth: int | None = Field(default=None, ge=1, le=12, strict=True)
 
     @field_validator("healthThresholds")
     @classmethod

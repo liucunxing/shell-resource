@@ -1,4 +1,11 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { AlertDescription } from "@/components/ui/alert";
+import { getLocalPreviewConfig } from "./localPreview";
+import { LocalPreviewSelector } from "./LocalPreviewSelector";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { lazy, Suspense, useEffect, useState } from "react";
 import {
   ArrowRight,
   Buildings,
@@ -43,7 +50,11 @@ const ManagementPage = lazy(() =>
 const EditorPage = lazy(() =>
   import("./pages/EditorPage.jsx").then((m) => ({ default: m.EditorPage })),
 );
-const DepartmentReviewPage = lazy(() => import("./pages/DepartmentReviewPage.jsx").then((m) => ({ default: m.DepartmentReviewPage })));
+const DepartmentReviewPage = lazy(() =>
+  import("./pages/DepartmentReviewPage.jsx").then((m) => ({
+    default: m.DepartmentReviewPage,
+  })),
+);
 const AdminPage = lazy(() =>
   import("./pages/AdminStudioPage.jsx").then((m) => ({
     default: m.AdminStudioPage,
@@ -76,7 +87,6 @@ function navigationFor(identity, initiativeId) {
   if (identity.role === "owner")
     return [
       ["home", SquaresFour, "我的 Initiative", "负责项目与拆分进度"],
-      ["portfolio", ChartDonut, "我的投入组合", "本人全部 Initiative 叠加分析"],
       [
         "editor",
         PencilLine,
@@ -84,15 +94,19 @@ function navigationFor(identity, initiativeId) {
         initiativeId ? "继续当前 Initiative" : "请先选择 Initiative",
         !initiativeId,
       ],
+      ["portfolio", ChartDonut, "我的投入组合", "本人全部 Initiative 叠加分析"],
       ["submissions", ClipboardText, "草稿与提交", "批量校验与提交"],
     ];
   if (identity.role === "lead")
-    return [["department", Buildings, "部门投入组合", "本部门已提交方案"], ["department-review", ShieldCheck, "确认部门方案", "统一确认与定向退回"]];
+    return [
+      ["department", Buildings, "部门投入组合", "本部门已提交方案"],
+      ["department-review", ShieldCheck, "确认部门方案", "统一确认与定向退回"],
+    ];
   if (identity.role === "management")
     return [["management", Stack, "全局投资看板", "部门已确认方案"]];
   return [
     ["admin-versions", GearSix, "版本与发布", ""],
-    ["admin-initiatives", ClipboardText, "本版项目配置", ""],
+    ["admin-initiatives", ClipboardText, "项目配置", ""],
     ["admin-users", UserList, "用户与权限", ""],
     ["admin-enums", SlidersHorizontal, "组织与枚举", ""],
     ["admin-thresholds", ShieldCheck, "健康检查阈值", ""],
@@ -136,8 +150,6 @@ export default function WorkbenchApp() {
     page,
     navigate,
     initiativeId,
-    mobileNav,
-    setMobileNav,
     storageWarning,
     toast,
     dismissToast,
@@ -153,44 +165,7 @@ export default function WorkbenchApp() {
     switchingPreview,
     stopUserPreview,
   } = useWorkbench();
-  const [navCollapsed, setNavCollapsed] = useState(false);
-  const navRef = useRef(null);
-  const navTrigger = useRef(null);
-  const phone = useNarrow("(width < 760px)");
-  const closeNav = () => {
-    setMobileNav(false);
-    requestAnimationFrame(() => navTrigger.current?.focus());
-  };
-  useEffect(() => {
-    if (!phone && mobileNav) setMobileNav(false);
-  }, [phone, mobileNav, setMobileNav]);
-  useEffect(() => {
-    if (!mobileNav) return;
-    navRef.current?.querySelector("button")?.focus();
-    const onKey = (event) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeNav();
-      }
-      if (event.key === "Tab") {
-        const items = [
-          ...navRef.current.querySelectorAll("button,select,a[href]"),
-        ].filter((item) => item.getClientRects().length && !item.disabled);
-        const first = items[0],
-          last = items.at(-1);
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last?.focus();
-        }
-        if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first?.focus();
-        }
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [mobileNav]);
+  const localPreview = getLocalPreviewConfig();
   if (!identity && (previewMode || switchingPreview))
     return (
       <main className="page">
@@ -207,6 +182,19 @@ export default function WorkbenchApp() {
     );
   if (!identity && portalMode)
     return <PortalAccessNotice loading={loading} message={storageWarning} />;
+  if (!identity && localPreview)
+    return (
+      <main className="page">
+        <div className="empty" role={storageWarning ? "alert" : "status"}>
+          {storageWarning || "正在加载本地测试工作台…"}
+        </div>
+        {storageWarning && (
+          <Button disabled={loading} onClick={refresh}>
+            重新加载
+          </Button>
+        )}
+      </main>
+    );
   if (!identity && apiMode)
     return (
       <PortalLogin
@@ -242,129 +230,66 @@ export default function WorkbenchApp() {
   return (
     <>
       <SkipToWorkspace portalMode={portalMode} />
-      <div
-        className={`app-shell studio-shell v19-shell ${navCollapsed ? "nav-collapsed" : ""}`}
-      >
-        {mobileNav && (
-          <button
-            className="mobile-nav-scrim"
-            aria-label="关闭导航"
-            onClick={closeNav}
+      {localPreview && (
+        <div className="v19-preview-strip">
+          <span>
+            <b>LOCAL PREVIEW</b> 本地测试 ·{" "}
+            {localPreview.dataLabel || "合成数据"}
+          </span>
+          <LocalPreviewSelector
+            config={localPreview}
+            email={devEmail}
+            onChange={setDevelopmentEmail}
+            disabled={loading || switchingPreview}
+            compact
           />
-        )}
-        <aside
-          id="main-navigation"
-          hidden={navCollapsed && !phone}
-          ref={navRef}
-          className={`sidebar ${mobileNav ? "mobile-open" : ""}`}
-          aria-label="主导航"
-        >
-          <div className="brand">
-            <div className="brandmark">
-              <ChartDonut size={24} />
+        </div>
+      )}
+      <div className="app-shell studio-shell v19-shell v19-fidelity-shell">
+        <div className="workspace">
+          <header className="v19-appnav">
+            <div className="v19-wordmark">
+              <span className="v19-brand-icon">
+                <img src="/resource-studio-icon.svg" alt="" />
+              </span>
+              <strong>Resource Studio</strong>
             </div>
-            <div>
-              <strong>
-                Resource <span>Studio</span>
-              </strong>
-              <small>经销商资源投资规划 · 2027 OP</small>
-            </div>
-            <button
-              className="icon-button nav-mobile-close"
-              aria-label="收起导航"
-              onClick={closeNav}
+            <nav className="v19-primary-nav" aria-label="工作台导航">
+              {nav.map(([id, , label, , disabled]) => (
+                <Button
+                  key={id}
+                  variant="ghost"
+                  className={page === id ? "active" : ""}
+                  aria-current={page === id ? "page" : undefined}
+                  disabled={disabled}
+                  onClick={() => navigate(id)}
+                >
+                  {label}
+                </Button>
+              ))}
+            </nav>
+            <div
+              className="v19-nav-account"
+              title={`${userName} · ${userScope}`}
             >
-              <X size={18} />
-            </button>
-          </div>
-          <div className="nav-group-title">{roleLabel[identity.role]}</div>
-          <nav className="nav">
-            {nav.map(([id, Icon, label, description, disabled]) => (
-              <button
-                key={id}
-                className={page === id ? "active" : ""}
-                aria-current={page === id ? "page" : undefined}
-                disabled={disabled}
-                onClick={() => navigate(id)}
-              >
-                <span className="nav-icon">
-                  <Icon className="icon" />
-                </span>
-                <span className="studio-nav-copy">
-                  <b>{label}</b>
-                  {description && <small>{description}</small>}
-                </span>
-              </button>
-            ))}
-          </nav>
-          <div className="sidebar-bottom">
-            <section className="sidebar-profile" aria-label="当前用户">
-              <div className="profile-heading">
-                <span className="avatar">
-                  {String(userName).slice(0, 1).toUpperCase()}
-                </span>
-                <div>
-                  <strong>{userName}</strong>
-                  <small>
-                    {roleLabel[identity.role]} · {userScope}
-                  </small>
-                </div>
-              </div>
-              {apiMode && (
-                <div className="profile-api-user">
-                  <button
-                    className="button subtle small"
-                    title={
-                      portalMode
-                        ? "退出后须从 Portal 重新进入"
-                        : loginEmailEditable
-                          ? "退出后可使用工作邮箱重新登录"
-                          : "退出后须从帆软 Portal 重新进入"
-                    }
-                    onClick={() => setDevelopmentEmail("")}
-                  >
-                    退出工作台
-                  </button>
-                </div>
+              <span className="v19-avatar">
+                {String(userName).slice(0, 1).toUpperCase()}
+              </span>
+              <span>
+                <b>{userName}</b>
+                <small>{roleLabel[identity.role]}</small>
+              </span>
+              {apiMode && !localPreview && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDevelopmentEmail("")}
+                >
+                  退出
+                </Button>
               )}
-            </section>
-          </div>
-        </aside>
-        <div className="workspace" inert={mobileNav}>
-          <header className="topbar">
-            <div className="topbar-left">
-              <button
-                ref={navTrigger}
-                className="button subtle small mobile-menu"
-                aria-label="展开导航"
-                onClick={() => {
-                  setMobileNav(true);
-                }}
-              >
-                <List size={20} />
-              </button>
-              <span className="breadcrumb">
-                <ChartDonut size={27} weight="duotone" />
-                <strong>Resource Studio</strong>
-                <span>经销商资源投资规划 · 2027 OP</span>
-              </span>
-            </div>
-            <div className="topbar-right">
-              <span className="topbar-user">
-                <i>{String(userName).slice(0, 1).toUpperCase()}</i>
-                <span>
-                  <b>{userName}</b>
-                  <small>
-                    {roleLabel[identity.role]} · {userScope}
-                  </small>
-                </span>
-              </span>
-              {apiMode && <button className="button subtle small" onClick={() => setDevelopmentEmail("")}>退出</button>}
             </div>
           </header>
-          <nav className="v19-primary-nav" aria-label="工作台导航">
-            {nav.map(([id, Icon, label, , disabled]) => <button key={id} className={page === id ? "active" : ""} aria-current={page === id ? "page" : undefined} disabled={disabled} onClick={() => navigate(id)}><Icon size={18} /><span>{label}</span></button>)}
-          </nav>
           <main id="main" className="page" tabIndex={-1}>
             {previewMode && (
               <UserPreviewBanner
@@ -380,14 +305,20 @@ export default function WorkbenchApp() {
               />
             )}
             {storageWarning && (
-              <div className="note-box warn" role="alert">
-                {storageWarning}{" "}
-                {apiMode && (
-                  <button className="button small" onClick={refresh}>
-                    重新加载
-                  </button>
-                )}
-              </div>
+              <Alert className="note-box warn" role="alert">
+                <AlertDescription>
+                  {storageWarning}{" "}
+                  {apiMode && (
+                    <Button
+                      variant="outline"
+                      className="button small"
+                      onClick={refresh}
+                    >
+                      重新加载
+                    </Button>
+                  )}
+                </AlertDescription>
+              </Alert>
             )}
             <Suspense
               fallback={
@@ -476,16 +407,16 @@ export function PortalLogin({
           </div>
 
           {error && (
-            <div className="login-alert" role="alert">
-              {error}
-            </div>
+            <Alert className="login-alert" role="alert">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
 
-          <label className="login-email-field">
+          <Label className="login-email-field">
             <span>邮箱地址</span>
             <span className="login-input-wrap">
               <EnvelopeSimple size={20} aria-hidden="true" />
-              <input
+              <Input
                 type="email"
                 autoComplete="email"
                 value={editable ? draftEmail : email}
@@ -499,16 +430,17 @@ export function PortalLogin({
                 }
               />
             </span>
-          </label>
+          </Label>
 
-          <button
+          <Button
+            variant="outline"
             type="submit"
             className="login-submit"
             disabled={loading || !loginEmail}
           >
             <span>{loading ? "正在加载工作台…" : "进入工作台"}</span>
             <ArrowRight size={20} weight="bold" aria-hidden="true" />
-          </button>
+          </Button>
 
           <p className="login-session-note">
             <LockKey size={15} aria-hidden="true" />

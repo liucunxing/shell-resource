@@ -319,7 +319,7 @@ function rawData(state, identity, data, tab) {
     model.basisLabel = `源历史数据 · 共 ${new Set(data.dealers.map((d) => String(d.id))).size} 家经销商 / ${data.dealers.length} 条业务线记录`;
     model.notes.push(
       "2024、2025 为全年；2026 为 YTD 累计，不默认同比或年化。",
-      "Yield 向所有角色只读开放，取源数据中的 2025 C3 / 资源原始比值，不转换为百分比。",
+      "Yield 向所有角色只读开放，仅在 C3 与完整历史投资总额均大于 0 时计算比值，不转换为百分比。",
       "经销商范围由服务端业务授权确定；历史投资总额、Vol、C3、Yield 为公共参考指标。",
       "SP&A 使用全部历史合计，暂不按部门拆分。",
       "费用列按用户覆盖、所属部门默认、角色默认依次决定；不会合并业务授权部门来扩大费用权限。",

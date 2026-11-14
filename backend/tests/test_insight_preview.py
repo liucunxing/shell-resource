@@ -65,7 +65,11 @@ async def preview_session():
     )
     await session.execute(
         distributor_sellin_resource_history.update().values(
-            yield_2025=5.6, mrd_2025=12345, volume_2024=100, volume_2025=110
+            # Derived Yield is 112000 / (12345 + 2000 + 3000 + 2655) = 5.6.
+            # The inconsistent stored ratio must not override the defined formula.
+            yield_2025=999, c3_2025=112000, mrd_2025=12345,
+            reb_2025=2000, btl_2025=3000, capex_2025=2655,
+            volume_2024=100, volume_2025=110,
         )
     )
     await session.commit()
@@ -127,6 +131,32 @@ async def test_preview_uses_target_scope_and_global_prompt_without_saving(
     assert "不能使用的旧个人规则" not in json.dumps(captured, ensure_ascii=False)
     assert record["promptVersion"] == 3 and record["promptScope"] == "global"
     assert record["simulation"]["persisted"] is False
+    assert await preview_session.scalar(select(func.count()).select_from(InsightRecordDO)) == 0
+
+
+@pytest.mark.asyncio
+async def test_preview_keeps_incomplete_investment_yield_unavailable(preview_session):
+    await preview_session.execute(
+        distributor_sellin_resource_history.update().values(capex_2025=None)
+    )
+    await preview_session.commit()
+    service = await InsightPreviewService.create(preview_session, ADMIN, "a@example.com", SETTINGS)
+
+    async def model(body):
+        evidence = _module._consistency.expand_evidence(
+            json.loads(body["messages"][1]["content"])["evidence"]
+        )
+        facts = {fact["id"]: fact["value"] for fact in evidence["facts"]}
+        assert facts["yield:d1"] is None
+        constraints = {item["dimension_id"]: item for item in evidence["check_constraints"]}
+        assert constraints["low_yield"]["allowed_statuses"] == ["limited"]
+        assert constraints["high_yield"]["allowed_statuses"] == ["limited"]
+        return valid_result(evidence), {}
+
+    service._call_model = model
+    record = await service.generate(scope="owner:a@example.com", planning_year=2027)
+    facts = {fact["id"]: fact["value"] for fact in record["evidence"]["facts"]}
+    assert facts["yield:d1"] is None
     assert await preview_session.scalar(select(func.count()).select_from(InsightRecordDO)) == 0
 
 
