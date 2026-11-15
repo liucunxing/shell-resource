@@ -1,3 +1,4 @@
+import { MetricHelp } from "./MetricHelp";
 import { useState } from "react";
 import { Card } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
@@ -155,7 +156,7 @@ export function V19ExecutiveHealth({
     <Card className="v19-board-section v19-executive-health">
       <div className="v19-section-heading">
         <div>
-          <h2>集中度 · 各资源大类的投资是否集中在少数经销商</h2>
+          <h2>集中度 · 各资源大类的投资是否集中在少数经销商 <MetricHelp>经销商按投资从高到低排序，比较Top 20%、50%、80%的投资累计占比与历史产出累计占比；各资源大类按各自名单计算，缺少有效历史产出者不参与比较。</MetricHelp></h2>
           <p>
             经销商按投入从高到低排序：Top 20% / 50% / 80%
             获得多少投资金额，又贡献多少{label}
