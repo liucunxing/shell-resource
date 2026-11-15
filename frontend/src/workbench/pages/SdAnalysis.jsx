@@ -1,11 +1,6 @@
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Alert, AlertDescription } from "../../components/ui/alert";
-import {
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from "../../components/ui/accordion";
+import { MetricHelp } from "./MetricHelp";
 import {
   TableCell,
   Table,
@@ -330,22 +325,14 @@ export function SdAnalysis({
             <TabsTrigger value="c3">C3</TabsTrigger>
           </TabsList>
         </Tabs>
-        <Accordion type="single" collapsible className="v19-method">
-          <AccordionItem value="content">
-            <AccordionTrigger>ⓘ 数据口径</AccordionTrigger>
-            <AccordionContent
-              forceMount
-              className="[[data-state=closed]_&]:hidden"
-            >
+        <MetricHelp>
               <p>
                 {metadata.source || "历史数据来源"} · Actual 最新月：
                 {metadata.actual?.latestMonth || "未提供"} · 历史费用最新月：
                 {metadata.investment?.latestMonth || "未提供"}。Sellin
                 按季度更新，实际覆盖以数据快照为准；更新频率不代表数据截止月。
               </p>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+        </MetricHelp>
       </div>
       <p className="studio-table-note">
         来源版本：{sourceVersionId || "无来源版本"}
@@ -375,6 +362,7 @@ export function SdAnalysis({
         >
           <section>
             <b>① 组合叠加</b>
+            <div className="v20-fact-grid">
             {aggregateFacts.map((group) => (
               <Button
                 key={group.key}
@@ -401,9 +389,11 @@ export function SdAnalysis({
                   : "当前范围暂无可比较的历史产出。"}
               </p>
             )}
+            </div>
           </section>
           <section>
             <b>② Initiative 明细</b>
+            <div className="v20-fact-grid">
             {[...facts]
               .sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap))
               .map((fact) => (
@@ -436,6 +426,7 @@ export function SdAnalysis({
                   : "当前范围暂无可比较的项目分配。"}
               </p>
             )}
+            </div>
           </section>
           <p className="v19-sd-fact-rule">
             {period === "2025" ? "2025 全年" : configuredYtdLabel(ytdCutoffMonth)} ·{" "}

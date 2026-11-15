@@ -1,3 +1,4 @@
+import { MetricHelp } from "./MetricHelp";
 import { SdAnalysis } from "./SdAnalysis.jsx";
 import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
 import {
@@ -304,12 +305,7 @@ function HistoryControls({
           </TabsList>
         </Tabs>
       )}
-      <span
-        className="v19-history-info"
-        title="Actual 与费用覆盖以数据源为准。合同量列对应经销商目标；YTD实际对照同期间目标，缺失或非正数时不算 Phasing。"
-      >
-        !
-      </span>
+      <MetricHelp>Actual 与费用覆盖以数据源为准。合同量列对应经销商目标；YTD实际对照同期间目标，缺失或非正数时不算 Phasing。</MetricHelp>
     </div>
   );
 }

@@ -286,7 +286,7 @@ export function V20OrganizationSummary({
                       vol={g.volShare}
                       c3={g.c3Share}
                       scale={scale}
-                      investment={isSelectedScope ? g.amountShare ?? null : undefined}
+                      investment={g.amountShare ?? null}
                     />
                   </TableCell>
                   {cell(
@@ -364,7 +364,7 @@ export function V20OrganizationSummary({
         </Table>
       </div>
       <div className="v20-organization-legend">
-        {isSelectedScope && (
+        {(
           <span>
             <i className="v20-legend-dot investment" />
             投资金额占比
@@ -385,7 +385,7 @@ export function V20OrganizationSummary({
           ? "名单 = 本项目在该组织勾选的经销商。"
           : "全部 = 当前授权 Sector 范围内该组织的全部经销商。"}
         历史产出按当前名单去重，包含零投资经销商；仅改金额不会改变历史 Actual 的数据、历史柱和刻度。
-        {isSelectedScope && "黄色柱显示本次投资占比；超过刻度上限时标注实际占比。"}
+        {"黄色柱显示本次投资占比；超过刻度上限时标注实际占比。"}
         较上版按同一
         Initiative 集合比较，保留移除组织的上版投入；
         {sourceVersionId
