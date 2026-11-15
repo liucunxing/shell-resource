@@ -212,7 +212,7 @@ it("renders the executive budget composition ring and the complete resource cate
   expect(html).toContain("未确认（万元）");
   expect(html).toContain("分配进度");
   expect(html).toContain("获配经销商");
-  expect(html).toContain("拆分依据");
+  expect(html).not.toContain("拆分依据");
   expect(html).toContain("2 家");
   expect(html).not.toContain("未确认的 Initiative");
 });

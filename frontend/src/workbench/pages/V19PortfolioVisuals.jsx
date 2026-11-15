@@ -386,7 +386,6 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                     "未确认（万元）",
                     "分配进度",
                     "获配经销商",
-                    "拆分依据",
                     "已确认",
                   ].map((label) => (
                     <TableHead key={label}>{label}</TableHead>
@@ -427,15 +426,6 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                         </small>
                       </TableCell>
                       <TableCell>{dealers} 家</TableCell>
-                      <TableCell>
-                        {[
-                          ...new Set(
-                            confirmed
-                              .map((item) => item.allocationBasis)
-                              .filter(Boolean),
-                          ),
-                        ].join(" / ") || "未提供"}
-                      </TableCell>
                       <TableCell>
                         {confirmed.length} / {group.length}
                       </TableCell>
@@ -1281,7 +1271,6 @@ export function V19Destination({
               <TableHead className="num">待分配</TableHead>
               <TableHead>结构</TableHead>
               <TableHead>获配经销商</TableHead>
-              <TableHead>拆分依据</TableHead>
               <TableHead>状态</TableHead>
             </TableRow>
           </TableHeader>
@@ -1336,16 +1325,6 @@ export function V19Destination({
                       {(i.rows || []).filter((r) => r.amount > 0).length} 家
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="link"
-                        onClick={() =>
-                          setDetail({ type: "rationale", initiativeId: i.id })
-                        }
-                      >
-                        {i.allocationBasis || "查看拆分依据"}
-                      </Button>
-                    </TableCell>
-                    <TableCell>
                       {i.workflow?.submitted ? "已提交" : "草稿"}
                     </TableCell>
                   </TableRow>
@@ -1369,7 +1348,7 @@ export function V19Destination({
                 <AllocationBar total={total} />
               </TableCell>
               <TableCell>{funded} 家</TableCell>
-              <TableCell colSpan={2} />
+              <TableCell />
             </TableRow>
           </TableFooter>
         </Table>
