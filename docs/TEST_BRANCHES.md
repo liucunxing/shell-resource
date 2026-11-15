@@ -4,7 +4,7 @@
 
 | 分支 | `mode` | 启动地址 | 数据与身份 |
 | --- | --- | --- | --- |
-| `test/v19-local-demo` | `local-prototype` | `http://127.0.0.1:8019` | V19 原型演示数据导入本地 SQLite；直接访问并使用本地合成角色切换 |
+| `test/v19-local-demo` | `local-prototype` | `http://127.0.0.1:8019` | V19 合成业务快照按V20权限适配导入独立本地 SQLite；直接访问并使用本地合成角色切换 |
 | `test/v19-pg-real` | `pg-real` | `http://127.0.0.1:8020` | 显式配置的远端 PG 真实业务数据；普通应用入口继续原有身份校验 |
 
 每个分支的配置分别为：
@@ -79,3 +79,12 @@ PG 模式还须传入 `-SettingsFile`。测试报告保存在当前工作目录�
 ## 2026-11-15 指标口径修复补充
 
 共同实现fcf9d5c；main与PG分支同步，本地分支b509b32合入，跟踪差异仅test-profile.json。前端345项/后端739项通过；两个worktree构建和bundle通过，本地9项通过，PG31项流程＋16项全量接入通过且业务源指纹未变。本轮修改、实测和剩余边界见[指标实现验证](METRIC_IMPLEMENTATION_VALIDATION.md)。
+
+## 2026-11-15 V20同步验证（当前）
+
+- 功能实现提交 `26b7faf`：main与PG分支同一实现，本地分支合入main；两测试分支的跟踪文件差异仍仅 `test-profile.json`。分支名保留v19仅为兼容，实际界面和规则为V20。
+- 前端全量372项、后端全量781项通过；Ruff和Mypy（90个源文件）通过。两个worktree分别构建并通过bundle检查，与main生成相同资源文件；未共享dist或数据缓存。
+- 本地分支 `Test-Branch.ps1` 11项通过，报告 `outputs/branch-tests/local-prototype-20261115-141530-266/`；PG分支执行完整脚本：只读扫描、31项隔离业务流程、18项真实全量映射/权限/流程检查均通过，报告 `outputs/branch-tests/pg-real-20261115-141530-226/`。
+- 两套PG验证均 `cleanup=rolled_back`、`business_writes=false`。隔离QA配置专门保留“未确认期间”的测试路径；这不代表真实应用配置仍未知。真实配置另经HTTP API验证为当前批次1–9月、revision7、1489行；当前有效Yield702条，只有经销商target仍缺。源指纹始终 `e3bea3a897bc07d6d4b2b50906d77807`。
+- 本地启动脚本已重启为V20 fixture，`http://127.0.0.1:8019/` HTTP 200并已用浏览器确认直接进入、10个合成角色、当前构建 `index-CaNZZcom.js`。数据在 `.cache/v20-prototype`，旧V19缓存保留。演示快照为10月，真实PG已确认至9月，二者明确分离。
+- 更完整的浏览器、抽屉与门禁证据见[V20同步验收](V20_IMPLEMENTATION.md)。本轮推送代码，不代表远端应用服务器已部署或正式SSO/UAT通过。
