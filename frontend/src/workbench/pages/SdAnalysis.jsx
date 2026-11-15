@@ -171,6 +171,7 @@ export function SdAnalysis({
   sourceVersionId = "",
   comparisonIdentity = "",
   ytdCutoffMonth = 10,
+  budgetReasons = [],
 }) {
   const isEditor = variant === "editor";
   const items = showOwner
@@ -602,6 +603,7 @@ export function SdAnalysis({
           dealers={dealers}
           sourceItems={source}
           ytdCutoffMonth={ytdCutoffMonth}
+          budgetReasons={budgetReasons}
           onClose={() => setDetail(null)}
         />
       )}

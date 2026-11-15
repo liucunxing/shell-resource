@@ -510,6 +510,7 @@ function PortfolioDashboard({ mode }) {
         <TabsContent value="health">
           {executive ? (
             <V19ExecutiveHealth
+            budgetReasons={state.budgetReasons}
               ytdCutoffMonth={state.ytdCutoffMonth}
               items={scoped}
               dealers={data.dealers}
@@ -517,6 +518,7 @@ function PortfolioDashboard({ mode }) {
             />
           ) : (
             <V19Health
+            budgetReasons={state.budgetReasons}
               ytdCutoffMonth={state.ytdCutoffMonth}
               items={analysisItems}
               dealers={data.dealers}
@@ -527,6 +529,7 @@ function PortfolioDashboard({ mode }) {
         </TabsContent>
         <TabsContent value="stack">
           <V19Stack
+            budgetReasons={state.budgetReasons}
             ytdCutoffMonth={state.ytdCutoffMonth}
             items={analysisItems}
             dealers={data.dealers}
@@ -544,6 +547,7 @@ function PortfolioDashboard({ mode }) {
         </TabsContent>
         <TabsContent value="sd">
           <SdAnalysis
+            budgetReasons={state.budgetReasons}
             items={scoped}
             ytdCutoffMonth={state.ytdCutoffMonth}
             dealers={data.dealers}
@@ -557,6 +561,7 @@ function PortfolioDashboard({ mode }) {
         </TabsContent>
         <TabsContent value="dealers">
           <V19DealerDetails
+            budgetReasons={state.budgetReasons}
             ytdCutoffMonth={state.ytdCutoffMonth}
             items={analysisItems}
             dealers={data.dealers}
