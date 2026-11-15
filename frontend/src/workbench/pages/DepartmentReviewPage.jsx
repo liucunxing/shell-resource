@@ -110,8 +110,12 @@ export function DepartmentReviewPage() {
   if (!["lead", "admin"].includes(identity.role))
     return <div className="empty">仅部门负责人可确认部门方案。</div>;
   const items = [...(result?.items || [])].sort((a, b) => {
-    const value = (item) =>
-      sort.key === "status" ? reviewStatus(item) : item[sort.key] || "";
+    const value = (item) => ({
+      status: reviewStatus(item), confirmed: item.workflow?.confirmed ? "已确认" : "未确认",
+      revision: item.workflow?.submittedRevision, submittedAt: item.workflow?.submittedAt || item.publishedAt,
+      allocated: item.workflow?.submitted ? E.totals([item]).allocated : null,
+      returnReason: item.workflow?.returnReason,
+    })[sort.key] ?? item[sort.key] ?? "";
     return (
       String(value(a)).localeCompare(String(value(b)), "zh-CN", {
         numeric: true,
@@ -258,45 +262,15 @@ export function DepartmentReviewPage() {
                 不受影响。所有项目重新提交齐全后，才能统一确认。
               </p>
             }
-            <div className="table-scroll">
+            <div className="table-scroll v20-review-scroll">
               <Table containerClassName="overflow-visible">
                 <TableHeader>
                   <TableRow>
-                    {[
-                      ["name", "Initiative"],
-                      ["ownerId", "Owner"],
-                      ["status", "Owner 提交状态"],
-                    ].map(([key, label]) => (
-                      <TableHead
-                        key={key}
-                        aria-sort={
-                          sort.key === key
-                            ? sort.direction === 1
-                              ? "ascending"
-                              : "descending"
-                            : "none"
-                        }
-                      >
-                        <Button
-                          variant="ghost"
-                          type="button"
-                          className="v19-sort"
-                          onClick={() => sortBy(key)}
-                        >
-                          {label}
-                          {sort.key === key
-                            ? sort.direction === 1
-                              ? " ↑"
-                              : " ↓"
-                            : " ↕"}
-                        </Button>
+                    {[["name", "Initiative"], ["ownerId", "Owner"], ["status", "Owner 提交状态"], ["confirmed", "部门确认状态"], ["revision", "提交版本"], ["submittedAt", "提交时间"], ["allocated", "分配金额（元）"], ["returnReason", "退回原因"]].map(([key,label]) => (
+                      <TableHead key={key} aria-sort={sort.key === key ? (sort.direction === 1 ? "ascending" : "descending") : "none"}>
+                        <Button variant="ghost" type="button" className="v19-sort" onClick={() => sortBy(key)}>{label}{sort.key === key ? (sort.direction === 1 ? " ↑" : " ↓") : " ↕"}</Button>
                       </TableHead>
                     ))}
-                    <TableHead>部门确认状态</TableHead>
-                    <TableHead>提交版本</TableHead>
-                    <TableHead>提交时间</TableHead>
-                    <TableHead className="num">分配金额（元）</TableHead>
-                    <TableHead>退回原因</TableHead>
                     <TableHead>操作</TableHead>
                   </TableRow>
                 </TableHeader>

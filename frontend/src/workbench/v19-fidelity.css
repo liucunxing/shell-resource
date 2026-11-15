@@ -439,3 +439,7 @@ body {
   width: 125px;
   text-align: right;
 }
+
+.v19-fidelity-shell .v20-review-scroll { max-height:70dvh; overflow:auto; }
+.v19-fidelity-shell .v20-review-scroll thead { position:sticky; top:0; z-index:4; }
+.v19-fidelity-shell .v20-review-scroll th, .v19-fidelity-shell .v20-review-scroll td, .v19-fidelity-shell .v20-review-scroll td.num { text-align:center; font-variant-numeric:tabular-nums; border-right:1px solid #e8eef2; }
