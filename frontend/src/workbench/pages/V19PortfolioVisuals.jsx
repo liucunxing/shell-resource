@@ -783,7 +783,7 @@ export function V19Health({
           />
           <div className="v19-subpanel">
             <div className="v19-subpanel-heading">
-              <h3>1 集中度 · 投资是否集中在少数经销商 <MetricHelp>经销商按投资金额从高到低排序，对比前20%、50%、80%获得的投资与贡献的历史产出。仅有有效历史产出的经销商参与比较；差值以百分点表示。</MetricHelp></h3>
+              <h3><span className="v20-section-number">1</span> 集中度 · 投资是否集中在少数经销商 <MetricHelp>经销商按投资金额从高到低排序，对比前20%、50%、80%获得的投资与贡献的历史产出。仅有有效历史产出的经销商参与比较；差值以百分点表示。</MetricHelp></h3>
               <Tabs
                 value={String(top)}
                 onValueChange={(v) => setTop(Number(v))}
@@ -984,6 +984,7 @@ export function V19Health({
               </div>
             </div>
           </div>
+          {mode !== "exec" && <V19Stack items={items} dealers={dealers} thresholds={thresholds} ytdCutoffMonth={ytdCutoffMonth} embedded />}
         </div>
         {detail && (
           <ResourceDetailDrawer
@@ -995,9 +996,6 @@ export function V19Health({
           />
         )}
       </Card>
-      {mode !== "exec" && (
-        <V19Stack items={items} dealers={dealers} thresholds={thresholds} ytdCutoffMonth={ytdCutoffMonth} />
-      )}
     </>
   );
 }
@@ -1007,6 +1005,7 @@ export function V19Stack({
   dealers,
   thresholds = {},
   ytdCutoffMonth = 10,
+  embedded = false,
 }) {
   const [period, setPeriod] = useState("2025"),
     [basis, setBasis] = useState("c3"),
@@ -1060,17 +1059,18 @@ export function V19Stack({
       ),
     total = rows.reduce((s, r) => s + r.amount, 0),
     overTotal = over.reduce((s, r) => s + r.amount, 0);
+  const Wrapper = embedded ? "section" : Card;
   return (
-    <Card className="v19-board-section">
-      <Heading
+    <Wrapper className={embedded ? "v19-subpanel v20-stack-module" : "v19-board-section"}>
+      {embedded ? <div className="v19-subpanel-heading"><h3><span className="v20-section-number">2</span> 叠加后 · 哪些经销商投资占比高于贡献 <MetricHelp>比较经销商投资占比与所选历史产出占比，按阈值识别偏离。</MetricHelp></h3><Badge variant="secondary" className="v20-over-badge">{over.length} 家超配 &gt;{thresholds.dealerYellow ?? 3}pp</Badge></div> : <Heading
         title="叠加后 · 哪些经销商投资占比高于贡献"
         description={`投资金额占比与历史 ${label} 占比对照`}
       >
         <Badge variant="secondary" className="v20-over-badge">
           {over.length} 家超配 &gt;{thresholds.dealerYellow ?? 3}pp
         </Badge>
-      </Heading>
-      <div className="v19-board-body">
+      </Heading>}
+      <div className={embedded ? "v20-stack-module-body" : "v19-board-body"}>
         <HistoryControls
           {...{ period, setPeriod, basis, setBasis, ytdCutoffMonth }}
         />
@@ -1208,7 +1208,7 @@ export function V19Stack({
           onClose={() => setSelected(null)}
         />
       )}
-    </Card>
+    </Wrapper>
   );
 }
 
