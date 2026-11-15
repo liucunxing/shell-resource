@@ -125,7 +125,8 @@ export function V19DealerDetails({
               ? av - bv
               : String(av).localeCompare(String(bv), "zh-CN")) * sort.direction;
     });
-  const pages = Math.max(1, Math.ceil(visible.length / pageSize)),
+  const effectivePageSize = pageSize || Math.max(1, visible.length),
+    pages = Math.max(1, Math.ceil(visible.length / effectivePageSize)),
     currentPage = Math.min(page, pages);
   const jump = (key) => {
     const target = wrap.current?.querySelector(`[data-column="${key}"]`);
@@ -265,7 +266,7 @@ export function V19DealerDetails({
           role="region"
           aria-label="经销商与历史对照，可横向滚动"
         >
-          <Table
+          <Table sortingMode="manual"
             containerClassName="overflow-visible"
             className="v19-dealer-grouped v20-detail-table"
           >
@@ -318,7 +319,7 @@ export function V19DealerDetails({
             </TableHeader>
             <TableBody>
               {visible
-                .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+                .slice((currentPage - 1) * effectivePageSize, currentPage * effectivePageSize)
                 .map((row) => (
                   <TableRow key={row.key}>
                     {columns.map(([key]) => (
@@ -365,12 +366,12 @@ export function V19DealerDetails({
         </div>
         <div className="v19-list-pagination">
           <span>
-            筛选 {visible.length} / {rows.length} 家 · 本页 {Math.min(pageSize, Math.max(0, visible.length - (currentPage - 1) * pageSize))} 家
+            筛选 {visible.length} / {rows.length} 家 · 本页 {Math.min(effectivePageSize, Math.max(0, visible.length - (currentPage - 1) * effectivePageSize))} 家
           </span>
           <div>
             <Label className="v20-page-size">每页
               <NativeSelect aria-label="每页显示记录数" value={String(pageSize)} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); wrap.current?.scrollTo({ top: 0 }); }}>
-                {[20, 50, 100, 200].map((size) => <NativeSelectOption key={size} value={String(size)}>{size} 条</NativeSelectOption>)}
+                {[10, 20, 50, 0].map((size) => <NativeSelectOption key={size} value={String(size)}>{size ? `${size} 条` : "全部"}</NativeSelectOption>)}
               </NativeSelect>
             </Label>
             <Button

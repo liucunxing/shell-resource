@@ -1,0 +1,80 @@
+/* One vertical scroll owner. Whole thead sticks so grouped headings keep their
+   measured height; existing horizontal frozen columns retain their left offsets. */
+[data-slot="table-container"][data-table-scroll="self"],
+[data-slot="table-container"][data-table-scroll="parent"] {
+  max-width: 100%;
+  max-height: 70dvh;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.table-scroll:has(> [data-table-scroll="parent"]),
+.v19-dealer-detail-scroll:has(> [data-table-scroll="parent"]) {
+  max-height: 70dvh;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.table-scroll > [data-table-scroll="parent"],
+.v19-dealer-detail-scroll > [data-table-scroll="parent"] {
+  max-height: none;
+  overflow: visible;
+  scrollbar-gutter: auto;
+}
+[data-slot="table"] > [data-slot="table-header"] {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: #eaf0f5;
+  box-shadow: 0 1px 0 #c7d6e4;
+}
+[data-slot="table"] :is(th, td) {
+  text-align: center !important;
+  vertical-align: middle;
+  font-variant-numeric: tabular-nums lining-nums;
+  border-inline-end: 1px solid #e6edf3;
+}
+[data-slot="table"] th {
+  font-weight: 700 !important;
+}
+[data-slot="table"] thead button {
+  font-weight: 700 !important;
+}
+[data-slot="table"] tfoot :is(th, td) {
+  font-weight: 700;
+}
+[data-slot="table"] :is(input, select, button) {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+[data-slot="table"] .table-sort-button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: auto;
+  min-height: 32px;
+  padding: 2px 4px;
+  white-space: inherit;
+  color: inherit;
+  font: inherit;
+}
+[data-slot="table"] .table-sort-button > span[aria-hidden] {
+  flex-shrink: 0;
+  color: #536d83;
+}
+[data-slot="table"] :is(.v19-sort, .v20-sort-heading) {
+  justify-content: center;
+}
+[data-slot="table-container"]:focus-visible {
+  outline: 2px solid #d2a900;
+  outline-offset: 2px;
+}
+
+/* Two frozen columns would occupy the entire phone viewport. Keep the whole
+   header frozen vertically, but let every column scroll horizontally. */
+@media (max-width: 640px) {
+  [data-slot="table"] :is(th, td) {
+    position: static !important;
+  }
+}

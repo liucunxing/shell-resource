@@ -66,9 +66,9 @@ function TopRows({ rows, basis, thresholds, onSelect }) {
                 </Button>
                 <small>{result?.n || 0} 家</small>
               </TableCell>
-              <TableCell>{percent(result?.amountShare)}</TableCell>
-              <TableCell>{percent(result?.metricShare)}</TableCell>
-              <TableCell data-level={level(result?.gap, thresholds)}>
+              <TableCell sortValue={result?.amountShare}>{percent(result?.amountShare)}</TableCell>
+              <TableCell sortValue={result?.metricShare}>{percent(result?.metricShare)}</TableCell>
+              <TableCell data-level={level(result?.gap, thresholds)} sortValue={result?.gap}>
                 {gap(result?.gap)}
               </TableCell>
             </TableRow>
@@ -373,7 +373,7 @@ export function V19ExecutiveHealth({
                     {tops.map((top) => {
                       const result = concentration(item.rows, top);
                       return (
-                        <TableCell key={top}>
+                        <TableCell key={top} sortValue={result?.amountShare}>
                           <Button
                             variant="link"
                             onClick={() =>
@@ -394,7 +394,7 @@ export function V19ExecutiveHealth({
                         </TableCell>
                       );
                     })}
-                    <TableCell>{gap(item.worst?.gap)}</TableCell>
+                    <TableCell sortValue={item.worst?.gap}>{gap(item.worst?.gap)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -415,8 +415,8 @@ export function V19ExecutiveHealth({
                   <TableRow key={row.key}>
                     <TableCell>{row.name}</TableCell>
                     <TableCell>{row.sd}</TableCell>
-                    <TableCell>{number(row.amount / 10000)}</TableCell>
-                    <TableCell>{number(row.metric)}</TableCell>
+                    <TableCell sortValue={row.amount / 10000}>{number(row.amount / 10000)}</TableCell>
+                    <TableCell sortValue={row.metric}>{number(row.metric)}</TableCell>
                     <TableCell>{[...row.initiatives].join("、")}</TableCell>
                   </TableRow>
                 ))}

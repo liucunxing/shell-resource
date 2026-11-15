@@ -119,9 +119,11 @@ export function V20OrganizationSummary({
             ? g.amountShare - g.c3Share
             : undefined,
       },
+      { id: "history-chart", accessorFn: (g) => g.amountShare ?? undefined },
+      { id: "judgment", accessorFn: (g) => g.amountShare != null && (basis === "vol" ? g.volShare : g.c3Share) != null ? Math.abs(g.amountShare - (basis === "vol" ? g.volShare : g.c3Share)) : undefined },
       { id: "delta", accessorFn: (g) => g.comparison?.delta ?? undefined },
     ],
-    [],
+    [basis],
   );
   const table = useReactTable({
     data: groups,
@@ -132,7 +134,7 @@ export function V20OrganizationSummary({
     getSortedRowModel: getSortedRowModel(),
     defaultColumn: { sortUndefined: "last" },
   });
-  const head = (field, title, className = "", rowSpan) => {
+  const head = (field, title, className = "", rowSpan, note) => {
     const column = table.getColumn(field),
       direction = column.getIsSorted();
     return (
@@ -159,6 +161,7 @@ export function V20OrganizationSummary({
             {direction === "asc" ? "↑" : direction === "desc" ? "↓" : "↕"}
           </span>
         </Button>
+        {note && <small>{note}</small>}
       </TableHead>
     );
   };
@@ -202,7 +205,7 @@ export function V20OrganizationSummary({
         aria-label={`${groupBy.toUpperCase()}投资与历史产出对照`}
         tabIndex={0}
       >
-        <Table
+        <Table sortingMode="manual"
           containerClassName="overflow-visible"
           className="v20-organization-summary"
           data-count-scope={countScope}
@@ -226,12 +229,10 @@ export function V20OrganizationSummary({
               ].map(([field, title]) => head(field, title, "num"))}
               {head("vol-share", "Delivery Vol 占比", "num v20-actual")}
               {head("c3-share", "C3 占比", "num v20-actual")}
-              <TableHead className="v20-actual">
-                占比对照图<small>刻度 0–{scale}%</small>
-              </TableHead>
+              {head("history-chart", "占比对照图（按投资占比）", "v20-actual", undefined, `刻度 0–${scale}%`)}
               {head("vs-vol", "vs Delivery Vol", "num")}
               {head("vs-c3", "vs C3", "num")}
-              <TableHead>判断</TableHead>
+              {head("judgment", "判断（按偏离程度）")}
               {head("delta", "增减金额（万元）", "num v20-previous")}
             </TableRow>
           </TableHeader>

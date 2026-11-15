@@ -317,7 +317,7 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                   </Button>
                 </div>
                 {notStarted.length ? (
-                  <Table containerClassName="overflow-visible">
+                  <Table pageSize={6} containerClassName="overflow-visible">
                     <TableHeader>
                       <TableRow>
                         <TableHead>Initiative</TableHead>
@@ -326,7 +326,7 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {notStarted.slice(0, 6).map((i) => (
+                      {notStarted.map((i) => (
                         <TableRow key={i.id}>
                           <TableCell>
                             <Button
@@ -344,7 +344,7 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                           <TableCell>
                             {i.resourceType} · {i.ownerName || i.ownerId}
                           </TableCell>
-                          <TableCell className="num">
+                          <TableCell className="num" sortValue={i.budget / 10000}>
                             {n(i.budget / 10000)}
                           </TableCell>
                         </TableRow>
@@ -408,26 +408,26 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                           {type}
                         </Button>
                       </TableCell>
-                      <TableCell className="num">
+                      <TableCell className="num" sortValue={t.budget / 10000}>
                         {n(t.budget / 10000)}
                       </TableCell>
-                      <TableCell className="num">
+                      <TableCell className="num" sortValue={t.allocated / 10000}>
                         {n(t.allocated / 10000)}
                       </TableCell>
-                      <TableCell className="num">
+                      <TableCell className="num" sortValue={t.otherBudget / 10000}>
                         {n(t.otherBudget / 10000)}
                       </TableCell>
-                      <TableCell className="num">
+                      <TableCell className="num" sortValue={Math.max(0, t.gap) / 10000}>
                         {n(Math.max(0, t.gap) / 10000)}
                       </TableCell>
-                      <TableCell>
+                      <TableCell sortValue={t.budget ? t.allocated / t.budget : null}>
                         <AllocationBar total={t} />
                         <small>
                           {pct(t.budget ? (t.allocated / t.budget) * 100 : 0)}
                         </small>
                       </TableCell>
                       <TableCell>{dealers} 家</TableCell>
-                      <TableCell>
+                      <TableCell sortValue={confirmed.length}>
                         {confirmed.length} / {group.length}
                       </TableCell>
                     </TableRow>
@@ -467,8 +467,10 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                       {item.resourceType} · {item.ownerName || item.ownerId}
                     </TableCell>
                     <TableCell>{reason(item)}</TableCell>
-                    <TableCell className="num">{wan(reserve(item))}</TableCell>
-                    <TableCell className="num">
+                    <TableCell className="num" sortValue={reserve(item)}>{wan(reserve(item))}</TableCell>
+                    <TableCell className="num" sortValue={total.otherBudget
+                          ? (reserve(item) / total.otherBudget) * 100
+                          : 0}>
                       {pct(
                         total.otherBudget
                           ? (reserve(item) / total.otherBudget) * 100
@@ -490,7 +492,7 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
               <TableFooter>
                 <TableRow>
                   <TableCell colSpan={3}>合计</TableCell>
-                  <TableCell className="num">
+                  <TableCell className="num" sortValue={total.otherBudget}>
                     {wan(total.otherBudget)}
                   </TableCell>
                   <TableCell className="num">
@@ -538,9 +540,9 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                     </Button>
                   </TableCell>
                   <TableCell>{i.ownerName || i.ownerId}</TableCell>
-                  <TableCell>{wan(i.budget)}</TableCell>
-                  <TableCell>{wan(paid(i))}</TableCell>
-                  <TableCell>{wan(reserve(i))}</TableCell>
+                  <TableCell sortValue={i.budget}>{wan(i.budget)}</TableCell>
+                  <TableCell sortValue={paid(i)}>{wan(paid(i))}</TableCell>
+                  <TableCell sortValue={reserve(i)}>{wan(reserve(i))}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -869,9 +871,9 @@ export function V19Health({
                             </Button>
                           </TableCell>
                           <TableCell>{r?.n ?? "—"}</TableCell>
-                          <TableCell>{pct(r?.amountShare)}</TableCell>
-                          <TableCell>{pct(r?.metricShare)}</TableCell>
-                          <TableCell>{pp(r?.gap)}</TableCell>
+                          <TableCell sortValue={r?.amountShare}>{pct(r?.amountShare)}</TableCell>
+                          <TableCell sortValue={r?.metricShare}>{pct(r?.metricShare)}</TableCell>
+                          <TableCell sortValue={r?.gap}>{pp(r?.gap)}</TableCell>
                         </TableRow>
                       );
                     })}
@@ -943,7 +945,7 @@ export function V19Health({
                           {group.stats?.count ?? 0} 家
                           <small>Top {group.stats?.n ?? 0} 家</small>
                         </TableCell>
-                        <TableCell>
+                        <TableCell sortValue={group.stats?.amountShare}>
                           <div className="v19-dumbbell">
                             <i
                               style={{
@@ -974,7 +976,7 @@ export function V19Health({
                               ? "negative"
                               : ""
                           }
-                        >
+                         sortValue={group.stats?.gap}>
                           {pp(group.stats?.gap)}
                         </TableCell>
                       </TableRow>
@@ -1101,7 +1103,7 @@ export function V19Stack({
             {all ? "收起" : `查看全部 ${deviations.length} 家 →`}
           </Button>
         </div>
-        <Table className="v20-stack-table" containerClassName={all ? "v20-stack-scroll v20-stack-scroll-all" : "v20-stack-scroll"}>
+        <Table sortingMode="manual" className="v20-stack-table" containerClassName={all ? "v20-stack-scroll v20-stack-scroll-all" : "v20-stack-scroll"}>
           <TableHeader><TableRow>
             {[["name","经销商"],["sd","SD"],["initiative","Initiative"],["amount","投资金额（万元）"],["mix","资源大类构成"],["investment","投资金额占比"],["c3","C3占比"],["c3gap","投资金额 − C3"],["vol","Delivery Vol占比"],["volgap","投资金额 − Delivery Vol"],["notes","Owner 说明"]].map(([field,label]) => <TableHead key={field} aria-sort={sort?.field === field ? (sort.asc ? "ascending" : "descending") : "none"}><Button variant="ghost" className="v20-stack-sort" onClick={() => setSort(prev => ({field,asc:prev?.field === field ? !prev.asc : true}))}>{label} <span aria-hidden="true">{sort?.field === field ? (sort.asc ? "↑" : "↓") : "↕"}</span></Button></TableHead>)}
           </TableRow></TableHeader>
@@ -1132,7 +1134,7 @@ export function V19Stack({
                   ))}
                   </div>
                 </TableCell>
-                <TableCell className="num">{n(row.amount / 10000)}</TableCell>
+                <TableCell className="num" sortValue={row.amount / 10000}>{n(row.amount / 10000)}</TableCell>
                 <TableCell>
                   <div className="v19-stack-bar">
                     {types.map((type) => (
@@ -1147,12 +1149,12 @@ export function V19Stack({
                     ))}
                   </div>
                 </TableCell>
-                <TableCell className="num">{pct(row.amountShare)}</TableCell>
+                <TableCell className="num" sortValue={row.amountShare}>{pct(row.amountShare)}</TableCell>
                 {[c3ByKey, volByKey].map((byKey, index) => {
                   const comparison = byKey.get(row.key);
                   return (
                     <ReactFragment key={index}>
-                      <TableCell className="num">
+                      <TableCell className="num" sortValue={comparison?.metricShare}>
                         {pct(comparison?.metricShare)}
                       </TableCell>
                       <TableCell>
@@ -1284,17 +1286,17 @@ export function V19Destination({
                         {i.resourceType}
                       </Button>
                     </TableCell>
-                    <TableCell className="num">{n(i.budget / 10000)}</TableCell>
-                    <TableCell className="num">
+                    <TableCell className="num" sortValue={i.budget / 10000}>{n(i.budget / 10000)}</TableCell>
+                    <TableCell className="num" sortValue={t.allocated / 10000}>
                       {n(t.allocated / 10000)}
                     </TableCell>
-                    <TableCell className="num">
+                    <TableCell className="num" sortValue={t.otherBudget / 10000}>
                       {n(t.otherBudget / 10000)}
                     </TableCell>
                     <TableCell className="num">
                       {t.gap ? n(Math.max(0, t.gap) / 10000) : "—"}
                     </TableCell>
-                    <TableCell>
+                    <TableCell sortValue={t.budget ? t.allocated / t.budget : null}>
                       <AllocationBar total={t} />
                     </TableCell>
                     <TableCell>
@@ -1315,14 +1317,14 @@ export function V19Destination({
           <TableFooter>
             <TableRow>
               <TableHead colSpan={2}>合计</TableHead>
-              <TableCell className="num">{n(total.budget / 10000)}</TableCell>
-              <TableCell className="num">
+              <TableCell className="num" sortValue={total.budget / 10000}>{n(total.budget / 10000)}</TableCell>
+              <TableCell className="num" sortValue={total.allocated / 10000}>
                 {n(total.allocated / 10000)}
               </TableCell>
-              <TableCell className="num">
+              <TableCell className="num" sortValue={total.otherBudget / 10000}>
                 {n(total.otherBudget / 10000)}
               </TableCell>
-              <TableCell className="num">
+              <TableCell className="num" sortValue={Math.max(0, total.gap) / 10000}>
                 {n(Math.max(0, total.gap) / 10000)}
               </TableCell>
               <TableCell>

@@ -203,7 +203,7 @@ export function PlanningVersionsPage() {
                   <TableCell className="num">
                     {versionSummary(version, state)?.count ?? "—"}
                   </TableCell>
-                  <TableCell className="num">
+                  <TableCell className="num" sortValue={versionSummary(version, state)?.budget}>
                     {versionSummary(version, state)?.budget == null
                       ? "—"
                       : (

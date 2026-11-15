@@ -286,19 +286,19 @@ export function SubmissionPage() {
                         {item.initiativeKey || item.id}
                       </small>
                     </TableCell>
-                    <TableCell className="num">
+                    <TableCell className="num" sortValue={item.budget / 10000}>
                       {num(item.budget / 10000, 1)}
                     </TableCell>
-                    <TableCell className="num">
+                    <TableCell className="num" sortValue={totals.allocated / 10000}>
                       {num(totals.allocated / 10000, 1)}
                     </TableCell>
-                    <TableCell className="num">
+                    <TableCell className="num" sortValue={totals.otherBudget / 10000}>
                       {num(totals.otherBudget / 10000, 1)}
                     </TableCell>
-                    <TableCell className="num">
+                    <TableCell className="num" sortValue={Math.max(0, totals.gap) / 10000}>
                       {num(Math.max(0, totals.gap) / 10000, 1)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell sortValue={item.status}>
                       <Status status={item.status} />{" "}
                       {item.workflow?.editable !== false && !hasReserveAcknowledgement(identity, state.planningVersion?.id, item) && <small className="block muted">待核对预算与预留</small>}
                       {item.publishedRevision

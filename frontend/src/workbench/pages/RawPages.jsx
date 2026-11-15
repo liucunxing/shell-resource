@@ -236,7 +236,7 @@ export function RawPage() {
           )}
         </div>
         <div className="table-scroll">
-          <Table containerClassName="overflow-visible">
+          <Table key={model.tab} pageIndex={current - 1} pageSize={15} onSort={() => setPage(1)} containerClassName="overflow-visible">
             <TableHeader>
               <TableRow>
                 {model.columns.map((c) => (
@@ -245,10 +245,10 @@ export function RawPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.slice((current - 1) * 15, current * 15).map((r, n) => (
+              {rows.map((r, n) => (
                 <TableRow key={`${model.tab}-${current}-${n}`}>
                   {model.columns.map((c) => (
-                    <TableCell key={c.key}>
+                    <TableCell key={c.key} sortValue={r[c.key]}>
                       {typeof r[c.key] === "number"
                         ? c.key === "yield"
                           ? r[c.key].toFixed(1)

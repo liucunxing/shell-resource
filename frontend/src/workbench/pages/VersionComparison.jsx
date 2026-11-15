@@ -215,13 +215,13 @@ export function VersionComparison({ executive }) {
                         </Button>
                         {row.owner && <small>{row.owner}</small>}
                       </TableCell>
-                      <TableCell className="num">
+                      <TableCell className="num" sortValue={row.previousBudget}>
                         {money(row.previousBudget)}
                       </TableCell>
-                      <TableCell className="num">
+                      <TableCell className="num" sortValue={row.currentBudget}>
                         {money(row.currentBudget)}
                       </TableCell>
-                      <TableCell className="num">
+                      <TableCell className="num" sortValue={row.budgetDelta}>
                         {money(row.budgetDelta)}
                       </TableCell>
                       <TableCell className="num">
@@ -235,7 +235,7 @@ export function VersionComparison({ executive }) {
                       <TableCell className="num">
                         {row.comparable ? money(row.delta) : "不可比较"}
                       </TableCell>
-                      <TableCell className="num">
+                      <TableCell className="num" sortValue={row.changeRate}>
                         {row.changeLabel ||
                           (row.changeRate == null
                             ? "—"

@@ -221,13 +221,13 @@ export function VersionDifferenceDrawer({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow>
+                <TableRow data-sort-fixed>
                   <TableHead>快照状态</TableHead>
                   <TableCell>{stateLabel(data.left)}</TableCell>
                   <TableCell>{stateLabel(data.right)}</TableCell>
                   <TableCell>—</TableCell>
                 </TableRow>
-                <TableRow>
+                <TableRow data-sort-fixed>
                   <TableHead>当版归属</TableHead>
                   <TableCell>{metadata(data.left)}</TableCell>
                   <TableCell>{metadata(data.right)}</TableCell>
@@ -240,9 +240,9 @@ export function VersionDifferenceDrawer({
                 ].map(([label, a, b]) => (
                   <TableRow key={label}>
                     <TableHead>{label}（万元）</TableHead>
-                    <TableCell>{money(a)}</TableCell>
-                    <TableCell>{money(b)}</TableCell>
-                    <TableCell>
+                    <TableCell sortValue={a}>{money(a)}</TableCell>
+                    <TableCell sortValue={b}>{money(b)}</TableCell>
+                    <TableCell sortValue={a == null || b == null ? null : b - a}>
                       {change(a == null || b == null ? null : b - a)}
                     </TableCell>
                   </TableRow>
@@ -283,9 +283,9 @@ export function VersionDifferenceDrawer({
                           {item.name}
                         </Button>
                       </TableCell>
-                      <TableCell>{money(item.previousAmount)}</TableCell>
-                      <TableCell>{money(item.currentAmount)}</TableCell>
-                      <TableCell>{change(item.delta)}</TableCell>
+                      <TableCell sortValue={item.previousAmount}>{money(item.previousAmount)}</TableCell>
+                      <TableCell sortValue={item.currentAmount}>{money(item.currentAmount)}</TableCell>
+                      <TableCell sortValue={item.delta}>{change(item.delta)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -327,7 +327,7 @@ export function VersionDifferenceDrawer({
                                 "未提供原因"}
                               {row.note && <small>{row.note}</small>}
                             </TableCell>
-                            <TableCell>{money(row.amount)}</TableCell>
+                            <TableCell sortValue={row.amount}>{money(row.amount)}</TableCell>
                           </TableRow>
                         )),
                       )
@@ -385,9 +385,9 @@ export function VersionDifferenceDrawer({
                           ? `${row.current.sd} / ${row.current.rsm}`
                           : "本版移除"}
                       </TableCell>
-                      <TableCell>{money(row.previousAmount)}</TableCell>
-                      <TableCell>{money(row.currentAmount)}</TableCell>
-                      <TableCell>{change(row.delta)}</TableCell>
+                      <TableCell sortValue={row.previousAmount}>{money(row.previousAmount)}</TableCell>
+                      <TableCell sortValue={row.currentAmount}>{money(row.currentAmount)}</TableCell>
+                      <TableCell sortValue={row.delta}>{change(row.delta)}</TableCell>
                       <TableCell>
                         {row.previous?.notes.join("；") || "—"} →{" "}
                         {row.current?.notes.join("；") || "—"}

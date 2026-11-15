@@ -266,7 +266,7 @@ function InitiativesPage({
                       {owners.find((owner) => owner.value === item.ownerId)
                         ?.label || item.ownerId}
                     </TableCell>
-                    <TableCell>{num(item.budget / 10000)}</TableCell>
+                    <TableCell sortValue={item.budget / 10000}>{num(item.budget / 10000)}</TableCell>
                     <TableCell>
                       <Badge
                         variant="secondary"
