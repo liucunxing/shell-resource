@@ -405,16 +405,12 @@ export function SdAnalysis({
                     locate(`matrix-${fact.initiativeId}-${fact.key}`)
                   }
                 >
-                  <span>
-                    <strong>{fact.initiativeName}</strong>
-                    {showOwner && ` · Owner：${fact.owner}`}· {fact.key}
-                    ：投资占比 {percentage(fact.amountShare)}，
-                    {basis === "c3" ? "C3" : "Delivery Vol"} 占比{" "}
-                    {percentage(fact.metricShare)}，
-                    <strong>
-                      {fact.gap > 0 ? "偏多" : "偏少"}{" "}
-                      {amount(Math.abs(fact.gap))} pp
-                    </strong>
+                  <span className="v20-fact-content">
+                    <span className="v20-fact-initiative">{fact.initiativeName}</span>
+                    {showOwner && <span className="v20-fact-phrase">Owner：{fact.owner}</span>}
+                    <span className="v20-fact-phrase">{fact.key} · 投资占比 {percentage(fact.amountShare)}</span>
+                    <span className="v20-fact-phrase">{basis === "c3" ? "C3" : "Delivery Vol"} 占比 {percentage(fact.metricShare)}</span>
+                    <strong className="v20-fact-phrase">{fact.gap > 0 ? "偏多" : "偏少"} {amount(Math.abs(fact.gap))} pp</strong>
                   </span>
                   <small>定位 →</small>
                 </Button>

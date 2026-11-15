@@ -1066,7 +1066,7 @@ export function V19Stack({
         title="叠加后 · 哪些经销商投资占比高于贡献"
         description={`投资金额占比与历史 ${label} 占比对照`}
       >
-        <Badge variant="secondary">
+        <Badge variant="secondary" className="v20-over-badge">
           {over.length} 家超配 &gt;{thresholds.dealerYellow ?? 3}pp
         </Badge>
       </Heading>
