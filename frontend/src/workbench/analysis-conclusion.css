@@ -1,0 +1,75 @@
+.analysis-conclusion[data-slot="card"] {
+  border: 2px solid #e3bc36;
+  border-radius: 8px;
+  background: #f7f9fa;
+  padding: 16px 20px;
+  gap: 12px;
+  min-width: 0;
+  box-shadow: none;
+}
+.analysis-conclusion > h3 {
+  margin: 0;
+  color: #263e50;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+.analysis-conclusion-content {
+  min-width: 0;
+  line-height: 1.85;
+}
+.analysis-conclusion-content > p {
+  margin: 0 0 10px;
+}
+.analysis-conclusion-content > :last-child {
+  margin-bottom: 0;
+}
+.analysis-conclusion .analysis-value {
+  display: inline-block;
+  font-size: 21px;
+  line-height: 1.4;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #263e50;
+  white-space: nowrap;
+}
+.analysis-conclusion .analysis-value[data-tone="investment"] {
+  color: #9b7300;
+}
+.analysis-conclusion .analysis-value[data-tone="output"] {
+  color: #52616c;
+}
+.analysis-conclusion .analysis-value[data-tone="alert"] {
+  color: #c42e2e;
+}
+.analysis-conclusion .analysis-phrase {
+  display: inline-block;
+}
+.analysis-conclusion .v19-exec-conclusion-row[data-slot="button"] {
+  display: block;
+  padding: 12px 0;
+  line-height: 1.85;
+  font-weight: 400;
+}
+.analysis-conclusion .v19-exec-conclusion-row > b {
+  display: inline;
+  color: #263e50;
+}
+.analysis-conclusion .v19-exec-conclusion-row > i {
+  display: inline-block;
+  margin-right: 7px;
+}
+.analysis-conclusion .v19-exec-conclusion-row > span {
+  display: block;
+}
+.analysis-conclusion .v19-exec-conclusion-row .analysis-value {
+  font-size: 19px;
+}
+.analysis-conclusion-content > .studio-table-note {
+  margin-top: 12px;
+}
+@media (max-width: 700px) {
+  .analysis-conclusion[data-slot="card"] {
+    padding: 14px;
+  }
+}

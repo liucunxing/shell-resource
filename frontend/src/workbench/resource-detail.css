@@ -130,11 +130,85 @@
   white-space: normal;
 }
 .resource-detail-cohort-summary {
-  padding: 12px 14px;
-  background: #fff9e6;
-  border-left: 3px solid #fbce07;
-  line-height: 1.7;
-  margin-bottom: 14px;
+  margin-bottom: 20px;
+}
+.resource-detail-section .analysis-conclusion > h3 {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+.resource-cohort-dimensions {
+  margin: 20px 0;
+  min-width: 0;
+}
+.resource-cohort-dimensions [data-slot="tabs-list"] {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  height: auto;
+}
+.resource-detail-section .resource-cohort-dimensions [data-slot="tabs-trigger"] {
+  height: 32px;
+  padding: 4px 12px;
+  white-space: nowrap;
+  text-align: center;
+}
+@media (max-width: 700px) {
+  .resource-cohort-dimensions [data-slot="tabs-list"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.resource-cohort-dimensions .resource-detail-legend > span {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+.resource-detail-metrics small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #687e8d;
+}
+.resource-detail-contribution.resource-cohort-contribution {
+  height: 8px;
+  width: 100%;
+  max-width: 380px;
+  margin: 8px auto 0;
+  border-radius: 4px;
+  overflow: visible;
+}
+.resource-cohort-contribution > span:focus-visible {
+  outline: 2px solid #344b59;
+  outline-offset: 2px;
+  z-index: 1;
+}
+.resource-detail-table[data-cohort-dimensions="true"] table {
+  min-width: 760px;
+}
+.resource-detail-table[data-cohort-dimensions="true"] :is(th, td):first-child {
+  width: 56px;
+  min-width: 56px;
+  max-width: 56px;
+}
+.resource-detail-table[data-cohort-dimensions="true"] :is(th, td):nth-child(2) {
+  width: 26%;
+  min-width: 210px;
+  max-width: 270px;
+  white-space: normal;
+}
+.resource-detail-table[data-cohort-dimensions="true"] :is(th, td):nth-child(3) {
+  width: 42%;
+  min-width: 280px;
+}
+.resource-detail-table[data-cohort-dimensions="true"] :is(th, td):nth-child(n+4) {
+  min-width: 120px;
+  max-width: none;
+}
+.resource-detail-table[data-cohort-dimensions="true"] tfoot {
+  background: #f3f6f8;
 }
 .resource-detail-mix > div {
   display: grid;

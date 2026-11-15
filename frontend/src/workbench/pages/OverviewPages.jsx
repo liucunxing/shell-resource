@@ -511,6 +511,7 @@ function PortfolioDashboard({ mode }) {
         <TabsContent value="health">
           {executive ? (
             <V19ExecutiveHealth
+              filters={filters}
             budgetReasons={state.budgetReasons}
               ytdCutoffMonth={state.ytdCutoffMonth}
               items={scoped}

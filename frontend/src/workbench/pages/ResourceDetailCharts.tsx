@@ -1,8 +1,18 @@
-import { useLegendColors, DEFAULT_RESOURCE_COLORS, resolveInitiativeColor } from "../LegendColors";
+import {
+  useLegendColors,
+  DEFAULT_RESOURCE_COLORS,
+  resolveInitiativeColor,
+} from "../LegendColors";
 import {
   analyticalOutput,
   rankedConcentrationRows,
 } from "../domain/portfolio-analytics.js";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export const RESOURCE_DETAIL_COLORS = DEFAULT_RESOURCE_COLORS;
 export const detailInitiativeColor = resolveInitiativeColor;
@@ -256,5 +266,48 @@ export function InitiativeContributionBar({
           </span>
         ))}
     </div>
+  );
+}
+
+export function CohortContributionBar({
+  parts,
+  maxAmount,
+  dimensionLabel,
+}: {
+  parts: { id: string; name: string; amount: number; color: string }[];
+  maxAmount: number;
+  dimensionLabel: string;
+}) {
+  const total = parts.reduce((sum, part) => sum + part.amount, 0);
+  return (
+    <TooltipProvider>
+      <div
+        className="resource-detail-contribution resource-cohort-contribution"
+        aria-label={`按${dimensionLabel}的投入构成（统一金额刻度）`}
+      >
+        {parts
+          .filter((part) => part.amount > 0)
+          .map((part) => {
+            const description = `${part.name}：${(part.amount / 10000).toLocaleString("zh-CN", { maximumFractionDigits: 2 })} 万元，占该经销商投资 ${total > 0 ? ((part.amount / total) * 100).toFixed(1) : "—"}%`;
+            return (
+              <Tooltip key={part.id}>
+                <TooltipTrigger asChild>
+                  <span
+                    tabIndex={0}
+                    aria-label={description}
+                    style={{
+                      width: `${maxAmount > 0 ? (part.amount / maxAmount) * 100 : 0}%`,
+                      background: part.color,
+                    }}
+                  />
+                </TooltipTrigger>
+                <TooltipContent className="z-[300]">
+                  {description}
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+      </div>
+    </TooltipProvider>
   );
 }

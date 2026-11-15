@@ -14,6 +14,7 @@ import {
 } from "../../components/ui/table";
 import { WorkflowDialog } from "./WorkflowDialog.jsx";
 import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
+import { AnalysisConclusion, AnalysisValue } from "./AnalysisConclusion";
 import {
   CumulativeChart,
   HistoryControls,
@@ -66,9 +67,16 @@ function TopRows({ rows, basis, thresholds, onSelect }) {
                 </Button>
                 <small>{result?.n || 0} 家</small>
               </TableCell>
-              <TableCell sortValue={result?.amountShare}>{percent(result?.amountShare)}</TableCell>
-              <TableCell sortValue={result?.metricShare}>{percent(result?.metricShare)}</TableCell>
-              <TableCell data-level={level(result?.gap, thresholds)} sortValue={result?.gap}>
+              <TableCell sortValue={result?.amountShare}>
+                {percent(result?.amountShare)}
+              </TableCell>
+              <TableCell sortValue={result?.metricShare}>
+                {percent(result?.metricShare)}
+              </TableCell>
+              <TableCell
+                data-level={level(result?.gap, thresholds)}
+                sortValue={result?.gap}
+              >
                 {gap(result?.gap)}
               </TableCell>
             </TableRow>
@@ -113,6 +121,7 @@ export function V19ExecutiveHealth({
   thresholds = {},
   ytdCutoffMonth = 10,
   budgetReasons = [],
+  filters = {},
 }) {
   const { resourceColor } = useLegendColors();
   const [period, setPeriod] = useState("2025"),
@@ -122,6 +131,7 @@ export function V19ExecutiveHealth({
   const groups = executiveConcentrationGroups(items, dealers, basis, period);
   const included = groups.flatMap((group) => group.included),
     rows = portfolioRows(included, dealers, basis, period);
+  const hasComparableTotals = concentration(rows, 20) != null;
   const flags = groups
     .filter(
       (group) => group.worst && level(group.worst.gap, thresholds) !== "good",
@@ -145,6 +155,13 @@ export function V19ExecutiveHealth({
         scopeDealerKeys: result.top.map((row) => row.key),
         period,
         basis,
+        topPercent: top,
+        cohortDimensions: true,
+        cohortFilteredDimensions: [
+          "resourceType",
+          "sector",
+          "department",
+        ].filter((key) => filters[key] && filters[key] !== "all"),
         scopeItems,
       });
   };
@@ -158,8 +175,13 @@ export function V19ExecutiveHealth({
     <Card className="v19-board-section v19-executive-health">
       <div className="v19-section-heading">
         <div>
-          <h2>集中度 · 各资源大类的投资是否集中在少数经销商 <MetricHelp>经销商按投资从高到低排序，比较Top 20%、50%、80%的投资累计占比与历史产出累计占比；各资源大类按各自名单计算，缺少有效历史产出者不参与比较。</MetricHelp></h2>
-
+          <h2>
+            集中度 · 各资源大类的投资是否集中在少数经销商{" "}
+            <MetricHelp>
+              经销商按投资从高到低排序，比较Top
+              20%、50%、80%的投资累计占比与历史产出累计占比；各资源大类按各自名单计算，缺少有效历史产出者不参与比较。
+            </MetricHelp>
+          </h2>
         </div>
       </div>
       <div className="v19-board-body">
@@ -169,7 +191,7 @@ export function V19ExecutiveHealth({
         <div className="v19-exec-concentration-overview">
           <section>
             <h3>全部资源大类叠加 · 累计集中度</h3>
-            {rows.some((row) => row.metric != null) ? (
+            {hasComparableTotals ? (
               <>
                 <CumulativeChart
                   rows={rows}
@@ -192,15 +214,23 @@ export function V19ExecutiveHealth({
               <p className="empty">当前范围暂无可比较的已确认数据。</p>
             )}
           </section>
-          <section className="v19-exec-conclusions">
-            <h3>结论</h3>
-            <strong>
-              {!rows.some((row) => row.metric != null)
-                ? "暂无可比较的历史产出"
-                : flags.length
-                  ? `${flags.length} 个资源大类比产出更集中`
-                  : "各资源大类整体集中度与产出匹配"}
-            </strong>
+          <AnalysisConclusion
+            title="集中度分析结论"
+            className="v19-exec-conclusions"
+          >
+            <p>
+              {!hasComparableTotals ? (
+                "当前投资或历史产出合计不足，暂无法计算集中度。"
+              ) : flags.length ? (
+                <>
+                  <AnalysisValue tone="alert">{flags.length} 个</AnalysisValue>
+                  资源大类在至少一个 Top
+                  档位的投资占比高于产出占比，超过关注阈值。
+                </>
+              ) : (
+                "可比较的资源大类在 Top 20%／50%／80% 的投资占比与产出占比差值均未超过关注阈值。"
+              )}
+            </p>
             {flags.map((group) => (
               <Button
                 key={group.type}
@@ -211,13 +241,30 @@ export function V19ExecutiveHealth({
                 <i style={{ background: resourceColor(group.type) }} />
                 <b>{group.type}</b>
                 <span>
-                  Top {group.worst.topPercent}% 获得{" "}
-                  {percent(group.worst.amountShare)} 的投资金额，贡献{" "}
-                  {percent(group.worst.metricShare)} 的{label}
+                  投资金额最多的 Top {group.worst.topPercent}% 经销商（
+                  {group.worst.n} 家）：
+                  <span className="analysis-phrase">
+                    获得{" "}
+                    <AnalysisValue tone="investment">
+                      {percent(group.worst.amountShare)}
+                    </AnalysisValue>{" "}
+                    的投资，
+                  </span>{" "}
+                  <span className="analysis-phrase">
+                    贡献{" "}
+                    <AnalysisValue tone="output">
+                      {percent(group.worst.metricShare)}
+                    </AnalysisValue>{" "}
+                    的{label}。
+                  </span>{" "}
+                  <span className="analysis-phrase">
+                    投资占比高出{" "}
+                    <AnalysisValue tone="alert">
+                      {gap(group.worst.gap)}
+                    </AnalysisValue>
+                    。
+                  </span>
                 </span>
-                <strong data-level={level(group.worst.gap, thresholds)}>
-                  {gap(group.worst.gap)}
-                </strong>
               </Button>
             ))}
             {hidden.map((group) => (
@@ -229,14 +276,30 @@ export function V19ExecutiveHealth({
               >
                 <i style={{ background: resourceColor(group.type) }} />
                 <b>{group.type}</b>
-                <span>整体匹配，但部分 Initiative 单独看更集中</span>
-                <strong>下钻 →</strong>
+                <span>
+                  大类叠加未超过关注阈值，其中{" "}
+                  <AnalysisValue tone="alert">
+                    {
+                      group.initiatives.filter(
+                        (item) =>
+                          item.worst &&
+                          level(item.worst.gap, thresholds) !== "good",
+                      ).length
+                    }{" "}
+                    个
+                  </AnalysisValue>{" "}
+                  Initiative 单独计算时超过阈值。查看明细 →
+                </span>
               </Button>
             ))}
             <p className="studio-table-note">
-              点击资源大类查看其下各 Initiative 的集中度。
+              {period === "2025" ? "2025 全年" : "2026 YTD"} · {label}
+              ；每个资源大类按各自有历史产出的名单计算。差值 &gt;
+              {thresholds.concentrationYellow ?? 5}pp 建议复核，&gt;
+              {thresholds.concentrationRed ?? 10}pp 优先关注。点击资源大类查看
+              Initiative。
             </p>
-          </section>
+          </AnalysisConclusion>
         </div>
         <div className="v19-exec-category-grid">
           {groups.map((group) => {
@@ -330,7 +393,11 @@ export function V19ExecutiveHealth({
         </p>
       </div>
       {detail && (
-        <WorkflowDialog wide title={detail.name} onClose={() => setDetail(null)}>
+        <WorkflowDialog
+          wide
+          title={detail.name}
+          onClose={() => setDetail(null)}
+        >
           {detail.kind === "category" ? (
             <Table>
               <TableHeader>
@@ -393,7 +460,9 @@ export function V19ExecutiveHealth({
                         </TableCell>
                       );
                     })}
-                    <TableCell sortValue={item.worst?.gap}>{gap(item.worst?.gap)}</TableCell>
+                    <TableCell sortValue={item.worst?.gap}>
+                      {gap(item.worst?.gap)}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -414,8 +483,12 @@ export function V19ExecutiveHealth({
                   <TableRow key={row.key}>
                     <TableCell>{row.name}</TableCell>
                     <TableCell>{row.sd}</TableCell>
-                    <TableCell sortValue={row.amount / 10000}>{number(row.amount / 10000)}</TableCell>
-                    <TableCell sortValue={row.metric}>{number(row.metric)}</TableCell>
+                    <TableCell sortValue={row.amount / 10000}>
+                      {number(row.amount / 10000)}
+                    </TableCell>
+                    <TableCell sortValue={row.metric}>
+                      {number(row.metric)}
+                    </TableCell>
                     <TableCell>{[...row.initiatives].join("、")}</TableCell>
                   </TableRow>
                 ))}
