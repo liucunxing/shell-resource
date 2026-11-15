@@ -5,6 +5,39 @@ export type DetailColumnGroup = {
   title: string;
   columns: [string, string][];
 };
+
+type AwardedInitiative = {
+  id: string;
+  name: string;
+  ownerId: string;
+  sector: string;
+  enabled?: boolean;
+  allocationVisible?: boolean;
+  rows?: { dealerId: string; amount: number }[];
+};
+
+export function awardedInitiativesByDealer(
+  current: AwardedInitiative,
+  initiatives: AwardedInitiative[],
+): Map<string, AwardedInitiative[]> {
+  const byDealer = new Map<string, AwardedInitiative[]>();
+  for (const item of [current, ...initiatives.filter(({ id }) => id !== current.id)]) {
+    if (
+      item.enabled === false || item.allocationVisible === false ||
+      item.ownerId !== current.ownerId || item.sector !== current.sector
+    ) continue;
+    const awardedIds = new Set(
+      (item.rows ?? []).filter((row) => row.amount > 0).map((row) => String(row.dealerId)),
+    );
+    for (const id of awardedIds) {
+      const awards = byDealer.get(id) ?? [];
+      awards.push(item);
+      byDealer.set(id, awards);
+    }
+  }
+  return byDealer;
+}
+
 export function allocationColumnGroups(
   expenses: string[],
   editable = false,
@@ -71,7 +104,7 @@ export function allocationColumnGroups(
       key: "support",
       title: "支持与说明",
       columns: [
-        ["support", editable ? "本人其他 Initiative" : "获配项目数"],
+        ["support", editable ? "获配项目" : "获配项目数"],
         ["note", "调整说明"],
       ],
     },

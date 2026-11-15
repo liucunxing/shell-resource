@@ -10,7 +10,10 @@ import {
   V19DealerDetails,
   dealerDetailRows,
 } from "../src/workbench/pages/V19DealerDetails.jsx";
-import { allocationColumnGroups } from "../src/workbench/domain/allocation-detail";
+import {
+  allocationColumnGroups,
+  awardedInitiativesByDealer,
+} from "../src/workbench/domain/allocation-detail";
 import {
   reserveAcknowledgementKey,
   reserveAcknowledgementFingerprint,
@@ -350,6 +353,28 @@ describe("V20 details keep their invocation scope and sector identities", () => 
 });
 
 describe("V20 V17 allocation table contract", () => {
+  it("lists current and other positive allocations within the visible owner and Sector", () => {
+    const current = {
+      id: "current",
+      name: "本项目",
+      ownerId: "owner",
+      sector: "PCMO",
+      rows: [{ dealerId: "a", amount: 100 }, { dealerId: "b", amount: 0 }],
+    };
+    const other = { ...current, id: "other", name: "同一负责人的另一项目" };
+    const awards = awardedInitiativesByDealer(current, [
+      { ...current, rows: [{ dealerId: "b", amount: 99 }] },
+      other,
+      { ...other, id: "hidden", allocationVisible: false },
+      { ...other, id: "disabled", enabled: false },
+      { ...other, id: "another-sector", sector: "B2B" },
+      { ...other, id: "another-owner", ownerId: "someone-else" },
+    ]);
+    expect(awards.get("a")?.map(({ name }) => name)).toEqual([current.name, other.name]);
+    expect(awards.has("b")).toBe(false);
+    expect(allocationColumnGroups([], true).at(-1)?.columns[0]).toEqual(["support", "获配项目"]);
+  });
+
   it("retains both Actuals and both output-share differences after period/basis switches", () => {
     const rows = dealerDetailRows(items.slice(0, 1), dealers, "vol", "2025");
     expect(rows[0]).toMatchObject({

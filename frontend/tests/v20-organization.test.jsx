@@ -67,10 +67,11 @@ const read = (input = items, previous = null, groupBy = "sd") =>
   sdPresentationGroups(
     sdGroupsWithComparison(input, previous, dealers, groupBy, "c3", "2025"),
   );
-const draw = (data) =>
+const draw = (data, countScope = "all") =>
   renderToStaticMarkup(
     <V20OrganizationSummary
       {...data}
+      countScope={countScope}
       groupBy="sd"
       period="2025"
       basis="c3"
@@ -149,12 +150,39 @@ it("RSM facts aggregate RSM membership and do not reuse SD names", () => {
   expect(groups.map((g) => g.key)).toEqual(["RSM-1", "RSM-2", "RSM-3"]);
 });
 
-it("keeps workbench contract/Phasing and historical investment while removing unsupported targets", () => {
+it("renders the Step 3 summary in four groups with a project-list denominator and no missing baseline defaults", () => {
   const html = renderToStaticMarkup(
     <SdAnalysis variant="editor" items={items} dealers={dealers} />,
   );
-  expect(html).toContain("合同量（KL）");
-  expect(html).toContain("Phasing");
-  expect(html).toContain("历史投资");
-  expect(html).not.toMatch(/PPP|待配置/);
+  const heading = html.match(/<thead[^>]*><tr[^>]*>(.*?)<\/tr>/)?.[1];
+  expect([...heading.matchAll(/colSpan="(\d)"[^>]*>([^<]+)</gi)].map((m) => m.slice(1))).toEqual([
+    ["4", "本次投资"],
+    ["3", "历史 Actual · 2025 全年"],
+    ["3", "投资金额占比"],
+  ]);
+  expect(heading).toContain(">较上版</th>");
+  expect(html).toContain("分配 / 名单");
+  expect(html).toContain('data-column="count">2 / 2<');
+  expect(html).toContain('data-column="delta">—<');
+  expect(html).toContain("投资金额占比极差 80.0 pp");
+  expect(html).toContain('data-series="investment" data-value="90"');
+  expect(html).toContain('class="v20-share-overflow">90.0%');
+  expect(html).not.toMatch(/SD-C|分配 \/ 全部|合同量|Phasing|波动率|PPP/);
+});
+
+it("keeps Step 3's historical series and scale unchanged when only investments change", () => {
+  const initial = draw(read(), "selected");
+  const changed = draw(read(items.map((item) => ({
+    ...item,
+    rows: item.rows.map((row) => ({ ...row, amount: row.dealerId === "a" ? 0 : 30000 })),
+  }))), "selected");
+  const historicalTracks = (html) => [
+    ...html.matchAll(/<div[^>]+data-series="(?:vol|c3)"[^>]*>.*?<\/div><\/div>/g),
+  ].map((m) => m[0]);
+  expect(historicalTracks(initial)).toHaveLength(6);
+  expect(historicalTracks(changed)).toEqual(historicalTracks(initial));
+  expect(initial).toContain("刻度 0–80%");
+  expect(changed).toContain("刻度 0–80%");
+  expect(changed).toContain('data-series="investment" data-value="100"');
+  expect(changed).toContain("投资金额占比极差 100.0 pp");
 });
