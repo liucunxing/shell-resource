@@ -72,10 +72,10 @@ export function allocationColumnGroups(
     },
     {
       key: "contract",
-      title: "① 合同信息",
+      title: "① 经销商 target",
       columns: [
-        ["contract", "合同量（KL）"],
-        ["contractShare", "合同量占比"],
+        ["contract", "经销商 target（KL）"],
+        ["contractShare", "target 占比"],
       ],
     },
     {

@@ -1,4 +1,4 @@
-import { historyInvestment } from "./dealer-history";
+import { aggregateHistoryPhasing, historyInvestment } from "./dealer-history";
 
 const number = (value) =>
   value === null || value === undefined || value === ""
@@ -262,6 +262,7 @@ export function groupSummary(
             ],
         ),
       );
+      const phasing = aggregateHistoryPhasing(group.rows.map((row) => row.history), period);
       const aligned =
         period === "2025" ||
         group.rows.every((row) => !row.history?.ytdYieldUnavailableReason);
@@ -291,10 +292,9 @@ export function groupSummary(
         contractVolume,
         analyticalVol,
         analyticalC3,
-        phasing:
-          historicalVol !== null && contractVolume > 0
-            ? historicalVol / contractVolume
-            : null,
+        phasing: phasing.ratio,
+        phasingVolume: phasing.volume,
+        phasingTarget: phasing.target,
         yieldAligned: aligned,
         historicalYield:
           aligned && historicalC3 > 0 && historicalInvestment > 0

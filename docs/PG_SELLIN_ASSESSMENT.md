@@ -1,5 +1,7 @@
 # PG历史业务数据评估
 
+2026-11-15后续更新：源表已新增target与Phasing共4列，现已接入；用户明确单位L、2025全年、2026年1–9月。以下早期“24列/target缺失”描述保留为该次扫描历史，当前状态以[接入与逐行对账](DEALER_TARGET_INTEGRATION.md)为准。
+
 核查：2026-11-15 V20工程同步。已配置开发库 `resource_dev`，源表 `data.distributor_sellin_resource_history`。真实源仅只读；流程与API全量验证在隔离schema内执行，结束回滚清理。未导入原型数据、未更新账号、预算或历史源表。
 
 ## 本次结论

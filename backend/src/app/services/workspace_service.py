@@ -1,3 +1,4 @@
+from collections import Counter
 from decimal import Decimal
 from typing import Protocol
 
@@ -5,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.dealer_identity import dealer_identity
 from app.core.departments import departments
 from app.core.history_policy import configured_investment_exchange_rate, configured_ytd_cutoff
 from app.core.resource_access import default_department_resources
@@ -18,6 +20,7 @@ from app.models.do.workspace import (
     WorkspacePublicationDO,
     default_budget_reasons,
 )
+from app.repositories.reference_repository import ReferenceRepository
 from app.repositories.workspace_repository import WorkspaceRepository
 from app.schemas.dto.workbench import InitiativeDraftUpdateDTO, PublishDTO
 from app.services.distributor_directory_service import DistributorDirectoryService
@@ -136,6 +139,16 @@ class WorkspaceService:
             sectors=self.user.dealer_sectors,
             user=self.user,
         )
+        # Old allocations/publications stored plain distributor codes. Resolve
+        # detached API copies against this sector's current history identities;
+        # the persisted allocations and immutable snapshots remain unchanged.
+        initiatives = [self._project_dealer_identities(item, dealers) for item in initiatives]
+        publication_map = self._publication_map(publications)
+        for versions in publication_map.values():
+            for publication in versions:
+                publication["initiative"] = self._project_dealer_identities(
+                    publication["initiative"], dealers,
+                )
         ytd_cutoff_month = configured_ytd_cutoff(config.reference if config else None)
         exchange_rate = configured_investment_exchange_rate(config.reference if config else None)
         snapshot = history_snapshot(
@@ -143,6 +156,8 @@ class WorkspaceService:
             investment_exchange_rate=exchange_rate,
             coverage=reference_service.coverage,
             coverage_confirmation_status=reference_service.coverage_confirmation_status,
+            target_coverage=reference_service.target_coverage,
+            target_confirmation_status=reference_service.target_confirmation_status,
         )
         audit = []
         if self.user.role != "management":
@@ -187,7 +202,7 @@ class WorkspaceService:
             "analysisPrompts": {},
             "budgetReasons": config.budget_reasons if config else default_budget_reasons(),
             "budgetReasonVersion": config.budget_reason_version if config else 0,
-            "publications": self._publication_map(publications),
+            "publications": publication_map,
             "audit": audit,
             "final": None,
             "configRevision": config.revision if config else 0,
@@ -222,6 +237,8 @@ class WorkspaceService:
             ),
             coverage=reference_service.coverage,
             coverage_confirmation_status=reference_service.coverage_confirmation_status,
+            target_coverage=reference_service.target_coverage,
+            target_confirmation_status=reference_service.target_confirmation_status,
         )["manifest"])
 
     async def get_draft(self, budget_id: int) -> dict:
@@ -250,7 +267,7 @@ class WorkspaceService:
                 editable=workflow["editable"],
                 changeReason=workflow["changeReason"],
             )
-        return item
+        return (await self._project_legacy_items([item]))[0]
 
     async def save_draft(self, budget_id: int, payload: InitiativeDraftUpdateDTO) -> dict:
         budget = await self._scoped_budget(budget_id, writable=True, for_update=True)
@@ -382,6 +399,7 @@ class WorkspaceService:
             result["initiative"]["workflow"] = await PlanningService(
                 self.session, self.user
             ).workflow(budget)
+        result["initiative"] = (await self._project_legacy_items([result["initiative"]]))[0]
         return result
 
     async def publications(self, budget_id: int) -> list[dict]:
@@ -394,7 +412,8 @@ class WorkspaceService:
             if not workflow["submitted"]:
                 return []
             item = await self.session.get(WorkspacePublicationDO, int(workflow["publicationId"]))
-            return [self._publication(item)] if item is not None else []
+            result = [self._publication(item)] if item is not None else []
+            return await self._project_legacy_publications(result)
         if self.user.role == "management" and not budget.planning_version_id:
             exists = await self.session.scalar(
                 select(PlanningVersionDO.id)
@@ -403,9 +422,100 @@ class WorkspaceService:
             )
             if exists:
                 return []
-        return [
+        return await self._project_legacy_publications([
             self._publication(item) for item in await self.repository.publications_for(budget_id)
+        ])
+
+    async def _project_legacy_publications(self, publications: list[dict]) -> list[dict]:
+        initiatives = await self._project_legacy_items([
+            item["initiative"] for item in publications
+        ])
+        return [dict(item, initiative=initiative) for item, initiative in zip(
+            publications, initiatives, strict=True,
+        )]
+
+    async def _project_legacy_items(self, initiatives: list[dict]) -> list[dict]:
+        sectors = tuple({str(item.get("sector")) for item in initiatives if item.get("sector")})
+        if not sectors or not any(
+            not str(identity).startswith("history:")
+            for item in initiatives
+            for identity in [
+                *(row.get("dealerId", "") for row in item.get("rows", [])),
+                *(item["selected"] if isinstance(item.get("selected"), list) else []),
+            ]
+        ):
+            return initiatives
+        # The caller has already checked the initiative's visibility and scope.
+        records = await ReferenceRepository(self.session).list_dealers(sectors=sectors)
+        dealers = [
+            {"id": dealer_identity(row), "code": str(row["distributor_code"]),
+             "sector": row["sector"], "sd": row["sd"], "rsm": row["rsm"]}
+            for row in records
         ]
+        return [self._project_dealer_identities(item, dealers) for item in initiatives]
+
+    @staticmethod
+    def _project_dealer_identities(initiative: dict, dealers: list[dict]) -> dict:
+        sector = str(initiative.get("sector") or "").strip()
+        index: dict[str, dict[str, dict]] = {}
+        for dealer in dealers:
+            if not sector or str(dealer.get("sector") or "").strip() != sector:
+                continue
+            code = str(dealer.get("code") or "").strip()
+            if code:
+                index.setdefault(code, {})[str(dealer["id"])] = dealer
+        rows = [dict(row) for row in initiative.get("rows", [])]
+        candidates: list[dict | None] = []
+        for row in rows:
+            identity = str(row.get("dealerId") or "")
+            matches = index.get(str(row.get("dealerCode") or identity).strip(), {})
+            candidate = (
+                next(iter(matches.values()))
+                if identity and not identity.startswith("history:") and len(matches) == 1 else None
+            )
+            if candidate and any(
+                str(row.get(key) or "").strip()
+                and str(row[key]).strip() != str(candidate.get(key) or "").strip()
+                for key in ("sd", "rsm")
+            ):
+                candidate = None
+            candidates.append(candidate)
+        projected_ids = Counter(
+            candidate["id"] if candidate else row.get("dealerId")
+            for row, candidate in zip(rows, candidates, strict=True)
+        )
+        aliases = {}
+        for row, candidate in zip(rows, candidates, strict=True):
+            if candidate and projected_ids[candidate["id"]] == 1:
+                aliases[str(row["dealerId"])] = candidate["id"]
+                row.update(
+                    dealerId=candidate["id"], dealerCode=candidate["code"],
+                    sd=row.get("sd") or candidate.get("sd"),
+                    rsm=row.get("rsm") or candidate.get("rsm"),
+                )
+        result = {**initiative, "rows": rows}
+        if isinstance(initiative.get("selected"), list):
+            # Some legacy snapshots store an authoritative roster separately.
+            # Keep its order and membership aligned with projected allocation IDs.
+            original_ids = {str(row.get("dealerId")) for row in initiative.get("rows", [])}
+            selected = initiative["selected"]
+            proposed = []
+            for value in selected:
+                identity = str(value)
+                matches = index.get(identity.strip(), {})
+                if identity in aliases:
+                    proposed.append(aliases[identity])
+                elif identity not in original_ids and not identity.startswith("history:") \
+                        and len(matches) == 1:
+                    proposed.append(next(iter(matches)))
+                else:
+                    proposed.append(value)
+            counts = Counter(proposed)
+            result["selected"] = [
+                new if counts[new] == 1 else old
+                for old, new in zip(selected, proposed, strict=True)
+            ]
+        return result
 
     async def _scoped_budget(
         self,
@@ -586,6 +696,11 @@ class WorkspaceService:
             raise HTTPException(status_code=422, detail="经销商编码不能重复")
         existing = await self.repository.rows_for(budget.id)
         existing_ids = {item.history_key or item.distributor_code for item in existing}
+        if not budget.planning_version_id:
+            projected = (await self._project_legacy_items([
+                self._budget_projection(budget, existing, []),
+            ]))[0]
+            existing_ids.update(row["dealerId"] for row in projected["rows"])
         requested_ids = {item.dealerId for item in rows}
         if budget.planning_version_id:
             await self._validate_version_dealer_scope(budget, requested_ids)

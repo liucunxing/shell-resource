@@ -54,13 +54,15 @@ export function sdPresentationGroups(groups) {
     historicalC3: complete("historicalC3"),
     historicalInvestment: complete("historicalInvestment"),
     contractVolume: complete("contractVolume"),
+    phasingVolume: complete("phasingVolume"),
+    phasingTarget: complete("phasingTarget"),
   };
   totals.average = totals.allocatedCount
     ? totals.amount / totals.allocatedCount
     : null;
   totals.phasing =
-    totals.contractVolume > 0 && totals.historicalVol != null
-      ? totals.historicalVol / totals.contractVolume
+    totals.phasingTarget > 0 && totals.phasingVolume != null
+      ? totals.phasingVolume / totals.phasingTarget
       : null;
   totals.historicalYield =
     totals.historicalInvestment > 0 &&

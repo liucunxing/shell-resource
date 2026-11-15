@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/table";
 import {
   historyInvestment,
+  aggregateHistoryPhasing,
   historyYield,
   finiteHistoryValue,
   type HistoryDealer,
@@ -240,8 +241,7 @@ export function historicalDetailTotals(
     c3,
     investment,
     contract,
-    phasing:
-      vol != null && contract != null && contract > 0 ? vol / contract : null,
+    phasing: aggregateHistoryPhasing(rows.map((row) => row.history), period).ratio,
     yield:
       aligned && c3 != null && c3 > 0 && investment != null && investment > 0
         ? c3 / investment
@@ -451,7 +451,7 @@ export function ResourceDetailDrawer({
       </h3>
       <div className="resource-history-grid">
           {[
-            ["合同量 / 经销商目标（KL）", n(historical.contract, 1000)],
+            ["经销商 target（KL）", n(historical.contract, 1000)],
             ["Delivery Vol（KL）", n(historical.vol, 1000)],
             ["Actual C3（K$）", n(historical.c3, 1000)],
             [
@@ -472,7 +472,7 @@ export function ResourceDetailDrawer({
       </div>
       <p className="resource-detail-note">
         历史投资总额、Yield、历史投资占比公开；费用明细只使用接口已授权返回的大类。负费用正常计入净额。Phasing
-        对照经销商同期间目标，缺失时保留 —。
+        = Delivery Vol ÷ 同期间经销商 target；汇总仅对有效正目标记录的销量和目标分别求和再相除，任一目标或销量缺失、期间未确认时保留 —。
         {!historical.aligned
           ? "Actual 与历史费用覆盖不一致或未知，暂不计算 Yield。"
           : ""}

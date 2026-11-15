@@ -5,7 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dealer_identity import dealer_identity
 from app.core.distributor_status import distributor_status
-from app.core.history_policy import configured_investment_exchange_rate, verified_history_coverage
+from app.core.history_policy import (
+    configured_investment_exchange_rate,
+    verified_dealer_target_coverage,
+    verified_history_coverage,
+)
 from app.core.resource_access import historical_resource_access
 from app.dependencies.workbench_user import WorkbenchUser
 from app.repositories.reference_repository import ReferenceRepository
@@ -19,6 +23,8 @@ class ReferenceService:
         self.workspace_repository = WorkspaceRepository(session)
         self.coverage: dict[str, Any] | None = None
         self.coverage_confirmation_status = "not_configured"
+        self.target_coverage: dict[str, Any] | None = None
+        self.target_confirmation_status = "not_configured"
 
     async def get_dealers(
         self,
@@ -39,18 +45,36 @@ class ReferenceService:
             if self.session is not None or user is not None else None
         )
         reference = config.reference if config else None
-        if isinstance((reference or {}).get("historyCoverageConfirmation"), dict):
+        has_coverage_confirmation = isinstance(
+            (reference or {}).get("historyCoverageConfirmation"), dict,
+        )
+        has_target_confirmation = isinstance(
+            (reference or {}).get("dealerTargetConfirmation"), dict,
+        )
+        if has_coverage_confirmation or has_target_confirmation:
             rows = await self.repository.list_dealers(
                 dealer_ids, sectors, include_source_fingerprint=True,
             )
             self.coverage = verified_history_coverage(
                 reference, rows[0].get("_source_fingerprint") if rows else None,
             )
-            self.coverage_confirmation_status = "verified" if self.coverage else "expired"
+            self.coverage_confirmation_status = (
+                "verified" if self.coverage else "expired" if has_coverage_confirmation
+                else "not_configured"
+            )
+            self.target_coverage = verified_dealer_target_coverage(
+                reference, rows[0].get("_source_fingerprint") if rows else None,
+            )
+            self.target_confirmation_status = (
+                "verified" if self.target_coverage else "expired" if has_target_confirmation
+                else "not_configured"
+            )
         else:
             rows = await self.repository.list_dealers(dealer_ids, sectors)
             self.coverage = None
             self.coverage_confirmation_status = "not_configured"
+            self.target_coverage = None
+            self.target_confirmation_status = "not_configured"
         rate = Decimal(str(configured_investment_exchange_rate(
             config.reference if config else None,
         )))
@@ -97,6 +121,7 @@ class ReferenceService:
                 key: float(value) if value is not None else None
                 for key, value in history_values.items()
             }
+            history.update(self._target_history(row))
             history["ytdYieldUnavailableReason"] = "历史Actual与费用数据的业务月份尚未提供"
             if self.coverage:
                 history["actualThroughMonth"] = self.coverage["actualThroughMonth"]
@@ -176,6 +201,66 @@ class ReferenceService:
                     "status": distributor_status(row["distributor_status"]),
                     "history": history,
                 }
+            )
+        return result
+
+    def _target_history(self, row: Any) -> dict[str, Any]:
+        result: dict[str, Any] = {
+            "targetSourceUnit": (
+                self.target_coverage["sourceUnit"] if self.target_coverage else None
+            ),
+            "targetSourceFields": {},
+        }
+        for year, suffix in (("2025", "2025"), ("2026", "2026Ytd")):
+            raw_target = row.get(f"target_{year}")
+            raw_phasing = row.get(f"phasing_{year}")
+            present = bool(row.get(f"_has_target_{year}", raw_target is not None))
+            result["targetSourceFields"][suffix] = present
+            result[f"sourceTarget{suffix}"] = (
+                float(raw_target) if raw_target is not None else None
+            )
+            result[f"sourcePhasing{suffix}"] = (
+                float(raw_phasing) if raw_phasing is not None else None
+            )
+            reason = None
+            if not present:
+                reason = "missing_target_source_field"
+            elif not self.target_coverage:
+                reason = (
+                    "target_confirmation_expired" if self.target_confirmation_status == "expired"
+                    else "target_unit_period_unconfirmed"
+                )
+            elif year == "2026" and not self.coverage:
+                reason = "actual_period_unconfirmed"
+            elif year == "2026" and self.coverage and (
+                self.target_coverage["periods"][year]["endMonth"]
+                != self.coverage["actualThroughMonth"]
+            ):
+                reason = "target_actual_period_mismatch"
+            elif raw_target is None:
+                reason = "missing_target"
+            elif not Decimal(str(raw_target)).is_finite():
+                reason = "invalid_target"
+            target = None
+            if not reason and self.target_coverage:
+                # Known non-positive targets remain distinct from unknown values;
+                # paired Phasing aggregation excludes them, without poisoning all
+                # other eligible rows. Unit/period gates still apply before this.
+                target = float(Decimal(str(raw_target)) * (
+                    1000 if self.target_coverage["sourceUnit"] == "KL" else 1
+                ))
+            result[f"contract{suffix}"] = target
+            result[f"target{suffix}UnavailableReason"] = reason
+            volume = row.get(f"volume_{year}")
+            phasing_reason = reason
+            if not phasing_reason and (target is None or target <= 0):
+                phasing_reason = "non_positive_target"
+            if not phasing_reason and volume is None:
+                phasing_reason = "missing_actual"
+            result[f"phasing{suffix}UnavailableReason"] = phasing_reason
+            result[f"phasing{suffix}"] = (
+                float(Decimal(str(volume)) / Decimal(str(target)))
+                if not phasing_reason else None
             )
         return result
 

@@ -4,6 +4,7 @@ import {
   historyInvestment,
   historyYield,
   historyPhasing,
+  aggregateHistoryPhasing,
   historyYoyLabel,
   configuredYtdLabel,
   initiativeDealers,
@@ -97,6 +98,53 @@ describe("imported distributor history", () => {
     expect(historyYoyLabel({ vol2025: 125 }, "vol")).toBe("—");
     expect(configuredYtdLabel(9)).toBe("2026 YTD（1–9月）");
     expect(configuredYtdLabel()).toBe("2026 YTD（1–10月）");
+  });
+
+  it("uses only the confirmed same-period YTD target and preserves zero versus missing values", () => {
+    const history = {
+      vol2025: 8000,
+      contract2025: 10000,
+      vol2026Ytd: 3750,
+      contract2026Ytd: 5000,
+    };
+    expect(historyPhasing(history, "2026Ytd")).toBe(0.75);
+    expect(historyDisplayValue(history.contract2026Ytd)).toBe(5);
+    expect(historyDisplayValue(0)).toBe(0);
+    expect(historyDisplayValue(null)).toBeNull();
+    for (const target of [0, -1, null, undefined, NaN, Infinity]) {
+      expect(historyPhasing({ ...history, contract2026Ytd: target }, "2026Ytd")).toBeNull();
+    }
+    expect(historyPhasing({ ...history, vol2026Ytd: 0 }, "2026Ytd")).toBe(0);
+    expect(historyPhasing({ ...history, vol2026Ytd: null }, "2026Ytd")).toBeNull();
+    const unconfirmed = {
+      vol2026Ytd: 3750,
+      contract2025: 10000,
+      target_2026: 5000,
+      phasing_2026: 0.75,
+    };
+    expect(historyPhasing(unconfirmed, "2026Ytd")).toBeNull();
+  });
+
+  it("pairs aggregate Phasing with positive targets and propagates unknown targets or volumes", () => {
+    const eligible = [
+      { vol2026Ytd: 1000, contract2026Ytd: 2000 },
+      { vol2026Ytd: 6000, contract2026Ytd: 8000 },
+    ];
+    expect(aggregateHistoryPhasing(eligible, "2026Ytd")).toEqual({ volume: 7000, target: 10000, ratio: 0.7 });
+    expect(aggregateHistoryPhasing([
+      ...eligible,
+      { vol2026Ytd: 50000, contract2026Ytd: 0 },
+      { vol2026Ytd: 10000, contract2026Ytd: -1000 },
+    ], "2026Ytd")).toEqual({ volume: 7000, target: 10000, ratio: 0.7 });
+    for (const unknown of [
+      { vol2026Ytd: 1000, contract2026Ytd: null },
+      { vol2026Ytd: null, contract2026Ytd: 5000 },
+      { vol2026Ytd: null, contract2026Ytd: 0 },
+    ]) {
+      expect(aggregateHistoryPhasing([...eligible, unknown], "2026Ytd")).toEqual({ volume: null, target: null, ratio: null });
+    }
+    expect(aggregateHistoryPhasing([{ vol2026Ytd: 1000, contract2026Ytd: 0 }], "2026Ytd").ratio).toBeNull();
+    expect(aggregateHistoryPhasing([], "2026Ytd").ratio).toBeNull();
   });
 
   it("allocates YTD investment using all four complete source resource values", () => {
