@@ -50,6 +50,9 @@ export const initiativeColor = (item) => {
     : [...key].reduce((sum, char) => (sum * 31 + char.charCodeAt(0)) >>> 0, 0);
   return palette[hash % palette.length];
 };
+export function InitiativeChip({ item, name, onClick }) {
+  return <Button variant="outline" className="v20-initiative-chip" style={{ "--initiative-color": initiativeColor(item) }} onClick={onClick} title={name}>{name}</Button>;
+}
 export const resourceColor = (type) =>
   ({
     MRD: "#003C88",
@@ -1121,7 +1124,7 @@ export function V19Stack({
             {all ? "收起" : `查看全部 ${deviations.length} 家 →`}
           </Button>
         </div>
-        <Table>
+        <Table className="v20-stack-table">
           <TableHeader>
             <TableRow>
               <TableHead>经销商</TableHead>
@@ -1157,23 +1160,12 @@ export function V19Stack({
                 </TableCell>
                 <TableCell>{row.sd}</TableCell>
                 <TableCell>
+                  <div className="v20-initiative-chips">
                   {row.initiativeSources.map((source) => (
-                    <Button
-                      key={source.id}
-                      variant="link"
-                      onClick={() =>
-                        setSelected({
-                          type: "initiative",
-                          initiativeId: source.id,
-                          scopeDealerKeys: [row.key],
-                          period,
-                          basis,
-                        })
-                      }
-                    >
-                      {source.name}
-                    </Button>
+                    <InitiativeChip key={source.id} item={items.find((item) => String(item.id) === String(source.id)) || source} name={source.name}
+                      onClick={() => setSelected({ type: "initiative", initiativeId: source.id, scopeDealerKeys: [row.key], period, basis })} />
                   ))}
+                  </div>
                 </TableCell>
                 <TableCell className="num">{n(row.amount / 10000)}</TableCell>
                 <TableCell>

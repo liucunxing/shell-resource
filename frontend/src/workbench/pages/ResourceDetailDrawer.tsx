@@ -265,19 +265,7 @@ export function ResourceDetailDrawer({
   const [basis, setBasis] = useState<"vol" | "c3">(detail.basis || "c3");
   const [query, setQuery] = useState("");
   const [organizationBy, setOrganizationBy] = useState<"sd" | "rsm">("sd");
-  const [width, setWidth] = useState(() => {
-    try {
-      return Math.min(
-        1480,
-        Math.max(
-          580,
-          Number(localStorage.getItem("ResourceStudioDetailWidth")) || 1020,
-        ),
-      );
-    } catch {
-      return 1020;
-    }
-  });
+  const [width, setWidth] = useState(() => Math.round(window.innerWidth * 0.7));
   const previous = useRef(
     typeof document === "undefined"
       ? null
@@ -436,7 +424,7 @@ export function ResourceDetailDrawer({
     <div className="resource-detail-metrics">
       {[
         ["本次投资（万元）", n(currentAmount, 10000)],
-        ["历史投资（千美元）", n(historical.investment, 1000)],
+        ["历史投资（K$）", n(historical.investment, 1000)],
         ["Yield", n(historical.yield)],
         [
           "历史投资占比",
@@ -458,38 +446,27 @@ export function ResourceDetailDrawer({
         历史表现 ·{" "}
         {period === "2025" ? "2025 全年" : configuredYtdLabel(ytdCutoffMonth)}
       </h3>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>指标</TableHead>
-            <TableHead className="num">数值</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+      <div className="resource-history-grid">
           {[
             ["合同量 / 经销商目标（KL）", n(historical.contract, 1000)],
             ["Delivery Vol（KL）", n(historical.vol, 1000)],
-            ["Actual C3（千美元）", n(historical.c3, 1000)],
+            ["Actual C3（K$）", n(historical.c3, 1000)],
             [
               "Phasing",
               percent(
                 historical.phasing == null ? null : historical.phasing * 100,
               ),
             ],
-            ["历史投资总额（千美元）", n(historical.investment, 1000)],
+            ["历史投资总额（K$）", n(historical.investment, 1000)],
             ["Yield（C3 ÷ 历史投资）", n(historical.yield)],
             ...allowedExpenses.map((type) => [
-              `${type}（千美元）`,
+              `${type}（K$）`,
               n(readExpense(type), 1000),
             ]),
           ].map(([label, value]) => (
-            <TableRow key={label}>
-              <TableCell>{label}</TableCell>
-              <TableCell className="num">{value}</TableCell>
-            </TableRow>
+            <div className="resource-history-cell" key={label}><span>{label}</span><strong>{value}</strong></div>
           ))}
-        </TableBody>
-      </Table>
+      </div>
       <p className="resource-detail-note">
         历史投资总额、Yield、历史投资占比公开；费用明细只使用接口已授权返回的大类。负费用正常计入净额。Phasing
         对照经销商同期间目标，缺失时保留 —。
@@ -581,7 +558,7 @@ export function ResourceDetailDrawer({
               <TableHead>Sector / SD / RSM</TableHead>
               <TableHead className="num">投资（万元）</TableHead>
               <TableHead className="num">Delivery Vol（KL）</TableHead>
-              <TableHead className="num">C3（千美元）</TableHead>
+              <TableHead className="num">C3（K$）</TableHead>
               <TableHead className="num">Yield</TableHead>
               <TableHead>调整说明</TableHead>
             </TableRow>
@@ -846,7 +823,7 @@ export function ResourceDetailDrawer({
                           }))}
                           title="历史投资"
                           center={n(historical.investment, 1000)}
-                          unit="千美元"
+                          unit="K$"
                         />
                       )}
                     </div>

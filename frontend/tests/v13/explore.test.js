@@ -276,10 +276,10 @@ vitestTest(
         assert.equal(m.periods[2].label, "2026 YTD");
         assert.equal(m.allResources, false);
         const labels = identity.affiliation_department === "MKT"
-            ? ["2025 MRD (千美元)", "2025 SP&A (千美元)"]
+            ? ["2025 MRD (K$)", "2025 SP&A (K$)"]
             : identity.affiliation_department === "ICE"
-              ? ["2025 SP&A (千美元)", "2025 ICE Rebate (千美元)"]
-              : ["2025 Capex (千美元)"];
+              ? ["2025 SP&A (K$)", "2025 ICE Rebate (K$)"]
+              : ["2025 Capex (K$)"];
         assert.deepEqual(
           m.resources.map((r) => r.label),
           labels,
