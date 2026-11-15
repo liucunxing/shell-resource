@@ -626,3 +626,42 @@ def test_mixed_admin_import_is_atomic_and_creates_new_initiative():
         assert initiatives[1].revision == 0 and initiatives[1].allocate_budget_amount == 0
 
     asyncio.run(database_case(run))
+
+
+def test_exchange_rate_config_roundtrip_audit_and_import_preservation():
+    async def run(session, service):
+        initial = await service.get_workspace(2027)
+        assert initial["state"]["historyInvestmentExchangeRate"] == 1
+        saved = await service.update_config(AdminConfigDTO(
+            expected_revision=0, historyInvestmentExchangeRate=7.2,
+        ))
+        assert saved["historyInvestmentExchangeRate"] == 7.2
+        log = (await session.scalars(select(BudgetChangeLogDO))).one()
+        assert log.before_data["historyInvestmentExchangeRate"] == 1
+        assert log.after_data["historyInvestmentExchangeRate"] == 7.2
+        with pytest.raises(HTTPException) as error:
+            await service.update_config(AdminConfigDTO(
+                expected_revision=0, historyInvestmentExchangeRate=1,
+            ))
+        assert error.value.status_code == 409
+        await service.import_reference(reference(1))
+        current = await service.get_workspace(2027)
+        assert current["state"]["historyInvestmentExchangeRate"] == 7.2
+        manifest = current["data"]["historySnapshot"]["manifest"]
+        assert manifest["investmentConversion"]["rate"] == 7.2
+        assert manifest["units"]["api"]["investment"] == "USD"
+        assert manifest["investmentConversion"]["planningConversionApplied"] is False
+        owner = AdminService(session, WorkbenchUser("owner@x.com", "owner", "MKT", "Owner"))
+        with pytest.raises(HTTPException) as error:
+            await owner.update_config(AdminConfigDTO(
+                expected_revision=2, historyInvestmentExchangeRate=1,
+            ))
+        assert error.value.status_code == 403
+
+    asyncio.run(database_case(run))
+
+
+@pytest.mark.parametrize("rate", [0, -1, True, "7.2", float("inf"), float("nan")])
+def test_exchange_rate_rejects_invalid_values(rate):
+    with pytest.raises(ValidationError):
+        AdminConfigDTO(expected_revision=0, historyInvestmentExchangeRate=rate)

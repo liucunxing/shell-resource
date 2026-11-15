@@ -110,7 +110,7 @@ const statuses: Record<Status, string> = {
   limited: "待补充信息",
 };
 export function formatEvidence(value: Cell | undefined, unit = "", label = "", axisTick = false): string {
-  if (unit === "USD/CNY" || /yield|投入产出比/i.test(label)) {
+  if (["USD/CNY", "USD/USD"].includes(unit) || /yield|投入产出比/i.test(label)) {
     return typeof value === "number" && Number.isFinite(value) && (value > 0 || (axisTick && value === 0))
       ? value.toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "—";
   }
@@ -210,6 +210,8 @@ export function InvestmentReview({
   const [page, setPage] = useState(1);
   const shown = investmentPage(dataset, status, query, page);
   const allocatedRows = dataset.rows.filter(canCompareInvestment);
+  const historyUnit = dataset.columns?.find(column => column.key === "historical_actual")?.unit
+    || String(allocatedRows[0]?.historical_currency || "CNY");
   const count = (value: string) =>
     allocatedRows.filter((row) => row.status === value).length;
   if (!allocatedRows.length) return null;
@@ -274,7 +276,7 @@ export function InvestmentReview({
                 "经销商",
                 "Sector",
                 "资源类型",
-                "2025资源投入(千元人民币)",
+                `2025资源投入(${historyUnit === "USD" ? "千美元" : "千元人民币"})`,
                 "本次计划(千元人民币)",
                 "差额(千元人民币)",
                 "计划 / 实际",
@@ -586,7 +588,7 @@ export function investmentFactText(
     return "投入核对详情暂不可用，请查看完整核对名单。";
   }
   if (fact.id === "investment-rules") {
-    return `当前投入复核规则：计划达到历史实际的 ${formatEvidence(values.increase_multiple, "multiple")}及以上，且增加至少 ${formatEvidence(values.absolute_change, "CNY")}；或计划降至历史实际的 ${formatEvidence(values.decrease_multiple, "ratio")}及以下，且减少至少 ${formatEvidence(values.absolute_change, "CNY")}，建议复核。历史有投入、本范围未分配时也建议复核。阈值用于提示，不代表审批结论。`;
+    return `当前投入复核规则（仅限同币种可比金额）：计划达到历史实际的 ${formatEvidence(values.increase_multiple, "multiple")}及以上，且增加至少 ${formatEvidence(values.absolute_change, "CNY")}；或计划降至历史实际的 ${formatEvidence(values.decrease_multiple, "ratio")}及以下，且减少至少 ${formatEvidence(values.absolute_change, "CNY")}，建议复核。历史有投入、本范围未分配时也建议复核。阈值用于提示，不代表审批结论。`;
   }
   if (values.reason_code === "resource_restricted") return "";
   const multiple =
@@ -595,7 +597,7 @@ export function investmentFactText(
         ? "不适用（实际为 0）"
         : "缺失"
       : formatEvidence(values.multiple, "multiple");
-  return `${values.dealer || "经销商名称缺失"} · ${values.sector || "Sector 未明确"} · ${values.resource_type || "资源类型未明确"}：2025 实际投入 ${formatEvidence(values.historical_actual, "CNY")}；本次计划 ${formatEvidence(values.plan, "CNY")}；差额 ${formatEvidence(values.delta, "CNY")}；计划 / 实际 ${multiple}。${statuses[values.status as Status] || "待补充信息"}：${values.reason || "暂无说明"}`;
+  return `${values.dealer || "经销商名称缺失"} · ${values.sector || "Sector 未明确"} · ${values.resource_type || "资源类型未明确"}：2025 实际投入 ${formatEvidence(values.historical_actual, String(values.historical_currency || "CNY"))}；本次计划 ${formatEvidence(values.plan, "CNY")}；差额 ${formatEvidence(values.delta, "CNY")}；计划 / 实际 ${multiple}。${statuses[values.status as Status] || "待补充信息"}：${values.reason || "暂无说明"}`;
 }
 export function formatFactSource(source: string): string {
   const marker = "历史批次：";

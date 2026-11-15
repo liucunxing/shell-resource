@@ -1135,10 +1135,10 @@ function EditorContent({
                         )}
                         <TableHead className="num">Vol</TableHead>
                         <TableHead className="num">C3</TableHead>
-                        <TableHead className="num">2025 投资（千元人民币）</TableHead>
+                        <TableHead className="num">2025 投资（千美元）</TableHead>
                         <TableHead className="num">2025 资源占比</TableHead>
                         <TableHead className="num">
-                          2026 YTD 投资（千元人民币）
+                          2026 YTD 投资（千美元）
                         </TableHead>
                         <TableHead className="num">2026 YTD 资源占比</TableHead>
                       </TableRow>
@@ -1584,7 +1584,7 @@ function EditorContent({
                 <span title="Phasing = 实际 Delivery Vol 合计 ÷ 合同量合计；当前源未提供合同量。">
                   加权平均 Phasing <b>— ↑</b>
                 </span>
-                <span title="Yield = 名单 C3（美元）合计 ÷ 同期间历史投资（人民币）合计，未做汇率折算；不平均各家比率，数据不完整或 YTD 覆盖未知时显示 —。">
+                <span title="Yield = 名单 C3（美元）合计 ÷ 同期间历史投资（美元）合计，历史投资已按配置汇率统一为美元；不平均各家比率，数据不完整或 YTD 覆盖未知时显示 —。">
                   加权平均 Yield{" "}
                   <b>
                     {weightedYield == null
@@ -1692,7 +1692,7 @@ function EditorContent({
                         sortKey="investment"
                         className="num"
                       >
-                        历史投资总额（千元人民币）
+                        历史投资总额（千美元）
                       </SortHead>
                       <SortHead
                         sort={allocationSort}

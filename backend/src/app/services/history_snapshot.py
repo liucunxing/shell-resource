@@ -15,6 +15,7 @@ HISTORY_SOURCE = "data.distributor_sellin_resource_history"
 def history_manifest(
     planning_year: int, records: list[dict[str, Any]],
     *, ytd_cutoff_month: int = DEFAULT_YTD_CUTOFF_MONTH,
+    investment_exchange_rate: float = 1.0,
 ) -> dict[str, Any]:
     years = [
         year
@@ -45,19 +46,33 @@ def history_manifest(
         "configuredPeriodLabel": f"2026 YTD（1–{ytd_cutoff_month}月）",
         "configuredMonthIsCoverageEvidence": False,
         "units": {
-            "source": {"volume": "L", "c3": "USD", "investment": "CNY"},
-            "api": {"volume": "L", "c3": "USD", "investment": "CNY"},
-            "display": {"volume": "KL", "c3": "K$", "investment": "千元人民币"},
+            "source": {
+                "volume": "L", "c3": "USD",
+                "investment": (
+                    "USD" if investment_exchange_rate == 1 else "configured_source_currency"
+                ),
+            },
+            "api": {"volume": "L", "c3": "USD", "investment": "USD"},
+            "display": {"volume": "KL", "c3": "K$", "investment": "K$"},
             "displayDivisor": 1000,
+        },
+        "investmentConversion": {
+            "rate": investment_exchange_rate,
+            "formula": "sourceInvestment / rate = investmentUSD",
+            "targetCurrency": "USD",
+            "scope": "all historical expense years and categories",
+            "planningCurrency": "CNY",
+            "planningConversionApplied": False,
+            "negativeExpenses": "signed_net_sum",
         },
         "metricRules": {
             "yield": {
                 "formula": "C3 / (ICE Rebate + MRD + SP&A + Capex)",
                 "eligibility": "c3 > 0 and all four expenses present and totalInvestment > 0",
-                "unit": "USD/CNY",
+                "unit": "USD/USD",
                 "displaySuffix": "",
-                "fxConverted": False,
-                "interpretation": "历史表现参考，不是同币种回报倍数或ROI",
+                "fxConverted": investment_exchange_rate != 1,
+                "interpretation": "美元口径的历史表现参考，不是未来ROI",
                 "sourceYieldUsed": False,
             },
             "yoy": {
@@ -138,9 +153,13 @@ def history_manifest(
 def history_snapshot(
     planning_year: int, records: list[dict[str, Any]],
     *, ytd_cutoff_month: int = DEFAULT_YTD_CUTOFF_MONTH,
+    investment_exchange_rate: float = 1.0,
 ) -> dict[str, Any]:
     """Return the manifest and its authorized records as one API value."""
     return {
-        "manifest": history_manifest(planning_year, records, ytd_cutoff_month=ytd_cutoff_month),
+        "manifest": history_manifest(
+            planning_year, records, ytd_cutoff_month=ytd_cutoff_month,
+            investment_exchange_rate=investment_exchange_rate,
+        ),
         "records": records,
     }

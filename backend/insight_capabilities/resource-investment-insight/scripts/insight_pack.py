@@ -568,15 +568,17 @@ class InsightPack:
         for fact in evidence["facts"]:
             if fact["unit"] == "CNY" and numeric(fact["value"]):
                 display_values[fact["id"]] = _consistency.money_wan(fact["value"]) + "万元"
-            elif fact["unit"] == "USD/CNY" and numeric(fact["value"]):
+            elif fact["unit"] in {"USD/USD", "USD/CNY"} and numeric(fact["value"]):
                 display_values[fact["id"]] = str(_consistency.Decimal(str(fact["value"])).quantize(_consistency.Decimal("0.1"), rounding=_consistency.ROUND_HALF_UP))
             elif fact["unit"] == "multiple" and numeric(fact["value"]):
                 display_values[fact["id"]] = str(_consistency.Decimal(str(fact["value"])).quantize(_consistency.Decimal("0.1"), rounding=_consistency.ROUND_HALF_UP)) + "倍"
             elif fact["id"].startswith("investment:"):
                 row = json.loads(fact["value"])
                 display_values[fact["id"]] = {key: (_consistency.money_wan(row[key]) + "万元" if row.get(key) is not None else "缺失") for key in ("historical_actual", "plan", "delta", "abs_delta")}
+                if row.get("historical_currency") == "USD" and row.get("historical_actual") is not None:
+                    display_values[fact["id"]]["historical_actual"] = str(row["historical_actual"]) + "美元"
         task["display_values"] = display_values
-        task["task"]["display"] = "金额使用display_values中的万元，Yield保留一位小数且不加x或倍，是未经汇率折算的USD/CNY表现参考；原始值仅用于校验，不能改变判断和分组"
+        task["task"]["display"] = "金额使用display_values标注的币种；规划万元、历史美元，Yield保留一位小数且不加x或倍，是按配置汇率统一美元的USD/USD表现参考；原始值仅用于校验，不能改变判断和分组"
         payload["messages"][1]["content"] = json.dumps(task, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
         if response_format in {"schema", "object"}:
             # $schema is for local tooling; the API receives the actual object schema.

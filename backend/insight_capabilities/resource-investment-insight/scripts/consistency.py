@@ -79,6 +79,8 @@ def resolve_fact_tokens(result, evidence):
             f = facts[key]
             value = json.loads(f["value"]).get(field) if field else f["value"]
             unit = ("multiple" if field == "multiple" else "CNY") if field else f["unit"]
+            if field == "historical_actual":
+                unit = json.loads(f["value"]).get("historical_currency", "CNY")
             wan_suffix = re.match(r"\s*万元", text[match.end():])
             yuan_suffix = re.match(r"\s*元", text[match.end():])
             if value is None:
@@ -89,6 +91,8 @@ def resolve_fact_tokens(result, evidence):
                     if unit == "CNY" and not yuan_suffix else
                     f"{value * 100:.2f}".rstrip("0").rstrip(".") + "%"
                     if unit == "ratio"
+                    else format(Decimal(str(value)), "f") + "美元"
+                    if unit == "USD"
                     else format(Decimal(str(value)), "f")
                 )
                 if unit != "ratio" and "." in rendered:

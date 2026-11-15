@@ -1455,7 +1455,7 @@ function generateInsight(state, scope, identity, options) {
         (high ? "最高" : "最低") +
         "，为 " +
         format(candidate.yield) +
-        "（C3美元/历史投资人民币，未做汇率折算）" +
+        "（C3美元/历史投资美元，历史投资已按配置汇率统一为美元）" +
         "；本范围 2027 分配 " +
         format(money(candidate.amount)) +
         "。",

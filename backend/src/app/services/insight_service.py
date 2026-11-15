@@ -35,7 +35,7 @@ from app.services.insight_pack_adapter import (
 DEFAULT_PROMPT = (
     "按六点分别说明事实、复核方向：低 Yield 与投入、高 Yield 与投入、集中度、"
     "多 Initiative 叠加、Vol/C3 趋势、预算完整性。只使用给定证据，不推断因果。"
-    "C3为美元，投资为人民币；Yield为未经汇率折算的表现参考，不是回报倍数或ROI，数值不带x或倍。"
+    "C3和历史投资统一美元，规划投资为人民币；Yield为历史表现参考，不是回报倍数或ROI，数值不带x或倍。"
 )
 ITEM_KEYS = ("low_yield", "high_yield", "concentration", "overlap", "trend", "completeness")
 logger = logging.getLogger(__name__)
@@ -835,7 +835,7 @@ class InsightService:
             "facts": {
                 **common,
                 "2025 Yield": self._number(yield_value),
-                "Yield口径": "C3美元/历史投资人民币，未做汇率折算；仅为表现参考",
+                "Yield口径": "C3美元/历史投资美元，历史投资按配置汇率换算；仅为表现参考",
                 "规划年度分配": self._number(dealers[dealer_id]["amount"]),
             },
             "status": "review",
