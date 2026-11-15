@@ -873,7 +873,8 @@ export function V19Health({
                           <div className="v19-dumbbell">
                             <i
                               style={{
-                                width: `${group.stats?.amountShare || 0}%`,
+                                left: `${Math.min(group.stats?.amountShare || 0, group.stats?.metricShare || 0)}%`,
+                                width: `${Math.abs((group.stats?.amountShare || 0) - (group.stats?.metricShare || 0))}%`,
                               }}
                             />
                             <b
