@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { LocalPreviewSelector } from "../src/workbench/LocalPreviewSelector";
 import {
   getLocalPreviewConfig,
   getLocalPreviewEmail,
@@ -36,6 +39,64 @@ beforeEach(() => {
     getItem: (key: string) => values.get(key) ?? null,
     setItem: (key: string, value: string) => values.set(key, value),
     removeItem: (key: string) => values.delete(key),
+  });
+});
+
+describe("explicit local PG direct entry", () => {
+  const pgConfig = {
+    dataMode: "pg-real" as const,
+    dataLabel: "main · 服务器 PG 真实数据",
+    defaultEmail: "manager@example.com",
+    users: [
+      { email: "manager@example.com", label: "Manager · 管理层" },
+      { email: "owner@example.com", label: "Owner · Owner" },
+    ],
+  };
+
+  it("uses a configured existing account directly and retains its selection on reload", async () => {
+    browser("http://127.0.0.1:8020/", pgConfig);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ code: 200, data: {} }),
+    }));
+    acceptPortalEmail();
+    expect(getDevelopmentEmail()).toBe("manager@example.com");
+    setDevelopmentEmail("owner@example.com");
+    browser("http://127.0.0.1:8020/", pgConfig);
+    acceptPortalEmail();
+    await workspace();
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining("/workspace"), expect.objectContaining({
+      headers: expect.objectContaining({ "X-User-Email": "owner@example.com" }),
+    }));
+    expect(setLocalPreviewEmail("not-listed@example.com")).toBe(false);
+    expect(getDevelopmentEmail()).toBe("owner@example.com");
+  });
+
+  it.each([
+    "https://resource.example.com/", "http://localhost:8020/portal-embed/workbench",
+    "http://127.0.0.1:8020/portal-embed",
+  ])("never activates the PG selector outside the loopback application entry: %s", (href) => {
+    browser(href, pgConfig);
+    expect(getLocalPreviewConfig()).toBeNull();
+  });
+
+  it("requires explicit PG mode and rejects malformed emails or unknown modes", () => {
+    for (const dataMode of [undefined, "synthetic", "production"]) {
+      browser("http://127.0.0.1:8020/", { ...pgConfig, dataMode });
+      expect(getLocalPreviewConfig()).toBeNull();
+    }
+    browser("http://127.0.0.1:8020/", {
+      ...pgConfig, defaultEmail: "bad email", users: [{ email: "bad email", label: "Invalid" }],
+    });
+    expect(getLocalPreviewConfig()).toBeNull();
+  });
+
+  it("labels the account picker as server PG rather than synthetic data", () => {
+    const html = renderToStaticMarkup(createElement(LocalPreviewSelector, {
+      config: pgConfig, email: pgConfig.defaultEmail, onChange: () => {},
+    }));
+    expect(html).toContain('aria-label="本地测试账号（服务器 PG）"');
+    expect(html).toContain("服务器 PG 真实数据");
+    expect(html).not.toContain("合成数据");
   });
 });
 afterEach(() => vi.unstubAllGlobals());

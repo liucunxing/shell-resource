@@ -35,7 +35,7 @@
 - 前端67文件405项测试、TypeScript、生产构建和bundle检查通过。
 - 最终后端830项pytest通过（含四角色旧身份、selected同步、停用既有名单保存、不可变snapshot、单位/期间/负值回归）；全目录Ruff和Mypy90源文件通过。
 - 真实PG只读对账1,489行通过；本地SQLite缓存兼容回归通过。
-- main使用普通 `app.main:app` 入口运行于 `http://127.0.0.1:8020/`，连接现有安全配置指定的服务器PG。开发邮箱鉴权保留，不注入演示账号。8019继续为隔离SQLite演示。
+- main按用户要求使用显式本机PG测试入口 `scripts.pg_local_preview:create_pg_local_preview --factory` 运行于 `http://127.0.0.1:8020/`，直接进入并选择现有启用账号，不需帆软；连接现有安全配置指定的服务器PG。后端现有权限保留，不创建演示账号。8019继续为隔离SQLite演示。
 - 浏览器实测管理层2026YTD：经销商12088919（PCMO）target693.75KL、Vol630.2KL、Phasing90.84%，明细与抽屉一致；2025对应target0，Phasing为“—”。3个旧项目共12分配行、8家经销商全部正确匹配历史，未重复跨Sector。
 - 截图位于忽略目录 `output/playwright/main-pg-target-drawer.png`，未提交真实业务截图。
 - 本次为本机main连接远端PG预览与代码同步，不代表远端应用部署或真实SSO/UAT验收。

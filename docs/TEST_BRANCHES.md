@@ -99,3 +99,14 @@ PG 模式还须传入 `-SettingsFile`。测试报告保存在当前工作目录�
 本次仅前端布局/显示变更，未改真实PG数据，未部署远端服务器；视觉效果仍待用户确认。
 
 2026-11-15 组织页调整：374项前端测试通过，三个工作区build和bundle通过。浏览器检查四组表头字重700及不同背景、4组投资条、两个结论卡片区域、悬停口径提示；截图output/playwright/organization-summary-new.png。本地合成场景，未部署远端。
+
+## 2026-11-15 main连接PG的本地直接测试入口
+
+用户明确本地先测试，无需帆软跳转。main的8020使用显式开发入口：
+
+```powershell
+# backend目录，沿用已批准的development PostgreSQL配置
+.venv/Scripts/python.exe -m uvicorn scripts.pg_local_preview:create_pg_local_preview --factory --app-dir src --host 127.0.0.1 --port 8020
+```
+
+直接打开 `http://127.0.0.1:8020/`，默认管理层，顶部切换PG已有启用账号并在本次浏览器会话保留选择。顶部明确标识服务器PG真实数据，不创建/导入模拟用户或示例业务。普通后端权限校验继续执行；该入口拒绝非loopback访问、非development配置与非PostgreSQL配置，正式 `app.main:app` 和Portal身份流程不改变。`Start-Branch.ps1`的默认PG入口继续使用普通应用；上面的显式入口用于用户已授权的本机测试。
