@@ -223,6 +223,8 @@ def build_evidence(
         label = str(row.get("name") or dealer_id)
         plan = float(value["amount"])
         yld = number(history.get("yield"))
+        if yld is not None and yld < 0:
+            yld = None
         fact(f"plan:{dealer_id}", f"{dealer_id} 本范围计划投入", plan, "CNY")
         fact(
             f"share:{dealer_id}",
@@ -235,9 +237,9 @@ def build_evidence(
             f"yield:{dealer_id}",
             f"{dealer_id} 历史整体 Yield",
             yld,
-            "multiple",
+            "USD/CNY",
             "2025全年",
-            "2025历史整体Yield，不代表单一资源类型的Yield或本次计划的未来收益。",
+            "2025历史整体Yield=C3美元/历史投资人民币，未经汇率折算的表现参考；不代表同币种回报倍数、ROI或本次计划的未来收益。",
         )
         detail.append(
             dict(
@@ -249,7 +251,7 @@ def build_evidence(
             )
         )
         ranked.append(dict(id=dealer_id, label=label, value=plan))
-        if yld is not None and yld != 0 and plan > 0:
+        if yld is not None and yld > 0 and plan > 0:
             quadrant.append(dict(id=dealer_id, label=label, x=yld, y=plan))
         values = {
             key: number(history.get(key))
@@ -264,9 +266,9 @@ def build_evidence(
                 f"{key}:{dealer_id}",
                 f"{dealer_id} {key}",
                 val,
-                "",
+                "L" if key.startswith("vol") else "USD",
                 "2026累计" if "2026" in key else ("2024全年" if "2024" in key else "2025全年"),
-                "2026累计不年化，源表未声明计量单位。",
+                "Vol为L，C3为USD；2026累计不年化。",
             )
         for metric, previous, current in [
             ("vol", values["vol2024"], values["vol2025"]),
@@ -281,7 +283,7 @@ def build_evidence(
                 f"{metric}-change:{dealer_id}",
                 f"{dealer_id} {metric.upper()} 全年变化量",
                 float(change) if change is not None else None,
-                "",
+                "L" if metric == "vol" else "USD",
                 "2025全年 / 2024全年",
                 "系统计算2025减2024；零值、负值保留；缺任一年度才为空，单位沿用源数据。",
             )
@@ -309,14 +311,14 @@ def build_evidence(
             "已分配对象历史Yield与计划",
             yield_detail,
             ["cohort", "targets"],
-            "历史整体 Yield 与本范围计划的资金范围不同；跨年参考，非未来 ROI。"
+            "历史整体Yield为C3美元/历史投资人民币，未做汇率折算；与本范围计划的资金范围不同，非未来ROI。"
             "Yield为0的对象不参与Yield分析。",
             at=f"2025全年 / {period}",
             columns=[
                 dict(key=k, label=label, unit=u)
                 for k, label, u in [
                     ("dealer", "经销商", ""),
-                    ("yield_value", "2025整体Yield", "multiple"),
+                    ("yield_value", "2025整体Yield", "USD/CNY"),
                     ("plan", period, "CNY"),
                     ("initiative_count", "不同 Initiative 数", "count"),
                 ]
@@ -329,10 +331,13 @@ def build_evidence(
             "全部已分配对象经营历史",
             trend,
             ["cohort"],
-            "2026为累计，不与全年直接同比；源表未声明 Vol/C3 计量单位。",
+            "2026为累计，不与全年直接同比；Vol为L，C3为USD。",
             at="2024 / 2025全年 / 2026累计",
             columns=[
-                dict(key=k, label=k, unit="")
+                dict(
+                    key=k, label=k,
+                    unit="L" if k.startswith("vol") else "USD" if k.startswith("c3") else "",
+                )
                 for k in [
                     "dealer",
                     "vol2024",
@@ -381,11 +386,11 @@ def build_evidence(
             "历史整体 Yield × 本范围计划投入",
             quadrant,
             ["cohort", "targets"],
-            "跨年参考，非未来收益预测；Yield为0的对象不入图、不参与中位数计算。",
+            "Yield为C3美元/历史投资人民币，未做汇率折算；跨年参考，非未来收益预测，非正Yield不入图。",
             at=f"2025全年 / {period}",
             x=dict(
                 label="历史整体 Yield",
-                unit="multiple",
+                unit="USD/CNY",
                 period="2025全年",
                 cutoff=xmid,
                 cutoff_method="median",

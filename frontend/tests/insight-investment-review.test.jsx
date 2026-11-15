@@ -47,9 +47,9 @@ describe("full investment comparison", () => {
     expect(html).toContain("极小金额对象");
     expect(html).toContain(">0.00</td>");
     expect(html).toContain(">125.68</td>");
-    expect(html).toContain("2025资源投入(K$)");
-    expect(html).toContain("本次计划(K$)");
-    expect(html).toContain("差额(K$)");
+    expect(html).toContain("2025资源投入(千元人民币)");
+    expect(html).toContain("本次计划(千元人民币)");
+    expect(html).toContain("差额(千元人民币)");
     expect(html).not.toContain("万元");
     expect(html).toContain("历史信息不足");
     expect(html).toContain("已核对");

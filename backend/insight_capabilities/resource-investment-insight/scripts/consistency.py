@@ -23,8 +23,15 @@ def format_result_display(result):
     def text(value):
         value = re.sub(r"(?<![A-Za-z\d.])([+\-−]?\d[\d,]*(?:\.\d+)?)\s*(万元|元)",
                        lambda m: (m[1] if m[2] == "万元" else money_wan(m[1])) + "万元", value)
-        return re.sub(r"((?:Yield|投入产出比)[^。；;，\n]{0,24}?)([+\-]?\d+(?:\.\d+)?)\s*倍",
-                      lambda m: m[1] + str(Decimal(m[2]).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)) + "倍", value, flags=re.I)
+        def yield_display(match):
+            metric = Decimal(match[2].replace("−", "-"))
+            rendered = "—" if metric <= 0 else str(metric.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
+            return match[1] + rendered
+
+        value = re.sub(r"((?:Yield|投入产出比)[^。；;，\n]{0,24}?)([+\-−]?\d+(?:\.\d+)?)\s*(?:倍|[x×])",
+                       yield_display, value, flags=re.I)
+        return re.sub(r"((?:Yield|投入产出比)(?:\s*(?:为|是|=|:|：)\s*|\s+))([+\-−]?\d+(?:\.\d+)?)(?![\d.])",
+                      yield_display, value, flags=re.I)
 
     for key in ("headline", "summary"):
         output[key] = text(output[key])

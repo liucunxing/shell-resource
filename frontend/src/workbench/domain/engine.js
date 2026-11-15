@@ -1422,7 +1422,7 @@ function generateInsight(state, scope, identity, options) {
     .map((d) => {
       const h = history(d.id);
       const value = h.yield;
-      return numeric(value) && value !== 0 ? { ...d, yield: value } : null;
+      return numeric(value) && value > 0 ? { ...d, yield: value } : null;
     })
     .filter(Boolean)
     .sort(
@@ -1439,8 +1439,8 @@ function generateInsight(state, scope, identity, options) {
         key,
         finding,
         top ? top.id : scope,
-        (ranked.some((dealer) => history(dealer.id).yield === 0)
-          ? "本范围没有可参与比较的历史 Yield；零值不参与分析。"
+        (ranked.some((dealer) => numeric(history(dealer.id).yield) && history(dealer.id).yield <= 0)
+          ? "本范围没有可参与比较的历史 Yield；非正值不参与分析。"
           : "缺少源数据提供的 Yield，暂不能进行历史 Yield 对比。") + topFact,
         "请补齐同年历史依据后结合未来业务计划复核，不能仅凭投入金额认定投入过高或不足。",
         "limited",
@@ -1455,7 +1455,7 @@ function generateInsight(state, scope, identity, options) {
         (high ? "最高" : "最低") +
         "，为 " +
         format(candidate.yield) +
-        "（源数据 Yield 原始比值）" +
+        "（C3美元/历史投资人民币，未做汇率折算）" +
         "；本范围 2027 分配 " +
         format(money(candidate.amount)) +
         "。",

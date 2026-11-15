@@ -119,7 +119,7 @@ def test_money_conversion_is_exact_idempotent_and_yield_is_one_decimal():
     formatted = pack.format_result_display(result)
     assert (
         formatted["summary"]
-        == "实际10万元，计划100万元，增加90万元；历史Yield为2.3倍。差额-0.000001万元，缺失不填0。"
+        == "实际10万元，计划100万元，增加90万元；历史Yield为2.3。差额-0.000001万元，缺失不填0。"
     )
     assert pack.format_result_display(formatted) == formatted
     assert "100,000元" in result["summary"]
@@ -182,3 +182,18 @@ def test_scalar_money_tokens_keep_legacy_yuan_and_support_wan():
     result["summary"] = "{{budget}}万元 / {{budget}}元 / {{budget}}"
     resolved, _ = pack.resolve_fact_tokens(result, evidence)
     assert resolved["summary"] == "10万元 / 100000元 / 10万元"
+
+
+def test_legacy_yield_text_hides_negative_values_and_removes_multiplier_suffixes():
+    from app.services.insight_pack_adapter import PACK_ROOT, InsightPack
+
+    pack = InsightPack(PACK_ROOT)
+    result = {
+        "headline": "历史Yield为-2.5x",
+        "summary": "历史Yield为−2.5；历史Yield为3.25倍；计划/实际为2倍。",
+        "checks": [], "blocks": [], "limitations": ["历史Yield: -1"],
+    }
+    shown = pack.format_result_display(result)
+    assert shown["headline"] == "历史Yield为—"
+    assert shown["summary"] == "历史Yield为—；历史Yield为3.3；计划/实际为2倍。"
+    assert shown["limitations"] == ["历史Yield: —"]

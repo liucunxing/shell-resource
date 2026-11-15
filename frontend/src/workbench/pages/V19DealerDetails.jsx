@@ -92,7 +92,7 @@ export function V19DealerDetails({ items, dealers, ytdCutoffMonth = 10 }) {
     [
       "历史投资 · " + (period === "2025" ? "2025 全年" : "2026 YTD"),
       [
-        ["investment", "历史投资总额（K$）"],
+        ["investment", "历史投资总额（千元人民币）"],
         ["yield", "Yield"],
         ["investmentShare", "历史资源占比"],
       ],
@@ -135,7 +135,7 @@ export function V19DealerDetails({ items, dealers, ytdCutoffMonth = 10 }) {
       ? [
           [
             "历史费用明细 · 已授权",
-            expenses.map((type) => [`expense:${type}`, `${type}（K$）`]),
+            expenses.map((type) => [`expense:${type}`, `${type}（千元人民币）`]),
           ],
         ]
       : []),
@@ -196,7 +196,7 @@ export function V19DealerDetails({ items, dealers, ytdCutoffMonth = 10 }) {
       return pct(read(row, key));
     if (key === "gap") return gap(row.gap);
     if (key === "yield")
-      return row.yield == null ? "—" : `${number(row.yield)}x`;
+      return row.yield == null || row.yield <= 0 ? "—" : number(row.yield);
     if (
       ["investment", "contract", "metric"].includes(key) ||
       key.startsWith("expense:")

@@ -239,7 +239,7 @@ vitestTest(
       assert.ok(model.notes.includes("经销商范围由服务端业务授权确定；历史投资总额、Vol、C3、Yield 为公共参考指标。"));
     });
     test("Yield missing or non-finite source value remains null", () => {
-      for (const value of [undefined, null, Infinity, NaN]) {
+      for (const value of [undefined, null, Infinity, NaN, -2.5]) {
         const d = structuredClone(D);
         d.dealers[0].history.yield = value;
         assert.equal(
@@ -256,7 +256,7 @@ vitestTest(
       d.dealers[0].history.yield = 0;
       assert.equal(
         X.rawData(working, owner, d, "history").rows[0].yield,
-        0,
+        null,
       );
     });
     test("historyReference periods and resources respect role boundary", () => {
@@ -278,16 +278,16 @@ vitestTest(
         assert.equal(m.allResources, all);
         const labels = all
           ? [
-              "2025 MRD (K$)",
-              "2025 SP&A (K$)",
-              "2025 ICE Rebate (K$)",
-              "2025 Capex (K$)",
+              "2025 MRD (千元人民币)",
+              "2025 SP&A (千元人民币)",
+              "2025 ICE Rebate (千元人民币)",
+              "2025 Capex (千元人民币)",
             ]
           : identity.department === "MKT"
-            ? ["2025 MRD (K$)", "2025 SP&A (K$)"]
+            ? ["2025 MRD (千元人民币)", "2025 SP&A (千元人民币)"]
             : identity.department === "ICE"
-              ? ["2025 SP&A (K$)", "2025 ICE Rebate (K$)"]
-              : ["2025 Capex (K$)"];
+              ? ["2025 SP&A (千元人民币)", "2025 ICE Rebate (千元人民币)"]
+              : ["2025 Capex (千元人民币)"];
         assert.deepEqual(
           m.resources.map((r) => r.label),
           labels,
