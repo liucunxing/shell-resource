@@ -34,7 +34,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useLayoutEffect, useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
 import { allocateByHistory } from "../domain/history-allocation";
@@ -420,6 +420,23 @@ function EditorContent({
     [undo, setUndo] = useState(null),
     [busy, setBusy] = useState(false);
   const allocationScroll = useRef(null);
+  const selectionViewport = useRef(null);
+  useLayoutEffect(() => {
+    const saved = selectionViewport.current;
+    if (!saved) return;
+    selectionViewport.current = null;
+    for (const [element, top, left] of saved.parents) {
+      element.scrollTop = top;
+      element.scrollLeft = left;
+    }
+    window.scrollTo({ top: saved.y, left: saved.x, behavior: "instant" });
+  });
+  const rememberSelectionViewport = () => {
+    const parents = [];
+    for (let element = document.activeElement?.parentElement; element; element = element.parentElement)
+      parents.push([element, element.scrollTop, element.scrollLeft]);
+    selectionViewport.current = { parents, x: window.scrollX, y: window.scrollY };
+  };
   const fileRef = useRef(null),
     alive = useRef(true);
   useEffect(() => {
@@ -918,7 +935,7 @@ function EditorContent({
                   minimumFractionDigits: 1,
                   maximumFractionDigits: 1,
                 })}
-                <small> 万</small>
+                <small> 万元</small>
               </strong>
               <p>{note}</p>
             </Card>
@@ -1146,6 +1163,7 @@ function EditorContent({
                                   }
                                   onCheckedChange={(checked) =>
                                     doGuard(() => {
+                                      if (!(selected?.amount > 0 && !checked)) rememberSelectionViewport();
                                       if (checked && !selected)
                                         update({
                                           rows: [

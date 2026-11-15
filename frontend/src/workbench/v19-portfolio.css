@@ -469,40 +469,13 @@
   text-align: center;
   margin: 8px 0 16px;
 }
-.v19-dumbbell {
-  position: relative;
-  min-width: 150px;
-  height: 14px;
-  margin: 7px 5px;
-  border-radius: 3px;
-  background: #e8edf1;
-}
-.v19-dumbbell i {
-  position: absolute;
-  height: 14px;
-  top: 0;
-  left: 0;
-  border-radius: 3px;
-  background: #fbce07;
-}
-.v19-dumbbell b,
-.v19-dumbbell em {
-  position: absolute;
-  top: 2px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  transform: translateX(-50%);
-}
-.v19-dumbbell b {
-  background: #e0a800;
-  z-index: 2;
-}
-.v19-dumbbell em {
-  background: white;
-  border: 2px solid #595959;
-  z-index: 3;
-}
+/* Share comparison: no filled track; outlined markers remain visible on white. */
+.v19-dumbbell { position: relative; min-width: 150px; height: 18px; margin: 7px 7px; background: transparent; }
+.v19-dumbbell::before { content: ""; position: absolute; top: 8px; left: 0; right: 0; border-top: 1px dashed #b8c0c6; }
+.v19-dumbbell i { position: absolute; top: 7px; height: 3px; background: #667580; }
+.v19-dumbbell b, .v19-dumbbell em { position: absolute; top: 2px; width: 14px; height: 14px; border-radius: 50%; transform: translateX(-50%); box-shadow: 0 0 0 2px white; }
+.v19-dumbbell b { background: #fbce07; border: 2px solid #8a6900; z-index: 3; }
+.v19-dumbbell em { top: 0; width: 18px; height: 18px; background: white; border: 2px solid #425563; z-index: 2; }
 .v19-exec-concentration-overview {
   display: grid;
   grid-template-columns: 1.1fr 1fr;
