@@ -23,7 +23,7 @@ body {
   margin: 0;
   color: var(--ink);
   background: var(--canvas);
-  font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+  font-family: "Microsoft YaHei", "微软雅黑", sans-serif;
   font-size: 13px;
   line-height: 1.6;
 }
