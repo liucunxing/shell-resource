@@ -730,6 +730,7 @@ export function V19Health({
   mode,
   thresholds = {},
   ytdCutoffMonth = 10,
+  budgetReasons = [],
 }) {
   const [period, setPeriod] = useState("2025"),
     [basis, setBasis] = useState("c3"),
@@ -986,7 +987,7 @@ export function V19Health({
               </div>
             </div>
           </div>
-          {mode !== "exec" && <V19Stack items={items} dealers={dealers} thresholds={thresholds} ytdCutoffMonth={ytdCutoffMonth} embedded />}
+          {mode !== "exec" && <V19Stack items={items} dealers={dealers} thresholds={thresholds} ytdCutoffMonth={ytdCutoffMonth} budgetReasons={budgetReasons} embedded />}
         </div>
         {detail && (
           <ResourceDetailDrawer
@@ -994,6 +995,7 @@ export function V19Health({
             items={items}
             dealers={dealers}
             ytdCutoffMonth={ytdCutoffMonth}
+            budgetReasons={budgetReasons}
             onClose={() => setDetail(null)}
           />
         )}
@@ -1008,6 +1010,7 @@ export function V19Stack({
   thresholds = {},
   ytdCutoffMonth = 10,
   embedded = false,
+  budgetReasons = [],
 }) {
   const [period, setPeriod] = useState("2025"),
     [basis, setBasis] = useState("c3"),
@@ -1207,6 +1210,7 @@ export function V19Stack({
           items={items}
           dealers={dealers}
           ytdCutoffMonth={ytdCutoffMonth}
+          budgetReasons={budgetReasons}
           onClose={() => setSelected(null)}
         />
       )}

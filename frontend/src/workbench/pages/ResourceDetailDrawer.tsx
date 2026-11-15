@@ -251,6 +251,10 @@ export function historicalDetailTotals(
   };
 }
 
+export function reserveReasonLabel(reasons: { id: string; label: string }[], id?: string) {
+  return reasons.find((item) => item.id === id)?.label || (id ? `未识别的原因码：${id}` : "原因缺失");
+}
+
 export function ResourceDetailDrawer({
   detail,
   items,
@@ -409,8 +413,7 @@ export function ResourceDetailDrawer({
       analyticalOutput(row.history[`c3${suffix}`]),
     ),
   );
-  const reason = (id?: string, note?: string) =>
-    budgetReasons.find((item) => item.id === id)?.label || note || "原因未提供";
+  const reason = (id?: string) => reserveReasonLabel(budgetReasons, id);
   const resize = (value: number) => {
     const next = Math.max(580, Math.min(1480, window.innerWidth - 24, value));
     setWidth(next);
@@ -701,7 +704,7 @@ export function ResourceDetailDrawer({
               <TableBody>
                 {initiative.otherBudgets.map((row, index) => (
                   <TableRow key={row.id || index}>
-                    <TableCell>{reason(row.reasonId, row.note)}</TableCell>
+                    <TableCell>{reason(row.reasonId)}</TableCell>
                     <TableCell className="num" sortValue={row.amount}>
                       {n(row.amount, 10000)}
                     </TableCell>

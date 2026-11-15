@@ -1774,6 +1774,7 @@ function EditorContent({
           )}
           {activeStep === 3 && (
             <SdAnalysis
+              budgetReasons={state.budgetReasons}
               variant="editor"
               ytdCutoffMonth={state.ytdCutoffMonth}
               items={[i]}

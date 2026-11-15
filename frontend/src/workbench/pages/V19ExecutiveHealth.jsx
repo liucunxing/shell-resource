@@ -112,6 +112,7 @@ export function V19ExecutiveHealth({
   dealers,
   thresholds = {},
   ytdCutoffMonth = 10,
+  budgetReasons = [],
 }) {
   const [period, setPeriod] = useState("2025"),
     [basis, setBasis] = useState("c3"),
@@ -431,6 +432,7 @@ export function V19ExecutiveHealth({
           items={drill.scopeItems || included}
           dealers={dealers}
           ytdCutoffMonth={ytdCutoffMonth}
+          budgetReasons={budgetReasons}
           onClose={() => setDrill(null)}
         />
       )}

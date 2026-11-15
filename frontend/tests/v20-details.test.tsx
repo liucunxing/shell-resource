@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
+  reserveReasonLabel,
   detailScope,
   nestedDetailRequest,
   historicalDetailTotals,
@@ -468,4 +469,11 @@ describe("budget and reserve acknowledgement", () => {
       expect(canEnterAllocationStep(step, false, false)).toBe(true);
     }
   });
+});
+
+it("uses configured reason labels including disabled historical codes and exposes missing codes", () => {
+  const reasons = [{ id: "r1", label: "待确认活动", enabled: false }];
+  expect(reserveReasonLabel(reasons, "r1")).toBe("待确认活动");
+  expect(reserveReasonLabel(reasons, "unknown")).toBe("未识别的原因码：unknown");
+  expect(reserveReasonLabel(reasons)).toBe("原因缺失");
 });
