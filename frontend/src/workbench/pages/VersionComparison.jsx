@@ -262,6 +262,7 @@ export function VersionComparison({ executive }) {
           previousVersion={left}
           currentVersion={right}
           executive={executive}
+          ytdCutoffMonth={state.ytdCutoffMonth}
           budgetReasons={state.budgetReasons}
           onClose={() => setDetail(null)}
         />

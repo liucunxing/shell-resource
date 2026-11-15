@@ -505,7 +505,7 @@ export function ResourceDetailDrawer({
                 </Button>
               </TableCell>
               <TableCell>
-                {item.resourceType} / {item.ownerName || item.ownerId || "—"}
+                <Button variant="link" onClick={() => open({ type: "resource", resourceType: item.resourceType })}>{item.resourceType}</Button> / {item.ownerName || item.ownerId || "—"}
               </TableCell>
               <TableCell className="num" sortValue={sourceAmount(item)}>
                 {n(sourceAmount(item), 10000)}
@@ -644,7 +644,7 @@ export function ResourceDetailDrawer({
           {matchingItems.map((item) => (
             <span key={item.id}>
               <i style={{ background: detailInitiativeColor(item) }} />
-              {item.name}
+              <Button variant="link" onClick={() => open({ type: "initiative", initiativeId: item.id })}>{item.name}</Button>
             </span>
           ))}
         </div>

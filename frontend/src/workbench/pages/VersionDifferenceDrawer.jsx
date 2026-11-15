@@ -1,3 +1,4 @@
+import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
 import { useEffect, useRef, useState } from "react";
 import {
   Sheet,
@@ -129,8 +130,10 @@ export function VersionDifferenceDrawer({
   currentVersion,
   executive,
   budgetReasons = [],
+  ytdCutoffMonth = null,
   onClose,
 }) {
+  const [dealerDetail, setDealerDetail] = useState(null);
   const [trail, setTrail] = useState([detail]),
     [query, setQuery] = useState("");
   const trigger = useRef(
@@ -164,6 +167,7 @@ export function VersionDifferenceDrawer({
       .includes(query.toLowerCase()),
   );
   return (
+    <>
     <Sheet
       open
       onOpenChange={(open) => {
@@ -316,7 +320,7 @@ export function VersionDifferenceDrawer({
                         (item.otherBudgets || []).map((row, index) => (
                           <TableRow key={`${version}-${item.id}-${index}`}>
                             <TableCell>{version}</TableCell>
-                            <TableCell>{item.name}</TableCell>
+                            <TableCell><Button variant="link" onClick={() => { setTrail(rows => [...rows, { dimension: "initiative", key: keyOf(item), name: item.name }]); setQuery(""); }}>{item.name}</Button></TableCell>
                             <TableCell>
                               {row.reasonLabel ||
                                 row.reason ||
@@ -371,7 +375,11 @@ export function VersionDifferenceDrawer({
                   {visible.map((row) => (
                     <TableRow key={row.key}>
                       <TableCell>
-                        {row.name}
+                        <Button variant="link" onClick={() => setDealerDetail({
+                          detail: { type: "dealer", dealerKey: row.key, dealerId: (row.current || row.previous).id, sector: row.sector },
+                          items: row.current ? data.right.items : data.left.items,
+                          dealers: row.current ? result.currentDealers || result.dealers || [] : result.previousDealers || result.dealers || [],
+                        })}>{row.name}</Button>
                         <small>{row.code}</small>
                       </TableCell>
                       <TableCell>{row.sector}</TableCell>
@@ -418,5 +426,10 @@ export function VersionDifferenceDrawer({
         </footer>
       </SheetContent>
     </Sheet>
+    {dealerDetail && <ResourceDetailDrawer
+      {...dealerDetail} budgetReasons={budgetReasons} ytdCutoffMonth={ytdCutoffMonth}
+      onClose={() => setDealerDetail(null)}
+    />}
+    </>
   );
 }
