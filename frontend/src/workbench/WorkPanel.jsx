@@ -273,7 +273,7 @@ export function ResourceCompositionRows({ resources, prefix, allResources }) {
   const comparable = complete && !negative && total > 0;
   return <>
     {resources.map((resource) => <div className="resource-bar-row" key={resource.label}>
-      <div><span>{resource.label.replace(prefix, "")}</span><b>{fmt(resource.amount)} K$</b></div>
+      <div><span>{resource.label.replace(prefix, "")}</span><b>{fmt(resource.amount)} 千元人民币</b></div>
       {comparable && <div className="history-bar-track"><i className="resource" style={{ width: `${resource.amount / total * 100}%` }} /></div>}
     </div>)}
     <p>{negative ? "含负费用，暂不显示构成占比；金额保留原值。" : !complete ? "费用数据不完整，暂不显示构成占比。" : total <= 0 ? "费用合计不大于 0，暂不显示构成占比。" : `条形占比以${allResources ? "全部" : "当前授权"}资源合计为分母。`}</p>
@@ -355,11 +355,11 @@ function ReferencePanel() {
           <span>2025 全年 · Yield</span>
           <strong>{fmt(model.yield)}</strong>
         </div>
-        <p>2025 C3 ÷ 资源</p>
+        <p>2025 C3（美元）÷ 历史投资（人民币）</p>
         <small>
           {model.yield == null
-            ? "源数据暂未提供 Yield"
-            : "源数据原始比值 · 只读参考"}
+            ? "Yield 暂不可计算"
+            : "未做汇率折算 · 仅作表现参考"}
         </small>
       </Card>
       <div className="history-chart-pair">
@@ -448,7 +448,7 @@ function ReferencePanel() {
         </section>
       )}
       <p className="reference-footnote">
-        Vol 的单位为 KL，C3 与资源的单位为 K$。Yield
+        Vol 的单位为 KL，C3 为 K$（千美元），资源为千元人民币。Yield
         向各角色共享，资源明细按权限展示；历史比值不随 2027 分配变化。
       </p>
       <Button
@@ -555,7 +555,7 @@ function LocalChat() {
             : "最新同步";
     if (/同比|2026|历史|yield/i.test(question))
       return {
-        text: "2024、2025 为全年历史；2026 为 1–8 月累计演示口径，没有去年同期数据，不能直接做同比或默认年化。Yield 为源数据提供的 2025 C3 ÷ 资源原始比值，资源明细仅在授权范围展示。",
+        text: "2024、2025 为全年历史；2026 为 1–8 月累计演示口径，没有去年同期数据，不能直接做同比或默认年化。Yield 为 2025 C3（美元）÷ 历史投资（人民币），未做汇率折算，仅作表现参考，资源明细仅在授权范围展示。",
         callback: { label: "打开历史原始数据", target: "history" },
       };
     if (/占比|分布|sector|部门|initiative/i.test(question)) {

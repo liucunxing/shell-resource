@@ -634,7 +634,7 @@ vitestTest(
         assert.equal(record.items[1].object, "D2");
         assert.match(record.items[0].text, /为 2.2/);
         assert.match(record.items[1].text, /为 6/);
-        assert.match(record.items[0].text, /源数据 Yield 原始比值/);
+        assert.match(record.items[0].text, /C3美元\/历史投资人民币，未做汇率折算/);
         assert.match(record.items[4].text, /Vol 同比 -20.00%/);
         assert.match(record.items[4].text, /C3 同比 10.00%/);
         assert(!JSON.stringify(record).includes("999999"));
@@ -662,7 +662,7 @@ vitestTest(
       assert.deepEqual(E.selectView(s, owner).insights, {});
     });
     check("Yield 缺失或非有限时不能伪造可比值", () => {
-      for (const yieldValue of [null, undefined, NaN, Infinity, -Infinity]) {
+      for (const yieldValue of [null, undefined, NaN, Infinity, -Infinity, -2.5]) {
         const fixture = copy(historicalData);
         fixture.dealers.forEach((d) => {
           d.history.yield = yieldValue;
@@ -690,7 +690,7 @@ vitestTest(
         data: fixture,
       });
       assert(zero.items.slice(0, 2).every((i) => i.status === "limited"));
-      assert.match(zero.items[0].text, /零值不参与分析/);
+      assert.match(zero.items[0].text, /非正值不参与分析/);
       assert.doesNotMatch(zero.items[0].text, /缺少源数据提供的 Yield/);
     });
     check(

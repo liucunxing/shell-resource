@@ -109,7 +109,11 @@ const statuses: Record<Status, string> = {
   observed: "已核对事实",
   limited: "待补充信息",
 };
-export function formatEvidence(value: Cell | undefined, unit = ""): string {
+export function formatEvidence(value: Cell | undefined, unit = "", label = "", axisTick = false): string {
+  if (unit === "USD/CNY" || /yield|投入产出比/i.test(label)) {
+    return typeof value === "number" && Number.isFinite(value) && (value > 0 || (axisTick && value === 0))
+      ? value.toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "—";
+  }
   if (value == null) return "缺失";
   if (typeof value !== "number") return value;
   if (unit === "ratio")
@@ -127,9 +131,9 @@ export function formatInsightCopy(value: Cell | undefined): string {
         `${(Number(value.replaceAll(",", "").replace("−", "-")) / (unit === "元" ? 10000 : 1)).toLocaleString("zh-CN", { maximumFractionDigits: 2 })}万元`,
     )
     .replace(
-      /((?:Yield|投入产出比)[^。；;，\n]{0,24}?)([+\-]?\d+(?:\.\d+)?)\s*倍/gi,
+      /((?:Yield|投入产出比)[^。；;，\n\d+\-−]{0,24}?)([+\-−]?\d+(?:\.\d+)?)(?:\s*(?:倍|x))?/gi,
       (_, prefix, value) =>
-        `${prefix}${Number(value).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false })}倍`,
+        `${prefix}${Number(value.replace("−", "-")) > 0 ? Number(value.replace("−", "-")).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false }) : "—"}`,
     )
     .replace(
       /(?<![\w./])([+\-−]?\d[\d,]*\.\d{3,})(\s*(?:%|％|倍|K\$|KL|吨|升))(?![A-Za-z])/g,
@@ -270,9 +274,9 @@ export function InvestmentReview({
                 "经销商",
                 "Sector",
                 "资源类型",
-                "2025资源投入(K$)",
-                "本次计划(K$)",
-                "差额(K$)",
+                "2025资源投入(千元人民币)",
+                "本次计划(千元人民币)",
+                "差额(千元人民币)",
                 "计划 / 实际",
                 "核对状态",
               ].map((label) => (
@@ -376,7 +380,7 @@ function EvidenceRows({ dataset }: { dataset: Dataset }) {
           {columns.map((col) => (
             <div key={col.key}>
               <dt>{col.label}</dt>
-              <dd>{formatEvidence(row[col.key], col.unit)}</dd>
+              <dd>{formatEvidence(row[col.key], col.unit, col.label)}</dd>
             </div>
           ))}
         </dl>
@@ -423,13 +427,13 @@ function Quadrant({ dataset }: { dataset: Dataset }) {
           strokeDasharray="4 4"
         />
         <text x="38" y="258">
-          {formatEvidence(minX, dataset.x.unit)}
+          {formatEvidence(minX, dataset.x.unit, dataset.x.label, true)}
         </text>
         <text x="338" y="258" textAnchor="end">
-          {formatEvidence(maxX, dataset.x.unit)}
+          {formatEvidence(maxX, dataset.x.unit, dataset.x.label, true)}
         </text>
         <text x="36" y="20">
-          {formatEvidence(maxY, dataset.y.unit)}
+          {formatEvidence(maxY, dataset.y.unit, dataset.y.label, true)}
         </text>
         {dataset.rows.map((item) => (
           <circle
@@ -441,7 +445,7 @@ function Quadrant({ dataset }: { dataset: Dataset }) {
             stroke="#222"
             tabIndex={0}
             role="button"
-            aria-label={`${item.label}，${formatEvidence(item.x, dataset.x?.unit)}，${formatEvidence(item.y, dataset.y?.unit)}`}
+            aria-label={`${item.label}，${formatEvidence(item.x, dataset.x?.unit, dataset.x?.label)}，${formatEvidence(item.y, dataset.y?.unit, dataset.y?.label)}`}
             onClick={() => setSelected(item.id)}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
@@ -454,8 +458,8 @@ function Quadrant({ dataset }: { dataset: Dataset }) {
       </svg>
       <p>
         {dataset.x.period} {dataset.x.label} · 分界{" "}
-        {formatEvidence(dataset.x.cutoff, dataset.x.unit)}／
-        {formatEvidence(dataset.y.cutoff, dataset.y.unit)}
+        {formatEvidence(dataset.x.cutoff, dataset.x.unit, dataset.x.label)}／
+        {formatEvidence(dataset.y.cutoff, dataset.y.unit, dataset.y.label)}
       </p>
       <p>{dataset.cutoff_note}</p>
       <Label className="form-field">
@@ -472,8 +476,8 @@ function Quadrant({ dataset }: { dataset: Dataset }) {
         </NativeSelect>
       </Label>
       <p className="ic-selected">
-        {row.label}：{formatEvidence(row.x, dataset.x.unit)} ×{" "}
-        {formatEvidence(row.y, dataset.y.unit)} · {row.group}
+        {row.label}：{formatEvidence(row.x, dataset.x.unit, dataset.x.label)} ×{" "}
+        {formatEvidence(row.y, dataset.y.unit, dataset.y.label)} · {row.group}
         {coincident > 1
           ? ` · 同坐标 ${coincident} 个对象，可通过列表逐一选择`
           : ""}
@@ -642,7 +646,7 @@ function FactReferences({
             <p key={fact.id}>
               <strong>
                 {investmentFactText(fact) ??
-                  `${fact.label}：${formatEvidence(fact.value, fact.unit)}`}
+                  `${fact.label}：${formatEvidence(fact.value, fact.unit, fact.label)}`}
               </strong>
               <br />
               {fact.period} · {formatFactSource(fact.source)}

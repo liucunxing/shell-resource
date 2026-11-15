@@ -47,7 +47,7 @@ export function finiteHistoryValue(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-// Source values remain L / $ in the API and allocation calculations.
+// Source values remain L / USD (C3) / CNY (investment); display scaling is 1,000.
 export function historyDisplayValue(value: unknown): number | null {
   const raw = finiteHistoryValue(value);
   return raw === null ? null : raw / 1000;

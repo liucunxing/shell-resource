@@ -45,16 +45,19 @@ def history_manifest(
         "configuredPeriodLabel": f"2026 YTD（1–{ytd_cutoff_month}月）",
         "configuredMonthIsCoverageEvidence": False,
         "units": {
-            "source": {"volume": "L", "c3": "$", "investment": "$"},
-            "api": {"volume": "L", "c3": "$", "investment": "$"},
-            "display": {"volume": "KL", "c3": "K$", "investment": "K$"},
+            "source": {"volume": "L", "c3": "USD", "investment": "CNY"},
+            "api": {"volume": "L", "c3": "USD", "investment": "CNY"},
+            "display": {"volume": "KL", "c3": "K$", "investment": "千元人民币"},
             "displayDivisor": 1000,
         },
         "metricRules": {
             "yield": {
                 "formula": "C3 / (ICE Rebate + MRD + SP&A + Capex)",
                 "eligibility": "c3 > 0 and all four expenses present and totalInvestment > 0",
-                "unit": "multiple",
+                "unit": "USD/CNY",
+                "displaySuffix": "",
+                "fxConverted": False,
+                "interpretation": "历史表现参考，不是同币种回报倍数或ROI",
                 "sourceYieldUsed": False,
             },
             "yoy": {

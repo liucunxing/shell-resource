@@ -45,11 +45,14 @@ def test_configured_month_does_not_create_actual_coverage_or_enable_ytd_yield():
 
 def test_manifest_declares_units_and_unavailable_metrics_without_substitution():
     manifest = history_snapshot(2027, [])["manifest"]
-    assert manifest["units"]["api"] == {"volume": "L", "c3": "$", "investment": "$"}
-    assert manifest["units"]["display"] == {"volume": "KL", "c3": "K$", "investment": "K$"}
+    assert manifest["units"]["api"] == {"volume": "L", "c3": "USD", "investment": "CNY"}
+    assert manifest["units"]["display"] == {"volume": "KL", "c3": "K$", "investment": "千元人民币"}
     assert manifest["units"]["displayDivisor"] == 1000
     rules = manifest["metricRules"]
     assert rules["yield"]["sourceYieldUsed"] is False
+    assert rules["yield"]["unit"] == "USD/CNY"
+    assert rules["yield"]["fxConverted"] is False
+    assert rules["yield"]["displaySuffix"] == ""
     assert rules["yoy"]["nonPositiveBaseReason"] == "no_base"
     assert rules["phasing"]["available"] is False
     assert rules["phasing"]["unavailableReason"] == "missing_contract_volume"

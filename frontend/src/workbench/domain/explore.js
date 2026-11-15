@@ -187,7 +187,7 @@ function rawData(state, identity, data, tab) {
     tabs,
     columns: [],
     rows: [],
-    notes: ["单位：Vol 为 KL；C3 与资源为 K$；Yield 为 2025 C3 / 资源的原始比值。"],
+    notes: ["单位：Vol 为 KL；C3 为 K$（千美元），资源为千元人民币；Yield 为 C3（美元）/ 历史投资（人民币），未做汇率折算，仅作表现参考。"],
     allowExport: true,
   };
   const common = [
@@ -289,10 +289,10 @@ function rawData(state, identity, data, tab) {
       ...history,
       ["yoyVol2425", "2025 vs 2024 Delivery Vol YoY (%)"],
       ["yoyC32425", "2025 vs 2024 C3 YoY (%)"],
-      ["totalInvestment2025", "2025 历史投资总额 (K$)"],
-      ["totalInvestment2026Ytd", "2026 YTD 历史投资总额 (K$)"],
-      ...resources.map((r) => ["resource_" + r, "2025 " + r + " (K$)"]),
-      ...resources.map((r) => ["resource2026_" + r, "2026 YTD " + r + " (K$)"]),
+      ["totalInvestment2025", "2025 历史投资总额 (千元人民币)"],
+      ["totalInvestment2026Ytd", "2026 YTD 历史投资总额 (千元人民币)"],
+      ...resources.map((r) => ["resource_" + r, "2025 " + r + " (千元人民币)"]),
+      ...resources.map((r) => ["resource2026_" + r, "2026 YTD " + r + " (千元人民币)"]),
       ["yield", "Yield"],
     ]);
     model.rows = data.dealers.map((d) => {
@@ -312,7 +312,7 @@ function rawData(state, identity, data, tab) {
         (r) =>
           (row["resource2026_" + r] = toDisplayUnit((h.resources2026Ytd || {})[r])),
       );
-      row.yield = Number.isFinite(h.yield) ? h.yield : null;
+      row.yield = Number.isFinite(h.yield) && h.yield > 0 ? h.yield : null;
       return row;
     });
     model.scopeLabel = `授权经销商历史 · ${validHome ? identity.affiliation_sector + " / " + identity.affiliation_department + " 费用列权限" : "未配置所属部门，仅公共指标"}`;

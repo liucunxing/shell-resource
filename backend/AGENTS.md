@@ -42,3 +42,5 @@ SQLite 只能证明本地逻辑；PG ARRAY、迁移及事务需要实际 Postgre
 ## 本地验收入口
 
 用户于 2026-11-15 明确：原型演示数据仅导入本地 SQLite，远端 PG 保留真实业务数据，两者不得混用。本地直接访问，无需登录或帆软跳转。`tests.v19_prototype_fixture` 从最新 V19 原型导出文件导入隔离 `.cache/v19-prototype`；旧 `tests.v19_browser_fixture` 的简化合成数据留在 `.cache/v19-final`，不能覆盖。仅 loopback fixture 注入 `example.test` 合成身份和角色切换；普通 API/Portal 入口继续原有校验。原型的模拟月份、合同或指标不能用于填补远端源缺失。
+
+用户最新确认：history manifest及Insight事实明确C3为USD、历史/规划投资为CNY。Yield单位USD/CNY、未汇率换算，不称multiple；原数值公式及正值有效性保留。跨Sector编码是不同业务身份，不跨Sector合并。不得重写源金额或补造汇率。

@@ -148,9 +148,9 @@ function HistoryCells({ group }) {
         {amount(group.historicalInvestment, 1000)}
       </TableCell>
       <TableCell className="num v19-sd-history">
-        {group.historicalYield == null
+        {group.historicalYield == null || group.historicalYield <= 0
           ? "—"
-          : `${amount(group.historicalYield)}x`}
+          : `${amount(group.historicalYield)}`}
       </TableCell>
       <TableCell className="num v19-sd-history">
         {percentage(group.historyShare)}
@@ -542,7 +542,7 @@ export function SdAnalysis({
               <TableHead className="v19-sd-ppp">
                 目标 {basis === "c3" ? "C3（K$）" : "Vol（KL）"}
               </TableHead>
-              {["投资总额（K$）", "Yield", "历史资源占比"].map((heading) => (
+              {["投资总额（千元人民币）", "Yield", "历史资源占比"].map((heading) => (
                 <TableHead key={heading} className="v19-sd-history">
                   {heading}
                 </TableHead>
@@ -656,8 +656,8 @@ export function SdAnalysis({
         </Table>
       </div>
       <p className="studio-table-note">
-        历史 Actual、历史投资按当前名单去重，不随方案金额调整；Yield = C3 合计 ÷
-        历史投资合计。PPP 目标尚未提供，缺失数据保留“—”。
+        历史 Actual、历史投资按当前名单去重，不随方案金额调整；Yield = C3（美元）合计 ÷
+        历史投资（人民币）合计，未做汇率折算，仅作表现参考。PPP 目标尚未提供，缺失数据保留“—”。
       </p>
       {variant !== "editor" && groupBy === "sd" && !!items.length && (
         <>

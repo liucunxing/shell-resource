@@ -491,7 +491,7 @@ class InsightPack:
                     selected = (min if dimension == "low_yield" else max)(candidates, key=lambda f: f["value"])
                     entity = selected["id"].split(":", 1)[1]
                     refs = [selected["id"], "plan:" + entity]
-                    summary = f"{name(entity)}历史Yield为{token(refs[0])}倍，计划投入{token(refs[1])}。"
+                    summary = f"{name(entity)}历史Yield为{token(refs[0])}，计划投入{token(refs[1])}。"
                 elif not values("yield") and "limited" in statuses:
                     status, summary = "limited", "本范围没有可参与比较的历史投入产出比，零值不参与分析。"
             elif dimension == "concentration" and values("share"):
@@ -568,13 +568,15 @@ class InsightPack:
         for fact in evidence["facts"]:
             if fact["unit"] == "CNY" and numeric(fact["value"]):
                 display_values[fact["id"]] = _consistency.money_wan(fact["value"]) + "万元"
+            elif fact["unit"] == "USD/CNY" and numeric(fact["value"]):
+                display_values[fact["id"]] = str(_consistency.Decimal(str(fact["value"])).quantize(_consistency.Decimal("0.1"), rounding=_consistency.ROUND_HALF_UP))
             elif fact["unit"] == "multiple" and numeric(fact["value"]):
                 display_values[fact["id"]] = str(_consistency.Decimal(str(fact["value"])).quantize(_consistency.Decimal("0.1"), rounding=_consistency.ROUND_HALF_UP)) + "倍"
             elif fact["id"].startswith("investment:"):
                 row = json.loads(fact["value"])
                 display_values[fact["id"]] = {key: (_consistency.money_wan(row[key]) + "万元" if row.get(key) is not None else "缺失") for key in ("historical_actual", "plan", "delta", "abs_delta")}
         task["display_values"] = display_values
-        task["task"]["display"] = "金额使用display_values中的万元，Yield保留一位小数；原始值仅用于校验，不能改变判断和分组"
+        task["task"]["display"] = "金额使用display_values中的万元，Yield保留一位小数且不加x或倍，是未经汇率折算的USD/CNY表现参考；原始值仅用于校验，不能改变判断和分组"
         payload["messages"][1]["content"] = json.dumps(task, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
         if response_format in {"schema", "object"}:
             # $schema is for local tooling; the API receives the actual object schema.
