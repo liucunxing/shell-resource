@@ -21,6 +21,15 @@ import {
 } from "../LegendColors";
 import "./admin-legend-colors.css";
 
+const compareLabel = (left, right) =>
+  left && right
+    ? left.localeCompare(right, "zh-CN", { numeric: true, sensitivity: "base" })
+    : left
+      ? -1
+      : right
+        ? 1
+        : 0;
+
 export function legendColorPayload(draft) {
   const result = { initiatives: {}, resources: {}, departments: {} };
   for (const group of Object.keys(result)) {
@@ -53,7 +62,15 @@ export function AdminLegendColors() {
       "MRD",
       "SP&A",
       "Capex",
-      ...items.map((item) => item.resourceType === "CAPEX" ? "Capex" : item.resourceType === "BTL" ? "SP&A" : item.resourceType).filter(Boolean),
+      ...items
+        .map((item) =>
+          item.resourceType === "CAPEX"
+            ? "Capex"
+            : item.resourceType === "BTL"
+              ? "SP&A"
+              : item.resourceType,
+        )
+        .filter(Boolean),
     ]),
   ];
   const departments = [
@@ -68,12 +85,22 @@ export function AdminLegendColors() {
     {
       key: "initiatives",
       label: "Initiative",
-      rows: [...byKey].map(([key, item]) => ({
-        key,
-        label: item.name,
-        detail: `${item.sector || "—"} / ${item.department || "—"} · ${key}`,
-        color: resolveInitiativeColor(item),
-      })),
+      rows: [...byKey]
+        .map(([key, item]) => ({
+          key,
+          label: item.name,
+          detail: `编号 ${key}`,
+          department: item.department?.trim() || "",
+          sector: item.sector?.trim() || "",
+          color: resolveInitiativeColor(item),
+        }))
+        .sort(
+          (a, b) =>
+            compareLabel(a.department, b.department) ||
+            compareLabel(a.sector, b.sector) ||
+            compareLabel(a.label, b.label) ||
+            compareLabel(a.key, b.key),
+        ),
     },
     {
       key: "resources",
@@ -124,10 +151,26 @@ export function AdminLegendColors() {
         </TabsList>
         {groups.map((group) => (
           <TabsContent key={group.key} value={group.key}>
-            <Table>
+            <Table
+              className={
+                group.key === "initiatives"
+                  ? "legend-initiative-table"
+                  : undefined
+              }
+            >
               <TableHeader>
                 <TableRow>
                   <TableHead>{group.label}</TableHead>
+                  {group.key === "initiatives" && (
+                    <>
+                      <TableHead className="legend-organization-column">
+                        部门
+                      </TableHead>
+                      <TableHead className="legend-organization-column">
+                        业务线
+                      </TableHead>
+                    </>
+                  )}
                   <TableHead>图例颜色</TableHead>
                   <TableHead>操作</TableHead>
                 </TableRow>
@@ -141,10 +184,26 @@ export function AdminLegendColors() {
                     valid && value.trim() ? value.trim() : row.color;
                   return (
                     <TableRow key={row.key}>
-                      <TableCell>
+                      <TableCell sortValue={row.label}>
                         <strong>{row.label}</strong>
                         {row.detail && <small>{row.detail}</small>}
                       </TableCell>
+                      {group.key === "initiatives" && (
+                        <>
+                          <TableCell
+                            className="legend-organization-column"
+                            sortValue={row.department || undefined}
+                          >
+                            {row.department || "—"}
+                          </TableCell>
+                          <TableCell
+                            className="legend-organization-column"
+                            sortValue={row.sector || undefined}
+                          >
+                            {row.sector || "—"}
+                          </TableCell>
+                        </>
+                      )}
                       <TableCell>
                         <div className="legend-color-inputs">
                           <Input
