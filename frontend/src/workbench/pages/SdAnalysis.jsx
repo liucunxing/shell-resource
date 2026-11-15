@@ -437,7 +437,7 @@ export function SdAnalysis({
         </div>
       )}
       {!isEditor && (
-        <h3>① 各 {groupBy.toUpperCase()} 叠加后 · 投资金额占比 vs 产出占比</h3>
+        <h3>① 各 {groupBy.toUpperCase()} 叠加后 · 投资金额占比 vs 产出占比 <MetricHelp>跨 Initiative 按经销商业务身份去重；投资和历史产出分别按当前范围汇总后计算占比，差值以百分点表示。</MetricHelp></h3>
       )}
       <V20OrganizationSummary
         groups={groups}
@@ -464,7 +464,7 @@ export function SdAnalysis({
       />
       {!isEditor && !!items.length && (
         <>
-          <h3>② 各 Initiative 在 {groupBy.toUpperCase()} 间的分配</h3>
+          <h3>② 各 Initiative 在 {groupBy.toUpperCase()} 间的分配 <MetricHelp>每格比较该 Initiative 在对应组织的投资金额占比与其名单内历史产出占比；未覆盖不参与判断。超过配置阈值的偏离需要关注。</MetricHelp></h3>
           <div className="table-scroll">
             <Table
               containerClassName="overflow-visible"
