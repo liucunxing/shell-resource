@@ -189,7 +189,7 @@ class WorkspaceService:
             "configRevision": config.revision if config else 0,
         }
         return {
-            "identity": self._identity(),
+            "identity": await self._profile_identity(),
             "state": state,
             "data": {
                 "metadata": {"planningYear": planning_year},
@@ -456,6 +456,15 @@ class WorkspaceService:
         if self.user.role == "management":
             return None, None, None
         return None, None, None
+
+    async def _profile_identity(self) -> dict:
+        permission = await self.repository.get_permission(self.user.email)
+        return {
+            **self._identity(),
+            "userId": str(permission.id) if permission else None,
+            "roles": [self.user.role],
+            "adminContacts": await self.repository.administrator_contacts(),
+        }
 
     def _identity(self) -> dict:
         return {

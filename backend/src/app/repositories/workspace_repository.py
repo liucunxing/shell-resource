@@ -43,6 +43,14 @@ class WorkspaceRepository:
             ).all()
         )
 
+    async def administrator_contacts(self) -> list[dict[str, str]]:
+        rows = await self.session.execute(
+            select(UserPermissionDO.display_name, UserPermissionDO.email)
+            .where(UserPermissionDO.enabled.is_(True), UserPermissionDO.role == "admin")
+            .order_by(UserPermissionDO.id)
+        )
+        return [{"name": name, "email": email} for name, email in rows]
+
     async def list_budgets(
         self,
         year: int,
