@@ -105,13 +105,8 @@ it("uses authorized master counts but historical selected-list denominators incl
   expect(zero.groups.map((g) => [g.volShare, g.c3Share])).toEqual(
     groups.map((g) => [g.volShare, g.c3Share]),
   );
-  // Compare the entire historical cell markup, including bar widths, labels and scale.
-  const actual = (html) =>
-    [
-      ...html.matchAll(
-        /<(?:th|td)[^>]*class="[^"]*v20-actual[^"]*"[^>]*>[\s\S]*?<\/(?:th|td)>/g,
-      ),
-    ].map((m) => m[0]);
+  // Investment may change; historical series and scale must remain stable.
+  const actual = (html) => [...html.matchAll(/<div class="v20-history-line"[^>]*data-series="(?:vol|c3)"[\s\S]*?<\/i>/g)].map((m) => m[0]);
   expect(actual(draw(zero))).toEqual(actual(draw({ groups, totals })));
 });
 

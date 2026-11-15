@@ -107,7 +107,7 @@
 }
 .v20-history-line[data-series="investment"] i,
 .v20-legend-dot.investment {
-  background: #f5be00;
+  background: #fbd000;
 }
 .v20-share-overflow {
   position: absolute;
@@ -136,3 +136,21 @@
   border-radius: 2px;
   margin-right: 5px;
 }
+
+/* Group headers must remain distinct from ordinary data cells. */
+.v19-fidelity-shell .v19-sd-analysis thead th,
+.v19-fidelity-shell .v19-sd-analysis thead th button { font-weight:700; color:#263e50; }
+.v19-fidelity-shell .v20-organization-summary thead tr:first-child th { background:#ffe99a; border-bottom:2px solid #cfad38; }
+.v19-fidelity-shell .v20-organization-summary thead tr:first-child th.v20-actual { background:#c8e5f0 !important; border-color:#74aebf; }
+.v19-fidelity-shell .v20-organization-summary thead tr:first-child th:nth-child(4) { background:#d9ead8; border-color:#85ad84; }
+.v19-fidelity-shell .v20-organization-summary thead tr:first-child th.v20-previous { background:#e1dbea; border-color:#aa97bc; }
+.v19-fidelity-shell .v20-organization-summary thead tr:nth-child(2) th { background:#fff4cd; }
+.v19-fidelity-shell .v20-organization-summary thead tr:nth-child(2) th.v20-actual { background:#dceff6 !important; }
+.v19-fidelity-shell .v20-organization-summary thead tr:nth-child(2) th:nth-child(n+8):nth-child(-n+10) { background:#e8f2e7; }
+.v19-fidelity-shell .v20-organization-summary thead tr:nth-child(2) th:last-child { background:#eee8f4; }
+.v19-fidelity-shell .v19-sd-analysis table:not(.v20-organization-summary) thead th { background:#d9e6ef; border-bottom:2px solid #9bb3c6; }
+.v19-sd-facts > section { display:grid; grid-template-columns:125px minmax(0,1fr); gap:14px; padding:14px; margin-bottom:12px; border:1px solid #dcccae; border-radius:6px; background:#fff; }
+.v20-fact-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.v19-fidelity-shell .v19-sd-facts .v19-sd-fact { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; height:auto; min-width:0; white-space:normal; padding:12px; border:1px solid #e5d9c4; border-radius:5px; background:#fffaf1; text-align:left; line-height:1.7; }
+@media(min-width:1600px) { .v20-fact-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media(max-width:800px) { .v19-sd-facts > section { grid-template-columns:1fr; } .v20-fact-grid { grid-template-columns:1fr; } }
