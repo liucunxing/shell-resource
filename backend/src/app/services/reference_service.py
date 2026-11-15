@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dealer_identity import dealer_identity
 from app.core.distributor_status import distributor_status
+from app.core.history_policy import configured_investment_exchange_rate
 from app.core.resource_access import historical_resource_access
 from app.dependencies.workbench_user import WorkbenchUser
 from app.repositories.reference_repository import ReferenceRepository
@@ -13,6 +14,7 @@ from app.repositories.workspace_repository import WorkspaceRepository
 
 class ReferenceService:
     def __init__(self, session: AsyncSession) -> None:
+        self.session = session
         self.repository = ReferenceRepository(session)
         self.workspace_repository = WorkspaceRepository(session)
 
@@ -31,7 +33,13 @@ class ReferenceService:
         rows = await self.repository.list_dealers(dealer_ids, sectors)
         result = []
         # Older internal callers without an authenticated user receive public metrics only.
-        config = await self.workspace_repository.config() if user is not None else None
+        config = (
+            await self.workspace_repository.config()
+            if self.session is not None or user is not None else None
+        )
+        rate = Decimal(str(configured_investment_exchange_rate(
+            config.reference if config else None,
+        )))
         access = historical_resource_access(
             user,
             config.department_resources if config else None,
@@ -52,6 +60,15 @@ class ReferenceService:
                 "ICE Rebate": row["reb_2026"],
                 "Capex": row["capex_2026"],
             }
+            # Normalize once on read; keep signed expenses and source nulls intact.
+            resources = {
+                key: Decimal(str(value)) / rate if value is not None else None
+                for key, value in resources.items()
+            }
+            resources_2026 = {
+                key: Decimal(str(value)) / rate if value is not None else None
+                for key, value in resources_2026.items()
+            }
             history_values = {
                 "vol2024": row["volume_2024"],
                 "c32024": row["c3_2024"],
@@ -67,6 +84,8 @@ class ReferenceService:
                 for key, value in history_values.items()
             }
             history["ytdYieldUnavailableReason"] = "历史Actual与费用数据的业务月份尚未提供"
+            history["investmentCurrency"] = "USD"
+            history["investmentExchangeRate"] = float(rate)
             for key, values in (
                 ("totalInvestment2025", resources),
                 ("totalInvestment2026Ytd", resources_2026),

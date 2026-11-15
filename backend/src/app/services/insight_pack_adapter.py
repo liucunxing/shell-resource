@@ -237,9 +237,9 @@ def build_evidence(
             f"yield:{dealer_id}",
             f"{dealer_id} 历史整体 Yield",
             yld,
-            "USD/CNY",
+            "USD/USD",
             "2025全年",
-            "2025历史整体Yield=C3美元/历史投资人民币，未经汇率折算的表现参考；不代表同币种回报倍数、ROI或本次计划的未来收益。",
+            "2025历史整体Yield=C3美元/历史投资美元，已按配置汇率统一美元的表现参考；不代表未来回报或ROI或本次计划的未来收益。",
         )
         detail.append(
             dict(
@@ -311,14 +311,14 @@ def build_evidence(
             "已分配对象历史Yield与计划",
             yield_detail,
             ["cohort", "targets"],
-            "历史整体Yield为C3美元/历史投资人民币，未做汇率折算；与本范围计划的资金范围不同，非未来ROI。"
+            "历史整体Yield为C3美元/历史投资美元，历史投资已按配置汇率统一为美元；与本范围计划的资金范围不同，非未来ROI。"
             "Yield为0的对象不参与Yield分析。",
             at=f"2025全年 / {period}",
             columns=[
                 dict(key=k, label=label, unit=u)
                 for k, label, u in [
                     ("dealer", "经销商", ""),
-                    ("yield_value", "2025整体Yield", "USD/CNY"),
+                    ("yield_value", "2025整体Yield", "USD/USD"),
                     ("plan", period, "CNY"),
                     ("initiative_count", "不同 Initiative 数", "count"),
                 ]
@@ -386,11 +386,11 @@ def build_evidence(
             "历史整体 Yield × 本范围计划投入",
             quadrant,
             ["cohort", "targets"],
-            "Yield为C3美元/历史投资人民币，未做汇率折算；跨年参考，非未来收益预测，非正Yield不入图。",
+            "Yield为C3美元/历史投资美元，历史投资已按配置汇率统一为美元；跨年参考，非未来收益预测，非正Yield不入图。",
             at=f"2025全年 / {period}",
             x=dict(
                 label="历史整体 Yield",
-                unit="USD/CNY",
+                unit="USD/USD",
                 period="2025全年",
                 cutoff=xmid,
                 cutoff_method="median",
@@ -440,6 +440,7 @@ def build_evidence(
     investment_alerts = sum(row["status"] == "review" for row in investment_rows)
     investment_missing = sum(row["status"] == "limited" for row in investment_rows)
     investment_note = (
+        "2025历史为美元、计划为人民币，缺少规划汇率时不计算差额或倍数。"
         "2025全年实际与计划年跨年参考，非同比；历史为同 Sector 同资源类型全年总额，"
         "计划仅含本授权范围 Initiative 合计，非精确单项目历史。范围差异需业务复核，"
         "不代表违规或未来收益判断；仅核对本范围同经销商、Sector及资源类型计划合计大于0的项目。"
@@ -487,7 +488,10 @@ def build_evidence(
                     ("resource_type", "资源类型", ""),
                     ("dealer_id", "经销商代码", ""),
                     ("reason_code", "规则分类", ""),
-                    ("historical_actual", "2025全年实际", "CNY"),
+                    ("historical_currency", "历史币种", ""),
+                    ("plan_currency", "规划币种", ""),
+                    ("historical_actual", "2025全年实际",
+                     investment_rows[0]["historical_currency"]),
                     ("plan", period, "CNY"),
                     ("delta", "计划减历史实际", "CNY"),
                     ("abs_delta", "计划与历史实际差额绝对值", "CNY"),

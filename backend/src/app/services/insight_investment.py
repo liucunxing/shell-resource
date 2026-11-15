@@ -88,9 +88,16 @@ def investment_comparisons(
         multiple = (
             plan / baseline if plan is not None and baseline is not None and baseline > 0 else None
         )
+        currency = (record.get("history") or {}).get("investmentCurrency", "CNY")
         code = "within_threshold"
         status, reason = "observed", "未触发当前投入复核规则；不代表投入合理性已获确认"
-        if baseline is None or plan is None or baseline < 0 or plan < 0:
+        if currency != "CNY":
+            delta, multiple = None, None
+            code = "currency_mismatch"
+            status, reason = (
+                "limited", "历史投资为美元、规划为人民币；缺少规划汇率，不计算差额或倍数",
+            )
+        elif baseline is None or plan is None or baseline < 0 or plan < 0:
             code = "missing"
             status, reason = (
                 "limited",
@@ -132,6 +139,8 @@ def investment_comparisons(
                 sector=sector or "未明确",
                 resource_type=resource or "未明确",
                 historical_actual=float(baseline) if baseline is not None else None,
+                historical_currency=currency,
+                plan_currency="CNY",
                 plan=float(plan) if plan is not None else None,
                 delta=float(delta) if delta is not None else None,
                 abs_delta=float(abs(delta)) if delta is not None else None,

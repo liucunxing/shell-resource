@@ -28,7 +28,7 @@ docs/       本期业务契约和协作说明
 
 Databricks 只能使用应用 Service Principal 对应且获授权的 schema，当前目标为 `prod.resource_planning.dim_distributor`。2026-11-14 限定该 schema 的个人只读核查可见两个经销商基础视图，各 2,678 行、3 个字段；未看到业务指标与月份/汇率字段。应用 SP 认证仍返回 `401 invalid_client`，个人查询不能证明应用身份可读。其他 schema 的候选数据不能直接接入，不能用个人凭据回退。
 
-历史宽表尚缺真实截止月和合同量；Phasing 的 Vol/合同、Yield 的 C3/完整投资、YoY 的年度公式已定义，不能因缺字段而说成公式未定义。V19 已定义 PPP 的 Vol/C3 目标列，但真实目标来源与字段映射仍缺；合同采用原型已明确的全年签署量。分析产出截零与历史金额保留负数的原型证据见[确认清单](docs/PENDING_DATA_DECISIONS.md)。YTD 配置允许 1–12、默认 10，但与 PG Actual/费用的实际覆盖月份分开表达。币种已确认：C3为USD、历史/规划投资为CNY；Yield未汇率折算、不带x，负值显示“—”；金额比较仍须核对单位和期间，未知值不补零、不猜月份、不把合同量当 PPP。完整边界见 [指标定义](docs/METRIC_DEFINITIONS.md)。
+历史宽表尚缺真实截止月和合同量；Phasing 的 Vol/合同、Yield 的 C3/完整投资、YoY 的年度公式已定义，不能因缺字段而说成公式未定义。V19 已定义 PPP 的 Vol/C3 目标列，但真实目标来源与字段映射仍缺；合同采用原型已明确的全年签署量。分析产出截零与历史金额保留负数的原型证据见[确认清单](docs/PENDING_DATA_DECISIONS.md)。YTD 配置允许 1–12、默认 10，但与 PG Actual/费用的实际覆盖月份分开表达。币种已确认：C3为USD、历史投资归一为USD、规划投资为CNY；Yield历史费用已按配置统一美元、不带x，负值显示“—”；金额比较仍须核对单位和期间，未知值不补零、不猜月份、不把合同量当 PPP。完整边界见 [指标定义](docs/METRIC_DEFINITIONS.md)。
 
 ## 开发与运行
 
@@ -100,3 +100,8 @@ cd backend
 已确认指标的本轮工程修复与测试见 [指标实现验证](docs/METRIC_IMPLEMENTATION_VALIDATION.md)；需要补的数据和业务选择见 [待确认清单](docs/PENDING_DATA_DECISIONS.md)。
 
 2026-11-15最新币种/Yield及跨Sector规则落实见[验证记录](docs/YIELD_CURRENCY_VALIDATION.md)。
+
+
+## 历史投资汇率（2026-11-15最新确认）
+
+管理员组织与枚举页配置 `historyInvestmentExchangeRate`（有限正数、默认1），保存沿用revision与审计。历史源费用除以该参数得到USD，负费用正常参与有符号净额；C3已是USD不重复转换，规划预算/分配保持CNY。此参数统一作用于全部历史年份，不是日期化汇率。Yield在正C3/完整正净投资下计算，无x/倍后缀，无效显示“—”。历史USD与规划CNY未有规划汇率时不计算差额或倍数。应用SP仍为401 invalid_client；用户随后授权跨库只读探源，已找到按月币种对汇率表，详见[探源结果](docs/DATABRICKS_FX_DISCOVERY.md)。详见[汇率与界面说明](docs/UI_FX_FOLLOWUP.md)。

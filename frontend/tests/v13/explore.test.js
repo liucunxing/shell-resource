@@ -278,16 +278,16 @@ vitestTest(
         assert.equal(m.allResources, all);
         const labels = all
           ? [
-              "2025 MRD (千元人民币)",
-              "2025 SP&A (千元人民币)",
-              "2025 ICE Rebate (千元人民币)",
-              "2025 Capex (千元人民币)",
+              "2025 MRD (千美元)",
+              "2025 SP&A (千美元)",
+              "2025 ICE Rebate (千美元)",
+              "2025 Capex (千美元)",
             ]
           : identity.department === "MKT"
-            ? ["2025 MRD (千元人民币)", "2025 SP&A (千元人民币)"]
+            ? ["2025 MRD (千美元)", "2025 SP&A (千美元)"]
             : identity.department === "ICE"
-              ? ["2025 SP&A (千元人民币)", "2025 ICE Rebate (千元人民币)"]
-              : ["2025 Capex (千元人民币)"];
+              ? ["2025 SP&A (千美元)", "2025 ICE Rebate (千美元)"]
+              : ["2025 Capex (千美元)"];
         assert.deepEqual(
           m.resources.map((r) => r.label),
           labels,

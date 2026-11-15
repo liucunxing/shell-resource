@@ -593,6 +593,9 @@ export function WorkbenchProvider({ children }) {
           stateRef.current.configRevision,
       };
       replaceState(next);
+      if (Object.hasOwn(value, "historyInvestmentExchangeRate")) {
+        return await refresh({ preservePage: true });
+      }
       notify("配置已保存。");
       return true;
     } catch (error) {

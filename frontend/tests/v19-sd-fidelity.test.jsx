@@ -114,7 +114,7 @@ describe("V19 SD presentation", () => {
       "Delivery Vol 占比",
       "C3 占比",
       "历史资源占比",
-      "投资总额（千元人民币）",
+      "投资总额（千美元）",
       "参照：本部门叠加",
       "最大偏离",
       "合计",
@@ -124,7 +124,7 @@ describe("V19 SD presentation", () => {
     expect(html).toContain("待配置");
     expect(html).not.toContain("未提交草稿");
     expect(html).not.toMatch(/>\d+(?:\.\d+)?x</);
-    expect(html).toContain("未做汇率折算");
+    expect(html).toContain("历史投资已按配置汇率统一为美元");
     expect(html).not.toContain("名单覆盖率");
   });
 });

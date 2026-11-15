@@ -7,7 +7,7 @@ describe("historical expense composition guard", () => {
   it("keeps signed amounts and hides composition bars when any expense is negative", () => {
     const html = render([-10, 20]);
     expect(html).toContain("-10");
-    expect(html).toContain("千元人民币");
+    expect(html).toContain("千美元");
     expect(html).not.toContain("K$");
     expect(html).toContain("20");
     expect(html).toContain("含负费用");

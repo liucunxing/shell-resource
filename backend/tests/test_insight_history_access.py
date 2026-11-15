@@ -144,13 +144,13 @@ def test_yield_units_and_negative_suppression_do_not_change_investment_units():
     facts = {f["id"]: f for f in data["facts"]}
     assert facts["yield:D0"]["value"] is None
     assert facts["yield:D2"]["value"] == 1
-    assert facts["yield:D2"]["unit"] == "USD/CNY"
+    assert facts["yield:D2"]["unit"] == "USD/USD"
     assert "未" in facts["yield:D2"]["note"]
     assert facts["plan:D2"]["unit"] == "CNY"
     assert facts["c32025:D2"]["unit"] == "USD"
     assert facts["vol2025:D2"]["unit"] == "L"
     table = next(d for d in data["datasets"] if d["id"] == "yield-table")
-    assert next(c for c in table["columns"] if c["key"] == "yield_value")["unit"] == "USD/CNY"
+    assert next(c for c in table["columns"] if c["key"] == "yield_value")["unit"] == "USD/USD"
     assert next(r for r in table["rows"] if r["id"] == "D0")["yield_value"] is None
     pack = InsightPack(PACK_ROOT)
     body, _ = pack.compile(data)

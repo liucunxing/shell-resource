@@ -161,3 +161,38 @@ def test_raw_signed_history_and_missing_targets_survive_api_projection():
         assert original == before
 
     asyncio.run(run())
+
+
+@pytest.mark.parametrize("rate", [1, 7.2])
+def test_exchange_rate_converts_signed_expenses_once_and_preserves_source(rate):
+    from types import SimpleNamespace
+
+    async def run():
+        original = {**history_row("Dealer"), "mrd_2025": 72, "reb_2025": -36,
+                    "btl_2025": 36, "capex_2025": 0, "mrd_2026": None, "c3_2025": 20}
+        before = dict(original)
+
+        class Repository:
+            async def list_dealers(self, *args):
+                return [original]
+
+        class ConfigRepository:
+            async def config(self):
+                return SimpleNamespace(reference={"displaySettings": {
+                    "historyInvestmentExchangeRate": rate,
+                }}, department_resources={}, role_resources={})
+
+        service = ReferenceService(object())
+        service.repository = Repository()
+        service.workspace_repository = ConfigRepository()
+        for _ in range(2):
+            history = (await service.get_dealers(2027))[0]["history"]
+            assert history["totalInvestment2025"] == pytest.approx(72 / rate)
+            assert history["yield"] == pytest.approx(20 / (72 / rate))
+            assert history["c32025"] == 20
+            assert history["totalInvestment2026Ytd"] is None
+            assert history["investmentCurrency"] == "USD"
+            assert history["resources2025"] == {}  # no permission leak
+        assert original == before
+
+    asyncio.run(run())

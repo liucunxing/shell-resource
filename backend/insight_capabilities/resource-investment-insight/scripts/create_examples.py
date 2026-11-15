@@ -20,9 +20,9 @@ def base_evidence():
         "facts": [
             fact("budget", "负责预算", 1962000, "CNY"), fact("allocated", "经销商分配", 1926964, "CNY"),
             fact("other", "其他预算安排", 35036, "CNY", note="无法分配到经销商，后续用途尚待落实"), fact("gap", "未解释差额", 0, "CNY"),
-            fact("low-yield", "1100 历史整体 Yield", 6.29, "USD/CNY", "2025全年", "授权只读汇总；不提供跨部门资源明细"),
+            fact("low-yield", "1100 历史整体 Yield", 6.29, "USD/USD", "2025全年", "授权只读汇总；不提供跨部门资源明细"),
             fact("low-plan", "1100 本范围计划投入", 51000, "CNY"),
-            fact("high-yield", "800 历史整体 Yield", 25.67, "USD/CNY", "2025全年", "授权只读汇总"), fact("high-plan", "800 本范围计划投入", 53000, "CNY"),
+            fact("high-yield", "800 历史整体 Yield", 25.67, "USD/USD", "2025全年", "授权只读汇总"), fact("high-plan", "800 本范围计划投入", 53000, "CNY"),
             fact("top-plan", "900 本范围计划投入", 92000, "CNY"), fact("top-share", "900 占经销商分配", 92000/1926964, "ratio"),
             fact("top-history", "900 本范围历史资源", 30000, "CNY", "2025全年"), fact("top-growth", "900 计划较历史增加", 92000/30000-1, "ratio", "2027计划 / 2025实际", "跨年参考，非同比，不构成因果判断"),
             fact("vol", "900 Vol 同比", -0.10, "ratio", "2025全年 / 2024全年"), fact("c3", "900 C3 同比", -0.01, "ratio", "2025全年 / 2024全年"),
@@ -55,10 +55,10 @@ def base_evidence():
         row["group"] = ("历史Yield高" if row["x"] > cut_x else "历史Yield低" if row["x"] < cut_x else "历史Yield分界") + " / " + ("计划投入高" if row["y"] > cut_y else "计划投入低" if row["y"] < cut_y else "计划投入分界")
     evidence["datasets"].append(dataset("yield-plan", "quadrant", "历史整体 Yield × 本范围计划投入", ["cohort","target"], points,
         period="2025历史 / 2027计划", note="完整的合成可比队列；横轴为已授权整体历史Yield，纵轴为本范围计划金额，不能当作未来收益预测。",
-        x={"label":"历史整体 Yield","unit":"USD/CNY","period":"2025全年","cutoff":cut_x,"cutoff_method":"median"},
+        x={"label":"历史整体 Yield","unit":"USD/USD","period":"2025全年","cutoff":cut_x,"cutoff_method":"median"},
         y={"label":"本范围计划投入","unit":"CNY","period":"2027计划","cutoff":cut_y,"cutoff_method":"median"},
         population_count=10, excluded_count=2, cohort_label="同 Sector / 同资源类型 · 合成队列", cutoff_note="以完整入图队列中位数作相对分组，不是业务风险阈值；落在分界线上保留边界归属。"))
-    evidence["datasets"].append(dataset("yield-table", "table", "历史与计划参考明细", ["low-yield","low-plan","high-yield","high-plan"], [{"id":"1100","dealer":"1100","yield":6.29,"plan":51000},{"id":"800","dealer":"800","yield":25.67,"plan":53000}], columns=[{"key":"dealer","label":"经销商","unit":""},{"key":"yield","label":"2025整体Yield","unit":"USD/CNY"},{"key":"plan","label":"2027本范围计划","unit":"CNY"}], period="2025历史 / 2027计划", note="历史整体Yield与本范围计划金额的口径不同；数据不足时显示缺失而非零。"))
+    evidence["datasets"].append(dataset("yield-table", "table", "历史与计划参考明细", ["low-yield","low-plan","high-yield","high-plan"], [{"id":"1100","dealer":"1100","yield":6.29,"plan":51000},{"id":"800","dealer":"800","yield":25.67,"plan":53000}], columns=[{"key":"dealer","label":"经销商","unit":""},{"key":"yield","label":"2025整体Yield","unit":"USD/USD"},{"key":"plan","label":"2027本范围计划","unit":"CNY"}], period="2025历史 / 2027计划", note="历史整体Yield与本范围计划金额的口径不同；数据不足时显示缺失而非零。"))
     return evidence
 
 

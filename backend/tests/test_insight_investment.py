@@ -164,3 +164,13 @@ def test_unallocated_only_scope_has_no_dealer_analysis_but_checks_budget_gap():
     constraints = {c["dimension_id"]: c for c in data["check_constraints"]}
     assert constraints["low_yield"]["allowed_statuses"] == ["limited"]
     assert constraints["completeness"]["allowed_statuses"] == ["review"]
+
+
+def test_usd_history_is_not_compared_to_cny_plan_without_planning_fx():
+    source = record(actual=100)
+    source["history"]["investmentCurrency"] = "USD"
+    row = compare([source], [item(amount=720)])[0]
+    assert row["historical_actual"] == 100
+    assert row["plan"] == 720
+    assert row["delta"] is None and row["abs_delta"] is None and row["multiple"] is None
+    assert row["reason_code"] == "currency_mismatch" and row["status"] == "limited"

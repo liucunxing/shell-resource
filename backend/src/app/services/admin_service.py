@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.departments import departments
-from app.core.history_policy import configured_ytd_cutoff
+from app.core.history_policy import configured_investment_exchange_rate, configured_ytd_cutoff
 from app.dependencies.workbench_user import WorkbenchUser
 from app.models.do.base import BaseDO
 from app.models.do.budget import BudgetDO
@@ -536,6 +536,7 @@ class AdminService(WorkspaceService):
                 raise HTTPException(status_code=409, detail="配置已被修改，请刷新后重试")
             previous_resource_mapping = config.department_resources
             previous_ytd_month = configured_ytd_cutoff(config.reference)
+            previous_rate = configured_investment_exchange_rate(config.reference)
             if payload.budgetReasons is not None:
                 ids = [reason["id"] for reason in payload.budgetReasons]
                 used = await self.admin_repository.used_reason_ids()
@@ -566,6 +567,12 @@ class AdminService(WorkspaceService):
                 display_settings = dict(config.reference.get("displaySettings", {}))
                 display_settings["ytdCutoffMonth"] = payload.ytdCutoffMonth
                 config.reference = {**config.reference, "displaySettings": display_settings}
+            if payload.historyInvestmentExchangeRate is not None:
+                display_settings = dict(config.reference.get("displaySettings", {}))
+                display_settings["historyInvestmentExchangeRate"] = (
+                    payload.historyInvestmentExchangeRate
+                )
+                config.reference = {**config.reference, "displaySettings": display_settings}
             config.revision += 1
             result = {
                 "revision": config.revision,
@@ -575,6 +582,9 @@ class AdminService(WorkspaceService):
                 "roleResources": config.role_resources,
                 "healthThresholds": config.health_thresholds,
                 "ytdCutoffMonth": configured_ytd_cutoff(config.reference),
+                "historyInvestmentExchangeRate": configured_investment_exchange_rate(
+                    config.reference,
+                ),
                 "guide": config.guide,
                 "reference": config.reference,
             }
@@ -589,6 +599,10 @@ class AdminService(WorkspaceService):
                 before["ytdCutoffMonth"] = previous_ytd_month
                 after["ytdCutoffMonth"] = payload.ytdCutoffMonth
                 notes.append("更新 YTD 展示截止月份（不代表源数据覆盖）")
+            if payload.historyInvestmentExchangeRate is not None:
+                before["historyInvestmentExchangeRate"] = previous_rate
+                after["historyInvestmentExchangeRate"] = payload.historyInvestmentExchangeRate
+                notes.append("更新历史投资汇率：源金额除以汇率转美元；规划人民币不变")
             self.repository.add_log(
                 0,
                 "CONFIG_UPDATE",
@@ -635,6 +649,9 @@ class AdminService(WorkspaceService):
             config.reference = {
                 "displaySettings": {
                     "ytdCutoffMonth": configured_ytd_cutoff(config.reference),
+                    "historyInvestmentExchangeRate": configured_investment_exchange_rate(
+                        config.reference,
+                    ),
                 },
                 "batchId": payload.batchId,
                 "asOf": payload.asOf,

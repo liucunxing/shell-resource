@@ -288,6 +288,9 @@ class AdminConfigDTO(BaseModel):
     roleResources: dict[str, list[str]] | None = None
     healthThresholds: dict[str, float] | None = None
     ytdCutoffMonth: int | None = Field(default=None, ge=1, le=12, strict=True)
+    historyInvestmentExchangeRate: float | None = Field(
+        default=None, gt=0, allow_inf_nan=False, strict=True,
+    )
 
     @field_validator("healthThresholds")
     @classmethod

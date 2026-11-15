@@ -31,6 +31,8 @@ export function StudioConfiguration({ thresholds = false }) {
   const [busy, setBusy] = useState(false),
     [label, setLabel] = useState("");
   const [ytdMonth, setYtdMonth] = useState(state.ytdCutoffMonth ?? 10);
+  const [exchangeRate, setExchangeRate] = useState(state.historyInvestmentExchangeRate ?? 1);
+  const validRate = typeof exchangeRate === "number" && Number.isFinite(exchangeRate) && exchangeRate > 0;
   const validMonth =
     Number.isInteger(ytdMonth) && ytdMonth >= 1 && ytdMonth <= 12;
   const save = async () => {
@@ -109,6 +111,28 @@ export function StudioConfiguration({ thresholds = false }) {
         items={view?.initiatives || []}
         dealers={data?.dealers || []}
       />
+      <Card className="panel studio-admin-panel gap-4 p-4">
+        <h2>历史投资汇率</h2>
+        <Label htmlFor="history-investment-rate">每 1 美元对应的历史投资原始金额</Label>
+        <Input
+          id="history-investment-rate"
+          type="number"
+          min="0"
+          step="any"
+          value={exchangeRate}
+          disabled={busy || previewMode}
+          aria-invalid={!validRate}
+          onChange={(event) => setExchangeRate(event.target.value === "" ? "" : Number(event.target.value))}
+        />
+        <p>历史投资原始金额 ÷ 汇率 = 美元金额。当前源数据已是美元，默认填 1；未来若源数据改为人民币，可填对应的人民币兑美元汇率，例如 7.2。</p>
+        <p className="small-text muted">此配置统一应用于各年历史费用及 Yield。C3 已是美元，不重复换算；规划预算和分配仍按人民币保存和显示。负费用按原正负号参与净额计算。</p>
+        {!validRate && <p role="alert">请输入大于 0 的有效汇率。</p>}
+        <Button disabled={busy || previewMode || !validRate} onClick={async () => {
+          setBusy(true);
+          try { await saveConfig({ historyInvestmentExchangeRate: exchangeRate }); }
+          finally { setBusy(false); }
+        }}>保存历史投资汇率</Button>
+      </Card>
       <Card className="panel studio-admin-panel gap-4 p-4">
         <h2>YTD 截止月份配置</h2>
         <Label htmlFor="ytd-cutoff-month">2026 YTD 截止月份</Label>

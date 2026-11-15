@@ -351,3 +351,17 @@ it("hides restricted comparisons without a permission notice", () => {
   expect(mixedHtml).not.toContain("经销商0");
   expect(mixedHtml).not.toContain("未授权");
 });
+
+
+it("keeps USD historical amounts separate from CNY planning amounts", () => {
+  const row = { ...dataset.rows[0], historical_currency: "USD", plan_currency: "CNY",
+    delta: null, abs_delta: null, multiple: null, status: "limited", reason_code: "currency_mismatch",
+    reason: "历史美元与规划人民币缺少规划汇率" };
+  const html = renderToString(<InvestmentReview dataset={{...dataset, rows:[row]}} scopeLabel="本人范围" />);
+  expect(html).toContain("2025资源投入(千美元)");
+  expect(html).toContain("本次计划(千元人民币)");
+  const text = investmentFactText({id:"investment:usd",value:JSON.stringify(row)});
+  expect(text).toContain("100,000 USD");
+  expect(text).toContain("100 万元");
+  expect(text).toContain("缺少规划汇率");
+});
