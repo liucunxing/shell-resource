@@ -22,8 +22,33 @@ import {
   tableElements,
   tableHeaderLayout,
 } from "../src/components/ui/table-sorting";
+import { tableColumnAlignment } from "../src/components/ui/table-alignment";
 
 describe("global table behavior", () => {
+  it("keeps names and numeric identifiers left while centering numeric columns", () => {
+    expect(tableColumnAlignment(<TableHead>经销商</TableHead>, [<TableCell>甲公司</TableCell>])).toBe("left");
+    expect(tableColumnAlignment(<TableHead>Initiative</TableHead>, [<TableCell>零售返利计划</TableCell>])).toBe("left");
+    expect(tableColumnAlignment(<TableHead>版本 / 来源</TableHead>, [<TableCell>202701</TableCell>])).toBe("left");
+    expect(tableColumnAlignment(<TableHead>金额</TableHead>, [<TableCell>—</TableCell>, <TableCell sortValue={-1200.12}>-1,200.1</TableCell>])).toBe("center");
+    expect(tableColumnAlignment(<TableHead>占比</TableHead>, [<TableCell className="num">—</TableCell>])).toBe("center");
+    expect(tableColumnAlignment(<TableHead>获配项目数</TableHead>, [<TableCell>5 个 Initiative</TableCell>])).toBe("center");
+    expect(tableColumnAlignment(<TableHead>预留原因</TableHead>, [<TableCell>专项对象待定</TableCell>])).toBe("left");
+    expect(tableColumnAlignment(<TableHead>Owner 说明</TableHead>, [<TableCell>需要补充说明</TableCell>])).toBe("left");
+  });
+  it("aligns manual grouped headers with their data columns, including missing values", () => {
+    const html = renderToStaticMarkup(<Table sortingMode="manual">
+      <TableHeader>
+        <TableRow><TableHead rowSpan={2}>经销商</TableHead><TableHead colSpan={2}>历史</TableHead></TableRow>
+        <TableRow><TableHead>Vol</TableHead><TableHead>C3</TableHead></TableRow>
+      </TableHeader>
+      <TableBody><TableRow><TableCell>甲公司</TableCell><TableCell className="num">—</TableCell><TableCell>12.5</TableCell></TableRow></TableBody>
+      <TableFooter><TableRow><TableCell>合计</TableCell><TableCell>—</TableCell><TableCell>12.5</TableCell></TableRow></TableFooter>
+    </Table>);
+    expect(html).toMatch(/data-align="left"[^>]*>经销商<\/th>/);
+    expect(html).toMatch(/data-align="center"[^>]*>历史<\/th>/);
+    for (const value of ["Vol", "C3", "—", "12.5"]) expect(html).toContain(`data-align="center">${value}<`);
+    for (const value of ["甲公司", "合计"]) expect(html).toContain(`data-align="left">${value}<`);
+  });
   it("compares signed numbers, decimals, percentages and thousands numerically; missing is not zero", () => {
     expect(
       ["1,200.25", "−3.5pp", "0%", "—", "无基期"].map(normalizeSortValue),

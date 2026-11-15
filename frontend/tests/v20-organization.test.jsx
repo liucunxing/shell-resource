@@ -164,8 +164,8 @@ it("renders the Step 3 summary in four groups with a project-list denominator an
   ]);
   expect(heading).toContain(">较上版</th>");
   expect(html).toContain("分配 / 名单");
-  expect(html).toContain('data-column="count">2 / 2<');
-  expect(html).toContain('data-column="delta">—<');
+  expect(html).toMatch(/data-column="count"[^>]*>2 \/ 2</);
+  expect(html).toMatch(/data-column="delta"[^>]*>—</);
   expect(html).toContain("投资金额占比极差 80.0 pp");
   expect(html).toContain('data-series="investment" data-value="90"');
   expect(html).toContain('class="v20-share-overflow">90.0%');
