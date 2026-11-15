@@ -1,3 +1,4 @@
+import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
 import { MetricHelp } from "./MetricHelp";
 import { SdAnalysis } from "./SdAnalysis.jsx";
 import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
@@ -53,7 +54,6 @@ import {
   historyPhasing,
   finiteHistoryValue,
   historyYoyLabel,
-  configuredYtdLabel,
   initiativeDealers,
   isActiveDealer,
 } from "../domain/dealer-history";
@@ -286,14 +286,7 @@ function HistoryControls({
   return (
     <div className="v19-editor-history">
       <span>历史参考</span>
-      <Tabs value={period} onValueChange={onPeriodChange}>
-        <TabsList aria-label="历史期间">
-          <TabsTrigger value="2025">2025 全年</TabsTrigger>
-          <TabsTrigger value="2026Ytd">
-            {configuredYtdLabel(ytdCutoffMonth)}
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <HistoryPeriodTabs value={period} onValueChange={onPeriodChange} ytdCutoffMonth={ytdCutoffMonth}>合同量列对应经销商目标；YTD 实际对照同期间目标，缺失或非正数时不算 Phasing。</HistoryPeriodTabs>
       {onMetricChange && (
         <Tabs
           value={metric === "vol" ? "vol" : "c3"}
@@ -305,7 +298,7 @@ function HistoryControls({
           </TabsList>
         </Tabs>
       )}
-      <MetricHelp>Actual 与费用覆盖以数据源为准。合同量列对应经销商目标；YTD实际对照同期间目标，缺失或非正数时不算 Phasing。</MetricHelp>
+
     </div>
   );
 }

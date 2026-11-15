@@ -322,25 +322,6 @@ body {
   font-size: 12px;
   line-height: 1.6;
 }
-.v19-fidelity-shell [data-slot="tabs-list"] {
-  border: 1px solid #d5dde3;
-  border-radius: 5px;
-  padding: 4px;
-  background: #f4f6f8;
-  height: auto;
-  gap: 4px;
-}
-.v19-fidelity-shell [data-slot="tabs-trigger"] {
-  padding: 9px 16px;
-  font-size: 13px;
-  border-radius: 3px;
-  color: #65717c;
-}
-.v19-fidelity-shell [data-slot="tabs-trigger"][data-state="active"] {
-  background: #fff7d1;
-  color: #53440c;
-  box-shadow: none;
-}
 [data-slot="dialog-content"] {
   border-radius: 7px;
   background: #fff;

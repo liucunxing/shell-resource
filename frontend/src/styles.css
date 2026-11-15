@@ -2628,7 +2628,7 @@ tbody tr:hover {
   align-items: center;
   gap: 5px;
   min-height: 36px;
-  padding: 7px 10px !important;
+  padding: 7px 10px;
   border: 0;
   background: transparent;
   border-radius: 7px;
@@ -3360,7 +3360,7 @@ tbody tr:hover {
     padding: 12px 15px;
   }
   .work-tab {
-    padding: 7px 10px !important;
+    padding: 7px 10px;
   }
   .work-content {
     padding: 0 18px 20px;

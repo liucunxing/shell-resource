@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { configuredYtdLabel } from "../domain/dealer-history";
 import {
   useReactTable,
   getCoreRowModel,
@@ -215,7 +214,7 @@ export function V20OrganizationSummary({
               {head("key", groupBy.toUpperCase(), "", 2)}
               <TableHead colSpan={4} scope="colgroup">本次投资</TableHead>
               <TableHead colSpan={3} scope="colgroup" className="v20-actual">
-                历史 Actual · {period === "2025" ? "2025 全年" : configuredYtdLabel(ytdCutoffMonth)}
+                历史 Actual · {period === "2025" ? "2025 全年" : "2026 YTD"}
               </TableHead>
               <TableHead colSpan={3} scope="colgroup">投资金额占比</TableHead>
               <TableHead className="v20-previous">较上版</TableHead>

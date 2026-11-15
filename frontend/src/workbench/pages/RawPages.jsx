@@ -114,23 +114,22 @@ export function RawPage() {
           </Button>
         </div>
         <div className="toolbar">
-          <Tabs value={model.tab}>
+          <Tabs value={model.tab} onValueChange={(next) => {
+            setTab(next);
+            setSearch("");
+            setDealerCodeSearch("");
+            setDealerNameSearch("");
+            setSectorFilter("");
+            setInitiativeSearch("");
+            setDepartmentSearch("");
+            setOwnerSearch("");
+            setPage(1);
+          }}>
             <TabsList aria-label="原始数据类别" className="flex-wrap h-auto">
               {model.tabs.map((t) => (
                 <TabsTrigger
                   value={t.id}
                   key={t.id}
-                  onClick={() => {
-                    setTab(t.id);
-                    setSearch("");
-                    setDealerCodeSearch("");
-                    setDealerNameSearch("");
-                    setSectorFilter("");
-                    setInitiativeSearch("");
-                    setDepartmentSearch("");
-                    setOwnerSearch("");
-                    setPage(1);
-                  }}
                 >
                   {t.label}
                 </TabsTrigger>

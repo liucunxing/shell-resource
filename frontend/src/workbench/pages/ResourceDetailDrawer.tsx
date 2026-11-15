@@ -1,3 +1,4 @@
+import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
 import {
   useEffect,
   useMemo,
@@ -33,7 +34,6 @@ import {
   historyInvestment,
   historyYield,
   finiteHistoryValue,
-  configuredYtdLabel,
   type HistoryDealer,
   type HistoryPeriod,
   type DealerHistory,
@@ -447,7 +447,7 @@ export function ResourceDetailDrawer({
     <section className="resource-detail-section">
       <h3>
         历史表现 ·{" "}
-        {period === "2025" ? "2025 全年" : configuredYtdLabel(ytdCutoffMonth)}
+        {period === "2025" ? "2025 全年" : "2026 YTD"}
       </h3>
       <div className="resource-history-grid">
           {[
@@ -776,17 +776,7 @@ export function ResourceDetailDrawer({
         <div className="resource-detail-content" ref={content}>
           <div className="resource-detail-controls">
             <span>历史参考</span>
-            <Tabs
-              value={period}
-              onValueChange={(value) => setPeriod(value as HistoryPeriod)}
-            >
-              <TabsList aria-label="抽屉历史期间">
-                <TabsTrigger value="2025">2025 全年</TabsTrigger>
-                <TabsTrigger value="2026Ytd">
-                  {configuredYtdLabel(ytdCutoffMonth)}
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <HistoryPeriodTabs value={period} onValueChange={setPeriod} ytdCutoffMonth={ytdCutoffMonth} />
             <Tabs
               value={basis}
               onValueChange={(value) => setBasis(value as "vol" | "c3")}

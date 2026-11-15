@@ -1,5 +1,10 @@
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+// Tooltip portals are not mounted by SSR; expose their content to verify that
+// source coverage is propagated into the explanation, not the compact tab label.
+vi.mock("../src/workbench/pages/MetricHelp", () => ({
+  MetricHelp: ({ children }) => <aside data-testid="metric-explanation">{children}</aside>,
+}));
 import {
   SdAnalysis,
   sdGroupsWithComparison,
@@ -61,6 +66,8 @@ it("preserves a confirmed or expired source period in organization controls", ()
     const html = renderToStaticMarkup(<SdAnalysis items={items} dealers={dealers} ytdCutoffMonth={month} />);
     expect(html).toContain(month === null ? "截止月待确认" : "1–9月");
     expect(html).not.toContain("1–10月");
+    expect(html).toContain(">2026 YTD</button>");
+    expect(html).not.toMatch(/>2026 YTD（[^<]*<\/button>/);
   }
 });
 const read = (input = items, previous = null, groupBy = "sd") =>

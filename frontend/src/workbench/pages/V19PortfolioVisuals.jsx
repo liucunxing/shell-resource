@@ -1,5 +1,5 @@
+import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
 import { MetricHelp } from "./MetricHelp";
-import { configuredYtdLabel } from "../domain/dealer-history";
 import { Fragment as ReactFragment, useState } from "react";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
@@ -91,17 +91,7 @@ export const HistoryControls = ({
 }) => (
   <div className="v19-local-history">
     <span>历史参考</span>
-    <Tabs value={period} onValueChange={setPeriod}>
-      <TabsList>
-        <TabsTrigger value="2025">2025 全年</TabsTrigger>
-        <TabsTrigger
-          value="2026Ytd"
-          title="管理端配置期间；真实数据覆盖需单独核实"
-        >
-          {configuredYtdLabel(ytdCutoffMonth)}
-        </TabsTrigger>
-      </TabsList>
-    </Tabs>
+    <HistoryPeriodTabs value={period} onValueChange={setPeriod} ytdCutoffMonth={ytdCutoffMonth} />
     <Tabs value={basis} onValueChange={setBasis}>
       <TabsList>
         <TabsTrigger value="vol">Vol</TabsTrigger>

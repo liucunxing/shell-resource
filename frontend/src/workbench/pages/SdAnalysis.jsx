@@ -1,3 +1,4 @@
+import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Alert, AlertDescription } from "../../components/ui/alert";
 import { MetricHelp } from "./MetricHelp";
@@ -23,7 +24,6 @@ import { submittedVersionItems } from "../domain/version-baseline.js";
 import * as api from "../api.js";
 import { V20OrganizationSummary } from "./V20OrganizationSummary.jsx";
 import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
-import { configuredYtdLabel } from "../domain/dealer-history";
 
 const amount = (value, scale = 1) =>
   value == null
@@ -314,26 +314,21 @@ export function SdAnalysis({
           </TabsList>
         </Tabs>
         <span>历史参考</span>
-        <Tabs value={period} onValueChange={setPeriod}>
-          <TabsList>
-            <TabsTrigger value="2025">2025 全年</TabsTrigger>
-            <TabsTrigger value="2026Ytd">{configuredYtdLabel(ytdCutoffMonth)}</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <Tabs value={basis} onValueChange={setBasis}>
-          <TabsList>
-            <TabsTrigger value="vol">Vol</TabsTrigger>
-            <TabsTrigger value="c3">C3</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <MetricHelp>
+        <HistoryPeriodTabs value={period} onValueChange={setPeriod} ytdCutoffMonth={ytdCutoffMonth}>
               <p>
                 {metadata.source || "历史数据来源"} · Actual 最新月：
                 {metadata.actual?.latestMonth || "未提供"} · 历史费用最新月：
                 {metadata.investment?.latestMonth || "未提供"}。Sellin
                 按季度更新，实际覆盖以数据快照为准；更新频率不代表数据截止月。
               </p>
-        </MetricHelp>
+        </HistoryPeriodTabs>
+        <Tabs value={basis} onValueChange={setBasis}>
+          <TabsList>
+            <TabsTrigger value="vol">Vol</TabsTrigger>
+            <TabsTrigger value="c3">C3</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
       </div>
       <p className="studio-table-note">
         来源版本：{sourceVersionId || "无来源版本"}
@@ -426,7 +421,7 @@ export function SdAnalysis({
             </div>
           </section>
           <p className="v19-sd-fact-rule">
-            {period === "2025" ? "2025 全年" : configuredYtdLabel(ytdCutoffMonth)} ·{" "}
+            {period === "2025" ? "2025 全年" : "2026 YTD"} ·{" "}
             {basis === "c3" ? "C3" : "Delivery Vol"}；差值 = 投资占比 −
             产出占比。按已勾选名单计算，逐项列出超过 ±{threshold} pp
             的偏离；超过 ±{redThreshold} pp 优先关注。
