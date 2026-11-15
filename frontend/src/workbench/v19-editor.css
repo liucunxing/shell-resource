@@ -783,3 +783,11 @@
     position: static;
   }
 }
+
+.studio-trial-dialog .studio-trial-grid { gap:12px; margin:0; }
+.studio-trial-dialog .studio-trial-grid article { padding:18px; gap:12px; }
+.studio-trial-dialog .studio-trial-grid article > span { font-size:12px; }
+.studio-trial-dialog .studio-trial-grid h3 { font-size:20px; }
+.studio-trial-dialog .studio-trial-grid p { font-size:13px; line-height:1.5; color:#526575; }
+.studio-trial-dialog .studio-trial-grid strong { font-size:16px; }
+@media(max-width:760px) { .studio-trial-dialog .studio-trial-grid { grid-template-columns:1fr; } }

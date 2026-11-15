@@ -341,7 +341,7 @@ function AmountInput({ value, label, save, disabled = false }) {
     />
   );
 }
-function EditorDialog({ title, children, action, close }) {
+function EditorDialog({ title, children, action, close, compact = false }) {
   const previous = useRef(
     typeof document === "undefined" ? null : document.activeElement,
   );
@@ -353,7 +353,7 @@ function EditorDialog({ title, children, action, close }) {
       }}
     >
       <DialogContent
-        className="w-[96vw] sm:max-w-[1480px] max-h-[85dvh] overflow-auto"
+        className={`w-[96vw] ${compact ? "sm:max-w-[1120px] studio-trial-dialog" : "sm:max-w-[1480px]"} max-h-[85dvh] overflow-auto`}
         showCloseButton={false}
         aria-describedby={undefined}
         onCloseAutoFocus={(event) => {
@@ -1372,11 +1372,11 @@ function EditorContent({
                         <TableHead className="num">Vol</TableHead>
                         <TableHead className="num">C3</TableHead>
                         <TableHead className="num">
-                          2025 投资（千美元）
+                          2025 投资（K$）
                         </TableHead>
                         <TableHead className="num">2025 资源占比</TableHead>
                         <TableHead className="num">
-                          2026 YTD 投资（千美元）
+                          2026 YTD 投资（K$）
                         </TableHead>
                         <TableHead className="num">2026 YTD 资源占比</TableHead>
                       </TableRow>
@@ -1623,6 +1623,7 @@ function EditorContent({
               </div>
               {trialCompare && (
                 <EditorDialog
+                  compact
                   title="对比三种试算方案"
                   close={() => setTrialCompare(false)}
                   action={null}

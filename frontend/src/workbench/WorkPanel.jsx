@@ -273,7 +273,7 @@ export function ResourceCompositionRows({ resources, prefix, allResources }) {
   const comparable = complete && !negative && total > 0;
   return <>
     {resources.map((resource) => <div className="resource-bar-row" key={resource.label}>
-      <div><span>{resource.label.replace(prefix, "")}</span><b>{fmt(resource.amount)} 千美元</b></div>
+      <div><span>{resource.label.replace(prefix, "")}</span><b>{fmt(resource.amount)} K$</b></div>
       {comparable && <div className="history-bar-track"><i className="resource" style={{ width: `${resource.amount / total * 100}%` }} /></div>}
     </div>)}
     <p>{negative ? "含负费用，暂不显示构成占比；金额保留原值。" : !complete ? "费用数据不完整，暂不显示构成占比。" : total <= 0 ? "费用合计不大于 0，暂不显示构成占比。" : `条形占比以${allResources ? "全部" : "当前授权"}资源合计为分母。`}</p>
@@ -448,7 +448,7 @@ function ReferencePanel() {
         </section>
       )}
       <p className="reference-footnote">
-        Vol 的单位为 KL，C3 为 K$（千美元），资源为千美元。Yield
+        Vol 的单位为 KL，C3 为 K$，资源为K$。Yield
         向各角色共享，资源明细按权限展示；历史比值不随 2027 分配变化。
       </p>
       <Button

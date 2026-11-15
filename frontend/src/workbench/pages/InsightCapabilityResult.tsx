@@ -276,7 +276,7 @@ export function InvestmentReview({
                 "经销商",
                 "Sector",
                 "资源类型",
-                `2025资源投入(${historyUnit === "USD" ? "千美元" : "千元人民币"})`,
+                `2025资源投入(${historyUnit === "USD" ? "K$" : "千元人民币"})`,
                 "本次计划(千元人民币)",
                 "差额(千元人民币)",
                 "计划 / 实际",

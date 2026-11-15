@@ -172,7 +172,7 @@ export function VersionDifferenceDrawer({
     >
       <SheetContent
         className="resource-detail-drawer"
-        style={{ "--detail-width": "1160px" }}
+        style={{ "--detail-width": "70vw" }}
         onCloseAutoFocus={(event) => {
           event.preventDefault();
           if (trigger.current?.isConnected) trigger.current.focus();

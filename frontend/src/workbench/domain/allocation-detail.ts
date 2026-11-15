@@ -83,7 +83,7 @@ export function allocationColumnGroups(
       title: "② Actual信息",
       columns: [
         ["vol", "Delivery Vol（KL）"],
-        ["c3", "Actual C3（千美元）"],
+        ["c3", "Actual C3（K$）"],
         ["phasing", "Phasing"],
       ],
     },
@@ -91,10 +91,10 @@ export function allocationColumnGroups(
       key: "investment",
       title: "③ 历史投资数据",
       columns: [
-        ["investment", "历史投资总额（千美元）"],
+        ["investment", "历史投资总额（K$）"],
         ...EXPENSE_COLUMN_ORDER.filter((type) => expenses.includes(type)).map(
           (type) =>
-            [`expense:${type}`, `${type}（千美元）`] as [string, string],
+            [`expense:${type}`, `${type}（K$）`] as [string, string],
         ),
         ["yield", "Yield（C3÷投资）"],
         ["investmentShare", "历史投资占比"],
