@@ -1,0 +1,62 @@
+/* Shared compact shadcn Tabs, including portalled drawers and dialogs. */
+.studio-tabs-list[data-slot="tabs-list"] {
+  height: auto;
+  min-height: 32px;
+  max-width: 100%;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid #e2e5e9;
+  border-radius: 7px;
+  background: #f1f3f5;
+  color: #66717e;
+}
+.studio-tabs-trigger[data-slot="tabs-trigger"] {
+  height: auto;
+  min-height: 26px;
+  padding: 3px 12px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #66717e;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  box-shadow: none;
+  transition: background-color 120ms, color 120ms, box-shadow 120ms;
+}
+.studio-tabs-trigger[data-slot="tabs-trigger"]:hover:where(:not(:disabled)) {
+  color: #263441;
+  background: #e7ebef;
+}
+.studio-tabs-trigger[data-slot="tabs-trigger"][data-state="active"] {
+  color: #263441;
+  background: #fff;
+  border-color: #e0e4e8;
+  font-weight: 600;
+  box-shadow: 0 1px 2px #18243112;
+}
+.studio-tabs-trigger[data-slot="tabs-trigger"]:focus-visible {
+  outline: 2px solid #64748b;
+  outline-offset: 2px;
+  box-shadow: none;
+}
+.studio-tabs-trigger[data-slot="tabs-trigger"]:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+.studio-tabs-list[data-variant="default"] > .studio-tabs-trigger::after {
+  display: none;
+}
+.studio-tabs-list[data-variant="line"] {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.studio-tabs-list[data-variant="line"] > .studio-tabs-trigger[data-state="active"] {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .studio-tabs-trigger[data-slot="tabs-trigger"] { transition: none; }
+}

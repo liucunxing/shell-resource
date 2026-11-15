@@ -1,5 +1,10 @@
 import { expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+// Tooltip portals are not mounted by SSR; expose their content to verify that
+// source coverage is propagated into the explanation, not the compact tab label.
+vi.mock("../src/workbench/pages/MetricHelp", () => ({
+  MetricHelp: ({ children }) => <aside data-testid="metric-explanation">{children}</aside>,
+}));
 const mock = vi.hoisted(() => ({ context: null }));
 vi.mock("../src/workbench/WorkbenchContext.jsx", () => ({
   useWorkbench: () => mock.context,
@@ -54,6 +59,8 @@ it("keeps confirmed or unknown coverage through the health and stacked views", (
     const label = month === null ? "截止月待确认" : "1–9月";
     expect(html.split(label).length - 1).toBeGreaterThanOrEqual(2);
     expect(html).not.toContain("1–10月");
+    expect(html).toContain(">2026 YTD</button>");
+    expect(html).not.toMatch(/>2026 YTD（[^<]*<\/button>/);
   }
 });
 

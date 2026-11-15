@@ -33,13 +33,6 @@
   flex-wrap: wrap;
   margin-bottom: 18px;
 }
-.resource-detail-controls [data-slot="tabs-list"] {
-  background: #edf1f4;
-}
-.resource-detail-controls [data-state="active"] {
-  background: #fff4bc;
-  border-bottom: 3px solid #d5b02f;
-}
 .resource-detail-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
