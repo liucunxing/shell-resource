@@ -1,3 +1,4 @@
+import { MetricHelp } from "./MetricHelp";
 import { configuredYtdLabel } from "../domain/dealer-history";
 import { Fragment as ReactFragment, useState } from "react";
 import { Button } from "../../components/ui/button";
@@ -112,7 +113,7 @@ export const HistoryControls = ({
 const Heading = ({ title, description, children }) => (
   <div className="v19-section-heading">
     <div>
-      <h2>{title}</h2>
+      <h2>{title} {description && <MetricHelp>{description}</MetricHelp>}</h2>
       {description && <p>{description}</p>}
     </div>
     {children}
@@ -600,8 +601,7 @@ export function CumulativeChart({ rows, top, basis, onSelect }) {
     })),
   ];
   const xy = (x, y) => `${48 + x * 5.2},${226 - y * 1.9}`,
-    path = (key) => points.map((p) => xy(p.x, p[key])).join(" "),
-    selected = points[Math.max(1, Math.round((eligible.length * top) / 100))];
+    path = (key) => points.map((p) => xy(p.x, p[key])).join(" ");
   return (
     <svg
       className="v19-concentration-chart"
@@ -689,6 +689,9 @@ export function CumulativeChart({ rows, top, basis, onSelect }) {
                 fill="transparent"
                 pointerEvents="all"
               />
+              <line x1={48 + q.x * 5.2} x2={48 + q.x * 5.2} y1="36" y2="226" stroke="#9aaebb" strokeDasharray="3 3" pointerEvents="none" />
+              <text className="v19-top-label" x={48 + q.x * 5.2} y="32" textAnchor="middle">Top {x}%</text>
+              {x === top && <><text className="v19-chart-value investment" x={Math.min(450, 58 + q.x * 5.2)} y={Math.max(48, 218 - q.a * 1.9)}>投资 {pct(q.a)}</text><text className="v19-chart-value output" x={Math.min(450, 58 + q.x * 5.2)} y={Math.min(220, 242 - q.m * 1.9)}>{basis === "vol" ? "Vol" : "C3"} {pct(q.m)}</text></>}
               <circle
                 cx={48 + q.x * 5.2}
                 cy={226 - q.a * 1.9}
@@ -711,17 +714,6 @@ export function CumulativeChart({ rows, top, basis, onSelect }) {
           )
         );
       })}
-      {selected && (
-        <line
-          x1={48 + selected.x * 5.2}
-          x2={48 + selected.x * 5.2}
-          y1="36"
-          y2="226"
-          stroke="#aab6c1"
-          strokeDasharray="3 3"
-          pointerEvents="none"
-        />
-      )}
       <text x="310" y="272" textAnchor="middle">
         经销商（按投入从高到低）累计占比 →
       </text>
@@ -790,7 +782,7 @@ export function V19Health({
           />
           <div className="v19-subpanel">
             <div className="v19-subpanel-heading">
-              <h3>1 集中度 · 投资是否集中在少数经销商</h3>
+              <h3>1 集中度 · 投资是否集中在少数经销商 <MetricHelp>经销商按投资金额从高到低排序，对比前20%、50%、80%获得的投资与贡献的历史产出。仅有有效历史产出的经销商参与比较；差值以百分点表示。</MetricHelp></h3>
               <Tabs
                 value={String(top)}
                 onValueChange={(v) => setTop(Number(v))}
@@ -809,8 +801,8 @@ export function V19Health({
                 <p className="v19-concentration-statement">
                   {mode === "owner" ? "本人整体" : "当前范围"}：投资金额最多的{" "}
                   {top}% 经销商（{result.n} 家）获得{" "}
-                  <b>{pct(result.amountShare)}</b> 的投资金额，贡献{" "}
-                  <b>{pct(result.metricShare)}</b> 的{label}
+                  <b className="v19-investment-emphasis">{pct(result.amountShare)}</b> 的投资金额，贡献{" "}
+                  <b className="v19-output-emphasis">{pct(result.metricShare)}</b> 的{label}
                 </p>
                 <Badge
                   variant={
@@ -890,6 +882,7 @@ export function V19Health({
                   {mode === "exec"
                     ? "哪个资源大类最集中"
                     : "哪个 Initiative 最集中"}
+                  {groups.filter((group) => group.stats?.gap > (thresholds.concentrationRed ?? 10)).length > 0 && <Badge variant="destructive" className="v19-concentration-flag">● {groups.filter((group) => group.stats?.gap > (thresholds.concentrationRed ?? 10)).length} 个 &gt;{thresholds.concentrationRed ?? 10}pp</Badge>}
                 </h3>
                 <Table>
                   <TableHeader>

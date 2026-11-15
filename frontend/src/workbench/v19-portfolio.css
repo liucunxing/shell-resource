@@ -1028,3 +1028,14 @@
 
 .v20-stack-table .v19-diverging { width:100%; min-width:0; }
 .v20-stack-table .v19-stack-bar { width:100%; min-width:0; }
+
+.v20-initiative-chips { display:flex; flex-wrap:wrap; gap:4px; }
+.v19-fidelity-shell .v19-board-section .v20-stack-table .v20-initiative-chip { width:auto; max-width:none; white-space:nowrap; overflow-wrap:normal; }
+.v20-stack-table th:nth-child(3) { width:26%; }
+.v19-concentration-statement .v19-investment-emphasis { color:#b98500; font-size:20px; }
+.v19-concentration-statement .v19-output-emphasis { color:#364d5e; font-size:20px; }
+.v19-concentration-chart .v19-top-label { fill:#40596c; font-weight:700; font-size:12px; }
+.v19-concentration-chart .v19-chart-value { font-size:14px; font-weight:700; paint-order:stroke; stroke:#f5f8fa; stroke-width:3px; }
+.v19-concentration-chart .v19-chart-value.investment { fill:#a77900; }
+.v19-concentration-chart .v19-chart-value.output { fill:#354958; }
+.v19-concentration-flag { margin-left:10px; font-size:11px; }
