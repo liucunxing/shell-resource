@@ -40,9 +40,13 @@ ai_timeout_seconds = 60
 
 当前预算、分配、规划版本/部门流转、用户权限、配置和 Insight 记录存储在 PostgreSQL `data` schema。经销商名单和历史读取 `data.distributor_sellin_resource_history`，并非页面实时读取 Databricks；保留的 Databricks Repository 与配置不是运行调用证据。旧参考导入写 `workspace_references`，不会更新这张历史宽表。
 
-Databricks 仅允许应用 Service Principal 访问被分配且授权的 schema，当前配置目标是 `prod.resource_planning.dim_distributor`。不得使用个人 CLI/token 回退，也不能直接接入其他 schema。2026-11-14 个人只读核查在该范围可见两个基础视图，各 2,678 行、3 个字段；应用 SP 认证仍为 `401 invalid_client`，因此尚未证明应用身份能读取。业务指标、合同量、PPP、业务月份与汇率需先由数据负责人提供到授权范围，再用应用身份验证。
+Databricks 仅允许应用 Service Principal 访问被分配且授权的 schema，当前配置目标是 `prod.resource_planning.dim_distributor`。不得使用个人 CLI/token 回退，也不能直接接入其他 schema。2026-11-14 个人只读核查在该范围可见两个基础视图，各 2,678 行、3 个字段；应用 SP 认证仍为 `401 invalid_client`，因此尚未证明应用身份能读取。这是旧Databricks探源快照。本期历史来源仍为PG；PPP误加需求已取消，同期经销商target及业务覆盖期间的当前缺项见[PG评估](../docs/PG_SELLIN_ASSESSMENT.md)。
 
 历史缺失不能按零处理或补造截止月；Actual 与费用分别记录真实业务月份，币种/单位/汇率及期间一致后才能比较。详细要求见 [当前需求](../docs/CURRENT_REQUIREMENTS.md) 和 [后端规则](AGENTS.md)。
+
+2026-11-15用户已确认当前源批次的销量、C3、费用均累计1–9月，下一次预计2027年1月更新。时间字段后续补；当前确认保存在 `workspace_config.reference.historyCoverageConfirmation`，绑定全源指纹。接口在同一数据库快照校验指纹；匹配时返回9月与同期Yield，换批后自动显示截止月待确认并停止YTD Yield比较。`state.configuredYtdCutoffMonth`保留管理员设置，`state.ytdCutoffMonth`为有效展示值，可为null。SQLite原型不继承真实PG批次确认。
+
+已获得业务确认后使用 `scripts/confirm_history_coverage.py --source-fingerprint <本批指纹> --actual-month 9 --investment-month 9 --report <本地报告路径>` 先dry-run；正式应用再加 `--apply --expected-revision <dry-run返回值>`。脚本只更新配置及审计，不改历史源表；指纹或revision变化会阻止应用。本次配置revision已由6升为7，不能重用旧revision参数。
 
 指标公式、源章节与缺口见 [V2.0 指标定义](../docs/METRIC_DEFINITIONS.md)。Phasing 要求合同>0；Yield 要求 C3 和完整历史投资都>0；YoY 按年度值重算，基期≤0返回无基期。PG 原值保留用于对账；派生比率的应用值不能伪装为源字段。
 
@@ -73,7 +77,7 @@ V19 远端演练命令（默认回滚，显式 `--apply` 才提交；先配置�
 
 脚本不注入真实用户或示例业务数据。首次使用前，维护 `data.user_permissions` 的 `email`（小写）、`display_name`、`role`、`department`、`sector`、`enabled`。角色为 `owner / lead / management / admin`；Owner 和负责人必须配置部门。Owner 的 `sector` 必须恰好一条，负责人可配置一至四条，管理层和管理员不配置业务线。管理员 API 只接受固定业务线 `PCMO / CRTO / B2B / OEM`。将既有预算的 `owner_email` 对应到真实启用 Owner。新预算可通过管理员 API 创建，Owner 必须与预算部门匹配。
 
-V19 另有独立 `affiliation_sector` / `affiliation_department` 与 `history_resources` 字段，分别表示所属组织和费用覆盖配置，不能按授权范围猜填。费用权限按用户覆盖 > 所属部门 > 角色计算，缺归属不提供明细；历史账号需管理员维护真实归属。版本由管理员按业务日期创建、发布，勿将合成版本写入真实库。
+用户有独立 `affiliation_sector` / `affiliation_department` 与 `history_resources` 字段，分别表示所属组织和费用收窄配置，不能按授权范围猜填。费用权限为所属部门大类上限与部门、用户配置的交集，角色不扩权，缺有效归属不提供明细；历史账号需管理员维护真实归属。版本由管理员按业务日期创建、发布，勿将合成版本写入真实库。
 
 ## 启动与同站点部署
 
@@ -107,10 +111,10 @@ Azure Blob 只用于保留的旧模板下载和测试上传；V19 Excel 回传�
 本地浏览器合成数据服务可用以下命令启动，仅供验收，不部署：
 
 ```powershell
-.\.venv\Scripts\python.exe -m uvicorn tests.v19_prototype_fixture:app --app-dir src --host 127.0.0.1 --port 8019
+.\.venv\Scripts\python.exe -m uvicorn tests.v20_prototype_fixture:app --app-dir src --host 127.0.0.1 --port 8019
 ```
 
-该服务将最新 V19 原型导出导入被忽略的 `.cache/v19-prototype/` SQLite，与远端真实 PG 数据隔离。直接访问 `http://127.0.0.1:8019/`，在顶部切换原型中的人物/角色，使用 `example.test` 本地合成账号。它不读取开发 PG/AI 凭据，不调用外部 AI；已有本地库保留验收操作。旧 `tests.v19_browser_fixture` 及 `.cache/v19-final/` 的简化测试场景仍保留，不会被导入覆盖。原型 JSON 位于 `tests/fixtures/v19_prototype_demo.json`，原型 HTML 保持原样。模拟指标和月份不得写入远端真实数据。
+该服务将最新 V19 原型导出导入被忽略的 `.cache/v20-prototype/` SQLite，与远端真实 PG 数据隔离。直接访问 `http://127.0.0.1:8019/`，在顶部切换原型中的人物/角色，使用 `example.test` 本地合成账号。它不读取开发 PG/AI 凭据，不调用外部 AI；已有本地库保留验收操作。旧 `tests.v19_browser_fixture` 及 `.cache/v19-final/` 的简化测试场景仍保留，不会被导入覆盖。原型 JSON 位于 `tests/fixtures/v19_prototype_demo.json`，原型 HTML 保持原样。模拟指标和月份不得写入远端真实数据。
 
 在仓库根目录可重新提取（需要已有 Playwright 与 Edge/Chromium）：
 

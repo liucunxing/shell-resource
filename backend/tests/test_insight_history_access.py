@@ -85,16 +85,32 @@ def test_department_permission_skips_resource_even_without_history_rows():
     descriptor = {"scope": "owner:test", "items": [item()]}
     data = build_evidence(workspace, descriptor, "owner", 2027)
     assert not any(f["id"].startswith("investment") for f in data["facts"])
-    # Business scope does not grant expense access. An explicit user override does;
-    # source absence remains missing history rather than being silently skipped.
+    # Neither business scope nor a user/department override can grant a foreign fee.
     workspace["identity"]["history_resources"] = ["MRD"]
     data = build_evidence(workspace, descriptor, "owner", 2027)
-    rows = next(d for d in data["datasets"] if d["id"] == "investment-review")["rows"]
-    assert rows[0]["reason_code"] == "missing"
+    assert not any(d["id"] == "investment-review" for d in data["datasets"])
     workspace["identity"].pop("history_resources")
     workspace["state"] = {"departmentResources": {"ICE": ["MRD"]}}
     data = build_evidence(workspace, descriptor, "owner", 2027)
-    assert any(d["id"] == "investment-review" for d in data["datasets"])
+    assert not any(d["id"] == "investment-review" for d in data["datasets"])
+
+
+def test_admin_model_evidence_cannot_use_foreign_fee_even_with_full_raw_input_and_override():
+    dealer = record("D1", actual=100000, **{"Capex": 987654321})
+    identity = {**HISTORY_IDENTITY, "role": "admin", "history_resources": [
+        "MRD", "SP&A", "ICE Rebate", "Capex",
+    ]}
+    source = {"identity": identity, "data": {"dealers": [dealer]}, "state": {
+        "departmentResources": {"MKT": ["MRD", "SP&A", "ICE Rebate", "Capex"]},
+    }}
+    descriptor = {"scope": "global", "items": [item(), item(resource="Capex", identifier="2")]}
+    data = build_evidence(source, descriptor, "admin", 2027)
+    rows = next(d for d in data["datasets"] if d["id"] == "investment-review")["rows"]
+    assert {row["resource_type"] for row in rows} == {"MRD"}
+    assert "987654321" not in json.dumps(data)
+    pack = InsightPack(PACK_ROOT)
+    for preset in ("comprehensive", "quadrant", "structure"):
+        assert "987654321" not in json.dumps(pack.model_evidence(data, preset))
 
 
 def test_zero_yield_not_in_examples_or_quadrant_but_source_and_amounts_unchanged():

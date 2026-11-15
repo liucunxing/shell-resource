@@ -1,4 +1,5 @@
 import E from "./engine.js";
+import { departmentExpenseFields } from "./history-permissions";
 ("use strict");
 const esc = (v) =>
   String(v == null ? "" : v).replace(
@@ -262,10 +263,9 @@ function rawData(state, identity, data, tab) {
     const resourceTypes = ["MRD", "SP&A", "ICE Rebate", "Capex"];
     const validHome = ["PCMO", "CRTO", "B2B", "OEM"].includes(identity.affiliation_sector)
       && ["MKT", "ICE", "CAPEX"].includes(identity.affiliation_department);
-    const roleMapping = state.roleResources || { owner: [], lead: [], management: resourceTypes, admin: resourceTypes };
-    const configured = !validHome ? [] : identity.history_resources
-      ?? mapping[`${identity.affiliation_sector}|${identity.affiliation_department}`]
-      ?? mapping[identity.affiliation_department] ?? roleMapping[identity.role] ?? [];
+    const departmental = validHome ? departmentExpenseFields(mapping, identity.affiliation_sector, identity.affiliation_department) : [];
+    const configured = identity.history_resources == null ? departmental
+      : departmental.filter((resource) => identity.history_resources.includes(resource));
     // API responses are already filtered. Never recreate an absent protected column.
     const resources = resourceTypes.filter(resource => configured.includes(resource)
       && (state.scenario !== "api" || data.dealers.some(dealer =>
@@ -322,7 +322,7 @@ function rawData(state, identity, data, tab) {
       "Yield 向所有角色只读开放，仅在 C3 与完整历史投资总额均大于 0 时计算比值，不转换为百分比。",
       "经销商范围由服务端业务授权确定；历史投资总额、Vol、C3、Yield 为公共参考指标。",
       "SP&A 使用全部历史合计，暂不按部门拆分。",
-      "费用列按用户覆盖、所属部门默认、角色默认依次决定；不会合并业务授权部门来扩大费用权限。",
+      "费用列限于本人所属部门对应大类，部门和用户配置只能进一步收窄；管理层和管理员也不跨部门扩大费用权限。",
     );
   }
   return model;

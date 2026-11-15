@@ -48,6 +48,15 @@ const healthDealers = [
   },
 ];
 
+it("keeps confirmed or unknown coverage through the health and stacked views", () => {
+  for (const month of [9, null]) {
+    const html = renderToStaticMarkup(<V19Health items={healthItems} dealers={healthDealers} ytdCutoffMonth={month} />);
+    const label = month === null ? "截止月待确认" : "1–9月";
+    expect(html.split(label).length - 1).toBeGreaterThanOrEqual(2);
+    expect(html).not.toContain("1–10月");
+  }
+});
+
 it("keeps the V19 resource order with custom types after the four standard categories", () => {
   const source = ["Other", "Capex", "SP&A", "MRD", "ICE Rebate", "MRD"];
   expect(orderedResourceTypes(source)).toEqual([
@@ -200,7 +209,7 @@ it("renders the executive budget composition ring and the complete resource cate
   );
   expect(html).toContain("资源大类预算构成");
   expect(html).toContain("各资源大类预算占比");
-  expect(html).toContain("未确认（万）");
+  expect(html).toContain("未确认（万元）");
   expect(html).toContain("分配进度");
   expect(html).toContain("获配经销商");
   expect(html).toContain("拆分依据");
@@ -208,17 +217,24 @@ it("renders the executive budget composition ring and the complete resource cate
   expect(html).not.toContain("未确认的 Initiative");
 });
 
-
 it("uses the concentration cohort order and excludes no-history allocations from the rendered curve", () => {
   const rows = [
     { id: "A", amount: 1001, metric: 60, hasHistory: true },
     { id: "B", amount: 1049, metric: -10, hasHistory: true },
     { id: "N", amount: 100000, metric: 0, hasHistory: false },
   ];
-  const html = renderToStaticMarkup(<CumulativeChart rows={rows} top={20} basis="c3" onSelect={() => {}} />);
+  const html = renderToStaticMarkup(
+    <CumulativeChart rows={rows} top={20} basis="c3" onSelect={() => {}} />,
+  );
   expect(html).toContain('points="48,226 308,36 568,36"');
   expect(html).not.toContain("NaN");
-  const empty = renderToStaticMarkup(<CumulativeChart rows={rows.map(r => ({ ...r, metric: -1 }))} top={20} basis="c3" />);
+  const empty = renderToStaticMarkup(
+    <CumulativeChart
+      rows={rows.map((r) => ({ ...r, metric: -1 }))}
+      top={20}
+      basis="c3"
+    />,
+  );
   expect(empty).toContain("暂无可比较的历史产出");
   expect(empty).not.toContain("<svg");
 });

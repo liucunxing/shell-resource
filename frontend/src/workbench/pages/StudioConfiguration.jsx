@@ -30,7 +30,9 @@ export function StudioConfiguration({ thresholds = false }) {
   );
   const [busy, setBusy] = useState(false),
     [label, setLabel] = useState("");
-  const [ytdMonth, setYtdMonth] = useState(state.ytdCutoffMonth ?? 10);
+  const [ytdMonth, setYtdMonth] = useState(
+    state.configuredYtdCutoffMonth ?? state.ytdCutoffMonth ?? 10,
+  );
   const [exchangeRate, setExchangeRate] = useState(state.historyInvestmentExchangeRate ?? 1);
   const validRate = typeof exchangeRate === "number" && Number.isFinite(exchangeRate) && exchangeRate > 0;
   const validMonth =
@@ -154,9 +156,8 @@ export function StudioConfiguration({ thresholds = false }) {
           {validMonth ? configuredYtdLabel(ytdMonth) : "请输入 1–12 的整数月份"}
         </p>
         <p className="small-text muted">
-          默认 10 月。此项设置页面期间标签；Actual
-          与历史费用的真实覆盖月份须另行核对，配置不会补齐源数据或解除 YTD Yield
-          的期间校验。
+          默认 10 月。已有当前批次的期间确认时，页面使用已确认月份；数据换批后须重新核对。
+          这里保存的月份不会补齐源数据，也不会单独解除 YTD Yield 的期间校验。
         </p>
         <Button
           disabled={busy || previewMode || !validMonth}

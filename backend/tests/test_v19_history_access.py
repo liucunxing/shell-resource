@@ -39,16 +39,30 @@ def test_missing_home_affiliation_denies_expense_columns_for_every_role(role):
     assert historical_resource_access(person(role, affiliation_sector="UNKNOWN"))["resources"] == []
 
 
-def test_explicit_user_override_then_sector_department_then_legacy_department_then_role():
+def test_department_ceiling_intersects_configuration_and_user_override():
     mapping = {"MKT": ["MRD"], "ICE": ["SP&A"], "PCMO|MKT": ["Capex"]}
-    assert historical_resource_access(person(), mapping)["resources"] == ["Capex"]
+    assert historical_resource_access(person(), mapping)["resources"] == []
     assert historical_resource_access(person(history_resources=()), mapping)["resources"] == []
     assert historical_resource_access(person(history_resources=("SP&A",)), mapping) == {
-        "source": "user", "resources": ["SP&A"],
+        "source": "user", "resources": [],
     }
     assert historical_resource_access(person(), {"MKT": ["MRD"]})["resources"] == ["MRD"]
-    assert historical_resource_access(person("admin"), {})["resources"] == list(RESOURCE_TYPES)
-    assert historical_resource_access(person("owner"), {})["resources"] == []
+    assert historical_resource_access(person("admin"), {})["resources"] == ["MRD", "SP&A"]
+    assert historical_resource_access(person("owner"), {})["resources"] == ["MRD", "SP&A"]
+    assert historical_resource_access(
+        person(history_resources=("MRD", "SP&A")), {"MKT": ["MRD"]},
+    )["resources"] == ["MRD"]
+
+
+@pytest.mark.parametrize("role", ["owner", "lead", "management", "admin"])
+@pytest.mark.parametrize("department,expected", [
+    ("MKT", ["MRD", "SP&A"]), ("ICE", ["SP&A", "ICE Rebate"]), ("CAPEX", ["Capex"]),
+])
+def test_every_role_and_explicit_override_stay_inside_home_department(role, department, expected):
+    user = person(role, affiliation_department=department, history_resources=RESOURCE_TYPES)
+    assert historical_resource_access(
+        user, {department: list(RESOURCE_TYPES)}, {role: list(RESOURCE_TYPES)},
+    )["resources"] == expected
 
 
 @pytest.mark.parametrize("role", ["owner", "lead", "management", "admin"])
@@ -176,3 +190,21 @@ async def test_v19_withdrawn_amounts_do_not_survive_in_cached_insight(role):
     result = await insight.get_insight(scope=scope, planning_year=2027)
     assert "withdrawn-secret-amount" not in str(result)
     assert result["record"] is None if role == "lead" else result["record"]["status"] == "preview"
+
+
+@pytest.mark.asyncio
+async def test_old_all_resource_insight_cache_is_hidden_after_department_ceiling():
+    insight, repository = fake_insight_service("admin")
+    insight.user.affiliation_sector = "PCMO"
+    insight.user.affiliation_department = "MKT"
+    insight.user.history_resources = list(RESOURCE_TYPES)
+    source = workspace()
+    descriptor = insight._scope(source, "global")
+    access = insight._access(descriptor)
+    access["historicalResources"] = list(RESOURCE_TYPES)
+    repository.records.append(SimpleNamespace(record={
+        "access": access, "result": "PRIVATE_FOREIGN_EXPENSE_FROM_OLD_ANALYSIS",
+    }))
+    result = await insight.get_insight(scope="global", planning_year=2027)
+    assert "PRIVATE_FOREIGN_EXPENSE_FROM_OLD_ANALYSIS" not in str(result)
+    assert result["record"]["status"] == "preview"

@@ -259,7 +259,7 @@ vitestTest(
         null,
       );
     });
-    test("historyReference periods and resources respect role boundary", () => {
+    test("historyReference periods and resources respect V20 home department boundary for every role", () => {
       for (const identity of [
         owner,
         lead,
@@ -274,18 +274,10 @@ vitestTest(
           [true, true, false],
         );
         assert.equal(m.periods[2].label, "2026 YTD");
-        const all = ["management", "admin"].includes(identity.role);
-        assert.equal(m.allResources, all);
-        const labels = all
-          ? [
-              "2025 MRD (千美元)",
-              "2025 SP&A (千美元)",
-              "2025 ICE Rebate (千美元)",
-              "2025 Capex (千美元)",
-            ]
-          : identity.department === "MKT"
+        assert.equal(m.allResources, false);
+        const labels = identity.affiliation_department === "MKT"
             ? ["2025 MRD (千美元)", "2025 SP&A (千美元)"]
-            : identity.department === "ICE"
+            : identity.affiliation_department === "ICE"
               ? ["2025 SP&A (千美元)", "2025 ICE Rebate (千美元)"]
               : ["2025 Capex (千美元)"];
         assert.deepEqual(

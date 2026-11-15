@@ -100,6 +100,7 @@ async def assess(report_path: Path) -> None:
                 group by sector order by sector
             """)
             report["yoy_scale_checks"] = {}
+            report["yoy_business_checks"] = {}
             for metric, prefix in (("volume", "vol"), ("c3", "c3")):
                 source = f"yoy_{prefix}_24_25"
                 ratio = f"({metric}_2025/nullif({metric}_2024,0)-1)"
@@ -109,6 +110,20 @@ async def assess(report_path: Path) -> None:
                     count(*) filter(where abs({source}-{ratio})<=0.000011) ratio_matches,
                     count(*) filter(where abs({source}-100*{ratio})<=0.000011) percent_matches
                     from {TABLE}
+                """)
+                report["yoy_business_checks"][metric] = await query(f"""
+                    select sector,
+                    count(*) filter(where {metric}_2024>0 and {source} is not null) comparable,
+                    count(*) filter(where {metric}_2024<=0) non_positive_base,
+                    count(*) filter(where {metric}_2024>0 and {source} is null)
+                        missing_source_ratio,
+                    count(*) filter(where {metric}_2024>0 and {source} is not null
+                        and abs({source}-{ratio})>0.00011) outside_rounding_tolerance,
+                    count(*) filter(where {metric}_2024>0 and {source} is not null
+                        and abs({source}-{ratio})>0.001) difference_over_0_1pp,
+                    count(*) filter(where {metric}_2024>0 and {source} is not null
+                        and abs({source}-{ratio})>0.01) difference_over_1pp
+                    from {TABLE} group by sector order by sector
                 """)
             numeric = [c["column_name"] for c in columns if c["data_type"] == "numeric"]
             metrics = {}
@@ -146,6 +161,40 @@ async def assess(report_path: Path) -> None:
                 "select table_name from information_schema.tables where table_schema='data' "
                 "and table_name not like '%bak%' order by table_name"
             )
+            report["source_period_target_currency_columns"] = [
+                c for c in columns
+                if re.search(r"target|contract|month|quarter|period|date|currency|exchange|batch",
+                             c["column_name"], re.IGNORECASE)
+            ]
+            report["related_metadata_columns"] = await query(
+                "select table_schema,table_name,column_name,data_type "
+                "from information_schema.columns "
+                "where table_schema not in ('pg_catalog','information_schema') "
+                "and table_name not like '%bak%' "
+                "and column_name ~* '(target|contract|cutoff|business_month|quarter|currency)' "
+                "order by table_schema,table_name,ordinal_position"
+            )
+            report["organization_consistency"] = await query(f"""
+                select count(*) as rsm_with_multiple_sds from (
+                    select sector,rsm from {TABLE}
+                    group by sector,rsm having count(distinct sd)>1
+                ) q
+            """)
+            report["user_affiliation_coverage"] = await query("""
+                select role, count(*) as users,
+                    count(*) filter(where enabled) as enabled_users,
+                    count(*) filter(where enabled and affiliation_sector is null)
+                        enabled_missing_home_sector,
+                    count(*) filter(where enabled and affiliation_department is null)
+                        enabled_missing_home_department,
+                    count(*) filter(where enabled and (
+                        affiliation_sector is null
+                        or affiliation_sector not in ('PCMO','CRTO','B2B','OEM')
+                        or affiliation_department is null
+                        or affiliation_department not in ('MKT','ICE','CAPEX')
+                    )) as enabled_without_valid_home
+                from data.user_permissions group by role order by role
+            """)
         report["success"] = True
     except Exception as exc:
         report.update(success=False, error_type=type(exc).__name__)

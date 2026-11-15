@@ -504,13 +504,13 @@ async def check_user_permissions(api: AcceptanceAPI, checks: list[dict[str, str]
     )
     record(
         checks,
-        "expense_user_override",
-        visible_expenses(await api.workspace("owner-b")) == {"Capex"},
+        "expense_user_override_cannot_cross_home_department",
+        visible_expenses(await api.workspace("owner-b")) == set(),
     )
     record(
         checks,
-        "expense_role_fallback",
-        visible_expenses(await api.workspace("owner-c")) == {"SP&A"},
+        "expense_home_department_default_without_role_fallback",
+        visible_expenses(await api.workspace("owner-c")) == {"MRD", "SP&A"},
     )
     record(
         checks,
@@ -549,7 +549,7 @@ async def check_user_permissions(api: AcceptanceAPI, checks: list[dict[str, str]
     record(
         checks,
         "affiliation_and_expense_override_do_not_expand_sector_scope",
-        visible_expenses(view) == {"Capex"}
+        visible_expenses(view) == set()
         and {row["sector"] for row in view["data"]["dealers"]} == {"PCMO"},
     )
     await api.call("PUT", f"admin/users/{created['id']}", body={**body, "history_resources": []})
@@ -561,8 +561,8 @@ async def check_user_permissions(api: AcceptanceAPI, checks: list[dict[str, str]
     await api.call("PUT", f"admin/users/{created['id']}", body={**body, "history_resources": None})
     record(
         checks,
-        "null_override_inherits_role_without_home_department_default",
-        visible_expenses(await api.workspace("new-owner", SECOND)) == {"SP&A"},
+        "null_override_inherits_home_department_ceiling",
+        visible_expenses(await api.workspace("new-owner", SECOND)) == {"MRD", "SP&A"},
     )
     await api.call(
         "PUT",

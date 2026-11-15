@@ -13,6 +13,11 @@ import { allocateByHistory } from "../src/workbench/domain/history-allocation";
 import E from "../src/workbench/domain/engine.js";
 
 describe("imported distributor history", () => {
+  it("keeps an expired source coverage confirmation visibly unknown", () => {
+    expect(configuredYtdLabel(null)).toBe("2026 YTD（截止月待确认）");
+    expect(configuredYtdLabel(9)).toBe("2026 YTD（1–9月）");
+    expect(configuredYtdLabel()).toBe("2026 YTD（1–10月）");
+  });
   it("uses public totals independently of expense-column permission", () => {
     const history = {
       totalInvestment2025: 120,

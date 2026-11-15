@@ -1,8 +1,8 @@
-# 资源投资工作台前端 V19
+# 资源投资工作台前端 V20
 
 React 19、TypeScript 5.9 / JSX、Vite 7、shadcn/ui（Radix）、Tailwind 和 TanStack Table。应用控件统一使用 `src/components/ui/`，通过主题 token 保留 Shell 品牌色。组件与协作约定见 [AGENTS.md](AGENTS.md)，业务和数据边界见 [当前需求](../docs/CURRENT_REQUIREMENTS.md)。
 
-默认通过后端工作台 API 读取和写入；仅显式设置 `VITE_DATA_MODE=demo` 时使用前端旧演示数据。本地 V19 原型验收通过专用后端 fixture 的 SQLite API 运行，不能与旧前端 demo 模式混同。API 失败不会回退到 demo。归档 HTML 原型保留供比对，可导出到本地验收库，不嵌入应用、不作为生产数据来源。
+默认通过后端工作台 API 读取和写入；仅显式设置 `VITE_DATA_MODE=demo` 时使用前端旧演示数据。本地 V20 原型验收通过专用后端 fixture 的 SQLite API 运行，不能与旧前端 demo 模式混同。API 失败不会回退到 demo。归档 HTML 原型保留供比对，可导出到本地验收库，不嵌入应用、不作为生产数据来源。
 
 ## 运行与检查
 
@@ -28,7 +28,7 @@ npm run preview
 
 ```powershell
 cd ../backend
-.\.venv\Scripts\python.exe -m uvicorn tests.v19_prototype_fixture:app --app-dir src --host 127.0.0.1 --port 8019
+.\.venv\Scripts\python.exe -m uvicorn tests.v20_prototype_fixture:app --app-dir src --host 127.0.0.1 --port 8019
 ```
 
 访问 `http://127.0.0.1:8019/`。其他合成角色及历史证据见 [V19 验收记录](../docs/V19_VALIDATION.md)。此服务只访问隔离 SQLite，不连接开发 PG/AI，不代表真实 SSO 或部署验收。
@@ -42,7 +42,7 @@ cd ../backend
 | 部门负责人 | 全部 Initiative 提交后确认；撤回取消部门确认但保留 Owner 提交；按项目/Owner/全部门带原因退回 |
 | 管理层 | 只计入已确认分配与快照，预算仍可见；来源版本与 SD/RSM 对比保留退出组织 |
 | 管理后台 | 预算、Owner、规划版本发布/关闭、用户业务范围与独立所属组织、历史费用权限、配置与审计 |
-| 原始数据 / 数据口径 | 展示授权范围及来源；缺失字段/月份明确标注，不补造 PPP、合同量或最新月份 |
+| 原始数据 / 数据口径 | 展示授权范围及来源；缺失字段/月份明确标注，不补造经销商target或业务覆盖月份；PPP误加字段已取消 |
 | 右侧工作栏 | 历史参考、反馈、Insight、小 One 入口；功能可用性按身份和配置判定 |
 
 新版本只复制最后提交快照，不能继承未提交修改。用户所属 Sector/Department 不等于业务权限范围；费用明细受独立权限控制，缺归属不展示。当前运行历史源为 PG `data.distributor_sellin_resource_history`，并非实时查询 Databricks。
@@ -50,6 +50,8 @@ cd ../backend
 计算定义来自供应商 V2.0 第3、11–14章，完整映射见 [指标定义](../docs/METRIC_DEFINITIONS.md)；V2.0旧V17截图和提交流程由最新V19覆盖。Vol/合同显示KL、C3/历史费用显示K$。历史助手统一处理 Phasing（合同>0）、Yield（C3和完整投资均>0）、YoY（基期≤0为“无基期”），聚合先求和再除；试算负权归0，总权0不能采用。已有公式的实现差异由工程修复，不能写成待业务定义。
 
 管理端 `ytdCutoffMonth` 接受1–12、默认10，用于配置期间标签；来源Actual/费用实际截至月份单独展示，未知时仍标未提供。切换标签不重算或伪造PG快照。本地原型显式10月快照仅供SQLite演示，不覆盖真实PG数据。
+
+当前真实PG批次由用户确认至9月，API返回有效月份9；若源批次变化使确认失效，显式null显示“2026 YTD（截止月待确认）”。管理员编辑独立的 `configuredYtdCutoffMonth`，不把失效确认回退成10月，也不通过修改普通标签解除同期校验。
 
 ## shadcn 组件标准
 
@@ -112,4 +114,4 @@ Cookie/CSP 与真实用户权限仍需真实部署浏览器验收。
 
 历史 V19 的 289 项前端测试与浏览器结果记录在 [验收记录](../docs/V19_VALIDATION.md)。shadcn 改造后须重新运行检查并验证桌面/窄屏、输入、选择、弹窗取消和提交流程；历史通过不代表本次 UI 已验收。
 
-本轮组件统一结果与验证边界见 [shadcn 验收记录](../docs/SHADCN_VALIDATION.md)；此前视觉效果已被用户否定，正在按最新 V19 原型还原；功能测试不等于视觉保真通过。
+本轮组件统一结果与验证边界见 [shadcn 验收记录](../docs/SHADCN_VALIDATION.md)；此前视觉效果已被用户否定，按已确认V20同步，见[V20同步说明](../docs/V20_IMPLEMENTATION.md)；功能测试不等于视觉保真通过。

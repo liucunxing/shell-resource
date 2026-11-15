@@ -29,8 +29,8 @@ if ($mode -eq 'pg-real') {
 } else {
     if ($SettingsFile) { throw '-SettingsFile is only accepted by the pg-real branch.' }
     $selectedSettings = Join-Path $backendRoot 'config/settings.example.toml'
-    $prototypeTests = @(Get-ChildItem -LiteralPath (Join-Path $backendRoot 'tests') -Filter 'test_v19_prototype*.py' -File | Sort-Object Name)
-    if ($prototypeTests.Count -eq 0) { throw 'No local V19 prototype tests found in this worktree.' }
+    $prototypeTests = @(Get-ChildItem -LiteralPath (Join-Path $backendRoot 'tests') -Filter 'test_v*_prototype*.py' -File | Sort-Object Name)
+    if ($prototypeTests.Count -eq 0) { throw 'No local prototype tests found in this worktree.' }
 }
 
 $savedEnvironment = @{}
@@ -53,7 +53,7 @@ try {
         $testArguments = @('-m', 'pytest', 'tests/test_local_preview.py')
         $testArguments += @($prototypeTests | ForEach-Object { 'tests/' + $_.Name })
         $testArguments += @('-q', '--junitxml', (Join-Path $reportDirectory 'local-prototype.xml'))
-        Write-Host 'Testing local V19 prototype fixtures (SQLite only).'
+        Write-Host 'Testing local V19/V20 prototype fixtures (SQLite only).'
         & $pythonExecutable @testArguments
         $testExitCode = $LASTEXITCODE
         if ($testExitCode -ne 0) { throw "Local prototype tests failed (exit $testExitCode)." }

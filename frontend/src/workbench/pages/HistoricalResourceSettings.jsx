@@ -19,20 +19,10 @@ import { useEffect, useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import * as api from "../api.js";
 import { hasValidAffiliation } from "./AdminUsersPanel.jsx";
+import { departmentExpenseFields, departmentExpenseLimit } from "../domain/history-permissions";
+export { departmentExpenseFields, departmentExpenseLimit } from "../domain/history-permissions";
 
 const resources = ["ICE Rebate", "MRD", "SP&A", "Capex"];
-const roleLabels = {
-  owner: "Initiative Owner",
-  lead: "部门负责人",
-  management: "最高管理层",
-  admin: "系统管理员",
-};
-const defaultRoles = {
-  owner: [],
-  lead: [],
-  management: resources,
-  admin: resources,
-};
 const emptyMapping = {};
 const scopedDepartments = ["PCMO", "CRTO", "B2B", "OEM"].flatMap((sector) =>
   ["MKT", "ICE", "CAPEX"].map((department) => `${sector}|${department}`),
@@ -43,6 +33,8 @@ export function historyPermissionPayload(user, historyResources) {
     throw new Error(
       `${user.display_name || user.email}：请先在用户编辑中维护真实所属部门。`,
     );
+  if (historyResources?.some((field) => !departmentExpenseLimit(user.affiliation_department).includes(field)))
+    throw new Error("历史费用权限不能超出本人所属部门对应的大类。");
   return {
     email: user.email,
     display_name: user.display_name,
@@ -59,13 +51,11 @@ export function historyPermissionPayload(user, historyResources) {
 export function HistoricalResourceSettings({
   mapping = emptyMapping,
   departments = [],
-  roleMapping,
   saveConfig,
   readOnly = false,
 }) {
   const context = useWorkbench();
   const [draft, setDraft] = useState(mapping);
-  const [roles, setRoles] = useState(roleMapping || defaultRoles);
   const [users, setUsers] = useState([]);
   const [userDraft, setUserDraft] = useState({});
   const [usersLoading, setUsersLoading] = useState(true);
@@ -84,7 +74,6 @@ export function HistoricalResourceSettings({
     : names[0] || "";
   const customDepartment = Object.hasOwn(draft, selectedDepartment);
   useEffect(() => setDraft(mapping), [mapping]);
-  useEffect(() => setRoles(roleMapping || defaultRoles), [roleMapping]);
   useEffect(() => {
     let active = true;
     setUsersLoading(true);
@@ -121,13 +110,9 @@ export function HistoricalResourceSettings({
     if (readOnly || busy) return;
     setBusy(true);
     setError("");
-    let savedRoles = false;
     const savedUsers = [];
     let currentUser;
     try {
-      if ((await saveConfig({ roleResources: roles })) === false)
-        throw new Error("角色默认权限未保存，请重试。");
-      savedRoles = true;
       for (const user of users.filter((user) =>
         Object.hasOwn(userDraft, user.id),
       )) {
@@ -154,11 +139,11 @@ export function HistoricalResourceSettings({
       context?.notify?.(
         savedUsers.length
           ? `权限已保存：${savedUsers.join("、")}。`
-          : "角色默认权限已保存。",
+          : "没有待保存的用户权限修改。",
       );
     } catch (failure) {
       setError(
-        `${savedRoles ? `角色默认已保存${savedUsers.length ? `；已保存用户：${savedUsers.join("、")}` : ""}。` : ""}${currentUser ? `${currentUser.display_name || currentUser.email} 保存失败：` : ""}${failure.message || "权限保存失败，请重试"}`,
+        `${savedUsers.length ? `已保存用户：${savedUsers.join("、")}。` : ""}${currentUser ? `${currentUser.display_name || currentUser.email} 保存失败：` : ""}${failure.message || "权限保存失败，请重试"}`,
       );
     } finally {
       setBusy(false);
@@ -169,7 +154,9 @@ export function HistoricalResourceSettings({
     setBusy(true);
     setDepartmentError("");
     try {
-      if ((await saveConfig({ departmentResources: draft })) === false)
+      const bounded = Object.fromEntries(Object.entries(draft).map(([department, fields]) =>
+        [department, fields.filter((field) => departmentExpenseLimit(department).includes(field))]));
+      if ((await saveConfig({ departmentResources: bounded })) === false)
         throw new Error("部门默认权限未保存，请重试。");
       context?.notify?.(
         `${selectedDepartment.replace("|", " / ")} 的历史费用默认权限已保存。`,
@@ -187,7 +174,7 @@ export function HistoricalResourceSettings({
           <div>
             <h2>历史费用明细权限</h2>
             <p className="v19-permission-description">
-              历史投资总额、Yield、历史资源占比始终可见；以下权限只控制费用明细列和历史构成。
+              历史投资总额、Yield、历史资源占比始终可见。MKT 可看 MRD、SP&A；ICE 可看 ICE Rebate、SP&A；Capex 可看 Capex。所有角色均受本人所属部门限制，用户配置只能进一步收窄。
             </p>
           </div>
           <Button
@@ -198,36 +185,7 @@ export function HistoricalResourceSettings({
             {busy ? "保存中…" : "保存权限"}
           </Button>
         </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>角色默认权限</TableHead>
-              {resources.map((resource) => (
-                <TableHead key={resource}>{resource}</TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {Object.entries(roleLabels).map(([role, label]) => (
-              <TableRow key={role}>
-                <TableCell>{label}</TableCell>
-                {resources.map((resource) => (
-                  <TableCell key={resource}>
-                    <Checkbox
-                      aria-label={`${label} 默认可查看 ${resource}`}
-                      disabled={busy || readOnly}
-                      checked={(roles[role] || []).includes(resource)}
-                      onCheckedChange={(checked) =>
-                        toggle(setRoles, role, resource, checked === true)
-                      }
-                    />
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        <h3>按用户覆盖</h3>
+        <h3>按用户收窄权限</h3>
         <Table>
           <TableHeader>
             <TableRow>
@@ -244,6 +202,8 @@ export function HistoricalResourceSettings({
                 ? userDraft[user.id]
                 : user.history_resources;
               const disabled = busy || readOnly || !hasValidAffiliation(user);
+              const allowed = departmentExpenseFields(mapping, user.affiliation_sector, user.affiliation_department);
+              const effective = fields == null ? allowed : allowed.filter((field) => fields.includes(field));
               return (
                 <TableRow key={user.id}>
                   <TableCell>
@@ -266,10 +226,10 @@ export function HistoricalResourceSettings({
                       }
                     >
                       <NativeSelectOption value="inherit">
-                        沿用部门 / 角色默认
+                        沿用所属部门
                       </NativeSelectOption>
                       <NativeSelectOption value="custom">
-                        用户单独配置
+                        收窄可见费用列
                       </NativeSelectOption>
                     </NativeSelect>
                   </TableCell>
@@ -277,15 +237,15 @@ export function HistoricalResourceSettings({
                     <TableCell key={resource}>
                       <Checkbox
                         aria-label={`${user.display_name} 可查看 ${resource}`}
-                        disabled={disabled || fields == null}
-                        checked={(fields || []).includes(resource)}
+                        disabled={disabled || fields == null || !allowed.includes(resource)}
+                        checked={effective.includes(resource)}
                         onCheckedChange={(checked) =>
                           setUserDraft((current) => ({
                             ...current,
                             [user.id]:
                               checked === true
-                                ? [...(fields || []), resource]
-                                : (fields || []).filter(
+                                ? [...effective, resource]
+                                : effective.filter(
                                     (item) => item !== resource,
                                   ),
                           }))
@@ -322,7 +282,7 @@ export function HistoricalResourceSettings({
           <div>
             <h2>所属部门的历史费用默认权限</h2>
             <p className="v19-permission-description">
-              默认沿用原角色权限；仅在此明确配置后使用部门默认。用户单独配置优先，缺少所属部门时费用明细不放行。
+              默认显示该部门对应大类，可在此进一步收窄。用户配置不能突破部门范围；缺少有效所属部门时不提供费用明细。
             </p>
           </div>
         </div>
@@ -359,10 +319,10 @@ export function HistoricalResourceSettings({
               }
             >
               <NativeSelectOption value="inherit">
-                沿用当前角色默认
+                沿用所属部门对应大类
               </NativeSelectOption>
               <NativeSelectOption value="custom">
-                指定本部门默认费用列
+                收窄本部门费用列
               </NativeSelectOption>
             </NativeSelect>
           </Label>
@@ -370,8 +330,8 @@ export function HistoricalResourceSettings({
             <Label key={resource} className="v19-permission-check">
               <Checkbox
                 aria-label={`${selectedDepartment} 可查看 ${resource}`}
-                disabled={busy || readOnly || !customDepartment}
-                checked={(draft[selectedDepartment] || []).includes(resource)}
+                disabled={busy || readOnly || !customDepartment || !departmentExpenseLimit(selectedDepartment).includes(resource)}
+                checked={departmentExpenseLimit(selectedDepartment).includes(resource) && (!customDepartment || (draft[selectedDepartment] || []).includes(resource))}
                 onCheckedChange={(checked) =>
                   toggle(
                     setDraft,

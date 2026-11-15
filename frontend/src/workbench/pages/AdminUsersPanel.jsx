@@ -27,6 +27,7 @@ import { useEffect, useState } from "react";
 import E from "../domain/engine.js";
 import * as api from "../api.js";
 import { useWorkbench } from "../WorkbenchContext.jsx";
+import { departmentExpenseLimit } from "../domain/history-permissions";
 import "./admin-users-v19.css";
 
 const PAGE_SIZE = 20;
@@ -289,7 +290,7 @@ export function AdminUsersPanel() {
           enabled: form.enabled,
           affiliation_sector: form.affiliation_sector,
           affiliation_department: form.affiliation_department,
-          history_resources: form.history_resources,
+          history_resources: form.history_resources == null ? null : form.history_resources.filter((resource) => departmentExpenseLimit(form.affiliation_department).includes(resource)),
         };
         if (dialog.kind === "create") await api.createAdminUser(payload);
         else await api.updateAdminUser(dialog.user.id, payload);
@@ -563,7 +564,7 @@ export function AdminUsersPanel() {
                       : "待配置"}
                     <small className="v19-user-permission-source">
                       {user.history_resources == null
-                        ? "沿用部门 / 角色默认"
+                        ? "沿用所属部门"
                         : `用户单独配置：${user.history_resources.join("、") || "全部隐藏"}`}
                     </small>
                   </TableCell>
@@ -757,7 +758,7 @@ export function AdminUsersPanel() {
                 </small>
               </fieldset>
               <fieldset className="form-field">
-                <legend>历史费用列覆盖</legend>
+                <legend>历史费用列范围</legend>
                 <Label>
                   <Checkbox
                     checked={form.history_resources !== null}
@@ -768,14 +769,15 @@ export function AdminUsersPanel() {
                       })
                     }
                   />
-                  为此用户单独配置
+                  为此用户收窄可见费用列
                 </Label>
                 {form.history_resources !== null && (
                   <div className="sector-choice-group">
                     {HISTORY_RESOURCES.map((resource) => (
                       <Label key={resource}>
                         <Checkbox
-                          checked={form.history_resources.includes(resource)}
+                          disabled={!hasValidAffiliation(form) || !departmentExpenseLimit(form.affiliation_department).includes(resource)}
+                          checked={departmentExpenseLimit(form.affiliation_department).includes(resource) && form.history_resources.includes(resource)}
                           onCheckedChange={(checked) =>
                             setForm({
                               ...form,
@@ -794,7 +796,7 @@ export function AdminUsersPanel() {
                   </div>
                 )}
                 <small>
-                  用户覆盖优先于所属部门默认和角色默认；单独配置后不勾选即全部隐藏。历史总额与
+                  只能在所属部门对应的大类内收窄；单独配置后不勾选即全部隐藏，管理层和管理员也不跨部门扩权。历史总额与
                   Yield 等公共指标不受影响。
                 </small>
               </fieldset>
