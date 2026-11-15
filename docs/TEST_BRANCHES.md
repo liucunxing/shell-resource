@@ -97,3 +97,5 @@ PG 模式还须传入 `-SettingsFile`。测试报告保存在当前工作目录�
 浏览器本地合成Owner场景：1600px视口抽屉1120px（70%）；390px视口抽屉及页面均390px；组合子Tab滚动后top=68px；Initiative标签背景色生效、字号11px；试算弹窗1120px、正文13px、标题20px；历史指标8项，抽屉无旧单位文案。Escape关闭可用。截图在忽略目录output/playwright/layout-{stack,drawer,mobile,trial,history}.png。构建替换期间旧页面曾请求旧chunk产生404，刷新后恢复；最终新构建已重新检查。
 
 本次仅前端布局/显示变更，未改真实PG数据，未部署远端服务器；视觉效果仍待用户确认。
+
+2026-11-15 组织页调整：374项前端测试通过，三个工作区build和bundle通过。浏览器检查四组表头字重700及不同背景、4组投资条、两个结论卡片区域、悬停口径提示；截图output/playwright/organization-summary-new.png。本地合成场景，未部署远端。
