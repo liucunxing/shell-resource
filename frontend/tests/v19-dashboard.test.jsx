@@ -3,7 +3,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 // Tooltip portals are not mounted by SSR; expose their content to verify that
 // source coverage is propagated into the explanation, not the compact tab label.
 vi.mock("../src/workbench/pages/MetricHelp", () => ({
-  MetricHelp: ({ children }) => <aside data-testid="metric-explanation">{children}</aside>,
+  MetricHelp: ({ children }) => (
+    <aside data-testid="metric-explanation">{children}</aside>
+  ),
 }));
 const mock = vi.hoisted(() => ({ context: null }));
 vi.mock("../src/workbench/WorkbenchContext.jsx", () => ({
@@ -55,7 +57,13 @@ const healthDealers = [
 
 it("keeps confirmed or unknown coverage through the health and stacked views", () => {
   for (const month of [9, null]) {
-    const html = renderToStaticMarkup(<V19Health items={healthItems} dealers={healthDealers} ytdCutoffMonth={month} />);
+    const html = renderToStaticMarkup(
+      <V19Health
+        items={healthItems}
+        dealers={healthDealers}
+        ytdCutoffMonth={month}
+      />,
+    );
     const label = month === null ? "截止月待确认" : "1–9月";
     expect(html.split(label).length - 1).toBeGreaterThanOrEqual(2);
     expect(html).not.toContain("1–10月");
@@ -166,6 +174,37 @@ it("renders executive category curves and excludes unconfirmed allocations from 
   expect(html).toContain("v19-exec-category-grid");
   expect(html).toContain("优先关注");
   expect(html).not.toContain("未确认草稿");
+  expect(html).toContain("analysis-conclusion");
+  expect(html).toContain("集中度分析结论");
+  expect(html).toContain('data-tone="investment"');
+  expect(html).toContain('data-tone="output"');
+  expect(html).toContain("超过关注阈值");
+});
+
+it("describes a low executive concentration gap as within the threshold, not equal shares", () => {
+  const html = renderToStaticMarkup(
+    <V19ExecutiveHealth
+      items={healthItems}
+      dealers={healthDealers}
+      thresholds={{ concentrationYellow: 100, concentrationRed: 110 }}
+    />,
+  );
+  expect(html).toContain("均未超过关注阈值");
+  expect(html).not.toContain("各资源大类整体集中度与产出匹配");
+});
+
+it("does not call unavailable executive concentration normal when selected output totals zero", () => {
+  const html = renderToStaticMarkup(
+    <V19ExecutiveHealth
+      items={healthItems}
+      dealers={healthDealers.map((dealer) => ({
+        ...dealer,
+        history: { ...dealer.history, c32025: 0 },
+      }))}
+    />,
+  );
+  expect(html).toContain("暂无法计算集中度");
+  expect(html).not.toContain("均未超过关注阈值");
 });
 
 it("includes all configured reserve reasons in the Owner budget summary", () => {

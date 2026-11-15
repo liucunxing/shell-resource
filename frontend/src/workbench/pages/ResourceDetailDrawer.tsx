@@ -1,5 +1,16 @@
-import { useLegendColors } from "../LegendColors";
+import { InitiativeLabel, useLegendColors } from "../LegendColors";
 import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
+import { AnalysisConclusion, AnalysisValue } from "./AnalysisConclusion";
+import { MetricHelp } from "./MetricHelp";
+import {
+  COHORT_DIMENSIONS,
+  cohortContributionParts,
+  cohortSectorColor,
+  defaultCohortDimension,
+  type CohortDimension,
+  type CohortFilteredDimension,
+  type CohortContribution,
+} from "../domain/cohort-dimensions";
 import {
   useEffect,
   useMemo,
@@ -30,6 +41,7 @@ import {
   TableRow,
   TableHead,
   TableCell,
+  TableFooter,
 } from "@/components/ui/table";
 import {
   historyInvestment,
@@ -50,6 +62,7 @@ import {
   ResourceMixDonut,
   DetailConcentrationCurve,
   InitiativeContributionBar,
+  CohortContributionBar,
 } from "./ResourceDetailCharts";
 import "../resource-detail.css";
 
@@ -105,6 +118,9 @@ export type ResourceDetail = {
   scopeDealerKeys?: string[];
   scopeInitiativeIds?: string[];
   directoryOnly?: boolean;
+  topPercent?: number;
+  cohortDimensions?: boolean;
+  cohortFilteredDimensions?: CohortFilteredDimension[];
 };
 type Props = {
   detail: ResourceDetail;
@@ -155,7 +171,9 @@ export function detailScope(
       (item) => item.resourceType === detail.resourceType,
     );
   let rows = portfolioRows(scopedItems, dealers, basis, period);
-  if (detail.scopeDealerKeys)
+  if (detail.type === "cohort" && detail.topPercent != null)
+    rows = concentration(rows, detail.topPercent)?.top || [];
+  else if (detail.scopeDealerKeys)
     rows = rows.filter((row) => detail.scopeDealerKeys!.includes(row.key));
   if (detail.type === "organization")
     rows = rows.filter(
@@ -241,7 +259,10 @@ export function historicalDetailTotals(
     c3,
     investment,
     contract,
-    phasing: aggregateHistoryPhasing(rows.map((row) => row.history), period).ratio,
+    phasing: aggregateHistoryPhasing(
+      rows.map((row) => row.history),
+      period,
+    ).ratio,
     yield:
       aligned && c3 != null && c3 > 0 && investment != null && investment > 0
         ? c3 / investment
@@ -250,8 +271,14 @@ export function historicalDetailTotals(
   };
 }
 
-export function reserveReasonLabel(reasons: { id: string; label: string }[], id?: string) {
-  return reasons.find((item) => item.id === id)?.label || (id ? `未识别的原因码：${id}` : "原因缺失");
+export function reserveReasonLabel(
+  reasons: { id: string; label: string }[],
+  id?: string,
+) {
+  return (
+    reasons.find((item) => item.id === id)?.label ||
+    (id ? `未识别的原因码：${id}` : "原因缺失")
+  );
 }
 
 export function ResourceDetailDrawer({
@@ -263,12 +290,19 @@ export function ResourceDetailDrawer({
   budgetReasons = [],
   onClose,
 }: Props) {
-  const { initiativeColor: detailInitiativeColor, resourceColor } = useLegendColors();
+  const {
+    initiativeColor: detailInitiativeColor,
+    resourceColor,
+    departmentColor,
+  } = useLegendColors();
   const [trail, setTrail] = useState<ResourceDetail[]>([detail]);
   const [period, setPeriod] = useState<HistoryPeriod>(detail.period || "2025");
   const [basis, setBasis] = useState<"vol" | "c3">(detail.basis || "c3");
   const [query, setQuery] = useState("");
   const [organizationBy, setOrganizationBy] = useState<"sd" | "rsm">("sd");
+  const [cohortDimension, setCohortDimension] = useState<CohortDimension>(() =>
+    defaultCohortDimension(detail.cohortFilteredDimensions),
+  );
   const [width, setWidth] = useState(() => Math.round(window.innerWidth * 0.7));
   const previous = useRef(
     typeof document === "undefined"
@@ -281,6 +315,7 @@ export function ResourceDetailDrawer({
     setPeriod(detail.period || "2025");
     setBasis(detail.basis || "c3");
     setQuery("");
+    setCohortDimension(defaultCohortDimension(detail.cohortFilteredDimensions));
   }, [detail]);
   const current = trail[trail.length - 1];
   const scope = useMemo(
@@ -324,13 +359,35 @@ export function ResourceDetailDrawer({
     setTrail((old) => old.slice(0, -1));
     setQuery("");
   };
-  const visible = rows
-    .filter((row) =>
-      `${row.code} ${row.name} ${row.sd} ${row.rsm}`
-        .toLowerCase()
-        .includes(query.toLowerCase()),
-    )
-    .sort((a, b) => b.amount - a.amount);
+  const visible = rows.filter((row) =>
+    `${row.code} ${row.name} ${row.sd} ${row.rsm}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
+  );
+  if (current.type !== "cohort" || current.topPercent == null)
+    visible.sort((a, b) => b.amount - a.amount);
+  const showCohortDimensions =
+    current.type === "cohort" && current.cohortDimensions;
+  const dimensionLabel = COHORT_DIMENSIONS.find(
+    (dimension) => dimension.key === cohortDimension,
+  )!.label;
+  const dimensionColor = (part: CohortContribution) =>
+    cohortDimension === "initiative"
+      ? detailInitiativeColor(part)
+      : cohortDimension === "resourceType"
+        ? resourceColor(part.name)
+        : cohortDimension === "department"
+          ? departmentColor(part.name)
+          : cohortSectorColor(part.name);
+  const dimensionParts = (
+    sources: { id: string; key?: string; name: string; amount: number }[],
+  ) =>
+    cohortContributionParts(sources, scope.items, cohortDimension).map(
+      (part) => ({ ...part, color: dimensionColor(part) }),
+    );
+  const cohortLegend = dimensionParts(
+    rows.flatMap((row) => row.initiativeSources),
+  ).filter((part) => part.amount > 0);
   const allowedExpenses = expenses.filter((type) =>
     rows.some((row) =>
       Object.hasOwn(row.history[`resources${suffix}`] || {}, type),
@@ -413,6 +470,14 @@ export function ResourceDetailDrawer({
       analyticalOutput(row.history[`c3${suffix}`]),
     ),
   );
+  const cohortInvestmentTotal = sum(concentrationBase.map((row) => row.amount));
+  const cohortInitiativeCount = new Set(
+    rows.flatMap((row) =>
+      row.initiativeSources
+        .filter((source: { amount: number }) => source.amount > 0)
+        .map((source: { id: string }) => source.id),
+    ),
+  ).size;
   const reason = (id?: string) => reserveReasonLabel(budgetReasons, id);
   const resize = (value: number) => {
     const next = Math.max(580, Math.min(1480, window.innerWidth - 24, value));
@@ -426,11 +491,24 @@ export function ResourceDetailDrawer({
   const metrics = (
     <div className="resource-detail-metrics">
       {[
-        ["本次投资（万元）", n(currentAmount, 10000)],
-        ["历史投资（K$）", n(historical.investment, 1000)],
-        ["Yield", n(historical.yield)],
         [
-          "历史投资占比",
+          current.type === "cohort"
+            ? "Top 名单本次投资（万元）"
+            : "本次投资（万元）",
+          n(currentAmount, 10000),
+        ],
+        [
+          current.type === "cohort"
+            ? "Top 名单历史投资（K$）"
+            : "历史投资（K$）",
+          n(historical.investment, 1000),
+        ],
+        [
+          current.type === "cohort" ? "Top 名单历史 Yield" : "Yield",
+          n(historical.yield),
+        ],
+        [
+          current.type === "cohort" ? "Top 名单历史投资占比" : "历史投资占比",
           single?.outsideSelection
             ? "未勾选"
             : percent(share(historical.investment, allInvestment)),
@@ -439,40 +517,61 @@ export function ResourceDetailDrawer({
         <Card key={label}>
           <span>{label}</span>
           <strong>{value}</strong>
+          {current.type === "cohort" && label.includes("历史") && (
+            <small>
+              {period === "2025" ? "2025 全年" : "2026 YTD"}
+              {label.includes("占比") && (
+                <MetricHelp>
+                  分子为此 Top
+                  名单的历史投资，分母为当前调用范围内全部勾选经销商的同期历史投资；历史投资按经销商
+                  Sector 身份去重，缺失时保留
+                  —。此分母与集中度使用的可比较历史名单不同。
+                </MetricHelp>
+              )}
+              {label.includes("Yield") && (
+                <MetricHelp>
+                  此 Top 名单历史 C3 合计 ÷ 同期完整历史投资合计；两项均为
+                  USD，正数且期间一致时才计算。
+                </MetricHelp>
+              )}
+            </small>
+          )}
         </Card>
       ))}
     </div>
   );
   const historyTable = (
     <section className="resource-detail-section">
-      <h3>
-        历史表现 ·{" "}
-        {period === "2025" ? "2025 全年" : "2026 YTD"}
-      </h3>
+      <h3>历史表现 · {period === "2025" ? "2025 全年" : "2026 YTD"}</h3>
       <div className="resource-history-grid">
-          {[
-            ["经销商 target（KL）", n(historical.contract, 1000)],
-            ["Delivery Vol（KL）", n(historical.vol, 1000)],
-            ["Actual C3（K$）", n(historical.c3, 1000)],
-            [
-              "Phasing",
-              percent(
-                historical.phasing == null ? null : historical.phasing * 100,
-              ),
-            ],
-            ["历史投资总额（K$）", n(historical.investment, 1000)],
-            ["Yield（C3 ÷ 历史投资）", n(historical.yield)],
-            ...allowedExpenses.map((type) => [
-              `${type}（K$）`,
-              n(readExpense(type), 1000),
-            ]),
-          ].map(([label, value]) => (
-            <div className="resource-history-cell" key={label}><span>{label}</span><strong>{value}</strong></div>
-          ))}
+        {[
+          ["经销商 target（KL）", n(historical.contract, 1000)],
+          ["Delivery Vol（KL）", n(historical.vol, 1000)],
+          ["Actual C3（K$）", n(historical.c3, 1000)],
+          [
+            "Phasing",
+            percent(
+              historical.phasing == null ? null : historical.phasing * 100,
+            ),
+          ],
+          ["历史投资总额（K$）", n(historical.investment, 1000)],
+          ["Yield（C3 ÷ 历史投资）", n(historical.yield)],
+          ...allowedExpenses.map((type) => [
+            `${type}（K$）`,
+            n(readExpense(type), 1000),
+          ]),
+        ].map(([label, value]) => (
+          <div className="resource-history-cell" key={label}>
+            <span>{label}</span>
+            <strong>{value}</strong>
+          </div>
+        ))}
       </div>
       <p className="resource-detail-note">
         历史投资总额、Yield、历史投资占比公开；费用明细只使用接口已授权返回的大类。负费用正常计入净额。Phasing
-        = Delivery Vol ÷ 同期间经销商 target；汇总仅对有效正目标记录的销量和目标分别求和再相除，任一目标或销量缺失、期间未确认时保留 —。
+        = Delivery Vol ÷ 同期间经销商
+        target；汇总仅对有效正目标记录的销量和目标分别求和再相除，任一目标或销量缺失、期间未确认时保留
+        —。
         {!historical.aligned
           ? "Actual 与历史费用覆盖不一致或未知，暂不计算 Yield。"
           : ""}
@@ -505,7 +604,15 @@ export function ResourceDetailDrawer({
                 </Button>
               </TableCell>
               <TableCell>
-                <Button variant="link" onClick={() => open({ type: "resource", resourceType: item.resourceType })}>{item.resourceType}</Button> / {item.ownerName || item.ownerId || "—"}
+                <Button
+                  variant="link"
+                  onClick={() =>
+                    open({ type: "resource", resourceType: item.resourceType })
+                  }
+                >
+                  {item.resourceType}
+                </Button>{" "}
+                / {item.ownerName || item.ownerId || "—"}
               </TableCell>
               <TableCell className="num" sortValue={sourceAmount(item)}>
                 {n(sourceAmount(item), 10000)}
@@ -534,15 +641,121 @@ export function ResourceDetailDrawer({
       </p>
     </section>
   );
+  const dealerHistoryCell = (
+    row: (typeof rows)[number],
+    metric: "vol" | "c3",
+  ) => (
+    <TableCell className="num" sortValue={row.history[`${metric}${suffix}`]}>
+      {n(row.history[`${metric}${suffix}`], 1000)}
+      {current.type === "cohort" && (
+        <small>
+          占{" "}
+          {percent(
+            finiteHistoryValue(row.history[`${metric}${suffix}`]) == null
+              ? null
+              : share(
+                  analyticalOutput(row.history[`${metric}${suffix}`]),
+                  metric === "vol" ? cohortVolTotal : cohortC3Total,
+                ),
+          )}
+        </small>
+      )}
+    </TableCell>
+  );
   const dealerTable = (
     <section className="resource-detail-section">
       {current.type === "cohort" && (
-        <p className="resource-detail-cohort-summary">
-          这 {rows.length} 家经销商获得 {percent(cohortAmountShare)}{" "}
-          的投资金额，贡献 {percent(cohortMetricShare)} 的
-          {basis === "vol" ? "Delivery Vol" : "C3"}
-          。分母为当前组合名单内有历史的 {concentrationBase.length} 家。
-        </p>
+        <AnalysisConclusion
+          title="集中度分析结论"
+          className="resource-detail-cohort-summary"
+        >
+          <p>
+            {current.topPercent != null ? (
+              <>
+                按本次投资排序的前 <b>{current.topPercent}%</b> 经销商
+              </>
+            ) : (
+              "当前 Top 经销商名单"
+            )}
+            （<AnalysisValue tone="neutral">{rows.length} 家</AnalysisValue>
+            ）获得{" "}
+            <AnalysisValue tone="investment">
+              {percent(cohortAmountShare)}
+            </AnalysisValue>{" "}
+            的投资金额，贡献{" "}
+            <AnalysisValue tone="output">
+              {percent(cohortMetricShare)}
+            </AnalysisValue>{" "}
+            的{basis === "vol" ? "Delivery Vol" : "C3"}。
+          </p>
+          <p className="resource-detail-note">
+            历史参考：{period === "2025" ? "2025 全年" : "2026 YTD"}
+            ；投资及产出占比的分母均为当前曲线范围内有可比较历史的{" "}
+            {concentrationBase.length} 家经销商。
+            {showCohortDimensions &&
+              "切换下方维度仅改变投资构成分组，不改变名单与合计。"}
+          </p>
+        </AnalysisConclusion>
+      )}
+      {showCohortDimensions && (
+        <div className="resource-cohort-dimensions">
+          <Tabs
+            value={cohortDimension}
+            onValueChange={(value) =>
+              setCohortDimension(value as CohortDimension)
+            }
+          >
+            <TabsList aria-label="集中度投资构成维度">
+              {COHORT_DIMENSIONS.map((dimension) => {
+                const filtered =
+                  dimension.key !== "initiative" &&
+                  current.cohortFilteredDimensions?.includes(dimension.key);
+                return (
+                  <TabsTrigger
+                    key={dimension.key}
+                    value={dimension.key}
+                    disabled={filtered}
+                    title={filtered ? "上方已按此维度筛选" : undefined}
+                  >
+                    {dimension.label}
+                    {filtered ? " · 已筛选" : ""}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </Tabs>
+          <div
+            className="resource-detail-legend"
+            aria-label={`${dimensionLabel} 图例`}
+          >
+            {cohortLegend.map((part) => (
+              <span key={part.id}>
+                <i style={{ background: part.color }} />
+                {cohortDimension === "initiative" ||
+                cohortDimension === "resourceType" ? (
+                  <Button
+                    variant="link"
+                    onClick={() =>
+                      open(
+                        cohortDimension === "initiative"
+                          ? { type: "initiative", initiativeId: part.id }
+                          : { type: "resource", resourceType: part.id },
+                      )
+                    }
+                  >
+                    {cohortDimension === "initiative" ? (
+                      <InitiativeLabel item={part} />
+                    ) : (
+                      part.name
+                    )}
+                  </Button>
+                ) : (
+                  <b>{part.name}</b>
+                )}
+              </span>
+            ))}
+          </div>
+        </div>
       )}
       <div className="resource-detail-heading">
         <h3>经销商与投资明细（{rows.length} 家）</h3>
@@ -553,22 +766,50 @@ export function ResourceDetailDrawer({
           placeholder="经销商 / 编码 / SD / RSM"
         />
       </div>
-      <div className="resource-detail-table">
+      <div
+        className="resource-detail-table"
+        data-cohort-dimensions={showCohortDimensions ? "true" : undefined}
+      >
         <Table>
           <TableHeader>
             <TableRow>
+              {showCohortDimensions && (
+                <TableHead className="num">排名</TableHead>
+              )}
               <TableHead>经销商</TableHead>
-              <TableHead>Sector / SD / RSM</TableHead>
-              <TableHead className="num">投资（万元）</TableHead>
-              <TableHead className="num">Delivery Vol（KL）</TableHead>
-              <TableHead className="num">C3（K$）</TableHead>
-              <TableHead className="num">Yield</TableHead>
-              <TableHead>调整说明</TableHead>
+              {!showCohortDimensions && (
+                <TableHead>Sector / SD / RSM</TableHead>
+              )}
+              <TableHead className="num">
+                {showCohortDimensions
+                  ? `投资金额及${dimensionLabel}构成（万元）`
+                  : "投资（万元）"}
+              </TableHead>
+              {!showCohortDimensions && (
+                <TableHead className="num">Delivery Vol（KL）</TableHead>
+              )}
+              <TableHead className="num">
+                {showCohortDimensions ? "历史 C3（K$）" : "C3（K$）"}
+              </TableHead>
+              {showCohortDimensions && basis === "vol" && (
+                <TableHead className="num">Delivery Vol（KL）</TableHead>
+              )}
+              {!showCohortDimensions && (
+                <>
+                  <TableHead className="num">Yield</TableHead>
+                  <TableHead>调整说明</TableHead>
+                </>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
             {visible.map((row) => (
               <TableRow key={row.key}>
+                {showCohortDimensions && (
+                  <TableCell className="num" sortValue={rows.indexOf(row) + 1}>
+                    {rows.indexOf(row) + 1}
+                  </TableCell>
+                )}
                 <TableCell>
                   <Button
                     variant="link"
@@ -577,74 +818,140 @@ export function ResourceDetailDrawer({
                     {row.name}
                   </Button>
                   <small>{row.code}</small>
+                  {showCohortDimensions && (
+                    <small>
+                      {row.sector} · {row.sd} · {row.rsm}
+                    </small>
+                  )}
                 </TableCell>
-                <TableCell>
-                  {row.sector} / {row.sd} / {row.rsm}
-                </TableCell>
+                {!showCohortDimensions && (
+                  <TableCell>
+                    {row.sector} / {row.sd} / {row.rsm}
+                  </TableCell>
+                )}
                 <TableCell className="num" sortValue={row.amount}>
                   {n(row.amount, 10000)}
-                  {current.type === "cohort" && (
-                    <InitiativeContributionBar
-                      sources={row.initiativeSources}
+                  {showCohortDimensions && (
+                    <small>
+                      投资占比{" "}
+                      {percent(share(row.amount, cohortInvestmentTotal))}
+                    </small>
+                  )}
+                  {showCohortDimensions ? (
+                    <CohortContributionBar
+                      parts={dimensionParts(row.initiativeSources)}
                       maxAmount={maxDealerAmount}
+                      dimensionLabel={dimensionLabel}
                     />
+                  ) : (
+                    current.type === "cohort" && (
+                      <InitiativeContributionBar
+                        sources={row.initiativeSources}
+                        maxAmount={maxDealerAmount}
+                      />
+                    )
                   )}
                 </TableCell>
-                <TableCell className="num" sortValue={row.history[`vol${suffix}`]}>
-                  {n(row.history[`vol${suffix}`], 1000)}
-                  {current.type === "cohort" && (
-                    <small>
-                      占{" "}
-                      {percent(
-                        finiteHistoryValue(row.history[`vol${suffix}`]) == null
-                          ? null
-                          : share(
-                              analyticalOutput(row.history[`vol${suffix}`]),
-                              cohortVolTotal,
-                            ),
-                      )}
-                    </small>
-                  )}
-                </TableCell>
-                <TableCell className="num" sortValue={row.history[`c3${suffix}`]}>
-                  {n(row.history[`c3${suffix}`], 1000)}
-                  {current.type === "cohort" && (
-                    <small>
-                      占{" "}
-                      {percent(
-                        finiteHistoryValue(row.history[`c3${suffix}`]) == null
-                          ? null
-                          : share(
-                              analyticalOutput(row.history[`c3${suffix}`]),
-                              cohortC3Total,
-                            ),
-                      )}
-                    </small>
-                  )}
-                </TableCell>
-                <TableCell className="num" sortValue={historyYield(row.history, period)}>
-                  {n(historyYield(row.history, period))}
-                </TableCell>
-                <TableCell>{row.notes.join("；") || "—"}</TableCell>
+                {!showCohortDimensions && dealerHistoryCell(row, "vol")}
+                {dealerHistoryCell(row, "c3")}
+                {showCohortDimensions &&
+                  basis === "vol" &&
+                  dealerHistoryCell(row, "vol")}
+                {!showCohortDimensions && (
+                  <>
+                    <TableCell
+                      className="num"
+                      sortValue={historyYield(row.history, period)}
+                    >
+                      {n(historyYield(row.history, period))}
+                    </TableCell>
+                    <TableCell>{row.notes.join("；") || "—"}</TableCell>
+                  </>
+                )}
               </TableRow>
             ))}
             {!visible.length && (
               <TableRow>
-                <TableCell colSpan={7}>当前范围没有匹配经销商。</TableCell>
+                <TableCell
+                  colSpan={showCohortDimensions ? (basis === "vol" ? 5 : 4) : 7}
+                >
+                  当前范围没有匹配经销商。
+                </TableCell>
               </TableRow>
             )}
           </TableBody>
+          {showCohortDimensions && (
+            <TableFooter>
+              <TableRow>
+                <TableCell>合计</TableCell>
+                <TableCell>
+                  Top {current.topPercent}% · {rows.length} 家
+                  <small>{cohortInitiativeCount} 个 Initiative</small>
+                </TableCell>
+                <TableCell className="num">
+                  {n(currentAmount, 10000)}
+                  <small>投资占比 {percent(cohortAmountShare)}</small>
+                </TableCell>
+                <TableCell className="num">
+                  {n(historical.c3, 1000)}
+                  <small>
+                    占{" "}
+                    {percent(
+                      share(
+                        sum(
+                          cohortComparable.map((row) =>
+                            analyticalOutput(row.history[`c3${suffix}`]),
+                          ),
+                        ),
+                        cohortC3Total,
+                      ),
+                    )}
+                  </small>
+                </TableCell>
+                {basis === "vol" && (
+                  <TableCell className="num">
+                    {n(historical.vol, 1000)}
+                    <small>
+                      占{" "}
+                      {percent(
+                        share(
+                          sum(
+                            cohortComparable.map((row) =>
+                              analyticalOutput(row.history[`vol${suffix}`]),
+                            ),
+                          ),
+                          cohortVolTotal,
+                        ),
+                      )}
+                    </small>
+                  </TableCell>
+                )}
+              </TableRow>
+            </TableFooter>
+          )}
         </Table>
       </div>
       <p className="resource-detail-note">
-        包含已勾选但未获配的经销商；搜索只筛选显示，不改变分析分母。
+        {showCohortDimensions
+          ? "仅展示当前 Top 名单；投资条按同一最大投资金额刻度展示，悬停或键盘聚焦色块可看金额及该家构成占比。"
+          : current.type === "cohort"
+            ? "仅展示当前 Top 名单；"
+            : "包含已勾选但未获配的经销商；"}
+        搜索只筛选显示，不改变分析分母。
       </p>
-      {current.type === "cohort" && (
+      {current.type === "cohort" && !showCohortDimensions && (
         <div className="resource-detail-legend" aria-label="Initiative 图例">
           {matchingItems.map((item) => (
             <span key={item.id}>
               <i style={{ background: detailInitiativeColor(item) }} />
-              <Button variant="link" onClick={() => open({ type: "initiative", initiativeId: item.id })}>{item.name}</Button>
+              <Button
+                variant="link"
+                onClick={() =>
+                  open({ type: "initiative", initiativeId: item.id })
+                }
+              >
+                {item.name}
+              </Button>
             </span>
           ))}
         </div>
@@ -776,7 +1083,11 @@ export function ResourceDetailDrawer({
         <div className="resource-detail-content" ref={content}>
           <div className="resource-detail-controls">
             <span>历史参考</span>
-            <HistoryPeriodTabs value={period} onValueChange={setPeriod} ytdCutoffMonth={ytdCutoffMonth} />
+            <HistoryPeriodTabs
+              value={period}
+              onValueChange={setPeriod}
+              ytdCutoffMonth={ytdCutoffMonth}
+            />
             <Tabs
               value={basis}
               onValueChange={(value) => setBasis(value as "vol" | "c3")}
@@ -854,8 +1165,7 @@ export function ResourceDetailDrawer({
                                   <i
                                     className="resource-detail-swatch"
                                     style={{
-                                      background:
-                                        resourceColor(row.type),
+                                      background: resourceColor(row.type),
                                     }}
                                   />
                                   {row.type}
@@ -980,10 +1290,16 @@ export function ResourceDetailDrawer({
                                     {group.key}
                                   </Button>
                                 </TableCell>
-                                <TableCell className="num" sortValue={group.allocatedCount}>
+                                <TableCell
+                                  className="num"
+                                  sortValue={group.allocatedCount}
+                                >
                                   {group.allocatedCount} / {group.selectedCount}
                                 </TableCell>
-                                <TableCell className="num" sortValue={group.amount}>
+                                <TableCell
+                                  className="num"
+                                  sortValue={group.amount}
+                                >
                                   {n(group.amount, 10000)}
                                 </TableCell>
                                 <TableCell sortValue={group.amountShare}>
