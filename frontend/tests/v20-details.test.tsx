@@ -392,7 +392,8 @@ describe("V20 V17 allocation table contract", () => {
     ).toMatchObject({ volShare: 75, c3Share: 60, gapVol: 25, gapC3: 40 });
     expect(
       dealerDetailRows(items.slice(0, 1), dealers, "vol", "2026Ytd")[0].c3Share,
-    ).toBeNull();
+    ).toBe(100);
+    expect(dealerDetailRows(items.slice(0, 1), dealers, "vol", "2026Ytd")[1].c3Share).toBeNull();
   });
   it("has the seven V17 groups and only authorized fee leaves, retaining public fields", () => {
     const groups = allocationColumnGroups(["MRD", "SP&A"]);

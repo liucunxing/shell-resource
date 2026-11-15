@@ -38,16 +38,20 @@ const complete = (values) =>
   values.every((value) => typeof value === "number" && Number.isFinite(value))
     ? values.reduce((sum, value) => sum + value, 0)
     : null;
+const availableTotal = (values) => {
+  const valid = values.filter((value) => typeof value === "number" && Number.isFinite(value));
+  return valid.length ? valid.reduce((sum, value) => sum + value, 0) : null;
+};
 export function dealerDetailRows(items, dealers, basis, period) {
   const rows = portfolioRows(items, dealers, basis, period),
     suffix = period === "2025" ? "2025" : "2026Ytd";
   const amount = rows.reduce((sum, row) => sum + row.amount, 0),
-    vol = complete(rows.map((row) => row.history[`vol${suffix}`])),
-    c3 = complete(rows.map((row) => row.history[`c3${suffix}`]));
-  const investment = complete(
+    vol = availableTotal(rows.map((row) => row.history[`vol${suffix}`])),
+    c3 = availableTotal(rows.map((row) => row.history[`c3${suffix}`]));
+  const investment = availableTotal(
       rows.map((row) => historyInvestment(row.history, period)),
     ),
-    contract = complete(rows.map((row) => row.history[`contract${suffix}`]));
+    contract = availableTotal(rows.map((row) => row.history[`contract${suffix}`]));
   return rows.map((row) => {
     const h = row.history,
       amountShare = ratio(row.amount, amount),
@@ -210,10 +214,7 @@ export function V19DealerDetails({
     <Card className="v19-board-section v19-dealer-details">
       <div className="v19-section-heading">
         <div>
-          <h2>经销商明细 · 资源叠加与历史对照 <MetricHelp>跨 Initiative 按经销商与 Sector 业务身份汇总；搜索、排序和分页不改变投资及历史产出的占比分母。历史费用明细按用户授权范围显示。</MetricHelp></h2>
-          <p>
-            按当前名单去重汇总；点击经销商查看资源构成、投资来源与历史明细。
-          </p>
+          <h2>经销商明细 · 资源叠加与历史对照 <MetricHelp>跨 Initiative 按经销商与 Sector 业务身份汇总；搜索、排序和分页不改变投资及历史产出的占比分母。历史费用明细按用户授权范围显示。各历史占比按当前名单中该指标有效值合计计算，缺失项不视作零。点击经销商查看资源构成、投资来源与历史明细。</MetricHelp></h2>
         </div>
       </div>
       <div className="v19-board-body">
@@ -397,7 +398,7 @@ export function V19DealerDetails({
         </div>
         <p className="studio-table-note">
           历史参考：{period === "2025" ? "2025 全年" : "2026 YTD"}。Vol /
-          C3及两项占比同时显示。历史投资占比以当前名单为分母；搜索、排序和分页不改变分母。四类费用仅显示接口已授权返回的字段；缺失数据保留“—”。
+          C3及两项占比同时显示。各历史占比以当前名单中该指标有值的经销商合计为分母，缺失项不计入且保留“—”；搜索、排序和分页不改变分母。四类费用仅显示接口已授权返回的字段；缺失数据保留“—”。
         </p>
       </div>
       {detail && (

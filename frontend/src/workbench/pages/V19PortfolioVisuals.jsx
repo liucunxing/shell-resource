@@ -1,3 +1,4 @@
+import { BudgetDonut } from "./BudgetDonut";
 import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
 import { MetricHelp } from "./MetricHelp";
 import { Fragment as ReactFragment, useState } from "react";
@@ -104,7 +105,6 @@ const Heading = ({ title, description, children }) => (
   <div className="v19-section-heading">
     <div>
       <h2>{title} {description && <MetricHelp>{description}</MetricHelp>}</h2>
-      {description && <p>{description}</p>}
     </div>
     {children}
   </div>
@@ -144,16 +144,6 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
       ).size,
     };
   });
-  let categoryStop = 0;
-  const categoryGradient = categoryTotals
-    .map(({ type, total: groupTotal }) => {
-      const begin = categoryStop;
-      categoryStop += total.budget
-        ? (groupTotal.budget / total.budget) * 100
-        : 0;
-      return `${resourceColor(type)} ${begin}% ${categoryStop}%`;
-    })
-    .join(",");
   const parts = [
     ["已分配到经销商", total.allocated, "#FBCE07", ""],
     ["预留", total.otherBudget, "#7F7F7F", "有原因、暂不分配"],
@@ -168,14 +158,6 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
       `${notStarted.length} 个 Initiative`,
     ],
   ];
-  let stop = 0;
-  const gradient = parts
-    .map(([, value, color]) => {
-      const begin = stop;
-      stop += total.budget ? (value / total.budget) * 100 : 0;
-      return `${color} ${begin}% ${stop}%`;
-    })
-    .join(",");
   const reason = (item) =>
     (item.otherBudgets || [])
       .map(
@@ -209,21 +191,8 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
           <div className="v19-subpanel">
             <h3>预算去向</h3>
             <div className="v19-donut-layout">
-              <div
-                className="v19-budget-donut"
-                role="img"
-                aria-label={parts
-                  .map(([label, value]) => `${label}${wan(value)}`)
-                  .join("，")}
-                style={{
-                  background: `conic-gradient(${total.budget ? gradient : "#D9D9D9 0% 100%"})`,
-                }}
-              >
-                <div>
-                  <strong>{n(total.budget / 10000)}</strong>
-                  <span>万元 · 预算总额</span>
-                </div>
-              </div>
+              <BudgetDonut parts={parts.map(([label, value, color]) => ({label, value, color}))}
+                center={n(total.budget / 10000)} caption="万元 · 预算总额" />
               <div className="v19-budget-legend">
                 {parts.map(([label, value, color, note]) => (
                   <div key={label}>
@@ -245,19 +214,8 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
             <div className="v19-subpanel">
               <h3>资源大类预算构成</h3>
               <div className="v19-donut-layout">
-                <div
-                  className="v19-budget-donut"
-                  role="img"
-                  aria-label="各资源大类预算占比"
-                  style={{
-                    background: `conic-gradient(${total.budget ? categoryGradient : "#D9D9D9 0% 100%"})`,
-                  }}
-                >
-                  <div>
-                    <strong>{categories.length}</strong>
-                    <span>个资源大类</span>
-                  </div>
-                </div>
+                <BudgetDonut parts={categoryTotals.map(({type, total: groupTotal}) => ({label: type, value: groupTotal.budget, color: resourceColor(type), onClick: () => setDrill({type: "resource", resourceType: type})}))}
+                  center={String(categories.length)} caption="个资源大类" />
                 <div className="v19-budget-legend">
                   {categoryTotals.map(({ type, total: groupTotal }) => (
                     <div key={type}>
