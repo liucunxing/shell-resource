@@ -1,3 +1,4 @@
+import { LegendColorProvider } from "./LegendColors";
 import {
   useCallback,
   createContext,
@@ -796,7 +797,7 @@ export function WorkbenchProvider({ children }) {
     scenarioEpoch,
     inputReady,
   };
-  return <Context.Provider value={value}>{children}</Context.Provider>;
+  return <Context.Provider value={value}><LegendColorProvider colors={state.legendColors}>{children}</LegendColorProvider></Context.Provider>;
 }
 
 export function useWorkbench() {

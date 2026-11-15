@@ -1,3 +1,4 @@
+import { useLegendColors, resolveInitiativeColor, resolveResourceColor } from "../LegendColors";
 import { BudgetDonut } from "./BudgetDonut";
 import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
 import { MetricHelp } from "./MetricHelp";
@@ -35,35 +36,12 @@ const wan = (value) => `${n(value / 10000)} 万元`,
   pct = (value) => (value == null ? "—" : `${n(value)}%`),
   pp = (value) =>
     value == null ? "—" : `${value > 0 ? "+" : ""}${n(value)}pp`;
-const palette = [
-  "#EB8705",
-  "#003C88",
-  "#BED600",
-  "#008443",
-  "#89CFDC",
-  "#7F7F7F",
-  "#DD1D21",
-];
-export const initiativeColor = (item) => {
-  const key = String(item.initiativeKey || item.key || item.id || item.name);
-  const numeric = Number(key.replace(/\D/g, ""));
-  const hash = numeric
-    ? numeric - 1
-    : [...key].reduce((sum, char) => (sum * 31 + char.charCodeAt(0)) >>> 0, 0);
-  return palette[hash % palette.length];
-};
+export const initiativeColor = resolveInitiativeColor;
+export const resourceColor = resolveResourceColor;
 export function InitiativeChip({ item, name, onClick }) {
+  const { initiativeColor } = useLegendColors();
   return <Button variant="outline" className="v20-initiative-chip" style={{ "--initiative-color": initiativeColor(item) }} onClick={onClick} title={name}>{name}</Button>;
 }
-export const resourceColor = (type) =>
-  ({
-    MRD: "#003C88",
-    "SP&A": "#008443",
-    BTL: "#008443",
-    "ICE Rebate": "#EB8705",
-    Capex: "#641964",
-    CAPEX: "#641964",
-  })[type] || "#89CFDC";
 export const orderedResourceTypes = (values) => {
   const order = ["ICE Rebate", "MRD", "SP&A", "Capex"];
   const rank = (value) => {
@@ -114,6 +92,7 @@ const Dot = ({ color }) => (
 );
 
 export function V19BudgetOverview({ items, dealers = [], mode, state }) {
+  const { initiativeColor, resourceColor } = useLegendColors();
   const included = (item) =>
     mode === "department"
       ? (item.workflow?.submitted ?? Boolean(paid(item) || reserve(item)))
@@ -680,6 +659,7 @@ export function V19Health({
   ytdCutoffMonth = 10,
   budgetReasons = [],
 }) {
+  const { initiativeColor, resourceColor } = useLegendColors();
   const [period, setPeriod] = useState("2025"),
     [basis, setBasis] = useState("c3"),
     [top, setTop] = useState(20),
@@ -960,6 +940,7 @@ export function V19Stack({
   embedded = false,
   budgetReasons = [],
 }) {
+  const { initiativeColor, resourceColor } = useLegendColors();
   const [period, setPeriod] = useState("2025"),
     [basis, setBasis] = useState("c3"),
     [direction, setDirection] = useState("over"),
@@ -1173,6 +1154,7 @@ export function V19Destination({
   ytdCutoffMonth = 10,
   budgetReasons = [],
 }) {
+  const { initiativeColor, resourceColor } = useLegendColors();
   const [detail, setDetail] = useState(null);
   const total = E.totals(items),
     funded = new Set(

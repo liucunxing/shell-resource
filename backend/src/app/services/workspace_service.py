@@ -154,6 +154,10 @@ class WorkspaceService:
             ]
         state = {
             "schemaVersion": 3 if version else 2,
+            "legendColors": (
+                (config.reference or {}).get("displaySettings", {}).get("legendColors", {})
+                if config else {}
+            ),
             "planningVersion": version_view(version) if version else None,
             "currentVersionId": version.id if version else None,
             "planningVersions": [version_view(v) for v in await planning.versions(planning_year)],

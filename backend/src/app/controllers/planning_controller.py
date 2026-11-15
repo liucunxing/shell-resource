@@ -14,6 +14,7 @@ from app.schemas.dto.planning import (
     PlanningVersionCreateDTO,
     PlanningVersionUpdateDTO,
     VersionInitiativeDTO,
+    VersionInitiativesImportDTO,
 )
 from app.services.planning_service import PlanningService, version_view
 
@@ -72,6 +73,13 @@ async def create_initiative(
     version_id: str, payload: VersionInitiativeDTO, session: Session, user: User
 ) -> ApiResponse[dict]:
     return success(await PlanningService(session, user).edit_initiative(version_id, None, payload))
+
+
+@router.post("/planning-versions/{version_id}/initiatives/import", response_model=ApiResponse[dict])
+async def import_initiatives(
+    version_id: str, payload: VersionInitiativesImportDTO, session: Session, user: User,
+) -> ApiResponse[dict]:
+    return success(await PlanningService(session, user).import_initiatives(version_id, payload))
 
 
 @router.put(

@@ -1,3 +1,6 @@
+import { AdminImportPanel } from "./AdminImportPanel";
+import { InitiativeChip } from "./V19PortfolioVisuals";
+import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
 import {
   Dialog,
   DialogContent,
@@ -158,6 +161,7 @@ function UserDialog({
 export function AdminUsersPanel() {
   const {
     state,
+    data,
     roles,
     identity,
     notify,
@@ -166,6 +170,7 @@ export function AdminUsersPanel() {
     startUserPreview,
     switchingPreview,
   } = useWorkbench();
+  const [initiativeDetail, setInitiativeDetail] = useState(null);
   const [draftFilters, setDraftFilters] = useState(EMPTY_FILTERS);
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
@@ -290,7 +295,14 @@ export function AdminUsersPanel() {
           enabled: form.enabled,
           affiliation_sector: form.affiliation_sector,
           affiliation_department: form.affiliation_department,
-          history_resources: form.history_resources == null ? null : form.history_resources.filter((resource) => departmentExpenseLimit(form.affiliation_department).includes(resource)),
+          history_resources:
+            form.history_resources == null
+              ? null
+              : form.history_resources.filter((resource) =>
+                  departmentExpenseLimit(form.affiliation_department).includes(
+                    resource,
+                  ),
+                ),
         };
         if (dialog.kind === "create") await api.createAdminUser(payload);
         else await api.updateAdminUser(dialog.user.id, payload);
@@ -321,9 +333,23 @@ export function AdminUsersPanel() {
 
   return (
     <>
+      {initiativeDetail && (
+        <ResourceDetailDrawer
+          detail={initiativeDetail}
+          items={state.initiatives || []}
+          dealers={data.dealers || []}
+          budgetReasons={state.budgetReasons}
+          ytdCutoffMonth={state.ytdCutoffMonth}
+          onClose={() => setInitiativeDetail(null)}
+        />
+      )}
       <div className="user-list-heading">
         <h2>用户清单 · {result.total} 人</h2>
         <div className="actions">
+          <AdminImportPanel
+            kind="users"
+            onImported={() => setRevision((value) => value + 1)}
+          />
           <Button
             variant="ghost"
             size="sm"
@@ -513,11 +539,27 @@ export function AdminUsersPanel() {
                             )}
                   </TableCell>
                   <TableCell className="v19-user-initiatives">
-                    {initiativesForUser(user, state?.initiatives).length
-                      ? initiativesForUser(user, state?.initiatives).map(
-                          (item) => <span key={item.id}>{item.name}</span>,
-                        )
-                      : "—"}
+                    {initiativesForUser(user, state?.initiatives).length ? (
+                      <div className="v19-user-initiative-grid">
+                        {initiativesForUser(user, state?.initiatives).map(
+                          (item) => (
+                            <InitiativeChip
+                              key={item.id}
+                              item={item}
+                              name={item.name}
+                              onClick={() =>
+                                setInitiativeDetail({
+                                  type: "initiative",
+                                  initiativeId: String(item.id),
+                                })
+                              }
+                            />
+                          ),
+                        )}
+                      </div>
+                    ) : (
+                      "—"
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -776,8 +818,18 @@ export function AdminUsersPanel() {
                     {HISTORY_RESOURCES.map((resource) => (
                       <Label key={resource}>
                         <Checkbox
-                          disabled={!hasValidAffiliation(form) || !departmentExpenseLimit(form.affiliation_department).includes(resource)}
-                          checked={departmentExpenseLimit(form.affiliation_department).includes(resource) && form.history_resources.includes(resource)}
+                          disabled={
+                            !hasValidAffiliation(form) ||
+                            !departmentExpenseLimit(
+                              form.affiliation_department,
+                            ).includes(resource)
+                          }
+                          checked={
+                            departmentExpenseLimit(
+                              form.affiliation_department,
+                            ).includes(resource) &&
+                            form.history_resources.includes(resource)
+                          }
                           onCheckedChange={(checked) =>
                             setForm({
                               ...form,

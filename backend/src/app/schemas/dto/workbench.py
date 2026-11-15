@@ -280,7 +280,41 @@ class AdminBudgetsImportDTO(BaseModel):
         return self
 
 
+class AdminUsersImportDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_revision: str = Field(min_length=64, max_length=64)
+    items: list[AdminUserDTO] = Field(min_length=1, max_length=5000)
+    preview: bool = True
+
+    @field_validator("items")
+    @classmethod
+    def unique_emails(cls, items: list[AdminUserDTO]) -> list[AdminUserDTO]:
+        if len({item.email for item in items}) != len(items):
+            raise ValueError("导入邮箱不可重复")
+        return items
+
+
 class AdminConfigDTO(BaseModel):
+    legendColors: dict[str, dict[str, str]] | None = None
+
+    @field_validator("legendColors")
+    @classmethod
+    def validate_legend_colors(cls, value: dict | None) -> dict | None:
+        if value is None:
+            return None
+        if set(value) - {"initiatives", "resources", "departments"}:
+            raise ValueError("颜色图例分类无效")
+        for entries in value.values():
+            if len(entries) > 5000:
+                raise ValueError("颜色图例数量超限")
+            for key, color in entries.items():
+                if not key.strip() or len(key) > 255 or not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
+                    raise ValueError("颜色须为 #RRGGBB，图例名称不能为空")
+        return {
+            kind: {key: color.upper() for key, color in entries.items()}
+            for kind, entries in value.items()
+        }
+
     expected_revision: int = Field(ge=0)
     budgetReasons: list[dict] | None = Field(default=None, min_length=1, max_length=30)
     guide: dict | None = None

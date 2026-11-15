@@ -1,3 +1,4 @@
+import { useLegendColors } from "../LegendColors";
 import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
 import {
   useEffect,
@@ -48,8 +49,6 @@ import {
   ResourceMixDonut,
   DetailConcentrationCurve,
   InitiativeContributionBar,
-  RESOURCE_DETAIL_COLORS,
-  detailInitiativeColor,
 } from "./ResourceDetailCharts";
 import "../resource-detail.css";
 
@@ -264,6 +263,7 @@ export function ResourceDetailDrawer({
   budgetReasons = [],
   onClose,
 }: Props) {
+  const { initiativeColor: detailInitiativeColor, resourceColor } = useLegendColors();
   const [trail, setTrail] = useState<ResourceDetail[]>([detail]);
   const [period, setPeriod] = useState<HistoryPeriod>(detail.period || "2025");
   const [basis, setBasis] = useState<"vol" | "c3">(detail.basis || "c3");
@@ -855,7 +855,7 @@ export function ResourceDetailDrawer({
                                     className="resource-detail-swatch"
                                     style={{
                                       background:
-                                        RESOURCE_DETAIL_COLORS[row.type],
+                                        resourceColor(row.type),
                                     }}
                                   />
                                   {row.type}

@@ -1,7 +1,9 @@
+import hashlib
 import json
 from datetime import UTC, datetime
 
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,6 +27,7 @@ from app.schemas.dto.workbench import (
     AdminBudgetsUpdateDTO,
     AdminConfigDTO,
     AdminUserDTO,
+    AdminUsersImportDTO,
     ReferenceImportDTO,
 )
 from app.services.workspace_service import WorkspaceService
@@ -37,7 +40,7 @@ class AdminService(WorkspaceService):
         self.reference_repository = ReferenceRepository(session)
 
     def _admin(self) -> None:
-        if self.user.role != "admin":
+        if self.user.role != "admin" or self.user.preview_actor_email:
             raise HTTPException(status_code=403, detail="仅管理员可维护配置")
 
     @staticmethod
@@ -68,6 +71,7 @@ class AdminService(WorkspaceService):
         offset: int,
     ) -> dict:
         self._admin()
+        await self.admin_repository.locked_config()
         rows, total = await self.admin_repository.list_users(
             email=email,
             name=name,
@@ -78,6 +82,7 @@ class AdminService(WorkspaceService):
             offset=offset,
         )
         return {
+            "revision": await self.users_revision(),
             "items": [self._user_record(item, has_budget) for item, has_budget in rows],
             "total": total,
             "limit": limit,
@@ -85,9 +90,101 @@ class AdminService(WorkspaceService):
             "lead_sectors_by_department": await self.admin_repository.lead_sectors_by_department(),
         }
 
+    async def users_revision(self) -> str:
+        users = (await self.session.scalars(
+            select(UserPermissionDO).order_by(UserPermissionDO.id)
+        )).all()
+        return hashlib.sha256(json.dumps(
+            [self._user_record(user) for user in users], sort_keys=True,
+            ensure_ascii=False, separators=(",", ":"),
+        ).encode()).hexdigest()
+
+    @staticmethod
+    def _uncovered_owner_scopes(users: list[UserPermissionDO]) -> set[tuple[str, str, str]]:
+        covered = {
+            (department, sector)
+            for lead in users if lead.enabled and lead.role == "lead"
+            for department in departments(lead.department) for sector in lead.sector or []
+        }
+        return {
+            (owner.email.strip().lower(), department, sector)
+            for owner in users if owner.enabled and owner.role == "owner"
+            for department in departments(owner.department) for sector in owner.sector or []
+            if (department, sector) not in covered
+        }
+
+    async def import_users(self, payload: AdminUsersImportDTO) -> dict:
+        self._admin()
+        try:
+            await self._locked_config()
+            users = list((await self.session.scalars(
+                select(UserPermissionDO).order_by(UserPermissionDO.id).with_for_update()
+                .execution_options(populate_existing=True)
+            )).all())
+            if await self.users_revision() != payload.expected_revision:
+                raise HTTPException(409, "人员配置已变化，请刷新后重新预览")
+            by_email = {user.email.strip().lower(): user for user in users}
+            if len(by_email) != len(users):
+                raise HTTPException(409, "现有人员邮箱存在重复，请先处理冲突后导入")
+            # A partial import must not be blocked by unrelated legacy gaps;
+            # it still cannot create a new gap or remove existing lead coverage.
+            previous_gaps = self._uncovered_owner_scopes(users)
+            created, updated = 0, 0
+            for index, item in enumerate(payload.items, 2):
+                user = by_email.get(item.email)
+                before = self._user_record(user) if user else None
+                if user and await self.admin_repository.user_has_budgets(user.email):
+                    unchanged = all(getattr(item, field) == getattr(user, field)
+                                    for field in ("email", "display_name", "role", "enabled"))
+                    assigned = await self.admin_repository.assigned_departments(user.email)
+                    if (not unchanged or item.sector != list(user.sector or [])
+                            or not assigned.issubset(item.department)):
+                        raise HTTPException(
+                            409, f"第 {index} 行：该用户已有项目，不可更改身份或移除项目部门",
+                        )
+                if user is None:
+                    user = UserPermissionDO(**item.model_dump())
+                    self.session.add(user)
+                    users.append(user)
+                    created += 1
+                else:
+                    for key, value in item.model_dump().items():
+                        setattr(user, key, value)
+                    updated += before != self._user_record(user)
+                await self.session.flush()
+                self.repository.add_log(0, "USER_IMPORT", self.user.email, before,
+                                        self._user_record(user), f"导入人员：{item.email}")
+            if not any(user.enabled and user.role == "admin" for user in users):
+                raise HTTPException(422, "至少保留一名启用的管理员")
+            new_gaps = self._uncovered_owner_scopes(users) - previous_gaps
+            if new_gaps:
+                email, department, sector = sorted(new_gaps)[0]
+                raise HTTPException(
+                    422, f"导入将使 {email} 的 {department} / {sector} 缺少启用的部门负责人",
+                )
+            await self.session.flush()
+            result = {
+                "created": created, "updated": updated, "total": len(payload.items),
+                "revision": (
+                    payload.expected_revision if payload.preview else await self.users_revision()
+                ),
+            }
+            if payload.preview:
+                await self.session.rollback()
+            else:
+                await self.session.commit()
+            return result
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise HTTPException(409, "用户邮箱存在冲突，请刷新后重试") from exc
+        except Exception:
+            await self.session.rollback()
+            raise
+
     async def create_user(self, payload: AdminUserDTO) -> dict:
         self._admin()
         try:
+            await self._locked_config()
             if await self.admin_repository.user_by_email(payload.email):
                 raise HTTPException(status_code=409, detail="邮箱已存在")
             await self._validate_department_sector_coverage(payload)
@@ -114,6 +211,7 @@ class AdminService(WorkspaceService):
     async def update_user(self, user_id: int, payload: AdminUserDTO) -> dict:
         self._admin()
         try:
+            await self._locked_config()
             user = await self.admin_repository.locked_user(user_id)
             if user is None:
                 raise HTTPException(status_code=404, detail="人员不存在")
@@ -137,6 +235,9 @@ class AdminService(WorkspaceService):
             await self._validate_department_sector_coverage(
                 payload, replacing_user_id=user.id, previous_department=user.department
             )
+            if (user.enabled and user.role == "admin"
+                    and (not payload.enabled or payload.role != "admin")):
+                await self._require_other_admin(user.id)
             before = self._user_record(user)
             for field, value in payload.model_dump().items():
                 setattr(user, field, value)
@@ -198,9 +299,19 @@ class AdminService(WorkspaceService):
                         ),
                     )
 
+    async def _require_other_admin(self, user_id: int) -> None:
+        other = await self.session.scalar(select(UserPermissionDO.id).where(
+            UserPermissionDO.id != user_id,
+            UserPermissionDO.role == "admin",
+            UserPermissionDO.enabled.is_(True),
+        ).limit(1))
+        if other is None:
+            raise HTTPException(422, "至少保留一名启用的管理员")
+
     async def delete_user(self, user_id: int) -> dict:
         self._admin()
         try:
+            await self._locked_config()
             user = await self.admin_repository.locked_user(user_id)
             if user is None:
                 raise HTTPException(status_code=404, detail="人员不存在")
@@ -216,6 +327,8 @@ class AdminService(WorkspaceService):
                     previous_department=user.department,
                     include_payload=False,
                 )
+            if user.enabled and user.role == "admin":
+                await self._require_other_admin(user.id)
             before = self._user_record(user)
             await self.session.delete(user)
             self.repository.add_log(
@@ -537,6 +650,7 @@ class AdminService(WorkspaceService):
             previous_resource_mapping = config.department_resources
             previous_ytd_month = configured_ytd_cutoff(config.reference)
             previous_rate = configured_investment_exchange_rate(config.reference)
+            previous_colors = config.reference.get("displaySettings", {}).get("legendColors", {})
             if payload.budgetReasons is not None:
                 ids = [reason["id"] for reason in payload.budgetReasons]
                 used = await self.admin_repository.used_reason_ids()
@@ -573,6 +687,10 @@ class AdminService(WorkspaceService):
                     payload.historyInvestmentExchangeRate
                 )
                 config.reference = {**config.reference, "displaySettings": display_settings}
+            if payload.legendColors is not None:
+                display_settings = dict(config.reference.get("displaySettings", {}))
+                display_settings["legendColors"] = payload.legendColors
+                config.reference = {**config.reference, "displaySettings": display_settings}
             config.revision += 1
             result = {
                 "revision": config.revision,
@@ -587,10 +705,15 @@ class AdminService(WorkspaceService):
                 ),
                 "guide": config.guide,
                 "reference": config.reference,
+                "legendColors": config.reference.get("displaySettings", {}).get("legendColors", {}),
             }
             before: dict = {}
             after: dict = {"revision": config.revision}
             notes = []
+            if payload.legendColors is not None:
+                before["legendColors"] = previous_colors
+                after["legendColors"] = payload.legendColors
+                notes.append("更新颜色图例")
             if payload.departmentResources is not None:
                 before["departmentResources"] = previous_resource_mapping
                 after["departmentResources"] = config.department_resources

@@ -67,3 +67,26 @@ class VersionInitiativeDTO(AdminBudgetCreateItemDTO):
         if value != value.to_integral_value():
             raise ValueError("规划预算必须为非负整数元")
         return value
+
+
+class VersionInitiativeImportItemDTO(VersionInitiativeDTO):
+    id: int | None = Field(default=None, gt=0)
+    expected_revision: int = Field(default=0, ge=0)
+
+
+class VersionInitiativesImportDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_revision: int = Field(ge=0)
+    items: list[VersionInitiativeImportItemDTO] = Field(min_length=1, max_length=5000)
+    preview: bool = True
+
+    @field_validator("items")
+    @classmethod
+    def unique_items(
+        cls, items: list[VersionInitiativeImportItemDTO],
+    ) -> list[VersionInitiativeImportItemDTO]:
+        ids = [item.id for item in items if item.id is not None]
+        keys = [(item.sector, item.department, item.resourceType, item.name) for item in items]
+        if len(ids) != len(set(ids)) or len(keys) != len(set(keys)):
+            raise ValueError("导入项目ID或业务键不可重复")
+        return items

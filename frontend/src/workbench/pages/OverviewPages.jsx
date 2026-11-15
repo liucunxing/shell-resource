@@ -1,3 +1,4 @@
+import { useLegendColors, DepartmentLabel } from "../LegendColors";
 import {
   Tabs,
   TabsList,
@@ -9,7 +10,6 @@ import {
   V19Health,
   V19Stack,
   V19Destination,
-  initiativeColor,
   orderedResourceTypes,
 } from "./V19PortfolioVisuals.jsx";
 import "../v19-portfolio.css";
@@ -73,6 +73,7 @@ function Status({ status }) {
 }
 
 export function HomePage() {
+  const { initiativeColor } = useLegendColors();
   const { view, navigate, identity } = useWorkbench();
   const items = view.initiatives || [],
     total = E.totals(items);
@@ -156,7 +157,7 @@ export function HomePage() {
                   </Badge>
                 </div>
                 <p>
-                  {item.sector} / {item.department} · {item.resourceType}
+                  {item.sector} / <DepartmentLabel name={item.department} /> · {item.resourceType}
                 </p>
                 <div className="v19-initiative-amount">
                   {num(item.budget / 10000, 1)} <small>万元</small>

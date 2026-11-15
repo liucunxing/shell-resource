@@ -167,6 +167,12 @@ export const listAdminUsers = (filters = {}, limit = 20, offset = 0) => {
       params.set(key, key === "department" ? filters[key].trim().toUpperCase() : filters[key].trim());
   return request(`/admin/users?${params}`);
 };
+export const importAdminUsers = (value) => request("/admin/users/import", {
+  method: "POST", body: JSON.stringify(value),
+});
+export const importVersionInitiatives = (versionId, value) => request(`/planning-versions/${encodeURIComponent(versionId)}/initiatives/import`, {
+  method: "POST", body: JSON.stringify(value),
+});
 export const createAdminUser = (value) => request("/admin/users", {
   method: "POST", body: JSON.stringify(value),
 });
