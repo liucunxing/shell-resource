@@ -88,3 +88,12 @@ PG 模式还须传入 `-SettingsFile`。测试报告保存在当前工作目录�
 - 两套PG验证均 `cleanup=rolled_back`、`business_writes=false`。隔离QA配置专门保留“未确认期间”的测试路径；这不代表真实应用配置仍未知。真实配置另经HTTP API验证为当前批次1–9月、revision7、1489行；当前有效Yield702条，只有经销商target仍缺。源指纹始终 `e3bea3a897bc07d6d4b2b50906d77807`。
 - 本地启动脚本已重启为V20 fixture，`http://127.0.0.1:8019/` HTTP 200并已用浏览器确认直接进入、10个合成角色、当前构建 `index-CaNZZcom.js`。数据在 `.cache/v20-prototype`，旧V19缓存保留。演示快照为10月，真实PG已确认至9月，二者明确分离。
 - 更完整的浏览器、抽屉与门禁证据见[V20同步验收](V20_IMPLEMENTATION.md)。本轮推送代码，不代表远端应用服务器已部署或正式SSO/UAT通过。
+
+
+## 2026-11-15 界面密度与单位调整
+
+共同实现 c735dda / 6ec7eb3；main、PG真实、本地演示分支已同步，跟踪差异仅test-profile.json。前端63文件374项通过，三个工作区构建及bundle检查均通过。
+
+浏览器本地合成Owner场景：1600px视口抽屉1120px（70%）；390px视口抽屉及页面均390px；组合子Tab滚动后top=68px；Initiative标签背景色生效、字号11px；试算弹窗1120px、正文13px、标题20px；历史指标8项，抽屉无旧单位文案。Escape关闭可用。截图在忽略目录output/playwright/layout-{stack,drawer,mobile,trial,history}.png。构建替换期间旧页面曾请求旧chunk产生404，刷新后恢复；最终新构建已重新检查。
+
+本次仅前端布局/显示变更，未改真实PG数据，未部署远端服务器；视觉效果仍待用户确认。
