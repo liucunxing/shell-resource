@@ -141,6 +141,7 @@
 .v19-fidelity-shell .v19-sd-analysis thead th,
 .v19-fidelity-shell .v19-sd-analysis thead th button { font-weight:700; color:#263e50; }
 .v19-fidelity-shell .v20-organization-summary thead tr:first-child th { background:#ffe99a; border-bottom:2px solid #cfad38; }
+.v19-fidelity-shell .v20-organization-summary thead tr:first-child th[rowspan] { background:#dce5eb; border-color:#9eafbc; }
 .v19-fidelity-shell .v20-organization-summary thead tr:first-child th.v20-actual { background:#c8e5f0 !important; border-color:#74aebf; }
 .v19-fidelity-shell .v20-organization-summary thead tr:first-child th:nth-child(4) { background:#d9ead8; border-color:#85ad84; }
 .v19-fidelity-shell .v20-organization-summary thead tr:first-child th.v20-previous { background:#e1dbea; border-color:#aa97bc; }
