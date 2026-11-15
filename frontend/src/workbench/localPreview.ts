@@ -1,5 +1,6 @@
 export interface LocalPreviewConfig {
   defaultEmail: string;
+  dataMode?: "pg-real" | "synthetic";
   dataLabel?: string;
   users: { email: string; label: string }[];
 }
@@ -12,7 +13,7 @@ declare global {
 
 export const LOCAL_PREVIEW_EMAIL_KEY = "shell-resource-local-preview-email";
 
-/** Only the synthetic fixture injects this config; ordinary localhost is not a bypass. */
+/** Only an explicit loopback preview entry injects this config; localhost alone is not a bypass. */
 export function getLocalPreviewConfig(): LocalPreviewConfig | null {
   if (typeof window === "undefined" || !window.location) return null;
   const raw = window.__RESOURCE_LOCAL_PREVIEW__;
@@ -30,6 +31,9 @@ export function getLocalPreviewConfig(): LocalPreviewConfig | null {
   )
     return null;
   const config = raw as Partial<LocalPreviewConfig>;
+  if (config.dataMode !== undefined && !["pg-real", "synthetic"].includes(config.dataMode))
+    return null;
+  const realData = config.dataMode === "pg-real";
   if (
     !Array.isArray(config.users) ||
     !config.users.length ||
@@ -41,7 +45,9 @@ export function getLocalPreviewConfig(): LocalPreviewConfig | null {
       (user) =>
         user &&
         typeof user.email === "string" &&
-        /^[a-z0-9-]+@example\.test$/.test(user.email) &&
+        (realData
+          ? user.email.length <= 255 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email)
+          : /^[a-z0-9-]+@example\.test$/.test(user.email)) &&
         typeof user.label === "string" &&
         user.label.length <= 80,
     )

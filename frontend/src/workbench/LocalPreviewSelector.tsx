@@ -18,6 +18,8 @@ export function LocalPreviewSelector({
   disabled?: boolean;
   compact?: boolean;
 }) {
+  const realData = config.dataMode === "pg-real";
+  const dataLabel = config.dataLabel || (realData ? "服务器 PG 真实数据" : "合成数据");
   return (
     <div className="flex min-w-0 items-center gap-2">
       {!compact && (
@@ -25,12 +27,12 @@ export function LocalPreviewSelector({
           variant="secondary"
           className="whitespace-nowrap max-[759px]:hidden"
         >
-          本地测试 · {config.dataLabel || "合成数据"}
+          本地测试 · {dataLabel}
         </Badge>
       )}
       <NativeSelect
-        aria-label="本地测试角色（合成数据）"
-        title={`本地测试 · ${config.dataLabel || "合成数据"}`}
+        aria-label={realData ? "本地测试账号（服务器 PG）" : "本地测试角色（合成数据）"}
+        title={`本地测试 · ${dataLabel}`}
         value={email}
         disabled={disabled}
         className="h-8 w-40 max-[759px]:w-32 text-xs"
