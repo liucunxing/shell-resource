@@ -1246,6 +1246,7 @@ export function V19Destination({
               <TableHead className="num">待分配</TableHead>
               <TableHead>结构</TableHead>
               <TableHead>获配经销商</TableHead>
+              <TableHead>拆分依据</TableHead>
               <TableHead>状态</TableHead>
             </TableRow>
           </TableHeader>
@@ -1300,6 +1301,11 @@ export function V19Destination({
                       {(i.rows || []).filter((r) => r.amount > 0).length} 家
                     </TableCell>
                     <TableCell>
+                      <Button variant="outline" className="v20-rationale-chip" onClick={() => setDetail({ type: "rationale", initiativeId: i.id })}>
+                        查看拆分依据 →
+                      </Button>
+                    </TableCell>
+                    <TableCell>
                       {i.workflow?.submitted ? "已提交" : "草稿"}
                     </TableCell>
                   </TableRow>
@@ -1323,7 +1329,7 @@ export function V19Destination({
                 <AllocationBar total={total} />
               </TableCell>
               <TableCell>{funded} 家</TableCell>
-              <TableCell />
+              <TableCell colSpan={2} />
             </TableRow>
           </TableFooter>
         </Table>
