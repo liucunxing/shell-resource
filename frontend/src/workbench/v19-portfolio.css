@@ -1058,3 +1058,6 @@
 .v20-stack-table .v19-stack-bar { height:8px; border-radius:5px; }
 .v19-concentration-chart { cursor:pointer; }
 @media(max-width:850px) { .v20-stack-overview { grid-template-columns:1fr; } .v20-stack-distributions { justify-content:flex-start; } }
+
+.v19-fidelity-shell .v19-board-section .v20-rationale-chip { display:inline-flex; height:auto; min-height:28px; padding:5px 10px; border:1px solid #c5d8e5; border-radius:5px; background:#edf5fa; color:#315a76; font-size:12px; font-weight:700; white-space:nowrap; }
+.v19-fidelity-shell .v19-board-section .v20-rationale-chip:hover { background:#deedf6; border-color:#8fb5cd; }

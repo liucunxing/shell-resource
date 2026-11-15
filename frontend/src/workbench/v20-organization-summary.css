@@ -154,3 +154,14 @@
 .v19-fidelity-shell .v19-sd-facts .v19-sd-fact { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; height:auto; min-width:0; white-space:normal; padding:12px; border:1px solid #e5d9c4; border-radius:5px; background:#fffaf1; text-align:left; line-height:1.7; }
 @media(min-width:1600px) { .v20-fact-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
 @media(max-width:800px) { .v19-sd-facts > section { grid-template-columns:1fr; } .v20-fact-grid { grid-template-columns:1fr; } }
+
+/* Calm neutral surface and a warm outline keep attention on the findings. */
+.v19-fidelity-shell .v19-sd-facts,
+.v19-fidelity-shell .v19-sd-facts[data-level="good"],
+.v19-fidelity-shell .v19-sd-facts[data-level="bad"] {
+  border:2px solid #e3bc36; border-radius:8px; background:#f7f9fa;
+}
+.v19-fidelity-shell .v19-sd-facts > section { background:#fff; border-color:#dbe4ea; }
+.v19-fidelity-shell .v19-sd-facts .v19-sd-fact { background:#f5f8fa; border-color:#dce5eb; }
+.v19-fidelity-shell .v20-organization-summary tfoot th,
+.v19-fidelity-shell .v20-organization-summary tfoot td { font-weight:700; color:#263e50; }
