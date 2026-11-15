@@ -1,3 +1,4 @@
+import { MetricHelp } from "./MetricHelp";
 import { useRef, useState } from "react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -206,7 +207,7 @@ export function V19DealerDetails({
     <Card className="v19-board-section v19-dealer-details">
       <div className="v19-section-heading">
         <div>
-          <h2>经销商明细 · 资源叠加与历史对照</h2>
+          <h2>经销商明细 · 资源叠加与历史对照 <MetricHelp>跨 Initiative 按经销商与 Sector 业务身份汇总；搜索、排序和分页不改变投资及历史产出的占比分母。历史费用明细按用户授权范围显示。</MetricHelp></h2>
           <p>
             按当前名单去重汇总；点击经销商查看资源构成、投资来源与历史明细。
           </p>
