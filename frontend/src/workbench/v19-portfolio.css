@@ -1039,3 +1039,22 @@
 .v19-concentration-chart .v19-chart-value.investment { fill:#a77900; }
 .v19-concentration-chart .v19-chart-value.output { fill:#354958; }
 .v19-concentration-flag { margin-left:10px; font-size:11px; }
+
+.v20-stack-overview { display:grid; grid-template-columns:minmax(280px,1fr) minmax(360px,1fr); gap:20px; align-items:center; border:1px solid #d7e1e8; border-radius:6px; background:#fff; padding:18px; }
+.v20-stack-conclusion h3 { margin:0 0 12px; font-weight:700; }
+.v20-stack-conclusion p { margin:6px 0; line-height:1.8; }
+.v20-stack-conclusion strong { color:#ce2525; font-size:19px; }
+.v20-stack-conclusion small,.v20-stack-legend small { color:#708290; }
+.v20-stack-distributions { display:flex; justify-content:flex-end; align-items:center; flex-wrap:wrap; gap:18px; }
+.v20-stack-donut { width:112px; height:112px; border-radius:50%; display:grid; place-items:center; }
+.v20-stack-donut > div { width:76px; height:76px; border-radius:50%; background:white; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.v20-stack-donut strong { font-size:18px; } .v20-stack-donut small { font-size:11px; color:#708290; }
+.v20-stack-legend > div { display:flex; align-items:center; gap:5px; } .v20-stack-legend [data-slot=button] { padding:2px; height:auto; } .v20-stack-legend span { font-size:11px; }
+.v20-stack-scroll-all { max-height:65vh; overflow:auto; }
+.v20-stack-scroll-all thead th { position:sticky; top:0; z-index:4; }
+.v19-fidelity-shell .v20-stack-table th, .v19-fidelity-shell .v20-stack-table td, .v19-fidelity-shell .v20-stack-table td.num { text-align:center; border-right:1px solid #e8eef2; }
+.v19-fidelity-shell .v20-stack-table th:last-child, .v19-fidelity-shell .v20-stack-table td:last-child { border-right:0; }
+.v19-fidelity-shell .v20-stack-table .v20-stack-sort { height:auto; min-height:30px; white-space:normal; padding:3px; line-height:1.4; font-weight:700; }
+.v20-stack-table .v19-stack-bar { height:8px; border-radius:5px; }
+.v19-concentration-chart { cursor:pointer; }
+@media(max-width:850px) { .v20-stack-overview { grid-template-columns:1fr; } .v20-stack-distributions { justify-content:flex-start; } }
