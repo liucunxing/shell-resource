@@ -28,6 +28,9 @@ import { useWorkbench } from "./WorkbenchContext.jsx";
 import { ToastNotice } from "./ToastNotice.jsx";
 import { PortalAccessNotice } from "../portal/PortalEntry";
 import { UserPreviewBanner } from "./UserPreviewBanner";
+const UserProfileButton = lazy(() =>
+  import("./UserProfileButton").then((m) => ({ default: m.UserProfileButton })),
+);
 const loginEmailEditable = import.meta.env.VITE_LOGIN_EMAIL_EDITABLE === "true";
 const HomePage = lazy(() =>
   import("./pages/OverviewPages.jsx").then((m) => ({ default: m.HomePage })),
@@ -214,19 +217,6 @@ export default function WorkbenchApp() {
     );
   const nav = navigationFor(identity, initiativeId);
   const Page = pages[page] || pages[nav[0]?.[0]] || HomePage;
-  const userName =
-    identity.label ||
-    identity.name ||
-    identity.email ||
-    roleLabel[identity.role];
-  const userScope =
-    identity.role === "admin"
-      ? "系统配置"
-      : identity.role === "management"
-        ? "全部 Sector / Department"
-        : Array.isArray(identity.department)
-          ? identity.department.join("、")
-          : identity.department || identity.sector || "当前授权范围";
   return (
     <>
       <SkipToWorkspace portalMode={portalMode} />
@@ -268,17 +258,10 @@ export default function WorkbenchApp() {
                 </Button>
               ))}
             </nav>
-            <div
-              className="v19-nav-account"
-              title={`${userName} · ${userScope}`}
-            >
-              <span className="v19-avatar">
-                {String(userName).slice(0, 1).toUpperCase()}
-              </span>
-              <span>
-                <b>{userName}</b>
-                <small>{roleLabel[identity.role]}</small>
-              </span>
+            <div className="v19-nav-account">
+              <Suspense fallback={<Button variant="ghost" disabled aria-label="正在加载用户信息">…</Button>}>
+                <UserProfileButton key={identity.email || identity.key} identity={identity} />
+              </Suspense>
               {apiMode && !localPreview && (
                 <Button
                   variant="ghost"

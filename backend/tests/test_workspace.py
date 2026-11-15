@@ -111,6 +111,44 @@ def _workspace_service(session: AsyncSession, user: WorkbenchUser) -> WorkspaceS
 
 
 @pytest.mark.asyncio
+async def test_profile_metadata_contacts_and_preview_target() -> None:
+    session = await _session()
+    session.add_all([
+        UserPermissionDO(id=2, email="admin@example.test", display_name="Admin",
+                         role="admin", department=[], enabled=True),
+        UserPermissionDO(id=3, email="disabled@example.test", display_name="Disabled",
+                         role="admin", department=[], enabled=False),
+    ])
+    await session.commit()
+    target = WorkbenchUser(
+        "a@example.com", "owner", "MKT", "A", ("PCMO",),
+        preview_actor_email="admin@example.test", preview_actor_label="Admin",
+        affiliation_sector="PCMO", affiliation_department="ICE",
+    )
+    workspace = await _workspace_service(session, target).get_workspace(2027)
+    identity = workspace["identity"]
+    assert identity["userId"] == "1"
+    assert identity["roles"] == ["owner"]
+    assert identity["affiliation_department"] == "ICE"
+    assert identity["department"] == ["MKT"]
+    assert identity["adminContacts"] == [{"name": "Admin", "email": "admin@example.test"}]
+    assert workspace["users"] == []
+    assert identity["preview"]["actorEmail"] == "admin@example.test"
+    await session.close()
+
+
+@pytest.mark.asyncio
+async def test_profile_metadata_missing_configuration() -> None:
+    session = await _session()
+    identity = await _workspace_service(
+        session, WorkbenchUser("unknown@example.test", "owner", "MKT", "Unknown")
+    )._profile_identity()
+    assert identity["userId"] is None
+    assert identity["adminContacts"] == []
+    await session.close()
+
+
+@pytest.mark.asyncio
 async def test_owner_isolated_revision_and_immutable_publish() -> None:
     session = await _session()
     service = _workspace_service(session, _owner())

@@ -87,3 +87,11 @@
 浏览器证据分别位于 `output/playwright/v20-engine-organization/` 和 `.cache/v20-editor-browser/`，含同角色原型/工程截图、390px抽屉、滚动选择保持、焦点恢复及查看详情不触发提交的证据。原型新增门禁13项通过，独立HTML不改V19原件。
 
 分支构建、测试和提交信息见[测试分支](TEST_BRANCHES.md)。旧V19记录作为历史快照保留，不代表V20已部署或真实SSO/UAT通过。
+
+## 头像个人信息补齐（2026-11-15）
+
+补齐 V20 的 `data-user-profile` 交互及最终 `homeScope` 覆盖：头像/姓名作为共享 Button/Dialog 入口；七项身份资料、两列桌面/单列窄屏、浅灰管理员联系信息块、黄色顶边。工作区 `identity` 增加 `userId`、`roles`、`adminContacts[{name,email}]`；后两者为当前单角色和启用管理员最小联系人投影，普通用户的 `users` 仍为空。所属部门不以业务授权部门替代；管理员模拟时展示目标身份，不混入管理员ID。
+
+验证：前端389项通过，生产构建与bundle上限检查通过（个人信息组件独立分包）；相关后端 workspace/API/user-preview/local-preview 测试通过，Ruff和Mypy通过。浏览器检查 Owner/部门负责人/最高管理层/管理员四种身份，以及管理员模拟Owner后返回；Enter打开、Tab焦点限制、Esc/关闭和焦点恢复均通过。390×844无横向溢出，个人信息单列显示。
+
+同角色Owner、同页面“我的Initiative”、同视口1440×1000和390×844对照V20；截图保存 `output/playwright/profile-{v20,engineering}-{desktop,mobile}.png`。字段顺序、两列/单列、联系块与黄顶边已对照；工程采用真实权限记录数字ID和example.test本地合成账号，原型U01/邮箱不复制。截图为本地合成数据验收，未部署远端，不证明真实SSO或业务UAT。

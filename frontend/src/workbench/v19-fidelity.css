@@ -339,7 +339,7 @@ body {
   .v19-nav-account {
     min-width: 38px;
   }
-  .v19-nav-account > span:last-of-type {
+  .v19-nav-account .user-profile-label {
     display: none;
   }
   .v19-fidelity-shell main.page {
@@ -392,7 +392,7 @@ body {
   .v19-nav-account {
     max-width: 150px;
   }
-  .v19-nav-account > span:last-of-type {
+  .v19-nav-account .user-profile-label {
     display: block;
   }
 }
