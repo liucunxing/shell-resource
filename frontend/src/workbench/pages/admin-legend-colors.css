@@ -25,3 +25,22 @@
 .legend-color-error {
   color: #c62828;
 }
+.legend-initiative-table {
+  min-width: 920px;
+}
+.legend-initiative-table td:first-child {
+  min-width: 220px;
+  max-width: 320px;
+  white-space: normal;
+}
+.legend-initiative-table td:first-child small {
+  display: block;
+  margin-top: 4px;
+  color: #687e8d;
+  font-size: 11px;
+}
+.legend-initiative-table .legend-organization-column {
+  min-width: 92px;
+  width: 100px;
+  white-space: nowrap;
+}
