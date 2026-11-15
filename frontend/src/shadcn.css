@@ -8,7 +8,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: Arial, "Microsoft YaHei", sans-serif;
+  --font-sans: "Microsoft YaHei", "微软雅黑", sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -90,4 +90,11 @@
     flex-direction: row;
     align-items: center;
   }
+}
+
+/* Business drill-down names remain bold across legacy table and portal styles. */
+[data-slot="button"][data-variant="link"],
+.v20-initiative-chip,
+a[href] {
+  font-weight: 700 !important;
 }
