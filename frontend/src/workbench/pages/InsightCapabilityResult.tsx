@@ -299,12 +299,12 @@ export function InvestmentReview({
                 </TableHead>
                 <TableCell>{row.sector || "未指定"}</TableCell>
                 <TableCell>{row.resource_type}</TableCell>
-                <TableCell>
+                <TableCell sortValue={row.historical_actual}>
                   {formatInvestmentAmount(row.historical_actual)}
                 </TableCell>
-                <TableCell>{formatInvestmentAmount(row.plan)}</TableCell>
-                <TableCell>{formatInvestmentAmount(row.delta)}</TableCell>
-                <TableCell>
+                <TableCell sortValue={row.plan}>{formatInvestmentAmount(row.plan)}</TableCell>
+                <TableCell sortValue={row.delta}>{formatInvestmentAmount(row.delta)}</TableCell>
+                <TableCell sortValue={row.multiple}>
                   {row.multiple == null
                     ? row.historical_actual === 0
                       ? "不适用（实际为 0）"

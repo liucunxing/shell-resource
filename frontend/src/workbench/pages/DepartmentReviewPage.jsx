@@ -263,7 +263,7 @@ export function DepartmentReviewPage() {
               </p>
             }
             <div className="table-scroll v20-review-scroll">
-              <Table containerClassName="overflow-visible">
+              <Table sortingMode="manual" containerClassName="overflow-visible">
                 <TableHeader>
                   <TableRow>
                     {[["name", "Initiative"], ["ownerId", "Owner"], ["status", "Owner 提交状态"], ["confirmed", "部门确认状态"], ["revision", "提交版本"], ["submittedAt", "提交时间"], ["allocated", "分配金额（元）"], ["returnReason", "退回原因"]].map(([key,label]) => (

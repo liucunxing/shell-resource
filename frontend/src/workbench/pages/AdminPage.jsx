@@ -499,7 +499,7 @@ export function AdminPage() {
                       <TableCell>
                         {item.department} / {item.ownerId}
                       </TableCell>
-                      <TableCell className="num">
+                      <TableCell className="num" sortValue={item.budget}>
                         {money(item.budget)}
                       </TableCell>
                       <TableCell>
@@ -1226,7 +1226,7 @@ export function AdminPage() {
                         {row.id} · {row.department}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sortValue={row.after.budget - row.before.budget}>
                       {money(row.before.budget)} →{" "}
                       <b>{money(row.after.budget)}</b>
                     </TableCell>
@@ -1247,7 +1247,7 @@ export function AdminPage() {
                         新项目 · {row.department} · {row.resourceType}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sortValue={row.budget}>
                       — → <b>{money(row.budget)}</b>
                     </TableCell>
                     <TableCell>

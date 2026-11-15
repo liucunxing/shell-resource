@@ -504,7 +504,7 @@ export function ResourceDetailDrawer({
               <TableCell>
                 {item.resourceType} / {item.ownerName || item.ownerId || "—"}
               </TableCell>
-              <TableCell className="num">
+              <TableCell className="num" sortValue={sourceAmount(item)}>
                 {n(sourceAmount(item), 10000)}
               </TableCell>
               <TableCell>
@@ -578,7 +578,7 @@ export function ResourceDetailDrawer({
                 <TableCell>
                   {row.sector} / {row.sd} / {row.rsm}
                 </TableCell>
-                <TableCell className="num">
+                <TableCell className="num" sortValue={row.amount}>
                   {n(row.amount, 10000)}
                   {current.type === "cohort" && (
                     <InitiativeContributionBar
@@ -587,7 +587,7 @@ export function ResourceDetailDrawer({
                     />
                   )}
                 </TableCell>
-                <TableCell className="num">
+                <TableCell className="num" sortValue={row.history[`vol${suffix}`]}>
                   {n(row.history[`vol${suffix}`], 1000)}
                   {current.type === "cohort" && (
                     <small>
@@ -603,7 +603,7 @@ export function ResourceDetailDrawer({
                     </small>
                   )}
                 </TableCell>
-                <TableCell className="num">
+                <TableCell className="num" sortValue={row.history[`c3${suffix}`]}>
                   {n(row.history[`c3${suffix}`], 1000)}
                   {current.type === "cohort" && (
                     <small>
@@ -619,7 +619,7 @@ export function ResourceDetailDrawer({
                     </small>
                   )}
                 </TableCell>
-                <TableCell className="num">
+                <TableCell className="num" sortValue={historyYield(row.history, period)}>
                   {n(historyYield(row.history, period))}
                 </TableCell>
                 <TableCell>{row.notes.join("；") || "—"}</TableCell>
@@ -702,7 +702,7 @@ export function ResourceDetailDrawer({
                 {initiative.otherBudgets.map((row, index) => (
                   <TableRow key={row.id || index}>
                     <TableCell>{reason(row.reasonId, row.note)}</TableCell>
-                    <TableCell className="num">
+                    <TableCell className="num" sortValue={row.amount}>
                       {n(row.amount, 10000)}
                     </TableCell>
                   </TableRow>
@@ -868,13 +868,13 @@ export function ResourceDetailDrawer({
                                   {row.type}
                                 </Button>
                               </TableCell>
-                              <TableCell className="num">
+                              <TableCell className="num" sortValue={row.amount}>
                                 {n(row.amount, 10000)}
                               </TableCell>
-                              <TableCell className="num">
+                              <TableCell className="num" sortValue={now}>
                                 {percent(now)}
                               </TableCell>
-                              <TableCell className="num">
+                              <TableCell className="num" sortValue={past}>
                                 {percent(past)}
                               </TableCell>
                               <TableCell className="num">
@@ -987,13 +987,13 @@ export function ResourceDetailDrawer({
                                     {group.key}
                                   </Button>
                                 </TableCell>
-                                <TableCell className="num">
+                                <TableCell className="num" sortValue={group.allocatedCount}>
                                   {group.allocatedCount} / {group.selectedCount}
                                 </TableCell>
-                                <TableCell className="num">
+                                <TableCell className="num" sortValue={group.amount}>
                                   {n(group.amount, 10000)}
                                 </TableCell>
-                                <TableCell>
+                                <TableCell sortValue={group.amountShare}>
                                   <div className="resource-detail-organization-bars">
                                     {[
                                       ["投资", group.amountShare, "#FBCE07"],

@@ -481,11 +481,11 @@ export function SdAnalysis({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow className="v19-sd-reference">
+                <TableRow data-sort-fixed className="v19-sd-reference">
                   <TableHead colSpan={showOwner ? 3 : 1}>
                     参照：{showOwner ? "本部门" : "本人"}叠加
                   </TableHead>
-                  <TableCell className="num">
+                  <TableCell className="num" sortValue={totals.amount}>
                     {amount(totals.amount, 10000)}
                   </TableCell>
                   {groups.map((group) => (
@@ -526,7 +526,10 @@ export function SdAnalysis({
                       </TableCell>
                     )}
                     {showOwner && <TableCell>{item.resourceType}</TableCell>}
-                    <TableCell className="num">
+                    <TableCell className="num" sortValue={itemGroups.reduce(
+                          (sum, group) => sum + group.amount,
+                          0,
+                        )}>
                       {amount(
                         itemGroups.reduce(
                           (sum, group) => sum + group.amount,
@@ -543,6 +546,7 @@ export function SdAnalysis({
                       return (
                         <TableCell
                           key={key}
+                          sortValue={group?.amountShare}
                           id={`${id}-${encodeURIComponent(target)}`}
                           tabIndex="-1"
                           className={`v19-sd-heat ${highlight === target ? "v19-highlight" : ""}`}
@@ -567,7 +571,7 @@ export function SdAnalysis({
                         </TableCell>
                       );
                     })}
-                    <TableCell className="num" data-level={level(worst?.gap)}>
+                    <TableCell className="num" sortValue={worst?.gap} data-level={level(worst?.gap)}>
                       {worst ? (
                         <>
                           <b>{difference(worst.gap)}</b>

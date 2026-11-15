@@ -971,6 +971,7 @@ function EditorContent({
       investment: historyInvestment(h, historyPeriod),
       yield: historyYield(h, historyPeriod),
       investmentShare: investmentShareFor(row.dealerId, historyPeriod),
+      support: (awardsByDealer.get(String(row.dealerId)) || []).map((award) => award.name).join("、"),
       note: row.note || "",
     }[key];
   };
@@ -1325,7 +1326,7 @@ function EditorContent({
                   )}
                 </div>
                 <div className="table-scroll studio-wide-table">
-                  <Table
+                  <Table pageIndex={scopePage - 1} pageSize={20} onSort={() => setScopePage(1)}
                     containerClassName="overflow-visible"
                     className="v19-scope-review"
                   >
@@ -1379,7 +1380,6 @@ function EditorContent({
                     </TableHeader>
                     <TableBody>
                       {scopeDealers
-                        .slice((scopePage - 1) * 20, scopePage * 20)
                         .map((dealer) => {
                           const h = dealer.history || {},
                             selected = i.rows.find(
@@ -1454,7 +1454,11 @@ function EditorContent({
                               </TableCell>
                               {["2025", "2026Ytd"].map((period) => (
                                 <Fragment key={period}>
-                                  <TableCell className="num">
+                                  <TableCell className="num" sortValue={h[
+                                        period === "2025"
+                                          ? "vol2025"
+                                          : "vol2026Ytd"
+                                      ]}>
                                     {histFmt(
                                       h[
                                         period === "2025"
@@ -1463,7 +1467,11 @@ function EditorContent({
                                       ],
                                     )}
                                   </TableCell>
-                                  <TableCell className="num">
+                                  <TableCell className="num" sortValue={h[
+                                        period === "2025"
+                                          ? "c32025"
+                                          : "c32026Ytd"
+                                      ]}>
                                     {histFmt(
                                       h[
                                         period === "2025"
@@ -1473,14 +1481,14 @@ function EditorContent({
                                     )}
                                   </TableCell>
                                   <TableCell
-                                    className="num"
+                                    className="num" sortValue={historyPhasing(h, period)}
                                     title="Phasing = Delivery Vol ÷ 对应期间经销商目标；目标须大于 0"
                                   >
                                     {historyPhasing(h, period) == null
                                       ? "—"
                                       : `${fmt(historyPhasing(h, period) * 100)}%`}
                                   </TableCell>
-                                  <TableCell className="num">
+                                  <TableCell className="num" sortValue={historyYield(h, period)}>
                                     {historyYield(h, period) == null
                                       ? "—"
                                       : `${fmt(historyYield(h, period))}`}
@@ -1495,10 +1503,10 @@ function EditorContent({
                               </TableCell>
                               {["2025", "2026Ytd"].map((period) => (
                                 <Fragment key={period}>
-                                  <TableCell className="num">
+                                  <TableCell className="num" sortValue={historyInvestment(h, period)}>
                                     {histFmt(historyInvestment(h, period))}
                                   </TableCell>
-                                  <TableCell className="num">
+                                  <TableCell className="num" sortValue={investmentShareFor(dealer.id, period)}>
                                     {investmentShareFor(dealer.id, period) ==
                                     null
                                       ? "—"
@@ -1930,7 +1938,7 @@ function EditorContent({
                 role="region"
                 aria-label="经销商分配明细，可上下和横向滚动"
               >
-                <Table
+                <Table sortingMode="manual"
                   containerClassName="overflow-visible"
                   className="allocation-table v19-allocation-table"
                   data-editable={editable}
@@ -1958,11 +1966,7 @@ function EditorContent({
                       {editable && (
                         <TableHead scope="col" aria-label="选择配平经销商">选择</TableHead>
                       )}
-                      {allocationColumns.map(([key, title]) => key === "support" ? (
-                        <TableHead key={key} data-column={key} scope="col">
-                          {title}
-                        </TableHead>
-                      ) : (
+                      {allocationColumns.map(([key, title]) => (
                         <SortHead
                           key={key}
                           scope="col"
@@ -2667,7 +2671,7 @@ function EditorContent({
                               </Button>
                             </TableCell>
                             <TableCell>{item.resourceType}</TableCell>
-                            <TableCell>{fmt(row.amount)}</TableCell>
+                            <TableCell sortValue={row.amount}>{fmt(row.amount)}</TableCell>
                             <TableCell>
                               {pct(row.amount, E.totals([item]).allocated)}%
                             </TableCell>
@@ -2829,8 +2833,8 @@ function EditorContent({
                       {modal.rows.map((r, n) => (
                         <TableRow key={r.dealerId}>
                           <TableCell>{dealerCode(r.dealerId)}</TableCell>
-                          <TableCell>{fmt(i.rows[n].amount)}</TableCell>
-                          <TableCell>{fmt(r.amount)}</TableCell>
+                          <TableCell sortValue={i.rows[n].amount}>{fmt(i.rows[n].amount)}</TableCell>
+                          <TableCell sortValue={r.amount}>{fmt(r.amount)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -2864,10 +2868,10 @@ function EditorContent({
                           return (
                             <TableRow key={row.dealerId}>
                               <TableCell>{dealerCode(row.dealerId)}</TableCell>
-                              <TableCell className="num">
+                              <TableCell className="num" sortValue={row.amount}>
                                 {fmt(row.amount)}
                               </TableCell>
-                              <TableCell className="num">
+                              <TableCell className="num" sortValue={after.amount}>
                                 {fmt(after.amount)}
                               </TableCell>
                               <TableCell className="num">
@@ -2959,7 +2963,7 @@ function EditorContent({
                               (reason) => reason.id === r.reasonId,
                             )?.label || r.reasonId}
                           </TableCell>
-                          <TableCell>{fmt(r.amount)}</TableCell>
+                          <TableCell sortValue={r.amount}>{fmt(r.amount)}</TableCell>
                           <TableCell>{r.note || "—"}</TableCell>
                         </TableRow>
                       ))}
@@ -3003,7 +3007,7 @@ function EditorContent({
                                     <TableCell>
                                       {dealerCode(r.dealerId)}
                                     </TableCell>
-                                    <TableCell>{fmt(r.amount)}</TableCell>
+                                    <TableCell sortValue={r.amount}>{fmt(r.amount)}</TableCell>
                                   </TableRow>
                                 ))}
                               </TableBody>
