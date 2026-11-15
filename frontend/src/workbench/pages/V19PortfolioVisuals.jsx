@@ -608,6 +608,7 @@ export function CumulativeChart({ rows, top, basis, onSelect }) {
       viewBox="0 0 600 280"
       role="img"
       aria-label="投资金额与历史产出累计占比曲线"
+      onClick={(event) => { if (event.target.closest('[role="button"]')) return; const rect=event.currentTarget.getBoundingClientRect(); const x=((event.clientX-rect.left)/rect.width*600-48)/5.2; onSelect([20,50,80].reduce((best,n)=>Math.abs(n-x)<Math.abs(best-x)?n:best,20)); }}
     >
       {[0, 25, 50, 75, 100].map((y) => (
         <g key={y}>
@@ -673,7 +674,7 @@ export function CumulativeChart({ rows, top, basis, onSelect }) {
               role="button"
               tabIndex="0"
               aria-label={`查看Top ${x}%经销商`}
-              onClick={() => onSelect(x)}
+              onClick={(event) => { event.stopPropagation(); onSelect(x); }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
@@ -1011,7 +1012,8 @@ export function V19Stack({
     [basis, setBasis] = useState("c3"),
     [direction, setDirection] = useState("over"),
     [all, setAll] = useState(false),
-    [selected, setSelected] = useState(null);
+    [selected, setSelected] = useState(null),
+    [sort, setSort] = useState(null);
   const rows = portfolioRows(items, dealers, basis, period),
     deviations = dealerDeviations(rows),
     c3Deviations = dealerDeviations(
@@ -1024,9 +1026,21 @@ export function V19Stack({
     volByKey = new Map(volDeviations.map((row) => [row.key, row])),
     over = deviations.filter((r) => r.gap > (thresholds.dealerYellow ?? 3)),
     label = basis === "c3" ? "C3" : "Delivery Vol";
-  const list = (
-      direction === "over" ? deviations : [...deviations].reverse()
-    ).slice(0, all ? undefined : 10),
+  const ordered = direction === "over" ? deviations : [...deviations].reverse();
+  const sortValue = (row, field) => ({
+    name: row.name, sd: row.sd, initiative: row.initiativeSources.map(s => s.name).sort().join("、"),
+    amount: row.amount, mix: typesForSort(row), investment: row.amountShare,
+    c3: c3ByKey.get(row.key)?.metricShare, c3gap: c3ByKey.get(row.key)?.gap,
+    vol: volByKey.get(row.key)?.metricShare, volgap: volByKey.get(row.key)?.gap,
+    notes: row.notes.join(" "),
+  })[field];
+  function typesForSort(row) { return row.initiativeSources.map(source => items.find(item => String(item.id) === source.id)?.resourceType || "").sort().join("、"); }
+  const sorted = sort ? [...ordered].sort((a,b) => {
+    const x = sortValue(a, sort.field), y = sortValue(b, sort.field);
+    if (x == null || y == null) return x == null ? (y == null ? 0 : 1) : -1;
+    return (typeof x === "number" && typeof y === "number" ? x-y : String(x).localeCompare(String(y), "zh-CN")) * (sort.asc ? 1 : -1) || String(a.key).localeCompare(String(b.key));
+  }) : ordered;
+  const list = sorted.slice(0, all ? undefined : 10),
     max = Math.max(
       3,
       ...[...c3Deviations, ...volDeviations].map((r) => Math.abs(r.gap)),
@@ -1060,44 +1074,24 @@ export function V19Stack({
         <HistoryControls
           {...{ period, setPeriod, basis, setBasis, ytdCutoffMonth }}
         />
-        <div className="v19-stack-summary">
-          <div>
-            <strong>{over.length} 家</strong>
-            <span>超配部分</span>
+        <div className="v20-stack-overview">
+          <div className="v20-stack-conclusion">
+            <h3>叠加分析结论 <MetricHelp>仅比较有当前期间历史产出的经销商；投资占比与产出占比按可比较名单分别计算，缺少历史的经销商不纳入差值判断。</MetricHelp></h3>
+            <p>叠加后 <strong>{over.length} 家</strong>经销商的投资占比比其 {label} 占比高出 {thresholds.dealerYellow ?? 3}pp 以上；合计获得 <b>{pct(over.reduce((sum,r)=>sum+r.amountShare,0))}</b> 的可比较投资，贡献 <b>{pct(over.reduce((sum,r)=>sum+r.metricShare,0))}</b> 的 {label}。</p>
+            <p>另有 {deviations.filter(r => r.gap < -(thresholds.dealerYellow ?? 3)).length} 家投资占比低于贡献 {thresholds.dealerYellow ?? 3}pp 以上。</p>
+            <small>无有效历史：{rows.length - deviations.length} 家，不参与比较。资源构成图按对应名单的投资金额计算。</small>
           </div>
-          <div>
-            <strong>{rows.length} 家</strong>
-            <span>全部名单</span>
+          <div className="v20-stack-distributions" aria-label="投资资源大类构成对比">
+            {[ [over, overTotal, over.length, "超配部分"], [rows, total, rows.length, "全部名单"] ].map(([set, sum, count, title]) => {
+              let cursor = 0;
+              const segments = types.map(type => { const start=cursor; cursor += sum > 0 ? distribution(set,type)/sum*100 : 0; return `${resourceColor(type)} ${start}% ${cursor}%`; });
+              return <div className="v20-stack-donut-wrap" key={title}><div className="v20-stack-donut" style={{background: sum > 0 ? `conic-gradient(${segments.join(",")})` : "#dce5eb"}} role="img" aria-label={`${title} ${count} 家，按投资金额展示资源大类构成`}><div><strong>{count} 家</strong><small>{title}</small></div></div></div>;
+            })}
+            <div className="v20-stack-legend">{types.map(type=><div key={type}><Dot color={resourceColor(type)} /><Button variant="link" onClick={()=>setSelected({type:"resource",resourceType:type,period,basis})}>{type}</Button><span>{pct(overTotal ? distribution(over,type)/overTotal*100 : null)} vs {pct(total ? distribution(rows,type)/total*100 : null)}</span></div>)}<small>超配部分 vs 全部名单</small></div>
           </div>
-          {types.map((type) => (
-            <div key={type}>
-              <b>
-                <Dot color={resourceColor(type)} />
-                <Button
-                  variant="link"
-                  onClick={() =>
-                    setSelected({
-                      type: "resource",
-                      resourceType: type,
-                      period,
-                      basis,
-                    })
-                  }
-                >
-                  {type}
-                </Button>
-              </b>
-              <span>
-                {pct(
-                  overTotal ? (distribution(over, type) / overTotal) * 100 : 0,
-                )}{" "}
-                vs {pct(total ? (distribution(rows, type) / total) * 100 : 0)}
-              </span>
-            </div>
-          ))}
         </div>
         <div className="v19-subpanel-heading">
-          <Tabs value={direction} onValueChange={setDirection}>
+          <Tabs value={direction} onValueChange={(v) => { setDirection(v); setSort(null); }}>
             <TabsList>
               <TabsTrigger value="over">投资占比高于贡献 Top 10</TabsTrigger>
               <TabsTrigger value="under">投资占比低于贡献 Top 10</TabsTrigger>
@@ -1107,22 +1101,10 @@ export function V19Stack({
             {all ? "收起" : `查看全部 ${deviations.length} 家 →`}
           </Button>
         </div>
-        <Table className="v20-stack-table">
-          <TableHeader>
-            <TableRow>
-              <TableHead>经销商</TableHead>
-              <TableHead>SD</TableHead>
-              <TableHead>Initiative</TableHead>
-              <TableHead>投资金额（万元）</TableHead>
-              <TableHead>资源大类构成</TableHead>
-              <TableHead>投资金额占比</TableHead>
-              <TableHead>C3占比</TableHead>
-              <TableHead>投资金额 − C3</TableHead>
-              <TableHead>Delivery Vol占比</TableHead>
-              <TableHead>投资金额 − Delivery Vol</TableHead>
-              <TableHead>Owner 说明</TableHead>
-            </TableRow>
-          </TableHeader>
+        <Table className="v20-stack-table" containerClassName={all ? "v20-stack-scroll v20-stack-scroll-all" : "v20-stack-scroll"}>
+          <TableHeader><TableRow>
+            {[["name","经销商"],["sd","SD"],["initiative","Initiative"],["amount","投资金额（万元）"],["mix","资源大类构成"],["investment","投资金额占比"],["c3","C3占比"],["c3gap","投资金额 − C3"],["vol","Delivery Vol占比"],["volgap","投资金额 − Delivery Vol"],["notes","Owner 说明"]].map(([field,label]) => <TableHead key={field} aria-sort={sort?.field === field ? (sort.asc ? "ascending" : "descending") : "none"}><Button variant="ghost" className="v20-stack-sort" onClick={() => setSort(prev => ({field,asc:prev?.field === field ? !prev.asc : true}))}>{label} <span aria-hidden="true">{sort?.field === field ? (sort.asc ? "↑" : "↓") : "↕"}</span></Button></TableHead>)}
+          </TableRow></TableHeader>
           <TableBody>
             {list.map((row) => (
               <TableRow key={row.key}>
