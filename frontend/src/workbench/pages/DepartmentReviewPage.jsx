@@ -170,30 +170,31 @@ export function DepartmentReviewPage() {
       />
       <PlanningVersionBar
         scope={
-          selectedScope
+          scopes.length <= 1 && selectedScope
             ? `${selectedScope.sector} / ${selectedScope.department}`
             : ""
         }
-      />
+      >
+        {current && scopes.length > 1 && (
+          <Label className="v19-scope-label">
+            确认范围
+            <NativeSelect
+              value={scopeKey}
+              onChange={(event) => setScope(event.target.value)}
+            >
+              {scopes.map(([key, item]) => (
+                <NativeSelectOption key={key} value={key}>
+                  {item.sector} · {item.department}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </Label>
+        )}
+      </PlanningVersionBar>
       {!current ? (
         <div className="empty">请由管理员创建并发布规划版本。</div>
       ) : (
         <>
-          {scopes.length > 1 && (
-            <Label className="v19-scope-label">
-              确认范围
-              <NativeSelect
-                value={scopeKey}
-                onChange={(event) => setScope(event.target.value)}
-              >
-                {scopes.map(([key, item]) => (
-                  <NativeSelectOption key={key} value={key}>
-                    {item.sector} · {item.department}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-            </Label>
-          )}
           {error && !dialog && (
             <Alert variant="destructive" className="note-box warn" role="alert">
               <AlertDescription>
