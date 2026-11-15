@@ -13,9 +13,7 @@ import {
   TableRow,
   TableHead,
   TableBody,
-  TableFooter,
 } from "../../components/ui/table";
-import { Badge } from "../../components/ui/badge";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { useEffect, useId, useState } from "react";
@@ -111,69 +109,6 @@ export function sdPresentationGroups(groups) {
   };
 }
 
-function ShareComparison({ investment, output, basis }) {
-  return (
-    <div className="v19-sd-comparison-bars">
-      <span>
-        <i style={{ width: `${investment || 0}%`, background: "#E0A800" }} />
-        投入 {percentage(investment)}
-      </span>
-      <span>
-        <i style={{ width: `${output || 0}%`, background: "#595959" }} />
-        {basis === "c3" ? "C3" : "Vol"} {percentage(output)}
-      </span>
-    </div>
-  );
-}
-
-function HistoryCells({ group }) {
-  return (
-    <>
-      <TableCell className="num v19-sd-actual">
-        {amount(group.contractVolume, 1000)}
-      </TableCell>
-      <TableCell className="num v19-sd-actual">
-        {amount(group.historicalVol, 1000)}
-      </TableCell>
-      <TableCell className="num v19-sd-actual">
-        {amount(group.historicalC3, 1000)}
-      </TableCell>
-      <TableCell className="num v19-sd-actual">
-        {percentage(group.phasing == null ? null : group.phasing * 100)}
-      </TableCell>
-      <TableCell className="num v19-sd-actual">
-        {percentage(group.volShare)}
-      </TableCell>
-      <TableCell className="num v19-sd-actual">
-        {percentage(group.c3Share)}
-      </TableCell>
-      <TableCell className="num v19-sd-history">
-        {amount(group.historicalInvestment, 1000)}
-      </TableCell>
-      <TableCell className="num v19-sd-history">
-        {group.historicalYield == null || group.historicalYield <= 0
-          ? "—"
-          : `${amount(group.historicalYield)}`}
-      </TableCell>
-      <TableCell className="num v19-sd-history">
-        {percentage(group.historyShare)}
-      </TableCell>
-    </>
-  );
-}
-export function SdComparisonCells({ comparison, sourceVersionId }) {
-  return (
-    <>
-      <TableCell className="num">
-        {amount(comparison?.previousAmount)}
-      </TableCell>
-      <TableCell className="num">{amount(comparison?.delta)}</TableCell>
-      <TableCell className="num">
-        {sourceVersionId ? comparison?.changeLabel || "不可比较" : "无来源版本"}
-      </TableCell>
-    </>
-  );
-}
 export function sdGroupsWithComparison(
   items,
   sourceItems,
@@ -242,6 +177,7 @@ export function SdAnalysis({
   comparisonIdentity = "",
   ytdCutoffMonth = 10,
 }) {
+  const isEditor = variant === "editor";
   const items = showOwner
     ? allItems.filter(
         (item) => item.workflow?.submitted ?? item.allocationVisible !== false,
@@ -293,16 +229,19 @@ export function SdAnalysis({
   ];
   const sectors = new Set(items.map((item) => item.sector));
   const scopeDealers = dealers.filter((dealer) => sectors.has(dealer.sector));
+  const grouped = sdGroupsWithComparison(
+    items,
+    source,
+    comparisonDealers,
+    groupBy,
+    basis,
+    period,
+    dealers,
+  );
   const { groups, totals } = sdPresentationGroups(
-    sdGroupsWithComparison(
-      items,
-      source,
-      comparisonDealers,
-      groupBy,
-      basis,
-      period,
-      dealers,
-    ),
+    isEditor
+      ? grouped.filter((group) => group.selectedCount || group.comparison?.previousAmount > 0)
+      : grouped,
   );
   const facts = initiativeOrganizationFacts(
     items,
@@ -357,15 +296,17 @@ export function SdAnalysis({
       className="panel studio-section v19-sd-analysis gap-4 p-4"
     >
       <header>
-        {variant !== "editor" && <span>④</span>}
+        {!isEditor && <span>④</span>}
         <div>
           <h2>
-            {variant === "editor"
+            {isEditor
               ? `投入结构 · 按 ${groupBy.toUpperCase()} 汇总`
               : `按 SD/RSM 看 · 各 ${groupBy.toUpperCase()} 分得是否均衡`}
           </h2>
           <p>
-            对照历史 Delivery Vol / C3，查看当前组合及各 Initiative 的投入分布。
+            {isEditor
+              ? "对照历史 Delivery Vol / C3，查看本项目名单的投入分布。"
+              : "对照历史 Delivery Vol / C3，查看当前组合及各 Initiative 的投入分布。"}
           </p>
         </div>
       </header>
@@ -419,7 +360,7 @@ export function SdAnalysis({
           </AlertDescription>
         </Alert>
       )}
-      {variant !== "editor" && (
+      {!isEditor && (
         <div
           className="v19-sd-facts"
           data-level={
@@ -504,223 +445,33 @@ export function SdAnalysis({
           </p>
         </div>
       )}
-      {variant !== "editor" && (
+      {!isEditor && (
         <h3>① 各 {groupBy.toUpperCase()} 叠加后 · 投资金额占比 vs 产出占比</h3>
       )}
-      {variant !== "editor" ? (
-        <V20OrganizationSummary
-          groups={groups}
-          totals={totals}
-          groupBy={groupBy}
-          period={period}
-          ytdCutoffMonth={ytdCutoffMonth}
-          basis={basis}
-          threshold={threshold}
-          redThreshold={redThreshold}
-          sourceVersionId={sourceVersionId}
-          highlight={highlight}
-          rowId={(key) => id + "-" + encodeURIComponent("summary-" + key)}
-          onOpen={(key) =>
-            setDetail({
-              type: "organization",
-              groupBy,
-              groupKey: key,
-              period,
-              basis,
-            })
-          }
-        />
-      ) : (
-        <>
-          <div className="table-scroll">
-            <Table
-              containerClassName="overflow-visible"
-              className="v19-four-groups v19-sd-summary"
-            >
-              <TableHeader>
-                <TableRow>
-                  <TableHead rowSpan="2">{groupBy.toUpperCase()}</TableHead>
-                  <TableHead colSpan="9" className="v19-sd-current">
-                    本次投资
-                  </TableHead>
-                  <TableHead colSpan="6" className="v19-sd-actual">
-                    历史 Actual · {period === "2025" ? "2025 全年" : configuredYtdLabel(ytdCutoffMonth)}
-                  </TableHead>
-                  <TableHead colSpan="3" className="v19-sd-history">
-                    历史投资 · {period === "2025" ? "2025 全年" : configuredYtdLabel(ytdCutoffMonth)}
-                  </TableHead>
-                </TableRow>
-                <TableRow>
-                  {[
-                    "分配 / 名单",
-                    "投资金额（万元）",
-                    "客均（万元）",
-                    "投资占比",
-                    `投资 − ${basis === "c3" ? "C3" : "Delivery Vol"}`,
-                    "占比对照",
-                    "判断",
-                    "上版投资（万元）",
-                    "波动率",
-                  ].map((heading) => (
-                    <TableHead key={heading} className="v19-sd-current">
-                      {heading}
-                    </TableHead>
-                  ))}
-                  {[
-                    "合同量（KL）",
-                    "实际 Delivery Vol（KL）",
-                    "C3（K$）",
-                    "Phasing",
-                    "Delivery Vol 占比",
-                    "C3 占比",
-                  ].map((heading) => (
-                    <TableHead key={heading} className="v19-sd-actual">
-                      {heading}
-                    </TableHead>
-                  ))}
-                  {["投资总额（千美元）", "Yield", "历史资源占比"].map(
-                    (heading) => (
-                      <TableHead key={heading} className="v19-sd-history">
-                        {heading}
-                      </TableHead>
-                    ),
-                  )}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {groups.map((group) => (
-                  <TableRow
-                    key={group.key}
-                    id={`${id}-${encodeURIComponent(`summary-${group.key}`)}`}
-                    tabIndex="-1"
-                    className={
-                      highlight === `summary-${group.key}`
-                        ? "v19-highlight"
-                        : ""
-                    }
-                  >
-                    <TableHead>
-                      <Button
-                        variant="link"
-                        onClick={() =>
-                          setDetail({
-                            type: "organization",
-                            groupBy,
-                            groupKey: group.key,
-                            period,
-                            basis,
-                          })
-                        }
-                      >
-                        {group.key}
-                      </Button>
-                    </TableHead>
-                    <TableCell className="num">
-                      {group.allocatedCount} / {group.selectedCount}
-                    </TableCell>
-                    <TableCell className="num">
-                      <b>{amount(group.amount, 10000)}</b>
-                    </TableCell>
-                    <TableCell className="num">
-                      {amount(group.average, 10000)}
-                    </TableCell>
-                    <TableCell className="num">
-                      {percentage(group.amountShare)}
-                    </TableCell>
-                    <TableCell className="num" data-level={level(group.gap)}>
-                      {difference(group.gap)}
-                    </TableCell>
-                    <TableCell>
-                      <ShareComparison
-                        investment={group.amountShare}
-                        output={group.metricShare}
-                        basis={basis}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          level(group.gap) === "bad"
-                            ? "destructive"
-                            : "secondary"
-                        }
-                        data-level={level(group.gap)}
-                      >
-                        {group.gap == null
-                          ? "不可比较"
-                          : Math.abs(group.gap) <= threshold
-                            ? "匹配"
-                            : group.gap > 0
-                              ? "投资偏多"
-                              : "投资偏少"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="num">
-                      {amount(group.comparison?.previousAmount, 10000)}
-                    </TableCell>
-                    <TableCell className="num">
-                      {sourceVersionId
-                        ? group.comparison?.changeLabel || "不可比较"
-                        : "无来源版本"}
-                    </TableCell>
-                    <HistoryCells group={group} />
-                  </TableRow>
-                ))}
-                {!groups.length && (
-                  <TableRow>
-                    <TableCell colSpan="20">
-                      <div className="empty">当前范围尚无经销商名单。</div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-              {!!groups.length && (
-                <TableFooter>
-                  <TableRow>
-                    <TableHead>合计</TableHead>
-                    <TableCell className="num">
-                      {totals.allocatedCount} / {totals.selectedCount}
-                    </TableCell>
-                    <TableCell className="num">
-                      {amount(totals.amount, 10000)}
-                    </TableCell>
-                    <TableCell className="num">
-                      {amount(totals.average, 10000)}
-                    </TableCell>
-                    <TableCell className="num">
-                      {totals.amount ? "100%" : "—"}
-                    </TableCell>
-                    <TableCell colSpan="3" />
-                    <TableCell className="num">
-                      {amount(totals.comparison.previousAmount, 10000)}
-                    </TableCell>
-                    <TableCell className="num">
-                      {sourceVersionId
-                        ? totals.comparison.changeLabel
-                        : "无来源版本"}
-                    </TableCell>
-                    <HistoryCells
-                      group={{
-                        ...totals,
-                        volShare: totals.analyticalVol > 0 ? 100 : null,
-                        c3Share: totals.analyticalC3 > 0 ? 100 : null,
-                        historyShare:
-                          totals.historicalInvestment > 0 ? 100 : null,
-                      }}
-                    />
-                  </TableRow>
-                </TableFooter>
-              )}
-            </Table>
-          </div>
-          <p className="studio-table-note">
-            历史 Actual、历史投资按当前名单去重，不随方案金额调整；Yield =
-            C3（美元）合计 ÷
-            历史投资（美元）合计，历史投资已按配置汇率统一为美元，仅作表现参考。缺失数据保留“—”。
-          </p>
-        </>
-      )}
-      {variant !== "editor" && !!items.length && (
+      <V20OrganizationSummary
+        groups={groups}
+        countScope={isEditor ? "selected" : "all"}
+        totals={totals}
+        groupBy={groupBy}
+        period={period}
+        ytdCutoffMonth={ytdCutoffMonth}
+        basis={basis}
+        threshold={threshold}
+        redThreshold={redThreshold}
+        sourceVersionId={sourceVersionId}
+        highlight={highlight}
+        rowId={(key) => id + "-" + encodeURIComponent("summary-" + key)}
+        onOpen={(key) =>
+          setDetail({
+            type: "organization",
+            groupBy,
+            groupKey: key,
+            period,
+            basis,
+          })
+        }
+      />
+      {!isEditor && !!items.length && (
         <>
           <h3>② 各 Initiative 在 {groupBy.toUpperCase()} 间的分配</h3>
           <div className="table-scroll">

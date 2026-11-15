@@ -744,3 +744,42 @@
   color: #677f8d;
   margin: 10px 0 0;
 }
+
+.v19-editor .allocation-scroll {
+  max-height: min(540px, 65dvh);
+  isolation: isolate;
+}
+.v19-editor .allocation-scroll > [data-slot="table-container"] {
+  overflow: visible;
+}
+.v19-editor .allocation-scroll .v19-allocation-table thead {
+  top: var(--allocation-header-top, 0px);
+}
+.v20-allocation-awards {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.v20-allocation-awards > button {
+  flex: none;
+  height: 27px;
+  border-color: #d5e1e8;
+  background: #edf4f8;
+  color: #003c88;
+}
+@media (max-width: 600px) {
+  .v19-editor .v19-allocation-table [data-column="name"] {
+    width: 135px;
+    min-width: 135px;
+    max-width: 135px;
+  }
+  .v19-editor .v19-allocation-table [data-column="name"] button {
+    max-width: 100%;
+    height: auto;
+    white-space: normal;
+  }
+  .v19-editor .v19-allocation-table [data-column="amount"],
+  .v19-editor .v19-allocation-table [data-v19-column-group="plan"] {
+    position: static;
+  }
+}

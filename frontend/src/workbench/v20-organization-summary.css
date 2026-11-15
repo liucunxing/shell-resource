@@ -1,0 +1,138 @@
+/* V20: four groups, with a fixed historical comparison independent of plans. */
+.v20-org-scroll {
+  max-width: 100%;
+  overflow: auto;
+}
+.v20-org-scroll:focus-visible {
+  outline: 2px solid #c79b00;
+  outline-offset: 2px;
+}
+.v20-organization-summary {
+  min-width: 1120px;
+  width: 100%;
+  font-size: 12px;
+}
+.v20-organization-summary th,
+.v20-organization-summary td {
+  padding: 13px 11px;
+  vertical-align: middle;
+}
+.v20-organization-summary thead tr:first-child th {
+  text-align: center;
+  font-size: 13px;
+}
+.v20-organization-summary [data-slot="table-head"] {
+  background: #f8fafc;
+}
+.v20-organization-summary .v20-actual {
+  background: #edf4f8 !important;
+}
+.v20-organization-summary .v20-previous {
+  border-left: 1px solid #dce4ea;
+}
+.v20-organization-summary small {
+  display: block;
+  font-size: 11px;
+  color: #6b7c8b;
+  margin-top: 3px;
+}
+.v20-organization-summary [data-slot="badge"][data-level="good"] {
+  color: #008443;
+  background: #e5f3ec;
+}
+.v20-organization-summary [data-slot="badge"][data-level="warn"] {
+  color: #b66b00;
+  background: #fff0de;
+}
+.v20-organization-summary [data-slot="badge"][data-level="bad"] {
+  color: #c42e2e;
+  background: #fde8e9;
+}
+.v20-organization-summary b[data-level="warn"] {
+  color: #d48000;
+}
+.v20-organization-summary b[data-level="bad"] {
+  color: #c42e2e;
+}
+.v19-sd-analysis > .studio-inline-controls {
+  background: transparent;
+  padding: 0;
+  gap: 12px;
+}
+.v19-sd-analysis > .studio-inline-controls > span {
+  margin-left: auto;
+}
+.v20-organization-summary [data-slot="button"] {
+  font-size: 12px;
+  padding: 0;
+  height: auto;
+}
+.v20-history-bars {
+  display: grid;
+  gap: 5px;
+  min-width: 180px;
+  max-width: 250px;
+}
+.v20-organization-summary[data-count-scope="selected"] .v20-history-bars {
+  width: 180px;
+}
+.v20-history-line {
+  display: grid;
+  grid-template-columns: 27px 1fr;
+  align-items: center;
+  gap: 7px;
+}
+.v20-history-line > span {
+  font-size: 10px;
+  color: #5a6d7d;
+}
+.v20-history-line > div {
+  position: relative;
+  height: 6px;
+  border-radius: 4px;
+  background: #dfe7ec;
+}
+.v20-history-line i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+.v20-history-line[data-series="vol"] i,
+.v20-legend-dot.vol {
+  background: #80cbda;
+}
+.v20-history-line[data-series="c3"] i,
+.v20-legend-dot.c3 {
+  background: #595959;
+}
+.v20-history-line[data-series="investment"] i,
+.v20-legend-dot.investment {
+  background: #f5be00;
+}
+.v20-share-overflow {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  padding-inline: 2px;
+  border-radius: 2px;
+  background: #fff5c5;
+  color: #694c00;
+  font-size: 9px;
+  line-height: 12px;
+}
+.v20-organization-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 10px 0;
+  color: #66788a;
+  font-size: 11px;
+}
+.v20-legend-dot {
+  display: inline-block;
+  width: 11px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: 5px;
+}

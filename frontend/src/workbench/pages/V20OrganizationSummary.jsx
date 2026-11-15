@@ -16,6 +16,7 @@ import {
   TableHead,
   TableCell,
 } from "../../components/ui/table";
+import "../v20-organization-summary.css";
 
 const value = (n, scale = 1) =>
   n == null
@@ -27,27 +28,37 @@ const value = (n, scale = 1) =>
 const percent = (n) => (n == null ? "—" : `${value(n)}%`);
 const difference = (n) =>
   n == null ? "—" : `${n > 0 ? "+" : n < 0 ? "−" : ""}${value(Math.abs(n))} pp`;
-const moneyChange = (n) =>
-  n == null
-    ? "—"
-    : `${n > 0 ? "+" : n < 0 ? "−" : ""}${value(Math.abs(n), 10000)}`;
+const moneyChange = (n) => {
+  if (n == null) return "—";
+  const amount = Math.abs(n) / 10000;
+  const sign = n > 0 ? "+" : n < 0 ? "−" : "";
+  return `${sign}${amount.toLocaleString("zh-CN", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: amount > 0 && amount < 0.05 ? 4 : 1,
+  })}`;
+};
 
-export function HistoricalShareChart({ vol, c3, scale }) {
+export function HistoricalShareChart({ vol, c3, scale, investment }) {
+  const series = [
+    ["vol", "Vol", vol],
+    ["c3", "C3", c3],
+  ];
+  if (investment !== undefined) series.unshift(["investment", "投资", investment]);
   return (
     <div
       className="v20-history-bars"
       role="img"
-      aria-label={`Delivery Vol ${percent(vol)}；C3 ${percent(c3)}`}
+      aria-label={series
+        .map(([key, label, share]) => `${key === "vol" ? "Delivery Vol" : label} ${percent(share)}`)
+        .join("；")}
     >
-      {[
-        ["vol", "Vol", vol],
-        ["c3", "C3", c3],
-      ].map(([key, label, share]) => (
+      {series.map(([key, label, share]) => (
         <div
           className="v20-history-line"
           key={key}
           data-series={key}
           data-value={share ?? ""}
+          title={`${label} ${percent(share)}`}
         >
           <span>{label}</span>
           <div>
@@ -56,6 +67,9 @@ export function HistoricalShareChart({ vol, c3, scale }) {
                 width: `${share == null ? 0 : Math.max(0, Math.min(100, (share / scale) * 100))}%`,
               }}
             />
+            {share > scale && (
+              <span className="v20-share-overflow">{percent(share)}</span>
+            )}
           </div>
         </div>
       ))}
@@ -66,6 +80,7 @@ export function HistoricalShareChart({ vol, c3, scale }) {
 export function V20OrganizationSummary({
   groups,
   totals,
+  countScope = "all",
   groupBy,
   period,
   ytdCutoffMonth = 10,
@@ -77,6 +92,9 @@ export function V20OrganizationSummary({
   highlight,
   onOpen,
 }) {
+  const isSelectedScope = countScope === "selected";
+  const formatCount = (group) =>
+    `${group.allocatedCount} / ${isSelectedScope ? group.selectedCount : group.totalCount}`;
   const [sorting, setSorting] = useState([]);
   const columns = useMemo(
     () => [
@@ -157,6 +175,12 @@ export function V20OrganizationSummary({
       ) * 10,
     ),
   );
+  const investmentShares = isSelectedScope
+    ? groups.filter((g) => g.selectedCount > 0 && g.amountShare != null).map((g) => g.amountShare)
+    : [];
+  const investmentRange = investmentShares.length
+    ? Math.max(...investmentShares) - Math.min(...investmentShares)
+    : null;
   const level = (gap) =>
     gap == null
       ? "none"
@@ -181,20 +205,21 @@ export function V20OrganizationSummary({
         <Table
           containerClassName="overflow-visible"
           className="v20-organization-summary"
+          data-count-scope={countScope}
         >
           <TableHeader>
             <TableRow>
               {head("key", groupBy.toUpperCase(), "", 2)}
-              <TableHead colSpan={4}>本次投资</TableHead>
-              <TableHead colSpan={3} className="v20-actual">
+              <TableHead colSpan={4} scope="colgroup">本次投资</TableHead>
+              <TableHead colSpan={3} scope="colgroup" className="v20-actual">
                 历史 Actual · {period === "2025" ? "2025 全年" : configuredYtdLabel(ytdCutoffMonth)}
               </TableHead>
-              <TableHead colSpan={3}>投资金额占比</TableHead>
+              <TableHead colSpan={3} scope="colgroup">投资金额占比</TableHead>
               <TableHead className="v20-previous">较上版</TableHead>
             </TableRow>
             <TableRow>
               {[
-                ["count", "分配 / 全部"],
+                ["count", isSelectedScope ? "分配 / 名单" : "分配 / 全部"],
                 ["amount", "投资金额（万元）"],
                 ["average", "家均（万元）"],
                 ["investment-share", "投资金额占比"],
@@ -240,7 +265,7 @@ export function V20OrganizationSummary({
                       {g.key}
                     </Button>
                   </TableHead>
-                  {cell("count", `${g.allocatedCount} / ${g.totalCount}`)}
+                  {cell("count", formatCount(g))}
                   {cell("amount", <b>{value(g.amount, 10000)}</b>)}
                   {cell(
                     "average",
@@ -261,6 +286,7 @@ export function V20OrganizationSummary({
                       vol={g.volShare}
                       c3={g.c3Share}
                       scale={scale}
+                      investment={isSelectedScope ? g.amountShare ?? null : undefined}
                     />
                   </TableCell>
                   {cell(
@@ -308,7 +334,7 @@ export function V20OrganizationSummary({
           <TableFooter>
             <TableRow>
               <TableHead>合计</TableHead>
-              {cell("count", `${totals.allocatedCount} / ${totals.totalCount}`)}
+              {cell("count", formatCount(totals))}
               {cell("amount", value(totals.amount, 10000))}
               {cell("average", value(totals.average, 10000))}
               {cell("investment-share", totals.amount > 0 ? "100.0%" : "—")}
@@ -322,7 +348,11 @@ export function V20OrganizationSummary({
                 totals.analyticalC3 > 0 ? "100.0%" : "—",
                 "v20-actual",
               )}
-              <TableCell className="v20-actual" />
+              <TableCell className="v20-actual">
+                {isSelectedScope && (
+                  <small>投资金额占比极差 {investmentRange == null ? "—" : `${value(investmentRange)} pp`}</small>
+                )}
+              </TableCell>
               <TableCell colSpan={3} />
               {cell(
                 "delta",
@@ -333,7 +363,13 @@ export function V20OrganizationSummary({
           </TableFooter>
         </Table>
       </div>
-      <div className="v19-chart-legend">
+      <div className="v20-organization-legend">
+        {isSelectedScope && (
+          <span>
+            <i className="v20-legend-dot investment" />
+            投资金额占比
+          </span>
+        )}
         <span>
           <i className="v20-legend-dot vol" />
           Delivery Vol 占比
@@ -344,10 +380,13 @@ export function V20OrganizationSummary({
         </span>
       </div>
       <p className="studio-table-note">
-        分配 = 获得投资的经销商家数；全部 = 当前授权 Sector
-        范围内该组织的全部经销商。历史产出按当前名单去重，包含零投资经销商；仅改金额不会改变历史
-        Actual
-        的数据、图形和刻度。调整名单或历史期间才改变历史范围。较上版按同一
+        分配 = 获得投资的经销商家数；
+        {isSelectedScope
+          ? "名单 = 本项目在该组织勾选的经销商。"
+          : "全部 = 当前授权 Sector 范围内该组织的全部经销商。"}
+        历史产出按当前名单去重，包含零投资经销商；仅改金额不会改变历史 Actual 的数据、历史柱和刻度。
+        {isSelectedScope && "黄色柱显示本次投资占比；超过刻度上限时标注实际占比。"}
+        较上版按同一
         Initiative 集合比较，保留移除组织的上版投入；
         {sourceVersionId
           ? `来源版本 ${sourceVersionId}`

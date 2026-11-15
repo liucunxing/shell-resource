@@ -2,6 +2,7 @@ import { SdAnalysis } from "./SdAnalysis.jsx";
 import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
 import {
   allocationColumnGroups,
+  awardedInitiativesByDealer,
   EXPENSE_COLUMN_ORDER,
 } from "../domain/allocation-detail";
 import "../v19-editor.css";
@@ -482,6 +483,41 @@ function EditorContent({
     };
   }, [acknowledgementKey, acknowledgementFingerprint]);
   const allocationScroll = useRef(null);
+  useLayoutEffect(() => {
+    const viewport = allocationScroll.current;
+    const header = viewport?.querySelector("thead");
+    if (!viewport || !header) return;
+    const navigation = viewport.closest(".workspace")?.querySelector(".v19-appnav");
+    const stickHeader = () => {
+      const pageTop = Math.max(0, navigation?.getBoundingClientRect().bottom ?? 0);
+      const tableTop = viewport.getBoundingClientRect().top + viewport.clientTop;
+      const headerHeight = header.getBoundingClientRect().height;
+      const bottomLimit = Math.max(0, viewport.clientHeight - headerHeight);
+      const top = Math.min(Math.max(0, pageTop - tableTop), bottomLimit);
+      viewport.style.setProperty("--allocation-header-top", `${top}px`);
+      viewport.style.scrollPaddingTop = `${top + headerHeight}px`;
+    };
+    let frame = 0;
+    const update = (event) => {
+      if (event?.target === viewport || frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        stickHeader();
+      });
+    };
+    const resize = new ResizeObserver(() => update());
+    resize.observe(viewport);
+    resize.observe(header);
+    if (navigation) resize.observe(navigation);
+    // Keep the header below navigation when the page scrolls past the table's top edge.
+    window.addEventListener("scroll", update, { capture: true, passive: true });
+    stickHeader();
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      resize.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [activeStep]);
   const selectionViewport = useRef(null);
   useLayoutEffect(() => {
     const saved = selectionViewport.current;
@@ -879,6 +915,16 @@ function EditorContent({
   );
   const allocationGroups = allocationColumnGroups(allocationExpenses, true);
   const allocationColumns = allocationGroups.flatMap((group) => group.columns);
+  const awardsByDealer = awardedInitiativesByDealer(i, view.initiatives);
+  const detailItems = detail?.ownerOthers
+    ? otherInitiatives(detail.dealerId).map(({ item }) => item)
+    : detail?.awardedProject
+      ? (awardsByDealer.get(detail.dealerId) || []).filter(
+          (item) => item.id === detail.initiativeId,
+        )
+      : detail?.previewRows
+        ? [{ ...i, rows: detail.previewRows }]
+        : [i];
   const weightedPhasing =
     scopeHistoryTotals.volComplete && contractTotal > 0
       ? scopeHistoryTotals.vol / contractTotal
@@ -929,7 +975,6 @@ function EditorContent({
       investment: historyInvestment(h, historyPeriod),
       yield: historyYield(h, historyPeriod),
       investmentShare: investmentShareFor(row.dealerId, historyPeriod),
-      support: otherInitiatives(row.dealerId).length,
       note: row.note || "",
     }[key];
   };
@@ -1886,7 +1931,7 @@ function EditorContent({
                 className="table-scroll allocation-scroll"
                 tabIndex={0}
                 role="region"
-                aria-label="经销商分配明细，可横向滚动"
+                aria-label="经销商分配明细，可上下和横向滚动"
               >
                 <Table
                   containerClassName="overflow-visible"
@@ -1898,6 +1943,7 @@ function EditorContent({
                       {allocationGroups.map((group) => (
                         <TableHead
                           key={group.key}
+                          scope="colgroup"
                           colSpan={
                             group.columns.length +
                             (editable && ["plan", "support"].includes(group.key)
@@ -1913,17 +1959,22 @@ function EditorContent({
                     </TableRow>
                     <TableRow>
                       {editable && (
-                        <TableHead aria-label="选择配平经销商">选择</TableHead>
+                        <TableHead scope="col" aria-label="选择配平经销商">选择</TableHead>
                       )}
-                      {allocationColumns.map(([key, title]) => (
+                      {allocationColumns.map(([key, title]) => key === "support" ? (
+                        <TableHead key={key} data-column={key} scope="col">
+                          {title}
+                        </TableHead>
+                      ) : (
                         <SortHead
                           key={key}
+                          scope="col"
                           sort={allocationSort}
                           onSort={sortAllocation}
                           sortKey={key}
                           data-column={key}
                           className={
-                            ["name", "sd", "rsm", "support", "note"].includes(
+                            ["name", "sd", "rsm", "note"].includes(
                               key,
                             )
                               ? ""
@@ -1933,7 +1984,7 @@ function EditorContent({
                           {title}
                         </SortHead>
                       ))}
-                      {editable && <TableHead>操作</TableHead>}
+                      {editable && <TableHead scope="col">操作</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1941,7 +1992,8 @@ function EditorContent({
                       const rowIndex = i.rows.findIndex(
                           (row) => row.dealerId === r.dealerId,
                         ),
-                        dealer = dealerMeta(r.dealerId);
+                        dealer = dealerMeta(r.dealerId),
+                        awards = awardsByDealer.get(String(r.dealerId)) || [];
                       return (
                         <TableRow key={r.dealerId}>
                           {editable && (
@@ -2015,28 +2067,32 @@ function EditorContent({
                                   average={weightedYield}
                                 />
                               ) : key === "support" ? (
-                                <Button
-                                  variant="link"
-                                  disabled={
-                                    !otherInitiatives(r.dealerId).length
-                                  }
-                                  onClick={() =>
-                                    setDetail({
-                                      type: "dealer",
-                                      dealerId: String(r.dealerId),
-                                      sector: i.sector,
-                                      period: historyPeriod,
-                                      basis:
-                                        historyMetric === "vol" ? "vol" : "c3",
-                                      ownerOthers: true,
-                                      title:
-                                        "本人其他 Initiative · " +
-                                        dealerName(r.dealerId),
-                                    })
-                                  }
-                                >
-                                  {otherInitiatives(r.dealerId).length} 项
-                                </Button>
+                                awards.length ? (
+                                  <div className="v20-allocation-awards">
+                                    {awards.map((item) => (
+                                      <Button
+                                        key={item.id}
+                                        variant="outline"
+                                        size="sm"
+                                        title={item.name}
+                                        data-awarded-initiative={item.id}
+                                        onClick={() =>
+                                          setDetail({
+                                            type: "initiative",
+                                            initiativeId: item.id,
+                                            awardedProject: true,
+                                            dealerId: String(r.dealerId),
+                                            scopeDealerKeys: [`${i.sector}:${r.dealerId}`],
+                                            period: historyPeriod,
+                                            basis: historyMetric === "vol" ? "vol" : "c3",
+                                          })
+                                        }
+                                      >
+                                        {item.name}
+                                      </Button>
+                                    ))}
+                                  </div>
+                                ) : "—"
                               ) : key === "note" ? (
                                 editable ? (
                                   <Input
@@ -2451,13 +2507,7 @@ function EditorContent({
         {detail && (
           <ResourceDetailDrawer
             detail={detail}
-            items={
-              detail.ownerOthers
-                ? otherInitiatives(detail.dealerId).map((entry) => entry.item)
-                : detail.previewRows
-                  ? [{ ...i, rows: detail.previewRows }]
-                  : [i]
-            }
+            items={detailItems}
             dealers={dealers}
             ytdCutoffMonth={state.ytdCutoffMonth}
             budgetReasons={state.budgetReasons}
