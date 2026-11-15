@@ -80,7 +80,7 @@ Vol/C3同时显示；检索、排序和分页不得改变业务分母。Phasing�
 
 聚合报告：`backend/.cache/v20-period-api-verification.json`、`v20-period-confirmation-applied.json`、`v20-live-pg-verification.json`、`v20-workflow-pg-verification.json`；报告与缓存不进入Git。
 
-浏览器：Owner组织29项、版本差异20项、管理层/部门14项、9月及失效月份9项通过；Editor最终图形与批量门禁22项通过，均无JS异常。Editor另有27项流程/滚动/只读检查通过。各轮有覆盖重叠，不相加冒充独立功能数量。发现并修复了嵌套范围扩张、资源Top漏传范围、资源名回调、批量提交绕过核对及长列表弹窗超出视口问题。
+浏览器：Owner组织29项、版本差异20项、管理层/部门14项、9月及失效月份9项、剩余图形/图例/查看全部19项，组合页合计91项通过；Editor最终图形与批量门禁22项通过，均无JS异常。Editor另有27项流程/滚动/只读检查通过。各轮有覆盖重叠，不相加冒充独立功能数量。发现并修复了嵌套范围扩张、资源Top漏传范围、资源名回调、批量提交绕过核对及长列表弹窗超出视口问题。
 
 浏览器证据分别位于 `output/playwright/v20-engine-organization/` 和 `.cache/v20-editor-browser/`，含同角色原型/工程截图、390px抽屉、滚动选择保持、焦点恢复及查看详情不触发提交的证据。原型新增门禁13项通过，独立HTML不改V19原件。
 
