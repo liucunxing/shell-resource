@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { NativeSelect, NativeSelectOption } from "../../components/ui/native-select";
 import { Checkbox } from "../../components/ui/checkbox";
 import { Label } from "../../components/ui/label";
 import {
@@ -85,6 +86,7 @@ export function V19DealerDetails({
     [search, setSearch] = useState(""),
     [onlyFunded, setOnlyFunded] = useState(false),
     [page, setPage] = useState(1),
+    [pageSize, setPageSize] = useState(20),
     [sort, setSort] = useState({ key: "amount", direction: -1 }),
     [detail, setDetail] = useState(null);
   const wrap = useRef(null),
@@ -123,7 +125,7 @@ export function V19DealerDetails({
               ? av - bv
               : String(av).localeCompare(String(bv), "zh-CN")) * sort.direction;
     });
-  const pages = Math.max(1, Math.ceil(visible.length / 20)),
+  const pages = Math.max(1, Math.ceil(visible.length / pageSize)),
     currentPage = Math.min(page, pages);
   const jump = (key) => {
     const target = wrap.current?.querySelector(`[data-column="${key}"]`);
@@ -257,7 +259,7 @@ export function V19DealerDetails({
           </Label>
         </div>
         <div
-          className="table-scroll"
+          className="table-scroll v20-dealer-detail-scroll"
           ref={wrap}
           tabIndex={0}
           role="region"
@@ -316,7 +318,7 @@ export function V19DealerDetails({
             </TableHeader>
             <TableBody>
               {visible
-                .slice((currentPage - 1) * 20, currentPage * 20)
+                .slice((currentPage - 1) * pageSize, currentPage * pageSize)
                 .map((row) => (
                   <TableRow key={row.key}>
                     {columns.map(([key]) => (
@@ -363,14 +365,19 @@ export function V19DealerDetails({
         </div>
         <div className="v19-list-pagination">
           <span>
-            显示 {visible.length} / {rows.length} 家 · 每页20行
+            筛选 {visible.length} / {rows.length} 家 · 本页 {Math.min(pageSize, Math.max(0, visible.length - (currentPage - 1) * pageSize))} 家
           </span>
           <div>
+            <Label className="v20-page-size">每页
+              <NativeSelect aria-label="每页显示记录数" value={String(pageSize)} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); wrap.current?.scrollTo({ top: 0 }); }}>
+                {[20, 50, 100, 200].map((size) => <NativeSelectOption key={size} value={String(size)}>{size} 条</NativeSelectOption>)}
+              </NativeSelect>
+            </Label>
             <Button
               variant="outline"
               size="sm"
               disabled={currentPage <= 1}
-              onClick={() => setPage(currentPage - 1)}
+              onClick={() => { setPage(currentPage - 1); wrap.current?.scrollTo({ top: 0 }); }}
             >
               上一页
             </Button>
@@ -381,7 +388,7 @@ export function V19DealerDetails({
               variant="outline"
               size="sm"
               disabled={currentPage >= pages}
-              onClick={() => setPage(currentPage + 1)}
+              onClick={() => { setPage(currentPage + 1); wrap.current?.scrollTo({ top: 0 }); }}
             >
               下一页
             </Button>
