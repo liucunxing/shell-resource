@@ -20,6 +20,7 @@ from app.schemas.dto.workbench import (
     AdminBudgetsUpdateDTO,
     AdminConfigDTO,
     AdminUserDTO,
+    AdminUsersImportDTO,
     DistributorAllocationCreateDTO,
     DistributorAllocationUpdateDTO,
     InitiativeDraftUpdateDTO,
@@ -219,6 +220,15 @@ async def get_admin_users(
             offset=offset,
         )
     )
+
+
+@router.post("/admin/users/import", response_model=ApiResponse[dict])
+async def import_admin_users(
+    payload: AdminUsersImportDTO,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
+) -> ApiResponse[dict]:
+    return success(await _admin_service(session, user).import_users(payload))
 
 
 @router.post("/admin/users", response_model=ApiResponse[dict], summary="新增人员权限")

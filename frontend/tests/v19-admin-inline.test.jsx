@@ -12,6 +12,17 @@ const row = {
   reason: "调整预算",
 };
 describe("V19 inline configuration currency and validation", () => {
+  it("identifies the project and missing field so the editor can focus it", () => {
+    try {
+      initiativePayload({ ...row, reason: "" });
+    } catch (error) {
+      expect(error.message).toContain("测试项目");
+      expect(error.message).toContain("变化原因");
+      expect(error.field).toBe("reason");
+      return;
+    }
+    throw new Error("Missing reason was accepted");
+  });
   it("submits integer yuan unchanged rather than converting from wan", () => {
     expect(initiativePayload(row).budget).toBe(123456);
   });
@@ -24,6 +35,8 @@ describe("V19 inline configuration currency and validation", () => {
     { budget: "12.5" },
     { budget: -1 },
     { budget: "invalid" },
+    { budget: "" },
+    { budget: null },
     { reason: " " },
     { ownerId: " " },
     { name: " " },

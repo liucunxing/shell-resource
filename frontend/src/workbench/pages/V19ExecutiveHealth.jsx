@@ -1,3 +1,4 @@
+import { useLegendColors } from "../LegendColors";
 import { MetricHelp } from "./MetricHelp";
 import { useState } from "react";
 import { Card } from "../../components/ui/card";
@@ -16,7 +17,6 @@ import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
 import {
   CumulativeChart,
   HistoryControls,
-  resourceColor,
   orderedResourceTypes,
 } from "./V19PortfolioVisuals.jsx";
 import { concentration, portfolioRows } from "../domain/portfolio-analytics.js";
@@ -114,6 +114,7 @@ export function V19ExecutiveHealth({
   ytdCutoffMonth = 10,
   budgetReasons = [],
 }) {
+  const { resourceColor } = useLegendColors();
   const [period, setPeriod] = useState("2025"),
     [basis, setBasis] = useState("c3"),
     [detail, setDetail] = useState(null);

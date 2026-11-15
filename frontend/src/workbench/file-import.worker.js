@@ -4,19 +4,31 @@ self.onmessage = async ({ data }) => {
       self.postMessage({ preview: JSON.parse(data.text) });
       return;
     }
-    if (!["admin", "allocation", "directory"].includes(data.kind)) {
+    if (
+      ![
+        "admin",
+        "allocation",
+        "directory",
+        "admin-users",
+        "admin-initiatives",
+      ].includes(data.kind)
+    ) {
       throw new Error("不支持此文件操作，请重新选择文件。");
     }
     // Keep workbook logic and ExcelJS out of the UI graph and JSON-only tasks.
-    const { default: excel } =
-      data.kind === "admin"
+    const { default: excel } = data.kind.startsWith("admin-")
+      ? await import("./domain/admin-bulk-excel.js")
+      : data.kind === "admin"
         ? await import("./domain/admin-excel.js")
         : await import("./domain/excel.js");
+    const args = data.kind.startsWith("admin-")
+      ? [data.kind.slice(6), ...data.args]
+      : data.args;
     if (data.operation === "export") {
       const bytes =
         data.kind === "directory"
           ? await excel.exportDealerDirectory(...data.args)
-          : await excel.exportWorkbook(...data.args);
+          : await excel.exportWorkbook(...args);
       const buffer =
         bytes instanceof ArrayBuffer
           ? bytes
@@ -28,7 +40,7 @@ self.onmessage = async ({ data }) => {
       return;
     }
     if (data.kind === "directory") throw new Error("经销商目录仅支持导出。");
-    const preview = await excel.previewImport(data.buffer, ...data.args);
+    const preview = await excel.previewImport(data.buffer, ...args);
     self.postMessage({ preview });
   } catch (error) {
     self.postMessage({

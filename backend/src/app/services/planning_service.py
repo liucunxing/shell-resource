@@ -20,6 +20,7 @@ from app.schemas.dto.planning import (
     PlanningVersionCreateDTO,
     PlanningVersionUpdateDTO,
     VersionInitiativeDTO,
+    VersionInitiativesImportDTO,
 )
 
 
@@ -492,7 +493,8 @@ class PlanningService:
         return await self.department(version_id, payload.sector, payload.department)
 
     async def edit_initiative(
-        self, version_id: str, budget_id: int | None, payload: VersionInitiativeDTO
+        self, version_id: str, budget_id: int | None, payload: VersionInitiativeDTO,
+        *, commit: bool = True,
     ) -> dict:
         self.admin()
         version = await self.version(version_id, lock=True)
@@ -577,5 +579,40 @@ class PlanningService:
             {"versionId": version_id, "enabled": budget.enabled},
             payload.reason,
         )
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
         return {"id": str(budget.id), "version": version_view(version)}
+
+
+    async def import_initiatives(
+        self, version_id: str, payload: VersionInitiativesImportDTO,
+    ) -> dict:
+        self.admin()
+        if self.user.preview_actor_email:
+            raise HTTPException(403, "模拟用户视角仅供查看")
+        try:
+            version = await self.version(version_id, lock=True)
+            self.check_revision(version, payload.expected_revision)
+            original_version = version_view(version)
+            results = []
+            for index, item in enumerate(payload.items, 2):
+                command = VersionInitiativeDTO(**{
+                    **item.model_dump(exclude={"id", "expected_revision"}),
+                    "expected_revision": version.revision,
+                })
+                try:
+                    results.append(await self.edit_initiative(
+                        version_id, item.id, command, commit=False,
+                    ))
+                except HTTPException as exc:
+                    raise HTTPException(exc.status_code, f"第 {index} 行：{exc.detail}") from exc
+            result = {"total": len(results), "items": results,
+                      "version": original_version if payload.preview else version_view(version)}
+            if payload.preview:
+                await self.session.rollback()
+            else:
+                await self.session.commit()
+            return result
+        except Exception:
+            await self.session.rollback()
+            raise

@@ -19,7 +19,8 @@ import { Badge } from "../../components/ui/badge";
 import { Label } from "../../components/ui/label";
 import { Checkbox } from "../../components/ui/checkbox";
 import { Textarea } from "../../components/ui/textarea";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { AdminImportPanel } from "./AdminImportPanel.jsx";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
 import { PageHead } from "./OverviewPages.jsx";
@@ -71,14 +72,27 @@ const ADMIN_META = {
 
 export function initiativePayload(row) {
   const budget = Number(row.budget);
-  if (
-    !row.name?.trim() ||
-    !row.ownerId?.trim() ||
-    !row.reason?.trim() ||
-    !Number.isSafeInteger(budget) ||
-    budget < 0
-  )
-    throw Error("请完整填写名称、Owner、变化原因与非负整数元预算。");
+  const issues = [
+    ["name", !row.name?.trim(), "请填写 Initiative 名称"],
+    ["ownerId", !row.ownerId?.trim(), "请选择 Owner"],
+    [
+      "budget",
+      row.budget === "" ||
+        row.budget == null ||
+        !Number.isSafeInteger(budget) ||
+        budget < 0,
+      "预算须为非负整数元",
+    ],
+    ["reason", !row.reason?.trim(), "请填写变化原因（每个修改项目必填）"],
+  ];
+  const issue = issues.find(([, invalid]) => invalid);
+  if (issue) {
+    const error = new Error(
+      `${row.name?.trim() || row.initiativeKey || row.id || "新增 Initiative"}：${issue[2]}。`,
+    );
+    error.field = issue[0];
+    throw error;
+  }
   return {
     id: row.id,
     name: row.name.trim(),
@@ -103,6 +117,8 @@ function InitiativesPage({
   state,
   previewMode,
 }) {
+  const fieldRefs = useRef(new Map());
+  const [invalidField, setInvalidField] = useState(null);
   const [query, setQuery] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [drafts, setDrafts] = useState({});
@@ -151,16 +167,27 @@ function InitiativesPage({
   const save = async () => {
     let pending;
     try {
-      pending = Object.entries(drafts).map(([key, row]) => ({
-        key,
-        row,
-        payload: initiativePayload(row),
-      }));
+      pending = Object.entries(drafts).map(([key, row]) => {
+        try {
+          return { key, row, payload: initiativePayload(row) };
+        } catch (failure) {
+          setInvalidField(`${key}:${failure.field}`);
+          const input = fieldRefs.current.get(`${key}:${failure.field}`);
+          input?.scrollIntoView({
+            block: "center",
+            inline: "center",
+            behavior: "smooth",
+          });
+          input?.focus({ preventScroll: true });
+          throw failure;
+        }
+      });
     } catch (failure) {
       setError(failure.message);
       return;
     }
     setBusy(true);
+    setInvalidField(null);
     setError("");
     let saved = 0;
     try {
@@ -218,6 +245,7 @@ function InitiativesPage({
           <div className="panel-header">
             <h2>{state.currentVersionId || "当前版本"} · 项目清单与预算</h2>
             <div className="actions">
+              <AdminImportPanel kind="initiatives" />
               <Button
                 disabled={previewMode}
                 onClick={() => {
@@ -244,7 +272,6 @@ function InitiativesPage({
                     "Owner",
                     "预算（万）",
                     "本版状态",
-                    "操作",
                   ].map((label) => (
                     <TableHead key={label}>{label}</TableHead>
                   ))}
@@ -266,7 +293,9 @@ function InitiativesPage({
                       {owners.find((owner) => owner.value === item.ownerId)
                         ?.label || item.ownerId}
                     </TableCell>
-                    <TableCell sortValue={item.budget / 10000}>{num(item.budget / 10000)}</TableCell>
+                    <TableCell sortValue={item.budget / 10000}>
+                      {num(item.budget / 10000)}
+                    </TableCell>
                     <TableCell>
                       <Badge
                         variant="secondary"
@@ -278,16 +307,6 @@ function InitiativesPage({
                       >
                         {item.enabled === false ? "本版取消" : "启用"}
                       </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={previewMode}
-                        onClick={() => setEditMode(true)}
-                      >
-                        编辑
-                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -340,6 +359,9 @@ function InitiativesPage({
             </Button>
           </div>
         </div>
+        <p className="studio-table-note">
+          修改后请为每个项目填写变化原因（必填）；预算单位为元。校验失败时会定位到需要补充的字段。保存配置会撤回该项目的本版提交，版本需重新发布。
+        </p>
         <div className="studio-table-toolbar">
           <Input
             type="search"
@@ -368,7 +390,7 @@ function InitiativesPage({
                   "Owner",
                   "预算（元）",
                   "状态",
-                  "变化原因",
+                  "变化原因（必填）",
                   "承接编码",
                 ].map((label) => (
                   <TableHead key={label}>{label}</TableHead>
@@ -382,6 +404,12 @@ function InitiativesPage({
                     <small>{row.initiativeKey || row.id || "保存后生成"}</small>
                     <Input
                       aria-label={`${row.id || "新增项目"} Initiative 名称`}
+                      ref={(node) => {
+                        const key = `${row._key}:name`;
+                        if (node) fieldRefs.current.set(key, node);
+                        else fieldRefs.current.delete(key);
+                      }}
+                      aria-invalid={invalidField === `${row._key}:name`}
                       value={row.name}
                       disabled={busy || previewMode}
                       onChange={(event) =>
@@ -411,6 +439,12 @@ function InitiativesPage({
                   <TableCell>
                     <NativeSelect
                       aria-label={`${row.name || "新增项目"} Owner`}
+                      ref={(node) => {
+                        const key = `${row._key}:ownerId`;
+                        if (node) fieldRefs.current.set(key, node);
+                        else fieldRefs.current.delete(key);
+                      }}
+                      aria-invalid={invalidField === `${row._key}:ownerId`}
                       value={row.ownerId}
                       disabled={busy || previewMode}
                       onChange={(event) =>
@@ -439,6 +473,12 @@ function InitiativesPage({
                   <TableCell>
                     <Input
                       aria-label={`${row.name || "新增项目"} 预算（元）`}
+                      ref={(node) => {
+                        const key = `${row._key}:budget`;
+                        if (node) fieldRefs.current.set(key, node);
+                        else fieldRefs.current.delete(key);
+                      }}
+                      aria-invalid={invalidField === `${row._key}:budget`}
                       type="number"
                       min="0"
                       step="1"
@@ -465,7 +505,14 @@ function InitiativesPage({
                   <TableCell>
                     <Input
                       aria-label={`${row.name || "新增项目"} 变化原因`}
-                      placeholder="填写变化原因"
+                      ref={(node) => {
+                        const key = `${row._key}:reason`;
+                        if (node) fieldRefs.current.set(key, node);
+                        else fieldRefs.current.delete(key);
+                      }}
+                      aria-invalid={invalidField === `${row._key}:reason`}
+                      placeholder="必填：说明此次修改原因"
+                      required
                       value={row.reason}
                       maxLength={160}
                       disabled={busy || previewMode}

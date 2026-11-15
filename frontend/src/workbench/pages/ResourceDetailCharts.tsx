@@ -1,36 +1,11 @@
+import { useLegendColors, DEFAULT_RESOURCE_COLORS, resolveInitiativeColor } from "../LegendColors";
 import {
   analyticalOutput,
   rankedConcentrationRows,
 } from "../domain/portfolio-analytics.js";
 
-export const RESOURCE_DETAIL_COLORS: Record<string, string> = {
-  "ICE Rebate": "#EB8705",
-  MRD: "#003C88",
-  "SP&A": "#008443",
-  Capex: "#641964",
-};
-const palette = [
-  "#EB8705",
-  "#003C88",
-  "#BED600",
-  "#008443",
-  "#89CFDC",
-  "#7F7F7F",
-  "#DD1D21",
-];
-export function detailInitiativeColor(item: {
-  id?: string;
-  key?: string;
-  initiativeKey?: string;
-  name?: string;
-}) {
-  const key = String(item.initiativeKey || item.key || item.id || item.name);
-  const numeric = Number(key.replace(/\D/g, ""));
-  const hash = numeric
-    ? numeric - 1
-    : [...key].reduce((sum, char) => (sum * 31 + char.charCodeAt(0)) >>> 0, 0);
-  return palette[hash % palette.length];
-}
+export const RESOURCE_DETAIL_COLORS = DEFAULT_RESOURCE_COLORS;
+export const detailInitiativeColor = resolveInitiativeColor;
 
 export function ResourceMixDonut({
   parts,
@@ -43,6 +18,7 @@ export function ResourceMixDonut({
   center: string;
   unit: string;
 }) {
+  const { resourceColor } = useLegendColors();
   const values = parts.filter((part) => part.amount > 0);
   const total = values.reduce((sum, part) => sum + part.amount, 0);
   let offset = 0;
@@ -75,7 +51,7 @@ export function ResourceMixDonut({
               cy="66"
               r="51"
               fill="none"
-              stroke={RESOURCE_DETAIL_COLORS[part.type] || "#89CFDC"}
+              stroke={resourceColor(part.type)}
               strokeWidth="20"
               pathLength="100"
               strokeDasharray={`${length} ${100 - length}`}
@@ -260,6 +236,7 @@ export function InitiativeContributionBar({
   sources: { id: string; key?: string; name: string; amount: number }[];
   maxAmount: number;
 }) {
+  const { initiativeColor: detailInitiativeColor } = useLegendColors();
   return (
     <div
       className="resource-detail-contribution"

@@ -1,0 +1,27 @@
+.legend-color-settings .legend-color-inputs {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.legend-color-inputs input[type="color"] {
+  width: 42px;
+  min-width: 42px;
+  height: 32px;
+  padding: 3px;
+}
+.legend-color-inputs input:not([type="color"]) {
+  width: 170px;
+}
+.legend-color-preview {
+  padding: 4px 8px;
+  border: 1px solid;
+  border-left-width: 3px;
+  border-radius: 4px;
+  color: #263b4b;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.legend-color-error {
+  color: #c62828;
+}

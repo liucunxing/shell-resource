@@ -9,9 +9,16 @@
   overflow-wrap: anywhere;
   color: #595959;
 }
-.v19-user-initiatives span {
-  display: block;
-  margin-bottom: 5px;
+.v19-user-initiative-grid {
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
+  gap: 6px;
+  align-items: start;
+}
+.v19-user-initiative-grid .v20-initiative-chip {
+  white-space: nowrap;
+  width: 100%;
+  justify-content: flex-start;
 }
 .v19-user-permission-source {
   display: block;
@@ -76,4 +83,17 @@
 .v19-department-permissions > .small-text {
   margin: 0;
   padding: 0 18px 18px;
+}
+
+.v19-fidelity-shell .v19-user-table .v19-user-initiative-grid .v20-initiative-chip {
+  min-height: 28px;
+  height: auto;
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: left;
+  color: #263b4b;
+  border: 1px solid color-mix(in srgb, var(--initiative-color) 45%, white);
+  border-left: 3px solid var(--initiative-color);
+  background: color-mix(in srgb, var(--initiative-color) 15%, white);
 }

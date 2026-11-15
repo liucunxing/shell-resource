@@ -1,3 +1,5 @@
+import { AdminLegendColors } from "./AdminLegendColors";
+import { DepartmentLabel, useLegendColors } from "../LegendColors";
 import { Card } from "../../components/ui/card";
 import {
   Table,
@@ -108,6 +110,7 @@ export function StudioConfiguration({ thresholds = false }) {
   const metadata = state.reference || {};
   return (
     <>
+      <AdminLegendColors />
       <OrganizationReferencePanels
         metadata={metadata}
         items={view?.initiatives || []}
@@ -287,6 +290,7 @@ export function StudioConfiguration({ thresholds = false }) {
 }
 
 function OrganizationReferencePanels({ metadata, items, dealers }) {
+  const { resourceColor } = useLegendColors();
   const groups = [
     ["Sector", "sector", ["PCMO", "B2B", "CRTO", "OEM"]],
     ["Department", "department", ["MKT", "ICE", "CAPEX"]],
@@ -317,7 +321,7 @@ function OrganizationReferencePanels({ metadata, items, dealers }) {
                 ]),
               ].map((value) => (
                 <div key={value}>
-                  <span>{value}</span>
+                  <span>{key === "department" ? <DepartmentLabel name={value} /> : key === "resourceType" ? <span className="legend-department-label"><i aria-hidden="true" style={{ background: resourceColor(value) }} />{value}</span> : value}</span>
                   <small>
                     {items.filter((item) => item[key] === value).length} 个项目
                   </small>

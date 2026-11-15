@@ -99,6 +99,35 @@ async def test_only_admin_can_list_or_mutate_users(api):
 
 
 @pytest.mark.asyncio
+async def test_bulk_users_import_preview_auth_and_atomic_failure(api):
+    client, _ = api
+    listed = (await client.get("admin/users", headers=headers())).json()["data"]
+    command = {"expected_revision": listed["revision"], "items": [payload()]}
+    preview = await client.post("admin/users/import", headers=headers(), json=command)
+    assert preview.status_code == 200, preview.text
+    assert preview.json()["data"]["created"] == 1
+    after = (await client.get("admin/users", headers=headers())).json()["data"]
+    assert after["revision"] == listed["revision"] and after["total"] == listed["total"]
+    denied = await client.post("admin/users/import", headers=headers("a@example.com"), json=command)
+    assert denied.status_code == 403
+    simulated = await client.post("admin/users/import", headers={
+        **headers(), "X-Preview-User-Email": "a@example.com",
+    }, json=command)
+    assert simulated.status_code == 403
+    invalid = {**command, "preview": False,
+               "items": [payload(), payload(email="bad@example.com", sector=["B2B"])]}
+    failed = await client.post("admin/users/import", headers=headers(), json=invalid)
+    assert failed.status_code == 422
+    after = (await client.get("admin/users", headers=headers())).json()["data"]
+    assert after["revision"] == listed["revision"]
+    saved = await client.post("admin/users/import", headers=headers(),
+                              json={**command, "preview": False})
+    assert saved.status_code == 200, saved.text
+    stale = await client.post("admin/users/import", headers=headers(), json=command)
+    assert stale.status_code == 409
+
+
+@pytest.mark.asyncio
 async def test_create_search_edit_disable_and_delete_user(api):
     client, _ = api
     created = await client.post("admin/users", headers=headers(), json=payload())
