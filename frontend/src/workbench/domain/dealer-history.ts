@@ -109,6 +109,31 @@ export function historyPhasing(
     : null;
 }
 
+/** Pair the same eligible records before summing; unknown data is not a zero. */
+export function aggregateHistoryPhasing(
+  histories: (DealerHistory | undefined)[],
+  period: HistoryPeriod,
+): { volume: number | null; target: number | null; ratio: number | null } {
+  const unavailable = { volume: null, target: null, ratio: null };
+  if (!histories.length) return unavailable;
+  let volume = 0;
+  let target = 0;
+  for (const history of histories) {
+    const actual = finiteHistoryValue(
+      period === "2025" ? history?.vol2025 : history?.vol2026Ytd,
+    );
+    const contract = finiteHistoryValue(
+      period === "2025" ? history?.contract2025 : history?.contract2026Ytd,
+    );
+    if (actual === null || contract === null) return unavailable;
+    if (contract > 0) {
+      volume += actual;
+      target += contract;
+    }
+  }
+  return { volume, target, ratio: target > 0 ? volume / target : null };
+}
+
 export function historyYoyLabel(
   history: DealerHistory | undefined,
   basis: "vol" | "c3",

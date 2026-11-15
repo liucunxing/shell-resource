@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 
-from sqlalchemy import RowMapping, Text, delete, func, literal, select
-from sqlalchemy.dialects.postgresql import aggregate_order_by
+from sqlalchemy import Numeric, RowMapping, Text, delete, func, literal, select
+from sqlalchemy.dialects.postgresql import JSONB, aggregate_order_by
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 
@@ -20,6 +20,19 @@ class ReferenceRepository:
         *, include_source_fingerprint: bool = False,
     ) -> Sequence[RowMapping]:
         statement = select(distributor_sellin_resource_history)
+        # The data team owns these optional source columns. JSON projection keeps
+        # old source schemas and existing SQLite previews readable without DDL.
+        is_postgres = self.session.get_bind().dialect.name == "postgresql"
+        source_json = func.row_to_json(
+            distributor_sellin_resource_history.table_valued(),
+        ).cast(JSONB)
+        for name in ("target_2025", "target_2026", "phasing_2025", "phasing_2026"):
+            value = (
+                source_json.op("->>")(literal(name)).cast(Numeric)
+                if is_postgres else literal(None)
+            )
+            present = func.jsonb_exists(source_json, name) if is_postgres else literal(False)
+            statement = statement.add_columns(value.label(name), present.label(f"_has_{name}"))
         if include_source_fingerprint:
             # One PostgreSQL statement sees the rows and full-batch fingerprint at
             # the same snapshot, even if the source is refreshed concurrently.

@@ -28,7 +28,7 @@ docs/       本期业务契约和协作说明
 
 Databricks 只能使用应用 Service Principal 对应且获授权的 schema，当前目标为 `prod.resource_planning.dim_distributor`。2026-11-14 限定该 schema 的个人只读核查可见两个经销商基础视图，各 2,678 行、3 个字段；未看到业务指标与月份/汇率字段。应用 SP 认证仍返回 `401 invalid_client`，个人查询不能证明应用身份可读。其他 schema 的候选数据不能直接接入，不能用个人凭据回退。
 
-最新PG核查：1,489个Sector＋经销商，无重复；2025/2026四类费用及Actual均无NULL。用户已确认本批销量、C3、费用均至2026年9月，期间字段后续补，下一次预计2027年1月更新；当前仍缺同期间经销商target。B2B两类费用源0需核实，20个真实账号所属组织待配置。详见[当前缺项与例子](docs/PENDING_DATA_DECISIONS.md)和[本次PG评估](docs/PG_SELLIN_ASSESSMENT.md)，不要再引用旧“2026费用全空”的结论。
+最新PG核查：1,489个Sector＋经销商，无重复；2025/2026四类费用及Actual均无NULL。用户已确认本批销量、C3、费用均至2026年9月，期间字段后续补，下一次预计2027年1月更新；经销商target已接入：单位L，2025全年、2026年1–9月；182/699条正目标可计算Phasing，零值与缺失保持原样。详见[接入及对账](docs/DEALER_TARGET_INTEGRATION.md)。B2B两类费用源0需核实，20个真实账号所属组织待配置。详见[当前缺项与例子](docs/PENDING_DATA_DECISIONS.md)和[本次PG评估](docs/PG_SELLIN_ASSESSMENT.md)，不要再引用旧“2026费用全空”的结论。
 
 历史C3和当前费用源均为USD，费用÷管理员汇率归一为USD，暂保持1；规划金额为CNY。负费用正常参加净额，Yield无x/倍、负值或无效显示“—”。历史费用权限按所属部门大类上限裁剪，用户/部门配置只能收窄，管理员和管理层不自动越权。
 

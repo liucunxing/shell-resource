@@ -1,10 +1,52 @@
 """Display settings are independent of verified source coverage."""
 
 import re
+from datetime import datetime
 from math import isfinite
 from typing import Any
 
 DEFAULT_YTD_CUTOFF_MONTH = 10
+
+
+def verified_dealer_target_coverage(
+    reference: dict[str, Any] | None, source_fingerprint: str | None,
+) -> dict[str, Any] | None:
+    """Target units and periods require a separate, exact-batch confirmation."""
+    value = (reference or {}).get("dealerTargetConfirmation")
+    if not isinstance(value, dict) or not source_fingerprint:
+        return None
+    if (
+        not re.fullmatch(r"[0-9a-f]{32}", source_fingerprint)
+        or value.get("sourceFingerprint") != source_fingerprint
+        or value.get("sourceUnit") not in ("L", "KL")
+    ):
+        return None
+    try:
+        confirmed_at = datetime.fromisoformat(value.get("confirmedAt", ""))
+    except (TypeError, ValueError):
+        return None
+    if confirmed_at.tzinfo is None:
+        return None
+    periods = value.get("periods")
+    if not isinstance(periods, dict) or set(periods) != {"2025", "2026"}:
+        return None
+    normalized = {}
+    for year in ("2025", "2026"):
+        period = periods[year]
+        if not isinstance(period, dict):
+            return None
+        start, end = period.get("startMonth"), period.get("endMonth")
+        if type(start) is not int or start != 1 or type(end) is not int or not 1 <= end <= 12:
+            return None
+        if year == "2025" and end != 12:
+            return None
+        normalized[year] = {"startMonth": start, "endMonth": end}
+    return {
+        "sourceFingerprint": source_fingerprint,
+        "sourceUnit": value["sourceUnit"],
+        "periods": normalized,
+        "confirmedAt": value["confirmedAt"],
+    }
 
 
 def verified_history_coverage(

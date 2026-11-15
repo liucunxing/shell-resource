@@ -31,6 +31,7 @@ describe("global table behavior", () => {
     expect(tableColumnAlignment(<TableHead>版本 / 来源</TableHead>, [<TableCell>202701</TableCell>])).toBe("left");
     expect(tableColumnAlignment(<TableHead>金额</TableHead>, [<TableCell>—</TableCell>, <TableCell sortValue={-1200.12}>-1,200.1</TableCell>])).toBe("center");
     expect(tableColumnAlignment(<TableHead>占比</TableHead>, [<TableCell className="num">—</TableCell>])).toBe("center");
+    expect(tableColumnAlignment(<TableHead>经销商 target（KL）</TableHead>, [<TableCell>—</TableCell>])).toBe("center");
     expect(tableColumnAlignment(<TableHead>获配项目数</TableHead>, [<TableCell>5 个 Initiative</TableCell>])).toBe("center");
     expect(tableColumnAlignment(<TableHead>预留原因</TableHead>, [<TableCell>专项对象待定</TableCell>])).toBe("left");
     expect(tableColumnAlignment(<TableHead>Owner 说明</TableHead>, [<TableCell>需要补充说明</TableCell>])).toBe("left");

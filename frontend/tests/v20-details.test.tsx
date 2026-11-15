@@ -354,6 +354,62 @@ describe("V20 details keep their invocation scope and sector identities", () => 
 });
 
 describe("V20 V17 allocation table contract", () => {
+  it("renders the shared dealer footer using only positive-target pairs", () => {
+    const source = dealers.slice(0, 2).map((dealer, index) => ({
+      ...dealer,
+      history: { ...dealer.history, contract2025: index === 0 ? 0 : 4000 },
+    }));
+    const html = renderToStaticMarkup(
+      <V19DealerDetails items={items.slice(0, 1)} dealers={source} />,
+    );
+    const footer = html.match(/<tfoot[\s\S]*?<\/tfoot>/)?.[0];
+    expect(footer).toMatch(/data-column="contract"[^>]*>4<\/td>/);
+    expect(footer).toMatch(/data-column="vol"[^>]*>4<\/td>/);
+    expect(footer).toMatch(/data-column="phasing"[^>]*>25%<\/td>/);
+  });
+
+  it("keeps YTD target values and percentage Phasing consistent in the shared dealer table and drawer", () => {
+    const source = dealers.slice(0, 2).map((dealer, index) => ({
+      ...dealer,
+      history: {
+        ...dealer.history,
+        vol2026Ytd: index === 0 ? 1000 : 6000,
+        contract2026Ytd: index === 0 ? 2000 : 8000,
+      },
+    }));
+    const rows = dealerDetailRows(items.slice(0, 1), source, "c3", "2026Ytd");
+    expect(rows.map(({ contract, phasing }) => [contract, phasing])).toEqual([
+      [2000, 50], [8000, 75],
+    ]);
+    expect(historicalDetailTotals(rows, "2026Ytd")).toMatchObject({
+      contract: 10000, vol: 7000, phasing: 0.7,
+    });
+    // The source ratio is not a substitute for an absent confirmed target.
+    for (const target of [0, -1000, null, undefined]) {
+      const incomplete = source.map((dealer, index) => index === 0 ? {
+        ...dealer,
+        history: { ...dealer.history, contract2026Ytd: target, phasing_2026: 0.5 },
+      } : dealer);
+      const detailRows = dealerDetailRows(items.slice(0, 1), incomplete, "c3", "2026Ytd");
+      expect(detailRows[0].contract).toBe(target ?? null);
+      expect(detailRows[0].phasing).toBeNull();
+      const totals = historicalDetailTotals(detailRows, "2026Ytd");
+      if (target != null) {
+        // Raw totals keep the source target; only positive-target rows enter Phasing.
+        expect(totals).toMatchObject({ contract: 8000 + target, vol: 7000, phasing: 0.75 });
+      } else {
+        expect(totals.contract).toBeNull();
+        expect(totals.phasing).toBeNull();
+      }
+    }
+    const allZero = source.map((dealer) => ({
+      ...dealer, history: { ...dealer.history, contract2026Ytd: 0 },
+    }));
+    expect(historicalDetailTotals(
+      dealerDetailRows(items.slice(0, 1), allZero, "c3", "2026Ytd"), "2026Ytd",
+    )).toMatchObject({ contract: 0, phasing: null });
+  });
+
   it("lists current and other positive allocations within the visible owner and Sector", () => {
     const current = {
       id: "current",
@@ -401,7 +457,7 @@ describe("V20 V17 allocation table contract", () => {
       "当前规划",
       "组织属性",
       "分布占比 · 差值",
-      "① 合同信息",
+      "① 经销商 target",
       "② Actual信息",
       "③ 历史投资数据",
       "支持与说明",
@@ -425,6 +481,8 @@ describe("V20 V17 allocation table contract", () => {
     expect(html).toContain('data-column="expense:MRD"');
     expect(html).not.toContain('data-column="expense:Capex"');
     expect(html).toContain('data-column="investmentShare"');
+    expect(html).toContain("经销商 target（KL）");
+    expect(html).toContain("target 占比");
     expect(html).not.toMatch(/>\d+(?:\.\d+)?x</);
   });
 });

@@ -91,6 +91,26 @@ describe("V19 SD presentation", () => {
     expect(groups.every((group) => group.historyShare === null)).toBe(true);
   });
 
+  it("keeps organization Phasing restricted to the same positive-target records", () => {
+    for (const target of [0, -1000, null]) {
+      const source = dealers.map((dealer) => dealer.id === "b" ? {
+        ...dealer, history: { ...dealer.history, contract2025: target },
+      } : dealer);
+      const { groups, totals } = summary(source);
+      expect(groups.find((group) => group.key === "西区").phasing).toBeNull();
+      expect(totals.historicalVol).toBe(4000);
+      if (target === null) {
+        expect(totals.contractVolume).toBeNull();
+        expect(totals.phasing).toBeNull();
+      } else {
+        expect(totals.contractVolume).toBe(6000 + target);
+        expect(totals.phasingVolume).toBe(3000);
+        expect(totals.phasingTarget).toBe(6000);
+        expect(totals.phasing).toBe(0.5);
+      }
+    }
+  });
+
   it("renders the V19 columns, Wan units, baseline matrix and only submitted department projects", () => {
     const html = renderToStaticMarkup(
       <SdAnalysis

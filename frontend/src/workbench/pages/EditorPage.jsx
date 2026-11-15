@@ -52,6 +52,7 @@ import {
   historyInvestment,
   historyYield,
   historyPhasing,
+  aggregateHistoryPhasing,
   finiteHistoryValue,
   historyYoyLabel,
   initiativeDealers,
@@ -286,7 +287,7 @@ function HistoryControls({
   return (
     <div className="v19-editor-history">
       <span>历史参考</span>
-      <HistoryPeriodTabs value={period} onValueChange={onPeriodChange} ytdCutoffMonth={ytdCutoffMonth}>合同量列对应经销商目标；YTD 实际对照同期间目标，缺失或非正数时不算 Phasing。</HistoryPeriodTabs>
+      <HistoryPeriodTabs value={period} onValueChange={onPeriodChange} ytdCutoffMonth={ytdCutoffMonth}>经销商 target 以 KL 展示；Phasing = Delivery Vol ÷ 同期间 target，目标缺失、非正数或期间未确认时不计算。</HistoryPeriodTabs>
       {onMetricChange && (
         <Tabs
           value={metric === "vol" ? "vol" : "c3"}
@@ -914,10 +915,9 @@ function EditorContent({
       : detail?.previewRows
         ? [{ ...i, rows: detail.previewRows }]
         : [i];
-  const weightedPhasing =
-    scopeHistoryTotals.volComplete && contractTotal > 0
-      ? scopeHistoryTotals.vol / contractTotal
-      : null;
+  const weightedPhasing = aggregateHistoryPhasing(
+    i.rows.map((row) => dealerMeta(row.dealerId).history), historyPeriod,
+  ).ratio;
   const allocationValue = (row, key) => {
     const dealer = dealerMeta(row.dealerId),
       h = dealer.history || {};
@@ -1879,7 +1879,7 @@ function EditorContent({
                 </Label>
               </div>
               <div className="v19-ratio-legend">
-                <span title="Phasing = 实际 Delivery Vol 合计 ÷ 对应期间经销商目标合计；任一数据缺失时不计算。">
+                <span title="Phasing = 同期间有效正目标记录的 Delivery Vol 合计 ÷ target 合计；仅对有效正目标记录计算，任一目标或销量缺失时不显示。">
                   加权平均 Phasing{" "}
                   <b>
                     {weightedPhasing == null
@@ -1922,7 +1922,7 @@ function EditorContent({
                   size="sm"
                   onClick={() => jumpAllocation("contract")}
                 >
-                  合同 / Actual
+                  target / Actual
                 </Button>
               </div>
               <div
