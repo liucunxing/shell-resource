@@ -14,6 +14,7 @@ import {
   TableFooter,
 } from "../../components/ui/table";
 import { WorkflowDialog } from "./WorkflowDialog.jsx";
+import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
 import E from "../domain/engine.js";
 import {
   concentration,
@@ -28,7 +29,7 @@ const n = (value, digits = 1) =>
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   });
-const wan = (value) => `${n(value / 10000)} 万`,
+const wan = (value) => `${n(value / 10000)} 万元`,
   pct = (value) => (value == null ? "—" : `${n(value)}%`),
   pp = (value) =>
     value == null ? "—" : `${value > 0 ? "+" : ""}${n(value)}pp`;
@@ -118,7 +119,7 @@ const Dot = ({ color }) => (
   <i className="v19-color-dot" style={{ background: color }} />
 );
 
-export function V19BudgetOverview({ items, mode, state }) {
+export function V19BudgetOverview({ items, dealers = [], mode, state }) {
   const included = (item) =>
     mode === "department"
       ? (item.workflow?.submitted ?? Boolean(paid(item) || reserve(item)))
@@ -130,6 +131,7 @@ export function V19BudgetOverview({ items, mode, state }) {
     notStarted = items.filter((item) => !included(item)),
     started = items.filter(included);
   const [detail, setDetail] = useState(null);
+  const [drill, setDrill] = useState(null);
   const categories = orderedResourceTypes(items.map((i) => i.resourceType));
   const categoryTotals = categories.map((type) => {
     const group = items.filter((item) => item.resourceType === type);
@@ -225,7 +227,7 @@ export function V19BudgetOverview({ items, mode, state }) {
               >
                 <div>
                   <strong>{n(total.budget / 10000)}</strong>
-                  <span>万 · 预算总额</span>
+                  <span>万元 · 预算总额</span>
                 </div>
               </div>
               <div className="v19-budget-legend">
@@ -267,7 +269,14 @@ export function V19BudgetOverview({ items, mode, state }) {
                     <div key={type}>
                       <span>
                         <Dot color={resourceColor(type)} />
-                        {type}
+                        <Button
+                          variant="link"
+                          onClick={() =>
+                            setDrill({ type: "resource", resourceType: type })
+                          }
+                        >
+                          {type}
+                        </Button>
                       </span>
                       <strong>{wan(groupTotal.budget)}</strong>
                       <span>
@@ -309,13 +318,25 @@ export function V19BudgetOverview({ items, mode, state }) {
                       <TableRow>
                         <TableHead>Initiative</TableHead>
                         <TableHead>资源大类 · Owner</TableHead>
-                        <TableHead className="num">预算（万）</TableHead>
+                        <TableHead className="num">预算（万元）</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {notStarted.slice(0, 6).map((i) => (
                         <TableRow key={i.id}>
-                          <TableCell>{i.name}</TableCell>
+                          <TableCell>
+                            <Button
+                              variant="link"
+                              onClick={() =>
+                                setDrill({
+                                  type: "initiative",
+                                  initiativeId: i.id,
+                                })
+                              }
+                            >
+                              {i.name}
+                            </Button>
+                          </TableCell>
                           <TableCell>
                             {i.resourceType} · {i.ownerName || i.ownerId}
                           </TableCell>
@@ -356,10 +377,10 @@ export function V19BudgetOverview({ items, mode, state }) {
                 <TableRow>
                   {[
                     "资源大类",
-                    "预算（万）",
-                    "已分配（万）",
-                    "预留（万）",
-                    "未确认（万）",
+                    "预算（万元）",
+                    "已分配（万元）",
+                    "预留（万元）",
+                    "未确认（万元）",
                     "分配进度",
                     "获配经销商",
                     "拆分依据",
@@ -375,7 +396,14 @@ export function V19BudgetOverview({ items, mode, state }) {
                     <TableRow key={type}>
                       <TableCell>
                         <Dot color={resourceColor(type)} />
-                        {type}
+                        <Button
+                          variant="link"
+                          onClick={() =>
+                            setDrill({ type: "resource", resourceType: type })
+                          }
+                        >
+                          {type}
+                        </Button>
                       </TableCell>
                       <TableCell className="num">
                         {n(t.budget / 10000)}
@@ -429,7 +457,17 @@ export function V19BudgetOverview({ items, mode, state }) {
                   <TableRow key={item.id}>
                     <TableCell>
                       <Dot color={initiativeColor(item, index)} />
-                      <strong>{item.name}</strong>
+                      <Button
+                        variant="link"
+                        onClick={() =>
+                          setDrill({
+                            type: "initiative",
+                            initiativeId: item.id,
+                          })
+                        }
+                      >
+                        {item.name}
+                      </Button>
                     </TableCell>
                     <TableCell>
                       {item.resourceType} · {item.ownerName || item.ownerId}
@@ -472,6 +510,7 @@ export function V19BudgetOverview({ items, mode, state }) {
       </div>
       {detail && (
         <WorkflowDialog
+          wide
           title={
             detail === "pending"
               ? "待安排的 Initiative"
@@ -494,7 +533,16 @@ export function V19BudgetOverview({ items, mode, state }) {
             <TableBody>
               {(detail === "pending" ? notStarted : started).map((i) => (
                 <TableRow key={i.id}>
-                  <TableCell>{i.name}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant="link"
+                      onClick={() =>
+                        setDrill({ type: "initiative", initiativeId: i.id })
+                      }
+                    >
+                      {i.name}
+                    </Button>
+                  </TableCell>
                   <TableCell>{i.ownerName || i.ownerId}</TableCell>
                   <TableCell>{wan(i.budget)}</TableCell>
                   <TableCell>{wan(paid(i))}</TableCell>
@@ -504,6 +552,16 @@ export function V19BudgetOverview({ items, mode, state }) {
             </TableBody>
           </Table>
         </WorkflowDialog>
+      )}
+      {drill && (
+        <ResourceDetailDrawer
+          detail={drill}
+          items={items}
+          dealers={dealers}
+          budgetReasons={state.budgetReasons}
+          ytdCutoffMonth={state.ytdCutoffMonth}
+          onClose={() => setDrill(null)}
+        />
       )}
     </Card>
   );
@@ -712,7 +770,15 @@ export function V19Health({
     .sort((a, b) => (b.stats?.gap || 0) - (a.stats?.gap || 0));
   const openTop = (value) => {
     setTop(value);
-    setDetail(concentration(rows, value));
+    const result = concentration(rows, value);
+    if (result)
+      setDetail({
+        type: "cohort",
+        scopeDealerKeys: result.top.map((row) => row.key),
+        title: `Top ${value}% 集中度明细`,
+        period,
+        basis,
+      });
   };
   return (
     <>
@@ -857,7 +923,28 @@ export function V19Health({
                                 : initiativeColor(group, index)
                             }
                           />
-                          <b>{group.name}</b>
+                          <Button
+                            variant="link"
+                            onClick={() =>
+                              setDetail(
+                                mode === "exec"
+                                  ? {
+                                      type: "resource",
+                                      resourceType: group.resourceType,
+                                      period,
+                                      basis,
+                                    }
+                                  : {
+                                      type: "initiative",
+                                      initiativeId: group.id,
+                                      period,
+                                      basis,
+                                    },
+                              )
+                            }
+                          >
+                            {group.name}
+                          </Button>
                           <small>
                             {mode === "owner" ? group.resourceType : ""}
                           </small>
@@ -912,37 +999,17 @@ export function V19Health({
           </div>
         </div>
         {detail && (
-          <WorkflowDialog
-            title={`Top ${top}% 集中度明细`}
+          <ResourceDetailDrawer
+            detail={detail}
+            items={items}
+            dealers={dealers}
+            ytdCutoffMonth={ytdCutoffMonth}
             onClose={() => setDetail(null)}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>经销商</TableHead>
-                  <TableHead>SD</TableHead>
-                  <TableHead>投资金额</TableHead>
-                  <TableHead>{label}</TableHead>
-                  <TableHead>Initiative</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {detail.top.map((row) => (
-                  <TableRow key={row.key}>
-                    <TableCell>{row.name}</TableCell>
-                    <TableCell>{row.sd}</TableCell>
-                    <TableCell>{wan(row.amount)}</TableCell>
-                    <TableCell>{n(row.metric)}</TableCell>
-                    <TableCell>{[...row.initiatives].join("、")}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </WorkflowDialog>
+          />
         )}
       </Card>
       {mode !== "exec" && (
-        <V19Stack items={items} dealers={dealers} thresholds={thresholds} />
+        <V19Stack items={items} dealers={dealers} thresholds={thresholds} ytdCutoffMonth={ytdCutoffMonth} />
       )}
     </>
   );
@@ -1020,7 +1087,19 @@ export function V19Stack({
             <div key={type}>
               <b>
                 <Dot color={resourceColor(type)} />
-                {type}
+                <Button
+                  variant="link"
+                  onClick={() =>
+                    setSelected({
+                      type: "resource",
+                      resourceType: type,
+                      period,
+                      basis,
+                    })
+                  }
+                >
+                  {type}
+                </Button>
               </b>
               <span>
                 {pct(
@@ -1048,7 +1127,7 @@ export function V19Stack({
               <TableHead>经销商</TableHead>
               <TableHead>SD</TableHead>
               <TableHead>Initiative</TableHead>
-              <TableHead>投资金额（万）</TableHead>
+              <TableHead>投资金额（万元）</TableHead>
               <TableHead>资源大类构成</TableHead>
               <TableHead>投资金额占比</TableHead>
               <TableHead>C3占比</TableHead>
@@ -1062,12 +1141,40 @@ export function V19Stack({
             {list.map((row) => (
               <TableRow key={row.key}>
                 <TableCell>
-                  <Button variant="link" onClick={() => setSelected(row)}>
+                  <Button
+                    variant="link"
+                    onClick={() =>
+                      setSelected({
+                        type: "dealer",
+                        dealerKey: row.key,
+                        period,
+                        basis,
+                      })
+                    }
+                  >
                     {row.name}
                   </Button>
                 </TableCell>
                 <TableCell>{row.sd}</TableCell>
-                <TableCell>{[...row.initiatives].join("、")}</TableCell>
+                <TableCell>
+                  {row.initiativeSources.map((source) => (
+                    <Button
+                      key={source.id}
+                      variant="link"
+                      onClick={() =>
+                        setSelected({
+                          type: "initiative",
+                          initiativeId: source.id,
+                          scopeDealerKeys: [row.key],
+                          period,
+                          basis,
+                        })
+                      }
+                    >
+                      {source.name}
+                    </Button>
+                  ))}
+                </TableCell>
                 <TableCell className="num">{n(row.amount / 10000)}</TableCell>
                 <TableCell>
                   <div className="v19-stack-bar">
@@ -1111,42 +1218,51 @@ export function V19Stack({
                     </ReactFragment>
                   );
                 })}
-                <TableCell>{row.notes.length ? "有说明" : "—"}</TableCell>
+                <TableCell>
+                  {row.notes.length ? (
+                    <Button
+                      variant="link"
+                      onClick={() =>
+                        setSelected({
+                          type: "dealer",
+                          dealerKey: row.key,
+                          period,
+                          basis,
+                        })
+                      }
+                    >
+                      查看说明
+                    </Button>
+                  ) : (
+                    "—"
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
       {selected && (
-        <WorkflowDialog
-          title={`${selected.name} · 投资来源`}
+        <ResourceDetailDrawer
+          detail={selected}
+          items={items}
+          dealers={dealers}
+          ytdCutoffMonth={ytdCutoffMonth}
           onClose={() => setSelected(null)}
-        >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Initiative</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead>金额（元）</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {selected.initiativeSources.map((source) => (
-                <TableRow key={source.id}>
-                  <TableCell>{source.name}</TableCell>
-                  <TableCell>{source.owner}</TableCell>
-                  <TableCell>{n(source.amount, 2)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </WorkflowDialog>
+        />
       )}
     </Card>
   );
 }
 
-export function V19Destination({ items, mode }) {
+export function V19Destination({
+  items,
+  dealers = [],
+  mode,
+  ytdCutoffMonth = 10,
+  budgetReasons = [],
+}) {
+  const [detail, setDetail] = useState(null);
   const total = E.totals(items),
     funded = new Set(
       items.flatMap((item) =>
@@ -1167,7 +1283,7 @@ export function V19Destination({ items, mode }) {
             <TableRow>
               <TableHead>Initiative</TableHead>
               <TableHead>资源大类</TableHead>
-              <TableHead className="num">预算（万）</TableHead>
+              <TableHead className="num">预算（万元）</TableHead>
               <TableHead className="num">已分配</TableHead>
               <TableHead className="num">预留</TableHead>
               <TableHead className="num">待分配</TableHead>
@@ -1186,12 +1302,31 @@ export function V19Destination({ items, mode }) {
                   <TableRow key={i.id}>
                     <TableCell>
                       <Dot color={initiativeColor(i, index)} />
-                      <strong>{i.name}</strong>
+                      <Button
+                        variant="link"
+                        onClick={() =>
+                          setDetail({ type: "initiative", initiativeId: i.id })
+                        }
+                      >
+                        {i.name}
+                      </Button>
                       {mode === "owner" && (
                         <small>{i.ownerName || i.ownerId}</small>
                       )}
                     </TableCell>
-                    <TableCell>{i.resourceType}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="link"
+                        onClick={() =>
+                          setDetail({
+                            type: "resource",
+                            resourceType: i.resourceType,
+                          })
+                        }
+                      >
+                        {i.resourceType}
+                      </Button>
+                    </TableCell>
                     <TableCell className="num">{n(i.budget / 10000)}</TableCell>
                     <TableCell className="num">
                       {n(t.allocated / 10000)}
@@ -1208,7 +1343,16 @@ export function V19Destination({ items, mode }) {
                     <TableCell>
                       {(i.rows || []).filter((r) => r.amount > 0).length} 家
                     </TableCell>
-                    <TableCell>{i.allocationBasis || "未提供"}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="link"
+                        onClick={() =>
+                          setDetail({ type: "rationale", initiativeId: i.id })
+                        }
+                      >
+                        {i.allocationBasis || "查看拆分依据"}
+                      </Button>
+                    </TableCell>
                     <TableCell>
                       {i.workflow?.submitted ? "已提交" : "草稿"}
                     </TableCell>
@@ -1252,6 +1396,16 @@ export function V19Destination({ items, mode }) {
           </span>
         </div>
       </div>
+      {detail && (
+        <ResourceDetailDrawer
+          detail={detail}
+          items={items}
+          dealers={dealers}
+          ytdCutoffMonth={ytdCutoffMonth}
+          budgetReasons={budgetReasons}
+          onClose={() => setDetail(null)}
+        />
+      )}
     </Card>
   );
 }

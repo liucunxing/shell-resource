@@ -141,6 +141,8 @@ class WorkspaceService:
         snapshot = history_snapshot(
             planning_year, dealers, ytd_cutoff_month=ytd_cutoff_month,
             investment_exchange_rate=exchange_rate,
+            coverage=reference_service.coverage,
+            coverage_confirmation_status=reference_service.coverage_confirmation_status,
         )
         audit = []
         if self.user.role != "management":
@@ -157,7 +159,8 @@ class WorkspaceService:
             "planningVersions": [version_view(v) for v in await planning.versions(planning_year)],
             "roleResources": config.role_resources if config else {},
             "healthThresholds": config.health_thresholds if config else {},
-            "ytdCutoffMonth": ytd_cutoff_month,
+            "ytdCutoffMonth": snapshot["manifest"]["effectiveYtdCutoffMonth"],
+            "configuredYtdCutoffMonth": ytd_cutoff_month,
             "historyInvestmentExchangeRate": exchange_rate,
             "departmentResources": config.department_resources
             if config
@@ -199,7 +202,8 @@ class WorkspaceService:
         }
 
     async def _reference_metadata(self, planning_year: int) -> dict:
-        dealers = await ReferenceService(self.session).get_dealers(
+        reference_service = ReferenceService(self.session)
+        dealers = await reference_service.get_dealers(
             planning_year,
             self.user.departments if self.user.role in {"owner", "lead"} else None,
             sectors=self.user.dealer_sectors,
@@ -212,6 +216,8 @@ class WorkspaceService:
             investment_exchange_rate=configured_investment_exchange_rate(
                 config.reference if config else None,
             ),
+            coverage=reference_service.coverage,
+            coverage_confirmation_status=reference_service.coverage_confirmation_status,
         )["manifest"])
 
     async def get_draft(self, budget_id: int) -> dict:

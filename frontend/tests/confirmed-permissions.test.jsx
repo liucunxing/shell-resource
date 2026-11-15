@@ -53,7 +53,8 @@ it("the resource settings support shared resource types and explain the historic
   expect(html).toContain('aria-label="历史费用默认权限所属部门"');
   expect(html).toMatch(/<option[^>]*value="ICE"[^>]*>ICE<\/option>/);
   expect(html).toMatch(/<option[^>]*value="PCMO\|MKT"[^>]*>PCMO \/ MKT<\/option>/);
-  expect(html).toContain("按用户覆盖");
+  expect(html).toContain("按用户收窄权限");
+  expect(html).not.toContain("角色默认权限");
   expect(html).toContain("保存部门默认");
   expect(html).toContain("暂不拆部门");
 });
@@ -78,7 +79,7 @@ it.each(["owner", "lead"])("%s historical display and export obey home affiliati
   expect(X.csv(model)).not.toContain("2025 Capex");
   expect(X.csv(model)).not.toContain("2025 ICE Rebate");
   state.departmentResources = {};
-  expect(X.rawData(state, identity, D, "history").columns.some((column) => column.key.startsWith("resource_"))).toBe(false);
+  expect(X.rawData(state, identity, D, "history").columns.filter((column) => column.key.startsWith("resource_")).map((column) => column.key)).toEqual(["resource_MRD", "resource_SP&A"]);
 });
 
 it("expense exports fail closed for missing affiliation and honor overrides without inventing API fields", () => {
@@ -90,7 +91,8 @@ it("expense exports fail closed for missing affiliation and honor overrides with
   expect(columns({ role: "admin" })).toEqual([]);
   expect(columns(home)).toEqual(["resource_SP&A"]);
   expect(columns({ ...home, history_resources: [] })).toEqual([]);
-  expect(columns({ ...home, history_resources: ["Capex"] })).toEqual(["resource_Capex"]);
+  expect(columns({ ...home, history_resources: ["Capex"] })).toEqual([]);
+  expect(columns({ ...home, history_resources: ["SP&A", "MRD"] })).toEqual(["resource_SP&A"]);
   state.scenario = "api";
   const data = { ...D, dealers: [{ id: "PUBLIC", history: { resources2025: {}, totalInvestment2025: 100000 } }] };
   const model = X.rawData(state, { ...home, history_resources: ["Capex"] }, data, "history");

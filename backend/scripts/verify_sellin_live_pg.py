@@ -57,7 +57,7 @@ def number(value: Any) -> float | None:
     return None if value is None else float(value)
 
 
-def expected_projection(row: Any) -> tuple:
+def expected_projection(row: Any, visible: set[str]) -> tuple:
     values: list[Any] = [
         dealer_identity(row),
         str(row["distributor_code"]),
@@ -69,7 +69,8 @@ def expected_projection(row: Any) -> tuple:
     values.extend(number(row[column]) for column in METRICS.values())
     for year in (2025, 2026):
         amounts = [row[f"{prefix}_{year}"] for prefix in RESOURCE_COLUMNS.values()]
-        values.extend(number(v) for v in amounts)
+        values.extend(number(row[f"{prefix}_{year}"])
+                      for resource, prefix in RESOURCE_COLUMNS.items() if resource in visible)
         values.append(number(sum(amounts)) if all(v is not None for v in amounts) else None)
     expenses_2025 = [row[f"{prefix}_2025"] for prefix in RESOURCE_COLUMNS.values()]
     investment = sum(expenses_2025) if all(value is not None for value in expenses_2025) else None
@@ -96,12 +97,13 @@ def expected_projection(row: Any) -> tuple:
     return tuple(values)
 
 
-def actual_projection(row: dict) -> tuple:
+def actual_projection(row: dict, visible: set[str]) -> tuple:
     history = row["history"]
     values = [row["id"], row["code"], row["sector"], row["sd"], row["rsm"], row["status"]]
     values.extend(history[key] for key in METRICS)
     for suffix in ("2025", "2026Ytd"):
-        values.extend(history["resources" + suffix][key] for key in RESOURCE_COLUMNS)
+        values.extend(history["resources" + suffix][key]
+                      for key in RESOURCE_COLUMNS if key in visible)
         values.append(history["totalInvestment" + suffix])
     values.extend((history["yield"], history["yieldUnavailableReason"]))
     for key in ("yoyVol2425", "yoyC32425"):
@@ -182,12 +184,29 @@ async def check_live_api(connection: Any, schema: str, report: dict) -> None:
             "distinct_ids": len({row["id"] for row in dealers}),
             "duplicate_id_rows": len(dealers) - len({row["id"] for row in dealers}),
         }
-        record(
-            checks,
-            "api_all_rows_raw_metrics_and_defined_formulas_match",
-            Counter(actual_projection(row) for row in dealers)
-            == Counter(expected_projection(row) for row in source_rows),
-        )
+        # No single persona can see all expense categories. Verify the complete
+        # source through three synthetic home departments without widening access.
+        for department, visible in (
+            ("MKT", {"MRD"}),
+            ("ICE", {"SP&A", "ICE Rebate"}),
+            ("CAPEX", {"Capex"}),
+        ):
+            await connection.execute(
+                text(f'UPDATE "{schema}".user_permissions '
+                     "SET affiliation_department=:department "
+                     "WHERE email='admin@example.test'"),
+                {"department": department},
+            )
+            scoped_dealers = (await api.workspace("admin"))["data"]["dealers"]
+            record(
+                checks,
+                f"api_{department}_all_source_rows_and_authorized_metrics_match",
+                all(set(row["history"]["resources2025"]) == visible
+                    and set(row["history"]["resources2026Ytd"]) == visible
+                    for row in scoped_dealers)
+                and Counter(actual_projection(row, visible) for row in scoped_dealers)
+                == Counter(expected_projection(row, visible) for row in source_rows),
+            )
         record(
             checks,
             "missing_ytd_month_not_replaced_by_supplied_yield",
@@ -208,8 +227,8 @@ async def check_live_api(connection: Any, schema: str, report: dict) -> None:
         ids = {key: items[source]["id"] for key, source in keys.items()}
         for actor, sector, allowed in (
             ("owner-a", "PCMO", {"MRD"}),
-            ("owner-b", "PCMO", {"Capex"}),
-            ("owner-c", "CRTO", {"SP&A"}),
+            ("owner-b", "PCMO", set()),
+            ("owner-c", "CRTO", {"MRD", "SP&A"}),
             ("unaffiliated", "PCMO", set()),
         ):
             scope = await api.workspace(actor)

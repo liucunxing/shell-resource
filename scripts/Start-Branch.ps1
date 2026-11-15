@@ -34,7 +34,7 @@ if ($mode -eq 'pg-real') {
         throw 'Build the frontend in this worktree before starting the local prototype preview.'
     }
     $selectedSettings = Join-Path $backendRoot 'config/settings.example.toml'
-    $application = 'tests.v19_prototype_fixture:app'
+    $application = 'tests.v20_prototype_fixture:app'
     $port = 8019
 }
 

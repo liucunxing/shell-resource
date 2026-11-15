@@ -11,6 +11,7 @@ import {
   TableCell,
 } from "../../components/ui/table";
 import { WorkflowDialog } from "./WorkflowDialog.jsx";
+import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
 import {
   CumulativeChart,
   HistoryControls,
@@ -114,6 +115,7 @@ export function V19ExecutiveHealth({
   const [period, setPeriod] = useState("2025"),
     [basis, setBasis] = useState("c3"),
     [detail, setDetail] = useState(null);
+  const [drill, setDrill] = useState(null);
   const groups = executiveConcentrationGroups(items, dealers, basis, period);
   const included = groups.flatMap((group) => group.included),
     rows = portfolioRows(included, dealers, basis, period);
@@ -131,17 +133,23 @@ export function V19ExecutiveHealth({
       ),
   );
   const label = basis === "c3" ? "C3" : "Delivery Vol";
-  const openTop = (scope, name, top) =>
-    setDetail({
-      kind: "dealers",
-      name: `${name} · Top ${top}% 集中度明细`,
-      result: concentration(scope, top),
-    });
+  const openTop = (scope, name, top, scopeItems = included) => {
+    const result = concentration(scope, top);
+    if (result)
+      setDrill({
+        type: "cohort",
+        title: name + " · Top " + top + "% 集中度明细",
+        scopeDealerKeys: result.top.map((row) => row.key),
+        period,
+        basis,
+        scopeItems,
+      });
+  };
   const openCategory = (group) =>
     setDetail({
       kind: "category",
       name: `${group.type} · Initiative 集中度`,
-      group,
+      resourceType: group.type,
     });
   return (
     <Card className="v19-board-section v19-executive-health">
@@ -253,7 +261,7 @@ export function V19ExecutiveHealth({
                       {group.type}
                     </Button>
                     <small>
-                      已分配 {number(group.amount / 10000)} 万 ·{" "}
+                      已分配 {number(group.amount / 10000)} 万元 ·{" "}
                       {group.included.length}/{group.all.length} 个 Initiative
                       已确认
                     </small>
@@ -275,13 +283,17 @@ export function V19ExecutiveHealth({
                     <CumulativeChart
                       rows={group.rows}
                       basis={basis}
-                      onSelect={(top) => openTop(group.rows, group.type, top)}
+                      onSelect={(top) =>
+                        openTop(group.rows, group.type, top, group.included)
+                      }
                     />
                     <TopRows
                       rows={group.rows}
                       basis={basis}
                       thresholds={thresholds}
-                      onSelect={(top) => openTop(group.rows, group.type, top)}
+                      onSelect={(top) =>
+                        openTop(group.rows, group.type, top, group.included)
+                      }
                     />
                   </div>
                 ) : (
@@ -318,7 +330,7 @@ export function V19ExecutiveHealth({
         </p>
       </div>
       {detail && (
-        <WorkflowDialog title={detail.name} onClose={() => setDetail(null)}>
+        <WorkflowDialog wide title={detail.name} onClose={() => setDetail(null)}>
           {detail.kind === "category" ? (
             <Table>
               <TableHeader>
@@ -334,9 +346,26 @@ export function V19ExecutiveHealth({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {detail.group.initiatives.map((item) => (
+                {(
+                  groups.find((group) => group.type === detail.resourceType)
+                    ?.initiatives || []
+                ).map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell>{item.name}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="link"
+                        onClick={() =>
+                          setDrill({
+                            type: "initiative",
+                            initiativeId: item.id,
+                            period,
+                            basis,
+                          })
+                        }
+                      >
+                        {item.name}
+                      </Button>
+                    </TableCell>
                     <TableCell>
                       {item.ownerName || item.ownerId || "—"}
                     </TableCell>
@@ -346,7 +375,17 @@ export function V19ExecutiveHealth({
                         <TableCell key={top}>
                           <Button
                             variant="link"
-                            onClick={() => openTop(item.rows, item.name, top)}
+                            onClick={() =>
+                              openTop(
+                                item.rows,
+                                item.name,
+                                top,
+                                included.filter(
+                                  (source) =>
+                                    String(source.id) === String(item.id),
+                                ),
+                              )
+                            }
                           >
                             {percent(result?.amountShare)} /{" "}
                             {percent(result?.metricShare)}
@@ -365,7 +404,7 @@ export function V19ExecutiveHealth({
                 <TableRow>
                   <TableHead>经销商</TableHead>
                   <TableHead>SD</TableHead>
-                  <TableHead>投资金额（万）</TableHead>
+                  <TableHead>投资金额（万元）</TableHead>
                   <TableHead>{label}</TableHead>
                   <TableHead>Initiative</TableHead>
                 </TableRow>
@@ -384,6 +423,15 @@ export function V19ExecutiveHealth({
             </Table>
           )}
         </WorkflowDialog>
+      )}
+      {drill && (
+        <ResourceDetailDrawer
+          detail={drill}
+          items={drill.scopeItems || included}
+          dealers={dealers}
+          ytdCutoffMonth={ytdCutoffMonth}
+          onClose={() => setDrill(null)}
+        />
       )}
     </Card>
   );

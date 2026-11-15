@@ -393,7 +393,8 @@ async def seed_prototype(
             f"{len(prototype['dealers'])} global source dealers; cross-sector history totals "
             "are not the original global-pool totals.",
             "Source contract volume is retained only in the export; the application history "
-            "model has no contract/PPP columns and both remain unavailable in its API.",
+            "model has no dealer target/contract columns; same-period target remains "
+            "unavailable in its API. The source full-year contract is not a YTD target.",
             "Prototype October coverage is retained in this manifest; current history API has no "
             "business-month columns and still reports an unknown cutoff and unavailable YTD Yield.",
             "History model rounds ratios to 2 decimal places; "

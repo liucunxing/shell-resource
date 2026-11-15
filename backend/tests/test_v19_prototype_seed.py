@@ -123,7 +123,8 @@ async def test_historical_units_use_ytd_snapshot_and_keep_missing_api_fields_hon
         for d in await ReferenceService(session).get_dealers(2027, user=admin)
         if d["code"] == "D1001" and d["sector"] == "PCMO"
     )
-    assert sum(dealer["history"]["resources2026Ytd"].values()) == 1503326
+    assert dealer["history"]["totalInvestment2026Ytd"] == 1503326
+    assert set(dealer["history"]["resources2026Ytd"]) == {"MRD", "SP&A"}
     assert dealer["history"]["yield2026Ytd"] is None
     assert "contractVolume" not in dealer["history"]
     assert manifest["sourceHistoryManifest"]["datasets"]["actual"]["latestMonth"] == "2026-10"

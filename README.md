@@ -1,18 +1,14 @@
-# 资源投资工作台 V19 工程迭代
+# 资源投资工作台 V20
 
-本轮基于 `origin/feature_11_11_cx`（`6e70ba5`）与 2026-11-14 最新 V19 原型更新。
-支持独立规划版本、Owner 三步拆分与提交冻结、部门齐交确认/撤回/定向退回、管理层已确认组合、
-来源版本与 SD/RSM 对比，以及人员归属和历史费用权限配置。实现范围、验证证据与边界见
-[V19 工程验收记录](docs/V19_VALIDATION.md)。最新业务、组件标准和数据范围见
-[当前需求](docs/CURRENT_REQUIREMENTS.md)；后续改造须重新验证，历史验收不自动覆盖新变更。
+2026-11-15，用户已确认V20原型并授权同步工程、更新规则、测试后推送。当前以[V20同步说明](docs/V20_IMPLEMENTATION.md)和[当前需求](docs/CURRENT_REQUIREMENTS.md)为准；旧V19验收记录保留为历史证据。
 
-计算规则依据供应商开发说明 V2.0 第 3、11–14 章，27 项公式、来源章节及真实数据缺口见 [指标定义](docs/METRIC_DEFINITIONS.md)。该说明基于 V17；最新 V19 的视觉、提交冻结和部门确认流程覆盖其中旧版描述。
+V20包含SD/RSM切换和四组组织对照、V17经销商分配明细表头、按所属部门限制历史费用、完整详情抽屉，以及第一步“已核对本版预留”后才可继续的流程。PPP误加字段已取消；Phasing使用同期间经销商target。
 
 > 服务器发布、重启、健康检查、日志和证书续期，请先阅读 [服务器运维手册](docs/SERVER_OPERATIONS.md)。
 
 当前工程提供年度预算分配、其他预算、Excel 回传、草稿保存、提交与部门确认、规划版本、角色范围查询、管理员配置和百炼六点 Insight。同一应用站点提供前端静态文件与 API。
 
-前端采用 React 19、TypeScript 5.9 / JSX、Vite 7、shadcn/ui（Radix）、Tailwind 与 TanStack Table。所有应用控件统一使用共享 shadcn 组件，保留 Shell 品牌色和 V19 流程；新组件遵循 [前端规则](frontend/AGENTS.md)。后端采用 Python 3.11、FastAPI、SQLAlchemy Async、Alembic 和 PostgreSQL。
+前端采用 React 19、TypeScript 5.9 / JSX、Vite 7、shadcn/ui（Radix）、Tailwind 与 TanStack Table。所有应用控件统一使用共享 shadcn 组件，保留 V20 原型风格和流程；新组件遵循 [前端规则](frontend/AGENTS.md)。后端采用 Python 3.11、FastAPI、SQLAlchemy Async、Alembic 和 PostgreSQL。
 
 ```text
 frontend/   React + shadcn/ui + Vite，默认连接 API；demo 模式独立
@@ -28,7 +24,9 @@ docs/       本期业务契约和协作说明
 
 Databricks 只能使用应用 Service Principal 对应且获授权的 schema，当前目标为 `prod.resource_planning.dim_distributor`。2026-11-14 限定该 schema 的个人只读核查可见两个经销商基础视图，各 2,678 行、3 个字段；未看到业务指标与月份/汇率字段。应用 SP 认证仍返回 `401 invalid_client`，个人查询不能证明应用身份可读。其他 schema 的候选数据不能直接接入，不能用个人凭据回退。
 
-历史宽表尚缺真实截止月和合同量；Phasing 的 Vol/合同、Yield 的 C3/完整投资、YoY 的年度公式已定义，不能因缺字段而说成公式未定义。V19 已定义 PPP 的 Vol/C3 目标列，但真实目标来源与字段映射仍缺；合同采用原型已明确的全年签署量。分析产出截零与历史金额保留负数的原型证据见[确认清单](docs/PENDING_DATA_DECISIONS.md)。YTD 配置允许 1–12、默认 10，但与 PG Actual/费用的实际覆盖月份分开表达。币种已确认：C3为USD、历史投资归一为USD、规划投资为CNY；Yield历史费用已按配置统一美元、不带x，负值显示“—”；金额比较仍须核对单位和期间，未知值不补零、不猜月份、不把合同量当 PPP。完整边界见 [指标定义](docs/METRIC_DEFINITIONS.md)。
+最新PG核查：1,489个Sector＋经销商，无重复；2025/2026四类费用及Actual均无NULL。用户已确认本批销量、C3、费用均至2026年9月，期间字段后续补，下一次预计2027年1月更新；当前仍缺同期间经销商target。B2B两类费用源0需核实，20个真实账号所属组织待配置。详见[当前缺项与例子](docs/PENDING_DATA_DECISIONS.md)和[本次PG评估](docs/PG_SELLIN_ASSESSMENT.md)，不要再引用旧“2026费用全空”的结论。
+
+历史C3和当前费用源均为USD，费用÷管理员汇率归一为USD，暂保持1；规划金额为CNY。负费用正常参加净额，Yield无x/倍、负值或无效显示“—”。历史费用权限按所属部门大类上限裁剪，用户/部门配置只能收窄，管理员和管理层不自动越权。
 
 ## 开发与运行
 
@@ -43,8 +41,8 @@ Databricks 只能使用应用 Service Principal 对应且获授权的 schema，�
 
 Portal JWT 独立入口的配置、迁移、联调与回滚见 [Portal 接入说明](deploy/portal-jwt.md)。该能力默认关闭，现有帆软 URL 邮箱入口保留；本轮仅接入资源工具。
 
-V19 本地试用：编译前端后，在 `backend` 使用已安装项目依赖的 Python 执行
-`python -m uvicorn tests.v19_prototype_fixture:app --app-dir src --host 127.0.0.1 --port 8019`，
+V20 本地试用：编译前端后，在 `backend` 使用已安装项目依赖的 Python 执行
+`python -m uvicorn tests.v20_prototype_fixture:app --app-dir src --host 127.0.0.1 --port 8019`，
 访问 `http://127.0.0.1:8019/`。
 独立 SQLite 仅保存合成数据；其他角色入口和验证证据见 [V19 工程验收记录](docs/V19_VALIDATION.md)。
 
@@ -76,18 +74,18 @@ shadcn 统一调整需运行 `npm test`、`npm run build`、`npm run check:bundl
 
 同一台服务器的多个平台通过 [共享 HTTPS 网关操作手册](docs/SHARED_GATEWAY.md) 接入；网关独占 80/443，证书保留在服务器 `/opt/digitalshell-gateway/certs/`，不进入 Git 或镜像。
 
-本轮组件统一结果与验证边界见 [shadcn 验收记录](docs/SHADCN_VALIDATION.md)；此前视觉效果已被用户否定，正在按最新 V19 原型还原；功能测试不等于视觉保真通过。
+本轮组件统一结果与验证边界见 [shadcn 验收记录](docs/SHADCN_VALIDATION.md)；该记录为此前V19历史证据；本轮V20结果见[V20同步说明](docs/V20_IMPLEMENTATION.md)。
 
 ## 本地直接验收
 
-使用 `backend/tests/v19_prototype_fixture.py` 启动最新 V19 原型数据预览，无需登录或帆软跳转，直接打开 `http://127.0.0.1:8019/`。顶部切换原型中的 Owner、部门负责人、管理层和管理员，账号使用本地合成身份；刷新保留本次浏览器会话所选角色。
+使用 `backend/tests/v20_prototype_fixture.py` 启动V20 独立原型数据预览，无需登录或帆软跳转，直接打开 `http://127.0.0.1:8019/`。顶部切换原型中的 Owner、部门负责人、管理层和管理员，账号使用本地合成身份；刷新保留本次浏览器会话所选角色。
 
 ```powershell
 cd backend
-.\.venv\Scripts\python.exe -m uvicorn tests.v19_prototype_fixture:app --app-dir src --host 127.0.0.1 --port 8019
+.\.venv\Scripts\python.exe -m uvicorn tests.v20_prototype_fixture:app --app-dir src --host 127.0.0.1 --port 8019
 ```
 
-先在 frontend 执行 `npm run build`。该入口仅由本地 fixture 注入配置、读写 `.cache/v19-prototype` 的 SQLite 数据。数据来自 `backend/tests/fixtures/v19_prototype_demo.json` 的最新原型导出，不使用旧 V1.2 demo JSON。旧简化测试库 `.cache/v19-final` 保留，正式入口与 Portal 会话验证不变。
+先在 frontend 执行 `npm run build`。该入口仅由本地 fixture 注入配置、读写 `.cache/v20-prototype` 的 SQLite 数据。数据来自 `backend/tests/fixtures/v19_prototype_demo.json` 的最新原型导出，不使用旧 V1.2 demo JSON。旧简化测试库 `.cache/v19-final` 保留，正式入口与 Portal 会话验证不变。
 
 用户已明确：本地可以导入原型演示数据；远端 PG 连接真实业务数据。演示数据、模拟月份和账号不能写入远端 PG，也不能作为真实数据验收证据。远端核查结果见 [PG 历史数据评估](docs/PG_SELLIN_ASSESSMENT.md)。
 
@@ -105,3 +103,5 @@ cd backend
 ## 历史投资汇率（2026-11-15最新确认）
 
 管理员组织与枚举页配置 `historyInvestmentExchangeRate`（有限正数、默认1），保存沿用revision与审计。历史源费用除以该参数得到USD，负费用正常参与有符号净额；C3已是USD不重复转换，规划预算/分配保持CNY。此参数统一作用于全部历史年份，不是日期化汇率。Yield在正C3/完整正净投资下计算，无x/倍后缀，无效显示“—”。历史USD与规划CNY未有规划汇率时不计算差额或倍数。应用SP仍为401 invalid_client；用户随后授权跨库只读探源，已找到按月币种对汇率表，详见[探源结果](docs/DATABRICKS_FX_DISCOVERY.md)。详见[汇率与界面说明](docs/UI_FX_FOLLOWUP.md)。
+
+V20本地fixture保留V19合成业务金额/名单，使用V20部门费用默认；旧角色推导的空费用列表不会冒充用户显式拒绝。缓存与旧V19分开，manifest记录适配边界。兼容文件名`v19_prototype_demo.json`不代表界面仍为V19；真实PG不加载该数据。

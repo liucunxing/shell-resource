@@ -92,7 +92,8 @@ export function historyYield(
     : null;
 }
 
-// V17/V19: current-year Actual (including YTD) / full-year signed contract, both in L.
+// Actual / dealer target for the same business period, both in L.
+// Legacy fixture coverage does not establish the real source target period.
 export function historyPhasing(
   history: DealerHistory | undefined,
   period: HistoryPeriod,
@@ -123,7 +124,8 @@ export function historyYoyLabel(
   return `${(((current - prior) / prior) * 100).toLocaleString("zh-CN", { maximumFractionDigits: 2 })}%`;
 }
 
-export function configuredYtdLabel(month: number = 10): string {
+export function configuredYtdLabel(month: number | null = 10): string {
+  if (month === null) return "2026 YTD（截止月待确认）";
   const safeMonth =
     Number.isInteger(month) && month >= 1 && month <= 12 ? month : 10;
   return `2026 YTD（1–${safeMonth}月）`;

@@ -2,22 +2,25 @@ import { useRef, useState } from "react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { Checkbox } from "../../components/ui/checkbox";
+import { Label } from "../../components/ui/label";
 import {
   Table,
   TableHeader,
   TableBody,
+  TableFooter,
   TableRow,
   TableHead,
   TableCell,
 } from "../../components/ui/table";
 import { HistoryControls } from "./V19PortfolioVisuals.jsx";
-import { WorkflowDialog } from "./WorkflowDialog.jsx";
+import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
 import { portfolioRows } from "../domain/portfolio-analytics.js";
+import { historyInvestment, historyYield } from "../domain/dealer-history";
 import {
-  HISTORY_RESOURCES,
-  historyInvestment,
-  historyYield,
-} from "../domain/dealer-history";
+  allocationColumnGroups,
+  EXPENSE_COLUMN_ORDER,
+} from "../domain/allocation-detail";
 
 const number = (value, scale = 1) =>
   value == null
@@ -28,129 +31,83 @@ const gap = (value) =>
   value == null ? "—" : `${value > 0 ? "+" : ""}${number(value)}pp`;
 const ratio = (value, total) =>
   value != null && total > 0 ? (value / total) * 100 : null;
-
+const complete = (values) =>
+  values.length &&
+  values.every((value) => typeof value === "number" && Number.isFinite(value))
+    ? values.reduce((sum, value) => sum + value, 0)
+    : null;
 export function dealerDetailRows(items, dealers, basis, period) {
   const rows = portfolioRows(items, dealers, basis, period),
     suffix = period === "2025" ? "2025" : "2026Ytd";
-  const totalAmount = rows.reduce((sum, row) => sum + row.amount, 0);
-  const completeTotal = (read) =>
-    rows.length && rows.every((row) => read(row) != null)
-      ? rows.reduce((sum, row) => sum + read(row), 0)
-      : null;
-  const metricTotal = completeTotal((row) => row.metric),
-    investmentTotal = completeTotal((row) =>
-      historyInvestment(row.history, period),
+  const amount = rows.reduce((sum, row) => sum + row.amount, 0),
+    vol = complete(rows.map((row) => row.history[`vol${suffix}`])),
+    c3 = complete(rows.map((row) => row.history[`c3${suffix}`]));
+  const investment = complete(
+      rows.map((row) => historyInvestment(row.history, period)),
     ),
-    contractTotal = completeTotal((row) => row.history[`contract${suffix}`]);
+    contract = complete(rows.map((row) => row.history[`contract${suffix}`]));
   return rows.map((row) => {
     const h = row.history,
-      investment = historyInvestment(h, period),
-      contract = h[`contract${suffix}`] ?? null,
-      vol = h[`vol${suffix}`] ?? null;
-    const amountShare = ratio(row.amount, totalAmount),
-      metricShare = ratio(row.metric, metricTotal);
+      amountShare = ratio(row.amount, amount),
+      volShare = ratio(h[`vol${suffix}`], vol),
+      c3Share = ratio(h[`c3${suffix}`], c3);
     return {
       ...row,
-      investment,
+      investment: historyInvestment(h, period),
       yield: historyYield(h, period),
-      investmentShare: ratio(investment, investmentTotal),
-      contract,
-      contractShare: ratio(contract, contractTotal),
-      phasing: ratio(vol, contract),
+      investmentShare: ratio(historyInvestment(h, period), investment),
+      contract: h[`contract${suffix}`] ?? null,
+      contractShare: ratio(h[`contract${suffix}`], contract),
+      vol: h[`vol${suffix}`] ?? null,
+      c3: h[`c3${suffix}`] ?? null,
+      phasing: ratio(h[`vol${suffix}`], h[`contract${suffix}`]),
       amountShare,
-      metricShare,
-      gap:
-        amountShare != null && metricShare != null
-          ? amountShare - metricShare
-          : null,
+      volShare,
+      c3Share,
+      gapVol:
+        amountShare != null && volShare != null ? amountShare - volShare : null,
+      gapC3:
+        amountShare != null && c3Share != null ? amountShare - c3Share : null,
       resources: h[`resources${suffix}`] || {},
     };
   });
 }
-
-export function V19DealerDetails({ items, dealers, ytdCutoffMonth = 10 }) {
+export function V19DealerDetails({
+  items,
+  dealers,
+  ytdCutoffMonth = 10,
+  sourceItems = null,
+  budgetReasons = [],
+}) {
   const [period, setPeriod] = useState("2025"),
     [basis, setBasis] = useState("c3"),
     [search, setSearch] = useState(""),
+    [onlyFunded, setOnlyFunded] = useState(false),
     [page, setPage] = useState(1),
     [sort, setSort] = useState({ key: "amount", direction: -1 }),
     [detail, setDetail] = useState(null);
   const wrap = useRef(null),
-    rows = dealerDetailRows(items, dealers, basis, period),
-    label = basis === "c3" ? "C3" : "Delivery Vol";
-  const expenses = HISTORY_RESOURCES.filter((type) =>
+    rows = dealerDetailRows(items, dealers, basis, period);
+  const expenses = EXPENSE_COLUMN_ORDER.filter((type) =>
     rows.some((row) => Object.hasOwn(row.resources, type)),
   );
-  const groups = [
-    [
-      "本次投资",
-      [
-        ["name", "经销商 / 编码"],
-        ["amount", "累计投资（万）"],
-      ],
-    ],
-    [
-      "历史投资 · " + (period === "2025" ? "2025 全年" : "2026 YTD"),
-      [
-        ["investment", "历史投资总额（千美元）"],
-        ["yield", "Yield"],
-        ["investmentShare", "历史资源占比"],
-      ],
-    ],
-    [
-      "组织属性",
-      [
-        ["sd", "SD"],
-        ["rsm", "RSM"],
-      ],
-    ],
-    [
-      "投入与历史产出",
-      [
-        ["amountShare", "投资占比"],
-        ["metricShare", `${label} 占比`],
-        ["gap", `投资 − ${label}`],
-      ],
-    ],
-    [
-      "合同与 Actual",
-      [
-        ["contract", "合同量（KL）"],
-        ["contractShare", "合同量占比"],
-        [
-          "metric",
-          `${basis === "c3" ? "Actual C3" : label}（${basis === "vol" ? "KL" : "K$"}）`,
-        ],
-        ["phasing", "Phasing"],
-      ],
-    ],
-    [
-      "支持与说明",
-      [
-        ["support", "获配项目数"],
-        ["notes", "调整说明"],
-      ],
-    ],
-    ...(expenses.length
-      ? [
-          [
-            "历史费用明细 · 已授权",
-            expenses.map((type) => [`expense:${type}`, `${type}（千美元）`]),
-          ],
-        ]
-      : []),
-  ];
+  const groups = allocationColumnGroups(expenses),
+    columns = groups.flatMap((group) => group.columns);
   const read = (row, key) =>
     key.startsWith("expense:")
       ? row.resources[key.slice(8)]
       : key === "support"
         ? row.initiativeSources.filter((source) => source.amount > 0).length
-        : key === "notes"
+        : key === "note"
           ? row.notes.join("；")
           : row[key];
   const visible = rows
-    .filter((row) =>
-      `${row.code} ${row.name}`.toLowerCase().includes(search.toLowerCase()),
+    .filter(
+      (row) =>
+        (!onlyFunded || row.amount > 0) &&
+        `${row.code} ${row.name} ${row.sd} ${row.rsm}`
+          .toLowerCase()
+          .includes(search.toLowerCase()),
     )
     .sort((a, b) => {
       const av = read(a, sort.key),
@@ -165,58 +122,93 @@ export function V19DealerDetails({ items, dealers, ytdCutoffMonth = 10 }) {
               ? av - bv
               : String(av).localeCompare(String(bv), "zh-CN")) * sort.direction;
     });
-  const pages = Math.max(1, Math.ceil(visible.length / 50)),
+  const pages = Math.max(1, Math.ceil(visible.length / 20)),
     currentPage = Math.min(page, pages);
-  const jump = (key) =>
-    wrap.current?.querySelector(`[data-column="${key}"]`)?.scrollIntoView({
-      block: "nearest",
-      inline: "center",
-      behavior: "smooth",
-    });
-  const cell = (row, key) => {
-    if (key === "name")
-      return (
-        <>
-          <Button variant="link" onClick={() => setDetail(row)}>
-            {row.name}
-          </Button>
-          <small>{row.code}</small>
-        </>
-      );
-    if (key === "amount") return <b>{number(row.amount, 10000)}</b>;
-    if (
-      [
-        "amountShare",
-        "investmentShare",
-        "metricShare",
-        "contractShare",
-        "phasing",
-      ].includes(key)
-    )
-      return pct(read(row, key));
-    if (key === "gap") return gap(row.gap);
-    if (key === "yield")
-      return row.yield == null || row.yield <= 0 ? "—" : number(row.yield);
-    if (
-      ["investment", "contract", "metric"].includes(key) ||
-      key.startsWith("expense:")
-    )
-      return number(read(row, key), 1000);
-    if (key === "support")
-      return (
-        <Button variant="link" onClick={() => setDetail(row)}>
-          {read(row, key)} 个 Initiative
-        </Button>
-      );
-    return read(row, key) || "—";
+  const jump = (key) => {
+    const target = wrap.current?.querySelector(`[data-column="${key}"]`);
+    if (target)
+      wrap.current.scrollTo({
+        left: Math.max(0, target.offsetLeft - 355),
+        behavior: "smooth",
+      });
   };
+  const open = (row) =>
+    setDetail({ type: "dealer", dealerKey: row.key, period, basis });
+  const format = (value, key) =>
+    [
+      "amountShare",
+      "investmentShare",
+      "volShare",
+      "c3Share",
+      "contractShare",
+      "phasing",
+    ].includes(key)
+      ? pct(value)
+      : key === "gapVol" || key === "gapC3"
+        ? gap(value)
+        : key === "yield"
+          ? value == null || value <= 0
+            ? "—"
+            : number(value)
+          : key === "amount"
+            ? number(value, 10000)
+            : ["investment", "contract", "vol", "c3"].includes(key) ||
+                key.startsWith("expense:")
+              ? number(value, 1000)
+              : value || "—";
+  const cell = (row, key) =>
+    key === "name" ? (
+      <>
+        <Button variant="link" onClick={() => open(row)}>
+          {row.name}
+        </Button>
+        <small>
+          {row.code} · {row.sector}
+        </small>
+      </>
+    ) : key === "support" ? (
+      <Button variant="link" onClick={() => open(row)}>
+        {read(row, key)} 个 Initiative
+      </Button>
+    ) : (
+      format(read(row, key), key)
+    );
+  const totalAmount = rows.reduce((sum, row) => sum + row.amount, 0),
+    totalVol = complete(rows.map((row) => row.vol)),
+    totalC3 = complete(rows.map((row) => row.c3)),
+    totalContract = complete(rows.map((row) => row.contract)),
+    totalInvestment = complete(rows.map((row) => row.investment));
+  const aligned =
+    period === "2025" ||
+    rows.every((row) => !row.history.ytdYieldUnavailableReason);
+  const totalFor = (key) =>
+    ({
+      amount: totalAmount,
+      vol: totalVol,
+      c3: totalC3,
+      contract: totalContract,
+      investment: totalInvestment,
+      amountShare: totalAmount > 0 ? 100 : null,
+      volShare: totalVol > 0 ? 100 : null,
+      c3Share: totalC3 > 0 ? 100 : null,
+      contractShare: totalContract > 0 ? 100 : null,
+      investmentShare: totalInvestment > 0 ? 100 : null,
+      phasing: ratio(totalVol, totalContract),
+      yield:
+        aligned && totalC3 > 0 && totalInvestment > 0
+          ? totalC3 / totalInvestment
+          : null,
+    })[key] ??
+    (key.startsWith("expense:")
+      ? complete(rows.map((row) => read(row, key)))
+      : null);
   return (
     <Card className="v19-board-section v19-dealer-details">
       <div className="v19-section-heading">
         <div>
           <h2>经销商明细 · 资源叠加与历史对照</h2>
           <p>
-            按当前名单去重汇总；点击经销商查看各 Initiative 的投资来源与说明。
+            按当前名单去重汇总；点击经销商查看资源构成、投资来源与历史明细。
           </p>
         </div>
       </div>
@@ -227,139 +219,151 @@ export function V19DealerDetails({ items, dealers, ytdCutoffMonth = 10 }) {
         <div className="studio-table-toolbar">
           <div className="v19-dealer-jumps">
             <span>快速定位列组</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => jump("investment")}
-            >
-              历史投资 / Yield
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => jump("amountShare")}
-            >
-              占比与差值
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => jump("contract")}
-            >
-              合同 / Actual
-            </Button>
-            {expenses.length > 0 && (
+            {[
+              ["amountShare", "占比与差值"],
+              ["contract", "① 合同"],
+              ["vol", "② Actual / Phasing"],
+              ["investment", "③ 投资 / Yield"],
+            ].map(([key, title]) => (
               <Button
+                key={key}
                 variant="outline"
                 size="sm"
-                onClick={() => jump(`expense:${expenses[0]}`)}
+                onClick={() => jump(key)}
               >
-                历史费用明细
+                {title}
               </Button>
-            )}
+            ))}
           </div>
           <Input
             aria-label="搜索经销商或编码"
-            type="search"
-            placeholder="搜索经销商 / 编码"
+            placeholder="搜索经销商 / 编码 / SD / RSM"
             value={search}
             onChange={(event) => {
               setSearch(event.target.value);
               setPage(1);
             }}
           />
+          <Label>
+            <Checkbox
+              checked={onlyFunded}
+              onCheckedChange={(value) => {
+                setOnlyFunded(value === true);
+                setPage(1);
+              }}
+            />
+            只看已获配
+          </Label>
         </div>
-        <div className="table-scroll" ref={wrap}>
+        <div
+          className="table-scroll"
+          ref={wrap}
+          tabIndex={0}
+          role="region"
+          aria-label="经销商与历史对照，可横向滚动"
+        >
           <Table
             containerClassName="overflow-visible"
-            className="v19-dealer-grouped"
+            className="v19-dealer-grouped v20-detail-table"
           >
             <TableHeader>
               <TableRow>
-                {groups.map(([title, columns]) => (
-                  <TableHead key={title} colSpan={columns.length}>
-                    {title}
+                {groups.map((group) => (
+                  <TableHead
+                    key={group.key}
+                    colSpan={group.columns.length}
+                    data-column-group={group.key}
+                  >
+                    {group.title}
                   </TableHead>
                 ))}
               </TableRow>
               <TableRow>
-                {groups
-                  .flatMap(([, columns]) => columns)
-                  .map(([key, title]) => (
-                    <TableHead
-                      key={key}
-                      data-column={key}
-                      aria-sort={
-                        sort.key === key
-                          ? sort.direction === 1
-                            ? "ascending"
-                            : "descending"
-                          : "none"
-                      }
+                {columns.map(([key, title]) => (
+                  <TableHead
+                    key={key}
+                    data-column={key}
+                    aria-sort={
+                      sort.key === key
+                        ? sort.direction === 1
+                          ? "ascending"
+                          : "descending"
+                        : "none"
+                    }
+                  >
+                    <Button
+                      variant="ghost"
+                      className="v19-sort"
+                      onClick={() => {
+                        setSort({
+                          key,
+                          direction: sort.key === key ? -sort.direction : -1,
+                        });
+                        setPage(1);
+                      }}
                     >
-                      <Button
-                        variant="ghost"
-                        className="v19-sort"
-                        onClick={() => {
-                          setSort({
-                            key,
-                            direction: sort.key === key ? -sort.direction : -1,
-                          });
-                          setPage(1);
-                        }}
-                      >
-                        {title}{" "}
-                        {sort.key === key
-                          ? sort.direction === 1
-                            ? "↑"
-                            : "↓"
-                          : "↕"}
-                      </Button>
-                    </TableHead>
-                  ))}
+                      {title}{" "}
+                      {sort.key === key
+                        ? sort.direction === 1
+                          ? "↑"
+                          : "↓"
+                        : "↕"}
+                    </Button>
+                  </TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
               {visible
-                .slice((currentPage - 1) * 50, currentPage * 50)
+                .slice((currentPage - 1) * 20, currentPage * 20)
                 .map((row) => (
                   <TableRow key={row.key}>
-                    {groups
-                      .flatMap(([, columns]) => columns)
-                      .map(([key]) => (
-                        <TableCell
-                          key={key}
-                          data-column={key}
-                          className={
-                            ["name", "sd", "rsm", "notes", "support"].includes(
-                              key,
-                            )
-                              ? ""
-                              : "num"
-                          }
-                        >
-                          {cell(row, key)}
-                        </TableCell>
-                      ))}
+                    {columns.map(([key]) => (
+                      <TableCell
+                        key={key}
+                        data-column={key}
+                        className={
+                          ["name", "sd", "rsm", "note", "support"].includes(key)
+                            ? ""
+                            : "num"
+                        }
+                      >
+                        {cell(row, key)}
+                      </TableCell>
+                    ))}
                   </TableRow>
                 ))}
               {!visible.length && (
                 <TableRow>
-                  <TableCell
-                    colSpan={groups.reduce(
-                      (count, [, columns]) => count + columns.length,
-                      0,
-                    )}
-                  >
+                  <TableCell colSpan={columns.length}>
                     <p className="empty">当前范围暂无匹配经销商。</p>
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
+            <TableFooter>
+              <TableRow>
+                {columns.map(([key], index) => (
+                  <TableCell
+                    key={key}
+                    data-column={key}
+                    className={index ? "num" : ""}
+                  >
+                    {index === 0
+                      ? "范围合计 / 加权值"
+                      : ["sd", "rsm", "support", "note"].includes(key)
+                        ? ""
+                        : format(totalFor(key), key)}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableFooter>
           </Table>
         </div>
         <div className="v19-list-pagination">
-          <span>共 {visible.length} 家 · 每页 50 行</span>
+          <span>
+            显示 {visible.length} / {rows.length} 家 · 每页20行
+          </span>
           <div>
             <Button
               variant="outline"
@@ -383,35 +387,22 @@ export function V19DealerDetails({ items, dealers, ytdCutoffMonth = 10 }) {
           </div>
         </div>
         <p className="studio-table-note">
-          历史参考：{period === "2025" ? "2025 全年" : "2026 YTD"} · {label}
-          。历史资源占比以当前名单历史投资为分母；搜索、排序和分页不改变分母。历史费用明细按当前账号授权显示，缺失数据保留“—”。
+          历史参考：{period === "2025" ? "2025 全年" : "2026 YTD"}。Vol /
+          C3及两项占比同时显示。历史投资占比以当前名单为分母；搜索、排序和分页不改变分母。四类费用仅显示接口已授权返回的字段；缺失数据保留“—”。
         </p>
       </div>
       {detail && (
-        <WorkflowDialog
-          title={`${detail.name} · 投资来源与说明`}
+        <ResourceDetailDrawer
+          {...{
+            detail,
+            items,
+            dealers,
+            sourceItems,
+            ytdCutoffMonth,
+            budgetReasons,
+          }}
           onClose={() => setDetail(null)}
-        >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Initiative</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead>投资金额（万）</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {detail.initiativeSources.map((source) => (
-                <TableRow key={source.id}>
-                  <TableCell>{source.name}</TableCell>
-                  <TableCell>{source.owner}</TableCell>
-                  <TableCell>{number(source.amount, 10000)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <p>{detail.notes.join("；") || "暂无 Owner 说明"}</p>
-        </WorkflowDialog>
+        />
       )}
     </Card>
   );

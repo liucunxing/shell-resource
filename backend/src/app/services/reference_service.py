@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dealer_identity import dealer_identity
 from app.core.distributor_status import distributor_status
-from app.core.history_policy import configured_investment_exchange_rate
+from app.core.history_policy import configured_investment_exchange_rate, verified_history_coverage
 from app.core.resource_access import historical_resource_access
 from app.dependencies.workbench_user import WorkbenchUser
 from app.repositories.reference_repository import ReferenceRepository
@@ -17,6 +17,8 @@ class ReferenceService:
         self.session = session
         self.repository = ReferenceRepository(session)
         self.workspace_repository = WorkspaceRepository(session)
+        self.coverage: dict[str, Any] | None = None
+        self.coverage_confirmation_status = "not_configured"
 
     async def get_dealers(
         self,
@@ -30,13 +32,25 @@ class ReferenceService:
         del planning_year  # The source table contains fixed historical years, not planning years.
         if user is not None:
             sectors = user.dealer_sectors
-        rows = await self.repository.list_dealers(dealer_ids, sectors)
         result = []
         # Older internal callers without an authenticated user receive public metrics only.
         config = (
             await self.workspace_repository.config()
             if self.session is not None or user is not None else None
         )
+        reference = config.reference if config else None
+        if isinstance((reference or {}).get("historyCoverageConfirmation"), dict):
+            rows = await self.repository.list_dealers(
+                dealer_ids, sectors, include_source_fingerprint=True,
+            )
+            self.coverage = verified_history_coverage(
+                reference, rows[0].get("_source_fingerprint") if rows else None,
+            )
+            self.coverage_confirmation_status = "verified" if self.coverage else "expired"
+        else:
+            rows = await self.repository.list_dealers(dealer_ids, sectors)
+            self.coverage = None
+            self.coverage_confirmation_status = "not_configured"
         rate = Decimal(str(configured_investment_exchange_rate(
             config.reference if config else None,
         )))
@@ -84,6 +98,14 @@ class ReferenceService:
                 for key, value in history_values.items()
             }
             history["ytdYieldUnavailableReason"] = "历史Actual与费用数据的业务月份尚未提供"
+            if self.coverage:
+                history["actualThroughMonth"] = self.coverage["actualThroughMonth"]
+                history["investmentThroughMonth"] = self.coverage["investmentThroughMonth"]
+                history["ytdYieldUnavailableReason"] = (
+                    None if self.coverage["actualThroughMonth"]
+                    == self.coverage["investmentThroughMonth"]
+                    else "历史Actual与费用的累计截止月份不一致"
+                )
             history["investmentCurrency"] = "USD"
             history["investmentExchangeRate"] = float(rate)
             for key, values in (
@@ -94,6 +116,13 @@ class ReferenceService:
                     float(sum(values.values()))
                     if all(value is not None for value in values.values()) else None
                 )
+            ytd_c3, ytd_investment = row["c3_2026"], history["totalInvestment2026Ytd"]
+            if (
+                not history["ytdYieldUnavailableReason"]
+                and ytd_c3 is not None and ytd_c3 > 0
+                and ytd_investment is not None and ytd_investment > 0
+            ):
+                history["yield2026Ytd"] = float(Decimal(str(ytd_c3)) / Decimal(str(ytd_investment)))
             history["expenseAccess"] = access
             # Apply the agreed formulas to raw metrics; source ratios can disagree
             # with them. The raw database values are never changed by this projection.

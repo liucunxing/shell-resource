@@ -16,6 +16,7 @@ export function WorkflowDialog({
   onConfirm,
   confirmLabel = "确认",
   disabled = false,
+  wide = false,
 }) {
   const previous = useRef(
     typeof document === "undefined" ? null : document.activeElement,
@@ -28,6 +29,7 @@ export function WorkflowDialog({
       }}
     >
       <DialogContent
+        className={`max-h-[90dvh] grid-rows-[auto_minmax(0,1fr)_auto] ${wide ? "sm:max-w-5xl" : ""}`}
         showCloseButton={false}
         aria-describedby={undefined}
         onEscapeKeyDown={(event) => {
@@ -53,7 +55,7 @@ export function WorkflowDialog({
             ×
           </Button>
         </DialogHeader>
-        <div className="grid gap-4">{children}</div>
+        <div className="grid min-h-0 min-w-0 gap-4 overflow-auto">{children}</div>
         <DialogFooter>
           <Button variant="outline" disabled={busy} onClick={onClose}>
             {onConfirm ? "取消" : "关闭"}

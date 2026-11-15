@@ -1,3 +1,5 @@
+import { Button } from "../../components/ui/button";
+import { VersionDifferenceDrawer } from "./VersionDifferenceDrawer.jsx";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Alert, AlertDescription } from "../../components/ui/alert";
 import { Card } from "../../components/ui/card";
@@ -41,9 +43,11 @@ export function VersionComparison({ executive }) {
     [error, setError] = useState(""),
     [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
+  const [detail, setDetail] = useState(null);
   useEffect(() => {
     let active = true;
     setResult(null);
+    setDetail(null);
     setError("");
     setLoading(false);
     if (!left || !right || left === right) return;
@@ -53,7 +57,9 @@ export function VersionComparison({ executive }) {
         if (active)
           setResult({
             previous: submittedVersionItems(previous),
-            current: current.state?.initiatives || [],
+            current: submittedVersionItems(current),
+            previousDealers: previous.data?.dealers || [],
+            currentDealers: current.data?.dealers || [],
             dealers: [
               ...new Map(
                 [
@@ -97,7 +103,7 @@ export function VersionComparison({ executive }) {
         <div>
           <h2>版本变化</h2>
           <p>
-            按两个版本各自的归属汇总；未确认分配显示不可比较，保留退出经销商和退出组织。
+            读取两个版本各自最后已提交快照，按当版归属汇总；未提交或未确认分配不可比较，保留退出经销商和退出组织。点击名称查看双版本差异。
           </p>
         </div>
       </header>
@@ -176,12 +182,12 @@ export function VersionComparison({ executive }) {
                       ? "Initiative / Owner"
                       : "汇总维度"}
                   </TableHead>
-                  <TableHead className="num">来源预算（万）</TableHead>
-                  <TableHead className="num">本版预算（万）</TableHead>
-                  <TableHead className="num">预算变化（万）</TableHead>
-                  <TableHead className="num">来源版本投资（万）</TableHead>
-                  <TableHead className="num">本版投资（万）</TableHead>
-                  <TableHead className="num">变化金额（万）</TableHead>
+                  <TableHead className="num">来源预算（万元）</TableHead>
+                  <TableHead className="num">本版预算（万元）</TableHead>
+                  <TableHead className="num">预算变化（万元）</TableHead>
+                  <TableHead className="num">来源版本投资（万元）</TableHead>
+                  <TableHead className="num">本版投资（万元）</TableHead>
+                  <TableHead className="num">变化金额（万元）</TableHead>
                   <TableHead className="num">波动率</TableHead>
                 </TableRow>
               </TableHeader>
@@ -195,7 +201,18 @@ export function VersionComparison({ executive }) {
                   .map((row) => (
                     <TableRow key={row.key}>
                       <TableCell>
-                        <strong>{row.name || row.key}</strong>
+                        <Button
+                          variant="link"
+                          onClick={() =>
+                            setDetail({
+                              dimension,
+                              key: row.key,
+                              name: row.name || row.key,
+                            })
+                          }
+                        >
+                          {row.name || row.key}
+                        </Button>
                         {row.owner && <small>{row.owner}</small>}
                       </TableCell>
                       <TableCell className="num">
@@ -237,6 +254,17 @@ export function VersionComparison({ executive }) {
             </Table>
           </div>
         </>
+      )}
+      {detail && result && (
+        <VersionDifferenceDrawer
+          detail={detail}
+          result={result}
+          previousVersion={left}
+          currentVersion={right}
+          executive={executive}
+          budgetReasons={state.budgetReasons}
+          onClose={() => setDetail(null)}
+        />
       )}
     </Card>
   );

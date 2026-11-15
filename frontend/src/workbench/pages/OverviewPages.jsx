@@ -37,6 +37,7 @@ import { VersionComparison } from "./VersionComparison.jsx";
 import { SdAnalysis } from "./SdAnalysis.jsx";
 import { V19ExecutiveHealth } from "./V19ExecutiveHealth.jsx";
 import { V19DealerDetails } from "./V19DealerDetails.jsx";
+import { hasReserveAcknowledgement } from "../domain/reserve-review.js";
 
 const num = (value, digits = 0) =>
   Number(value || 0).toLocaleString("zh-CN", {
@@ -219,11 +220,13 @@ export function SubmissionPage() {
     savedForSyncIds,
     editorOperations,
   } = useWorkbench();
+  const [reviewError, setReviewError] = useState("");
   const items = view.initiatives || [];
   const ready = items.filter(
     (item) =>
       savedForSyncIds.has(item.id) &&
       item.workflow?.editable !== false &&
+      hasReserveAcknowledgement(identity, state.planningVersion?.id, item) &&
       (!state.planningVersion?.sourceVersionId || item.changeReason?.trim()),
   );
   return (
@@ -244,13 +247,21 @@ export function SubmissionPage() {
 
             disabled={!ready.length}
             onClick={async () => {
-              for (const item of ready)
+              setReviewError("");
+              for (const item of ready) {
+                if (!hasReserveAcknowledgement(identity, state.planningVersion?.id, item)) {
+                  setReviewError(`${item.name} 的预算与预留尚未核对，请回到拆分工作台第一步完成核对。`);
+                  break;
+                }
                 await publish(item.id, item.changeReason || "");
+              }
             }}
           >
             提交本版所有已配平项目
           </Button>
         </div>
+        {reviewError && <p role="alert">{reviewError}</p>}
+        <p className="muted">批量提交仅包含已保存配平、已核对本版预算与预留的项目；核对在当前浏览器会话有效。</p>
         <div className="table-scroll">
           <Table containerClassName="overflow-visible">
             <TableHeader>
@@ -289,6 +300,7 @@ export function SubmissionPage() {
                     </TableCell>
                     <TableCell>
                       <Status status={item.status} />{" "}
+                      {item.workflow?.editable !== false && !hasReserveAcknowledgement(identity, state.planningVersion?.id, item) && <small className="block muted">待核对预算与预留</small>}
                       {item.publishedRevision
                         ? `r${item.publishedRevision}`
                         : ""}
@@ -411,7 +423,7 @@ function PortfolioDashboard({ mode }) {
         ["overview", "总览"],
         ["health", "健康检查"],
         ["destination", "投资去向"],
-        ["sd", "按 SD 看"],
+        ["sd", "按 SD/RSM 看"],
         ["dealers", "经销商明细"],
         ...(mode === "department" ? [["versions", "版本变化"]] : []),
       ];
@@ -488,7 +500,12 @@ function PortfolioDashboard({ mode }) {
           ))}
         </TabsList>
         <TabsContent value="overview">
-          <V19BudgetOverview items={scoped} mode={mode} state={state} />
+          <V19BudgetOverview
+            items={scoped}
+            dealers={data.dealers}
+            mode={mode}
+            state={state}
+          />
         </TabsContent>
         <TabsContent value="health">
           {executive ? (
@@ -517,11 +534,18 @@ function PortfolioDashboard({ mode }) {
           />
         </TabsContent>
         <TabsContent value="destination">
-          <V19Destination items={scoped} mode={mode} />
+          <V19Destination
+            items={scoped}
+            dealers={data.dealers}
+            mode={mode}
+            ytdCutoffMonth={state.ytdCutoffMonth}
+            budgetReasons={state.budgetReasons}
+          />
         </TabsContent>
         <TabsContent value="sd">
           <SdAnalysis
             items={scoped}
+            ytdCutoffMonth={state.ytdCutoffMonth}
             dealers={data.dealers}
             showOwner={mode === "department"}
             metadata={state.reference}

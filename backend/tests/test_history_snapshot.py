@@ -11,7 +11,8 @@ def test_snapshot_does_not_invent_business_months_or_targets():
     assert manifest["investment"]["latestMonth"] is None
     assert manifest["source"] == HISTORY_SOURCE
     assert manifest["ytdYieldComparable"] is False
-    assert {"contractVolume", "ppp"}.issubset(manifest["missingFields"])
+    assert "contractVolume" in manifest["missingFields"]
+    assert "ppp" not in str(manifest).lower()
 
 
 def test_new_planning_year_never_relabels_existing_values():
@@ -57,10 +58,7 @@ def test_manifest_declares_units_and_unavailable_metrics_without_substitution():
     assert rules["phasing"]["available"] is False
     assert rules["phasing"]["unavailableReason"] == "missing_contract_volume"
     assert rules["phasing"]["trafficLight"]["relativeYellowBand"] == 0.1
-    assert rules["phasing"]["contractPeriod"] == "full_year_signed"
-    assert rules["ppp"]["defined"] is True
-    assert rules["ppp"]["kind"] == "target"
-    assert rules["ppp"]["metrics"] == ["volume", "c3"]
-    assert rules["ppp"]["displayUnits"] == {"volume": "KL", "c3": "K$"}
-    assert rules["ppp"]["available"] is False
-    assert rules["ppp"]["unavailableReason"] == "missing_target_data"
+    assert rules["phasing"]["contractPeriod"] == "same_period_as_actual"
+    assert rules["phasing"]["targetKind"] == "dealer_volume_target"
+    assert "months 1-N" in rules["phasing"]["periodRule"]
+    assert "ppp" not in rules

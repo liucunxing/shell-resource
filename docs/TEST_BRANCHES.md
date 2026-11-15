@@ -28,9 +28,9 @@ pwsh -NoProfile -File ./scripts/Test-Branch.ps1
 pwsh -NoProfile -File ./scripts/Start-Branch.ps1
 ```
 
-启动脚本在前台运行 `tests.v19_prototype_fixture:app`，仅监听 loopback。访问 `http://127.0.0.1:8019`，无需登录或帆软跳转。数据来自提交到仓库的原型导出 `backend/tests/fixtures/v19_prototype_demo.json`，首次启动写入本工作目录的 `backend/.cache/v19-prototype/`；旧的 `.cache/v19-final/` 不受影响。该目录会保留本地操作结果，修改原型导出不会自动覆盖已导入的数据库。
+启动脚本在前台运行 `tests.v20_prototype_fixture:app`，仅监听 loopback。访问 `http://127.0.0.1:8019`，无需登录或帆软跳转。数据来自提交到仓库的原型导出 `backend/tests/fixtures/v19_prototype_demo.json`，首次启动按V20权限适配后写入本工作目录的 `backend/.cache/v20-prototype/`；旧的 `.cache/v19-final/` 不受影响。该目录会保留本地操作结果，修改原型导出不会自动覆盖已导入的数据库。
 
-测试脚本仅执行 `test_local_preview.py` 和 `test_v19_prototype*.py`，使用安全示例配置与 SQLite，不接远端 PG。本地模式拒绝 `-SettingsFile`，防止误以为原型测试正在验收真实数据。
+测试脚本仅执行 `test_local_preview.py`、`test_v19_prototype*.py` 和 `test_v20_prototype*.py`，使用安全示例配置与 SQLite，不接远端 PG。本地模式拒绝 `-SettingsFile`，防止误以为原型测试正在验收真实数据。
 
 ## 远端 PG 分支
 

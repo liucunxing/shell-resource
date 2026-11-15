@@ -108,49 +108,83 @@ describe("V19 SD presentation", () => {
       />,
     );
     for (const label of [
-      "分配 / 名单",
-      "投资金额（万）",
-      "客均（万）",
+      "分配 / 全部",
+      "投资金额（万元）",
+      "家均（万元）",
       "Delivery Vol 占比",
       "C3 占比",
-      "历史资源占比",
-      "投资总额（千美元）",
+      "占比对照图",
+      "较上版",
+      "增减金额（万元）",
       "参照：本部门叠加",
       "最大偏离",
       "合计",
     ])
       expect(html).toContain(label);
     expect(html).toContain(">4.5</b>");
-    expect(html).toContain("待配置");
+    expect(html).not.toContain("PPP");
+    expect(html).not.toContain("待配置");
     expect(html).not.toContain("未提交草稿");
     expect(html).not.toMatch(/>\d+(?:\.\d+)?x</);
-    expect(html).toContain("历史投资已按配置汇率统一为美元");
+    expect(html).toContain("仅改金额不会改变历史 Actual");
     expect(html).not.toContain("名单覆盖率");
   });
 });
 
-
 it("shows nonnegative analytical shares beside signed Actuals and signed historical investment", () => {
-  const source = dealers.map((d, index) => ({ ...d, history: { ...d.history, c32025: index ? 400 : -100, vol2025: index ? -500 : 3000, totalInvestment2025: index ? 100 : -20 } }));
+  const source = dealers.map((d, index) => ({
+    ...d,
+    history: {
+      ...d.history,
+      c32025: index ? 400 : -100,
+      vol2025: index ? -500 : 3000,
+      totalInvestment2025: index ? 100 : -20,
+    },
+  }));
   const { groups, totals } = summary(source);
-  const east = groups.find(g => g.key === "东区");
-  expect(east).toMatchObject({ historicalC3: -100, c3Share: 0, volShare: 100, metricShare: 0, historyShare: -25 });
-  expect(totals).toMatchObject({ historicalC3: 300, historicalVol: 2500, historicalInvestment: 80, analyticalC3: 400, analyticalVol: 3000 });
+  const east = groups.find((g) => g.key === "东区");
+  expect(east).toMatchObject({
+    historicalC3: -100,
+    c3Share: 0,
+    volShare: 100,
+    metricShare: 0,
+    historyShare: -25,
+  });
+  expect(totals).toMatchObject({
+    historicalC3: 300,
+    historicalVol: 2500,
+    historicalInvestment: 80,
+    analyticalC3: 400,
+    analyticalVol: 3000,
+  });
   expect(groups.reduce((sum, g) => sum + g.c3Share, 0)).toBe(100);
   expect(groups.reduce((sum, g) => sum + g.volShare, 0)).toBe(100);
 });
 
-
 it("computes aggregate Yield from signed totals, not validity of individual rates", () => {
-  const mixed = dealers.map((d, index) => ({ ...d, history: { ...d.history, c32025: index ? 400 : -100 } }));
+  const mixed = dealers.map((d, index) => ({
+    ...d,
+    history: { ...d.history, c32025: index ? 400 : -100 },
+  }));
   expect(summary(mixed).totals.historicalYield).toBe(0.6);
   mixed[0].history.c32025 = -500;
   expect(summary(mixed).totals.historicalYield).toBeNull();
 });
 
 it("separates YTD coverage alignment from individual Yield eligibility", () => {
-  const source = dealers.map((d, index) => ({ ...d, history: { vol2026Ytd: 100, c32026Ytd: index ? 400 : -100, totalInvestment2026Ytd: 100, yield2026Ytd: index ? 4 : null } }));
-  const read = () => sdPresentationGroups(sdGroupsWithComparison(items, null, source, "sd", "c3", "2026Ytd"));
+  const source = dealers.map((d, index) => ({
+    ...d,
+    history: {
+      vol2026Ytd: 100,
+      c32026Ytd: index ? 400 : -100,
+      totalInvestment2026Ytd: 100,
+      yield2026Ytd: index ? 4 : null,
+    },
+  }));
+  const read = () =>
+    sdPresentationGroups(
+      sdGroupsWithComparison(items, null, source, "sd", "c3", "2026Ytd"),
+    );
   expect(read().totals.historicalYield).toBe(1.5);
   source[0].history.ytdYieldUnavailableReason = "截止月未知";
   expect(read().totals.historicalYield).toBeNull();
