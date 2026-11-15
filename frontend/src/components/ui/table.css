@@ -28,10 +28,13 @@
   box-shadow: 0 1px 0 #c7d6e4;
 }
 [data-slot="table"] :is(th, td) {
-  text-align: center !important;
+  text-align: left !important;
   vertical-align: middle;
   font-variant-numeric: tabular-nums lining-nums;
   border-inline-end: 1px solid #e6edf3;
+}
+[data-slot="table"] :is(th, td)[data-align="center"] {
+  text-align: center !important;
 }
 [data-slot="table"] th {
   font-weight: 700 !important;
@@ -43,7 +46,7 @@
   font-weight: 700;
 }
 [data-slot="table"] :is(input, select, button) {
-  text-align: center;
+  text-align: inherit;
   font-variant-numeric: tabular-nums;
 }
 [data-slot="table"] .table-sort-button {
@@ -65,6 +68,14 @@
 }
 [data-slot="table"] :is(.v19-sort, .v20-sort-heading) {
   justify-content: center;
+}
+[data-slot="table"] [data-align="left"] :is(.table-sort-button, .v19-sort, .v20-sort-heading) {
+  justify-content: flex-start;
+  text-align: left;
+}
+[data-slot="table"] [data-align="left"] [data-variant="link"] {
+  justify-content: flex-start;
+  text-align: left;
 }
 [data-slot="table-container"]:focus-visible {
   outline: 2px solid #d2a900;

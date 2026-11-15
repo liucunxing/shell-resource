@@ -18,6 +18,7 @@ import {
   type SortValue,
 } from "./table-sorting";
 import "./table.css";
+import { tableColumnAlignment } from "./table-alignment";
 
 function Table({
   className,
@@ -54,6 +55,9 @@ function Table({
       cells: tableElements(element.props.children),
     }));
   const leaves = layout.flat().filter(({ leaf }) => leaf);
+  const alignments = new Map(leaves.map(({ cell, column }) => [
+    column, tableColumnAlignment(cell, data.map((row) => row.cells[column]).filter(Boolean)),
+  ]));
   const columns = leaves.map(({ column }) => ({
     id: String(column),
     accessorFn: (row: (typeof data)[number]) =>
@@ -169,7 +173,20 @@ function Table({
         className={cn("w-full caption-bottom text-sm", className)}
         {...props}
       >
-        {rendered}
+        {tableElements(rendered).map((section) => {
+          if (![TableHeader, TableBody, TableFooter].includes(section.type as any)) return section;
+          const rows = tableElements(section.props.children);
+          const coordinates = tableHeaderLayout(rows);
+          return React.cloneElement(section, {}, rows.map((row, index) =>
+            React.cloneElement(row, {}, coordinates[index].map(({ cell, column }) =>
+              React.cloneElement(cell, {
+                "data-align": cell.props["data-align"] || (Number(cell.props.colSpan || 1) > 1
+                  ? section.type === TableHeader ? "center" : "left"
+                  : alignments.get(column) || "left"),
+              }),
+            )),
+          ));
+        })}
       </table>
     </div>
   );
