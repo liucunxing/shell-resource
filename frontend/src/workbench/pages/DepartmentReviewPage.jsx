@@ -169,8 +169,12 @@ export function DepartmentReviewPage() {
         });
       }
       setDialog(null);
-      await refresh({ preservePage: true });
-      await load();
+      // The refreshed version revision triggers the status effect once.
+      // Calling load() here also would issue a duplicate status request.
+      if (!await refresh({ preservePage: true })) {
+        notify("操作已保存，但刷新失败，请重新加载后继续。", true);
+        return;
+      }
       notify(
         dialog.action === "confirm"
           ? "部门方案已提交管理层。"

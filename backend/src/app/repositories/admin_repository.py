@@ -1,6 +1,17 @@
 from collections.abc import Sequence
 
-from sqlalchemy import SQLColumnExpression, String, cast, delete, exists, func, select, update
+from sqlalchemy import (
+    SQLColumnExpression,
+    String,
+    and_,
+    cast,
+    delete,
+    exists,
+    func,
+    select,
+    true,
+    update,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.selectable import Exists
@@ -58,7 +69,7 @@ class AdminRepository:
         sector: str | None,
         limit: int,
         offset: int,
-    ) -> tuple[list[tuple[UserPermissionDO, bool]], int]:
+    ) -> tuple[list[tuple[UserPermissionDO, bool]], int, list[UserPermissionDO]]:
         conditions = []
         if email:
             conditions.append(
@@ -74,18 +85,28 @@ class AdminRepository:
             conditions.append(self._department_member(department))
         if sector:
             conditions.append(cast(UserPermissionDO.sector, String).contains(sector))
-        total = await self.session.scalar(
-            select(func.count()).select_from(UserPermissionDO).where(*conditions)
+        # A listing already needs every user for its import revision and lead
+        # coverage. Read those and the filtered page from one MVCC snapshot,
+        # without taking the global configuration write lock. Keep matching and
+        # ordering in SQL so existing search/collation semantics are unchanged.
+        matches = and_(*conditions) if conditions else true()
+        assigned_emails = (
+            select(func.lower(func.trim(BudgetDO.owner_email)).label("email"))
+            .where(BudgetDO.owner_email.is_not(None))
+            .distinct()
+            .subquery()
         )
         statement = (
-            select(UserPermissionDO, self._budget_for_email(UserPermissionDO.email))
-            .where(*conditions)
+            select(UserPermissionDO, assigned_emails.c.email.is_not(None), matches)
+            .outerjoin(
+                assigned_emails, assigned_emails.c.email == func.lower(UserPermissionDO.email),
+            )
             .order_by(UserPermissionDO.email)
-            .limit(limit)
-            .offset(offset)
+            .execution_options(populate_existing=True)
         )
         rows = (await self.session.execute(statement)).all()
-        return [(user, bool(has_budget)) for user, has_budget in rows], int(total or 0)
+        matching = [(user, bool(has_budget)) for user, has_budget, matched in rows if matched]
+        return matching[offset:offset + limit], len(matching), [user for user, _, _ in rows]
 
     async def user_by_email(self, email: str) -> UserPermissionDO | None:
         return await self.session.scalar(

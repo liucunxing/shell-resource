@@ -71,8 +71,7 @@ class AdminService(WorkspaceService):
         offset: int,
     ) -> dict:
         self._admin()
-        await self.admin_repository.locked_config()
-        rows, total = await self.admin_repository.list_users(
+        rows, total, users = await self.admin_repository.list_users(
             email=email,
             name=name,
             role=role,
@@ -81,21 +80,33 @@ class AdminService(WorkspaceService):
             limit=limit,
             offset=offset,
         )
+        lead_sectors: dict[str, set[str]] = {}
+        for lead in users:
+            if lead.enabled and lead.role == "lead":
+                for lead_department in departments(lead.department):
+                    lead_sectors.setdefault(lead_department, set()).update(lead.sector or [])
         return {
-            "revision": await self.users_revision(),
+            "revision": self._users_revision(users),
             "items": [self._user_record(item, has_budget) for item, has_budget in rows],
             "total": total,
             "limit": limit,
             "offset": offset,
-            "lead_sectors_by_department": await self.admin_repository.lead_sectors_by_department(),
+            "lead_sectors_by_department": {
+                department: sorted(sectors) for department, sectors in lead_sectors.items()
+            },
         }
 
     async def users_revision(self) -> str:
         users = (await self.session.scalars(
             select(UserPermissionDO).order_by(UserPermissionDO.id)
         )).all()
+        return self._users_revision(list(users))
+
+    @classmethod
+    def _users_revision(cls, users: list[UserPermissionDO]) -> str:
         return hashlib.sha256(json.dumps(
-            [self._user_record(user) for user in users], sort_keys=True,
+            [cls._user_record(user) for user in sorted(users, key=lambda item: item.id)],
+            sort_keys=True,
             ensure_ascii=False, separators=(",", ":"),
         ).encode()).hexdigest()
 

@@ -286,6 +286,21 @@ export function WorkbenchProvider({ children }) {
     return changePlanningVersion({ id, currentId: stateRef.current.currentVersionId || stateRef.current.planningVersion?.id, targetPage: options.targetPage, setPage, setVersion: api.setPlanningVersion, refresh: (args) => refresh({ ...args, preservePage: page !== "editor" }) });
   };
 
+  const refreshPlanningVersions = async () => {
+    if (demoMode) return true;
+    const epoch = sessionEpoch.current;
+    const versions = await api.planningVersions();
+    if (epoch !== sessionEpoch.current) return false;
+    const current = stateRef.current.planningVersion;
+    const latest = versions.find((version) => version.id === current?.id);
+    // A concurrent change to the loaded version can affect workflow/permissions.
+    // Only skip its full reload when its revision is still current.
+    if (!current || !latest || latest.revision !== current.revision)
+      return refresh({ preservePage: true });
+    replaceState({ ...stateRef.current, planningVersions: versions, planningVersion: latest });
+    return true;
+  };
+
   const loadDistributorDirectory = useCallback(async ({ force = false } = {}) => {
     if (demoMode) return directoryRows.current;
     if (directoryLoaded.current && !force) return directoryRows.current;
@@ -493,10 +508,13 @@ export function WorkbenchProvider({ children }) {
         notify("已同步最新分配，仍可继续修改。");
         return publication;
       }
-      const savedResult = await api.saveDraft(id, { ...requested, changeReason: note }, serverRevisions[id]);
-      if (epoch !== sessionEpoch.current) return false;
-      const saved = savedResult.initiative || savedResult;
-      acceptSavedDraft(id, saved, requested);
+      let saved = requested;
+      if (dirtyIds.has(String(id)) || requested.revision !== serverRevisions[id]) {
+        const savedResult = await api.saveDraft(id, { ...requested, changeReason: note }, serverRevisions[id]);
+        if (epoch !== sessionEpoch.current) return false;
+        saved = savedResult.initiative || savedResult;
+        acceptSavedDraft(id, saved, requested);
+      }
       const publication = await api.publish(id, saved, note);
       if (epoch !== sessionEpoch.current) return false;
       const next = structuredClone(stateRef.current);
@@ -510,6 +528,8 @@ export function WorkbenchProvider({ children }) {
         current.publishedRevision =
           publication.publishedRevision ?? requested.revision;
         current.publishedAt = publication.publishedAt;
+        if (current.revision === saved.revision && publication.initiative?.changeReason !== undefined)
+          current.changeReason = publication.initiative.changeReason;
       }
       replaceState(next);
       setSavedForSyncIds((old) => {
@@ -782,6 +802,7 @@ export function WorkbenchProvider({ children }) {
     directoryStatus,
     loadDistributorDirectory,
     refresh,
+    refreshPlanningVersions,
     selectPlanningVersion,
     dirtyIds,
     savedForSyncIds,
