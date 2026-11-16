@@ -129,6 +129,12 @@ export function filterDealers(dealers, codeSearch, nameSearch) {
   );
 }
 
+export function selectAllFilteredDealers(rows, dealers) {
+  const existing = new Set(rows.map((row) => String(row.dealerId)));
+  return [...rows, ...dealers.filter((dealer) => !existing.has(String(dealer.id)))
+    .map((dealer) => ({ dealerId: dealer.id, amount: 0, note: "" }))];
+}
+
 export function toggleDealerSelection(selectedDealers, dealerId) {
   return selectedDealers.includes(dealerId)
     ? selectedDealers.filter((id) => id !== dealerId)
@@ -1301,6 +1307,16 @@ function EditorContent({
                       </NativeSelectOption>
                     ))}
                   </NativeSelect>
+                </div>
+                <div className="actions">
+                  <Button type="button" variant="outline"
+                    disabled={!editable || !scopeDealers.length || scopeDealers.every((dealer) => i.rows.some((row) => String(row.dealerId) === String(dealer.id)))}
+                    onClick={() => doGuard(() => {
+                      rememberSelectionViewport();
+                      update({ rows: selectAllFilteredDealers(i.rows, scopeDealers) });
+                    })}>
+                    全选筛选结果（{scopeDealers.length} 家，含所有页）
+                  </Button>
                 </div>
                 <div className="table-scroll studio-wide-table">
                   <Table
