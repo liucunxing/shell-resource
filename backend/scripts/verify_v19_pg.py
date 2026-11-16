@@ -448,10 +448,11 @@ async def check_api(connection: AsyncConnection, checks: list[dict[str, str]]) -
             and copied[source_keys["mkt-a1"]]["id"] != ids["mkt-a1"],
         )
         await api.call(
-            "PATCH", f"planning-versions/{SECOND}", status=409,
+            "PATCH", f"planning-versions/{SECOND}",
             body={"expected_revision": 0, "published": True, "open": True},
         )
-        record(checks, "new_version_cannot_close_unconfirmed_source")
+        source_open = (await api.workspace("admin", FIRST))["state"]["planningVersion"]["open"]
+        record(checks, "new_version_preserves_unconfirmed_source", source_open)
         await api.submit("owner-a", ids["mkt-a1"], dealer)
         await api.action("confirm")
         for sector, department, actor in [("PCMO", "ICE", "lead"), ("CRTO", "MKT", "lead-crto")]:
@@ -459,11 +460,6 @@ async def check_api(connection: AsyncConnection, checks: list[dict[str, str]]) -
             await api.call("POST", f"planning-versions/{FIRST}/department/confirm", actor,
                            body={"sector": sector, "department": department,
                                  "expected_revision": revision})
-        await api.call(
-            "PATCH",
-            f"planning-versions/{SECOND}",
-            body={"expected_revision": 0, "published": True, "open": True},
-        )
         await api.call(
             "PUT",
             f"initiatives/{ids['mkt-a1']}/draft",
@@ -477,8 +473,20 @@ async def check_api(connection: AsyncConnection, checks: list[dict[str, str]]) -
             status=409,
             body={"expected_revision": 0, "open": False},
         )
-        record(checks, "opening_new_version_closes_source_and_rejects_stale_commands")
+        record(checks, "opening_new_version_preserves_source_and_rejects_stale_commands")
         await check_user_permissions(api, checks)
+        await api.call("POST", "planning-versions", body={
+            "id": "202703", "name": "Synthetic deleted", "planning_year": YEAR,
+            "source_version_id": FIRST,
+        })
+        await api.call("POST", "planning-versions/202703/delete", body={
+            "expected_revision": 0, "confirm_submitted": False,
+        })
+        recreated = await api.call("POST", "planning-versions", body={
+            "id": "202703", "name": "Synthetic recreated", "planning_year": YEAR,
+            "source_version_id": FIRST,
+        })
+        record(checks, "deleted_version_code_reused", recreated["name"] == "Synthetic recreated")
         current_version = (await api.workspace("admin", SECOND))["state"]["planningVersion"]
         await api.call(
             "PATCH",

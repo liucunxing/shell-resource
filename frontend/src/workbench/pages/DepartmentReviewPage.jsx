@@ -37,6 +37,18 @@ export function reviewStatus(item) {
       : "未提交";
 }
 
+export function combineDepartmentReviews(results, current) {
+  if (new Set(results.map((item) => item.version.revision)).size > 1)
+    throw Error("各部门状态在加载期间发生变化，请重试。");
+  return {
+    version: results[0]?.version || current,
+    submitted: results.reduce((sum, item) => sum + (item.submitted || 0), 0),
+    total: results.reduce((sum, item) => sum + (item.total || 0), 0),
+    confirmed: results.length > 0 && results.every((item) => item.total > 0 && item.confirmed === item.total),
+    items: results.flatMap((item) => item.items || []),
+  };
+}
+
 export function departmentWindowOpen(version, now = Date.now()) {
   const deadline = version?.deadline ? Date.parse(version.deadline) : null;
   return Boolean(version?.published && version.open && !version.expired &&
@@ -67,7 +79,8 @@ export function DepartmentReviewPage() {
     [state.initiatives],
   );
   const [scope, setScope] = useState("");
-  const scopeKey = scopes.some(([key]) => key === scope)
+  const allScopes = scope === "__all__" && identity.role === "admin";
+  const scopeKey = allScopes ? scope : scopes.some(([key]) => key === scope)
     ? scope
     : scopes[0]?.[0] || "";
   const selectedScope = scopes.find(([key]) => key === scopeKey)?.[1];
@@ -80,18 +93,18 @@ export function DepartmentReviewPage() {
     [busy, setBusy] = useState(false);
   const [sort, setSort] = useState({ key: "name", direction: 1 });
   const current = state.planningVersion;
+  const fetchReview = async () => {
+    if (!allScopes) return api.departmentReview(current.id, selectedScope.sector, selectedScope.department);
+    const results = await Promise.all(scopes.map(([, item]) =>
+      api.departmentReview(current.id, item.sector, item.department)));
+    return combineDepartmentReviews(results, current);
+  };
   const load = async () => {
-    if (!current || !selectedScope) return;
+    if (!current || (!selectedScope && !allScopes)) return;
     setLoading(true);
     setError("");
     try {
-      setResult(
-        await api.departmentReview(
-          current.id,
-          selectedScope.sector,
-          selectedScope.department,
-        ),
-      );
+      setResult(await fetchReview());
     } catch (failure) {
       setError(failure.message);
       setResult(null);
@@ -103,14 +116,9 @@ export function DepartmentReviewPage() {
     let live = true;
     setResult(null);
     setError("");
-    if (!apiMode || !current || !selectedScope) return;
+    if (!apiMode || !current || (!selectedScope && !allScopes)) return;
     setLoading(true);
-    api
-      .departmentReview(
-        current.id,
-        selectedScope.sector,
-        selectedScope.department,
-      )
+    fetchReview()
       .then((value) => {
         if (live) setResult(value);
       })
@@ -209,6 +217,7 @@ export function DepartmentReviewPage() {
               value={scopeKey}
               onChange={(event) => setScope(event.target.value)}
             >
+              {identity.role === "admin" && <NativeSelectOption value="__all__">全部</NativeSelectOption>}
               {scopes.map(([key, item]) => (
                 <NativeSelectOption key={key} value={key}>
                   {item.sector} · {item.department}
@@ -241,12 +250,12 @@ export function DepartmentReviewPage() {
             <div className="panel-header">
               <div>
                 <h2>
-                  {result?.confirmed ? "部门已提交管理层" : "部门尚未提交管理层"}
+                  {allScopes ? "全部部门提交情况" : result?.confirmed ? "部门已提交管理层" : "部门尚未提交管理层"}
                 </h2>
                 <p>
                   {loading
                     ? "正在加载提交状态…"
-                    : `${result?.submitted || 0} / ${result?.total || 0} 项已提交 · ${result?.confirmed ? "部门已提交管理层" : "部门未提交管理层"}`}
+                    : allScopes ? `${result?.submitted || 0} / ${result?.total || 0} 项已提交` : `${result?.submitted || 0} / ${result?.total || 0} 项已提交 · ${result?.confirmed ? "部门已提交管理层" : "部门未提交管理层"}`}
                 </p>
               </div>
               <div className="actions">
@@ -280,7 +289,7 @@ export function DepartmentReviewPage() {
               <Table sortingMode="manual" containerClassName="overflow-visible">
                 <TableHeader>
                   <TableRow>
-                    {[["name", "Initiative"], ["ownerId", "Owner"], ["status", "Owner 提交状态"], ["confirmed", "部门提交状态"], ["revision", "提交版本"], ["submittedAt", "提交时间"], ["allocated", "分配金额（元）"]].map(([key,label]) => (
+                    {[["name", "Initiative"], ...(allScopes ? [["sector", "业务线"], ["department", "部门"]] : []), ["ownerId", "Owner"], ["status", "Owner 提交状态"], ["confirmed", "部门提交状态"], ["revision", "提交版本"], ["submittedAt", "提交时间"], ["allocated", "分配金额（元）"]].map(([key,label]) => (
                       <TableHead key={key} aria-sort={sort.key === key ? (sort.direction === 1 ? "ascending" : "descending") : "none"}>
                         <Button variant="ghost" type="button" className="v19-sort" onClick={() => sortBy(key)}>{label}{sort.key === key ? (sort.direction === 1 ? " ↑" : " ↓") : " ↕"}</Button>
                       </TableHead>
@@ -294,6 +303,7 @@ export function DepartmentReviewPage() {
                         <strong>{item.name}</strong>
                         <small>{item.initiativeKey || item.id}</small>
                       </TableCell>
+                      {allScopes && <><TableCell>{item.sector}</TableCell><TableCell>{item.department}</TableCell></>}
                       <TableCell>{item.ownerLabel || item.ownerId}</TableCell>
                       <TableCell>
                         <Badge
@@ -323,7 +333,7 @@ export function DepartmentReviewPage() {
                   ))}
                   {!loading && !items.length && (
                     <TableRow>
-                      <TableCell colSpan="7">
+                      <TableCell colSpan={allScopes ? 9 : 7}>
                         <div className="empty">当前范围没有启用项目。</div>
                       </TableCell>
                     </TableRow>

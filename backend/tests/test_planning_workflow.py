@@ -83,6 +83,47 @@ async def act(session, action, **kwargs):
 
 
 @pytest.mark.asyncio
+async def test_reuse_deleted_version_code_preserves_archived_version_and_budgets():
+    session, admin, _ = await prepare()
+    try:
+        payload = PlanningVersionCreateDTO(
+            id="202702", name="旧版", planning_year=2027, source_version_id="202701",
+        )
+        await admin.create(payload)
+        original = list((await session.scalars(
+            select(BudgetDO).where(BudgetDO.planning_version_id == "202702")
+        )).all())
+        original_ids = {item.id for item in original}
+        await admin.delete(
+            "202702", PlanningVersionDeleteDTO(expected_revision=0, confirm_submitted=False),
+        )
+        await admin.create(PlanningVersionCreateDTO(
+            id="202702", name="新版", planning_year=2027, source_version_id="202701",
+        ))
+        current = await admin.version("202702")
+        assert current.name == "新版" and current.deleted_at is None
+        archived = (await session.scalars(
+            select(PlanningVersionDO).where(PlanningVersionDO.deleted_at.is_not(None))
+        )).one()
+        assert archived.id.startswith("deleted-")
+        preserved = list((await session.scalars(
+            select(BudgetDO).where(BudgetDO.planning_version_id == archived.id)
+        )).all())
+        assert {item.id for item in preserved} == original_ids
+        new_ids = set((await session.scalars(
+            select(BudgetDO.id).where(BudgetDO.planning_version_id == "202702")
+        )).all())
+        assert new_ids and new_ids.isdisjoint(original_ids)
+        with pytest.raises(HTTPException) as duplicate:
+            await admin.create(PlanningVersionCreateDTO(
+                id="202702", name="重复", planning_year=2027, source_version_id="202701",
+            ))
+        assert duplicate.value.status_code == 409
+    finally:
+        await session.close()
+
+
+@pytest.mark.asyncio
 async def test_all_submit_confirm_withdraw_unlocks_all_and_reconfirm():
     session, _, budgets = await prepare()
     try:
@@ -168,12 +209,7 @@ async def test_source_copy_only_last_submission_and_version_isolation():
             "202702", PlanningVersionUpdateDTO(expected_revision=0, published=True, open=True)
         )
         first = await session.get(PlanningVersionDO, "202701")
-        assert not first.open
-        with pytest.raises(HTTPException) as closed:
-            await service(session, user()).save_draft(
-                budgets[0].id, InitiativeDraftUpdateDTO(expected_revision=2)
-            )
-        assert closed.value.status_code == 409
+        assert first.open
         workspace = await service(session, user()).get_workspace(2027)
         assert workspace["state"]["currentVersionId"] == "202702"
         assert all(i["planningVersionId"] == "202702" for i in workspace["state"]["initiatives"])

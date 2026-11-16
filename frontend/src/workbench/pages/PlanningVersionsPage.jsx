@@ -327,7 +327,7 @@ export function PlanningVersionsPage() {
           }
         >
           {dialog.kind === "create" ? (
-            <div className="v19-form-grid">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 [&_label]:flex [&_label]:flex-col [&_label]:items-stretch [&_label]:gap-2 [&_label]:text-left">
               <Label>
                 版本编码（YYYYMM）
                 <Input
@@ -352,7 +352,7 @@ export function PlanningVersionsPage() {
                   }
                 />
               </Label>
-              <Label>
+              <Label className="sm:col-span-2">
                 复制来源
                 <NativeSelect
                   value={form.source_version_id}
@@ -388,11 +388,13 @@ export function PlanningVersionsPage() {
             <p>
               {dialog.kind === "close"
                 ? "所有部门提交齐全后才能关闭。关闭后 Owner 不能修改或提交，各部门不能再提交或撤回，已有方案保留为最终结果。"
+              : dialog.kind === "publish"
+                ? "发布并开放后，Owner 可在本版本填写和提交方案；其他版本保持原状态。"
                 : "开放当前版本后，Owner 提交状态保持不变；已提交管理层的部门仍锁定，可由部门撤回提交后修改，或由管理员驳回并开放全部部门。"}
             </p>
           )}
           {["create", "open"].includes(dialog.kind) && (
-            <Label>
+            <Label className="flex flex-col items-stretch gap-2 text-left">
               提交截止时间（北京时间，可选）
               <Input
                 type="datetime-local"
