@@ -163,6 +163,37 @@ class PlanningService:
         )
         if version is None and budget.planning_version_id:
             version = await self.version(budget.planning_version_id)
+        return self._workflow_projection(budget, version, state, publication)
+
+    async def workflows(
+        self, budgets: list[BudgetDO], version: PlanningVersionDO,
+        publications: dict[int, list[WorkspacePublicationDO]],
+    ) -> dict[int, dict]:
+        if not budgets:
+            return {}
+        states = {
+            state.budget_id: state for state in await self.session.scalars(
+                select(InitiativeWorkflowDO).where(
+                    InitiativeWorkflowDO.budget_id.in_([budget.id for budget in budgets])
+                )
+            )
+        }
+        known_publications = {
+            item.id: item for history in publications.values() for item in history
+        }
+        return {
+            budget.id: self._workflow_projection(
+                budget, version, states.get(budget.id),
+                known_publications.get(states[budget.id].publication_id or 0)
+                if budget.id in states and states[budget.id].publication_id is not None else None,
+            )
+            for budget in budgets
+        }
+
+    def _workflow_projection(
+        self, budget: BudgetDO, version: PlanningVersionDO | None,
+        state: InitiativeWorkflowDO | None, publication: WorkspacePublicationDO | None,
+    ) -> dict:
         submitted = bool(publication and state and not state.requires_resubmission
                          and publication.published_revision == budget.revision)
         confirmed = bool(

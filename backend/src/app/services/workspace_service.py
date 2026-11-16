@@ -61,14 +61,19 @@ class WorkspaceService:
             budgets = await self.repository.list_budgets(
                 planning_year, department, sector, owner, version.id
             )
+            budgets = [budget for budget in budgets if planning.permitted(budget)
+                       and (budget.enabled or self.user.role == "admin")]
+            rows_by_budget, other_by_budget, history_by_budget = (
+                await self.repository.projection_rows(
+                    [budget.id for budget in budgets],
+                    include_drafts=self.user.role not in {"lead", "management"} and not synced_only,
+                )
+            )
+            workflows = await planning.workflows(budgets, version, history_by_budget)
             initiatives, publications = [], []
             for budget in budgets:
-                if not planning.permitted(budget) or (
-                    not budget.enabled and self.user.role != "admin"
-                ):
-                    continue
-                workflow = await planning.workflow(budget, version)
-                history = await self.repository.publications_for(budget.id)
+                workflow = workflows[budget.id]
+                history = history_by_budget.get(budget.id, [])
                 publication = history[-1] if history else None
                 visible = (
                     self.user.role in {"owner", "admin"}
@@ -85,8 +90,8 @@ class WorkspaceService:
                 else:
                     item = self._budget_projection(
                         budget,
-                        await self.repository.rows_for(budget.id),
-                        await self.repository.other_for(budget.id),
+                        rows_by_budget.get(budget.id, []),
+                        other_by_budget.get(budget.id, []),
                         publication,
                     )
                 item.update(
@@ -121,12 +126,15 @@ class WorkspaceService:
             initiatives = [self._publication(item)["initiative"] for item in publications]
         else:
             budgets = await self.repository.list_budgets(planning_year, department, sector, owner)
+            rows_by_budget, other_by_budget, history_by_budget = (
+                await self.repository.projection_rows([budget.id for budget in budgets])
+            )
             initiatives = []
             publications = []
             for budget in budgets:
-                rows = await self.repository.rows_for(budget.id)
-                other = await self.repository.other_for(budget.id)
-                history = await self.repository.publications_for(budget.id)
+                rows = rows_by_budget.get(budget.id, [])
+                other = other_by_budget.get(budget.id, [])
+                history = history_by_budget.get(budget.id, [])
                 initiatives.append(
                     self._budget_projection(budget, rows, other, history[-1] if history else None)
                 )
@@ -446,7 +454,7 @@ class WorkspaceService:
         ):
             return initiatives
         # The caller has already checked the initiative's visibility and scope.
-        records = await ReferenceRepository(self.session).list_dealers(sectors=sectors)
+        records = await ReferenceRepository(self.session).list_directory(sectors=sectors)
         dealers = [
             {"id": dealer_identity(row), "code": str(row["distributor_code"]),
              "sector": row["sector"], "sd": row["sd"], "rsm": row["rsm"]}
@@ -739,7 +747,7 @@ class WorkspaceService:
         from app.core.dealer_identity import dealer_identity
         from app.repositories.reference_repository import ReferenceRepository
 
-        records = await ReferenceRepository(self.session).list_dealers(sectors=(budget.sector,))
+        records = await ReferenceRepository(self.session).list_directory(sectors=(budget.sector,))
         permitted_ids = {dealer_identity(record) for record in records}
         if not dealer_ids.issubset(permitted_ids):
             raise HTTPException(422, "经销商名单包含当前业务线以外或已不存在的经销商，请核对名单")

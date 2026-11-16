@@ -22,7 +22,7 @@ class DistributorDirectoryService:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="当前用户未配置业务线",
             )
-        rows = await self.repository.list_dealers(sectors=sectors)
+        rows = await self.repository.list_directory(sectors=sectors)
         result: list[dict] = []
         for row in rows:
             if distributor_status(row["distributor_status"]) != "active":
