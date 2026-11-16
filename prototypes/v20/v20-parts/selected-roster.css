@@ -1,0 +1,4 @@
+.v20-selected-roster { min-width: 0; }
+.v20-selected-roster .panelhead { flex-wrap: wrap; gap: 12px; }
+.v20-selected-roster .tablewrap { max-height: 330px; overflow: auto; }
+.v20-selected-roster table { min-width: 780px; }

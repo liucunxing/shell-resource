@@ -1,5 +1,9 @@
 # Resource Studio V20 原型
 
+2026-11-16 更新：参考 V19 恢复经销商范围下方独立的“最终名单”。仅显示 Active 已选对象，上方搜索不裁剪下方名单；保留名称/编码、SD/RSM、已分配金额、合计、Excel 导出及移除确认。遵循现有禁止新增经销商的规则，不恢复从库添加及上传名单入口。新增覆盖源文件见 `v20-parts/selected-roster.js` 和 `.css`，已内嵌到独立 HTML。仅推送，不部署。
+
+本次完整 HTML SHA256：`29CDB47370271753F7D9F0A448073A8EF9AD763302A7C3A351F4C288141ABD00`。
+
 本分支 `prototype/v20` 从工程主分支 d077846 创建，单独维护原型交付；工程入口仍见仓库根 README。
 
 直接下载并用浏览器打开 `Distributor_Resource_Studio_HiFi_V20.html`，无需安装依赖或登录。HTML 内含演示数据，不连接真实 PG，不代表真实业务指标。
