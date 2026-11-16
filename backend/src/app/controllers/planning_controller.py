@@ -13,6 +13,7 @@ from app.schemas.dto.planning import (
     DepartmentActionDTO,
     PlanningVersionCreateDTO,
     PlanningVersionDeleteDTO,
+    PlanningVersionReleaseDTO,
     PlanningVersionUpdateDTO,
     VersionInitiativeDTO,
     VersionInitiativesImportDTO,
@@ -47,6 +48,13 @@ async def update_version(
     return success(await PlanningService(session, user).update(version_id, payload))
 
 
+@router.post("/planning-versions/{version_id}/release", response_model=ApiResponse[dict])
+async def release_version(
+    version_id: str, payload: PlanningVersionReleaseDTO, session: Session, user: User
+) -> ApiResponse[dict]:
+    return success(await PlanningService(session, user).release(version_id, payload))
+
+
 @router.get("/planning-versions/{version_id}/deletion-info", response_model=ApiResponse[dict])
 async def version_deletion_info(version_id: str, session: Session, user: User) -> ApiResponse[dict]:
     return success(await PlanningService(session, user).deletion_info(version_id))
@@ -71,7 +79,7 @@ async def department(
 )
 async def department_action(
     version_id: str,
-    action: Literal["confirm", "withdraw", "return"],
+    action: Literal["confirm", "withdraw"],
     payload: DepartmentActionDTO,
     session: Session,
     user: User,

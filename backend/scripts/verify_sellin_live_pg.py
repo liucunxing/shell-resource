@@ -274,17 +274,10 @@ async def check_live_api(connection: Any, schema: str, report: dict) -> None:
             }
             == {ids[key] for key in ("mkt-a1", "mkt-a2", "mkt-b")},
         )
-        await api.action("withdraw", reason="Isolated test withdrawal")
-        returned = await api.action(
-            "return", reason="Isolated test return", initiative_id=int(ids["mkt-a1"])
-        )
-        record(
-            checks,
-            "targeted_return_reopens_only_requested_real_dealer_plan",
-            next(row for row in returned["items"] if row["id"] == ids["mkt-a1"])["workflow"][
-                "requiresResubmission"
-            ],
-        )
+        withdrawn = await api.action("withdraw", reason="Isolated test withdrawal")
+        record(checks, "withdraw_reopens_all_department_real_dealer_plans",
+               all(row["workflow"]["submitted"] and not row["workflow"]["ownerEditLocked"]
+                   for row in withdrawn["items"]))
         draft = await api.call("GET", f"initiatives/{ids['mkt-a1']}/draft", "owner-a")
         await api.call(
             "PUT",

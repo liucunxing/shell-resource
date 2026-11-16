@@ -53,14 +53,13 @@ export function beijingDeadlineInput(value) {
     : "";
 }
 
-export function deadlineUpdate(version, input, now = Date.now()) {
+export function deadlineUpdate(version, input) {
   const date = input ? new Date(`${input}:00+08:00`) : null;
   if (date && !Number.isFinite(date.getTime()))
     throw new Error("请填写有效的北京时间");
   return {
     expected_revision: version.revision,
     deadline: date ? date.toISOString() : null,
-    ...(version.open && date && date.getTime() <= now ? { open: false } : {}),
   };
 }
 
@@ -328,7 +327,7 @@ export function PlanningVersionsPage() {
           启用项目数与预算合计只统计已加载版本；其他版本未加载时显示“—”，点击“配置项目”读取该版。
         </p>
       </Card>
-      <p className="tiny">截止时间可留空；到期后停止修改和提交。设置已到期时间会关闭提交，清空时间不会自动重新开放。</p>
+      <p className="tiny">截止时间可留空；到期后停止修改、提交和部门撤回。到期不等于管理员关闭；所有部门提交齐全后才能关闭提交。</p>
       {deadlineError && (
         <Alert variant="destructive" role="alert">
           <AlertDescription>{deadlineError}</AlertDescription>
@@ -418,10 +417,10 @@ export function PlanningVersionsPage() {
           ) : (
             <p>
               {dialog.kind === "close"
-                ? "关闭后所有 Owner 停止编辑和提交。已提交、已确认方案保留。"
+                ? "所有部门提交齐全后才能关闭。关闭后 Owner 不能修改或提交，各部门不能再提交或撤回，已有方案保留为最终结果。"
                 : dialog.kind === "withdraw"
                   ? "撤回发布并关闭提交后，业务角色将不可访问该版本。配置和已提交方案保留，重新发布后恢复可见。"
-                  : "开放当前版本后，其他版本关闭编辑。Owner 提交状态保持不变；需修改的项目应由部门负责人退回。"}
+                  : "开放当前版本后，Owner 提交状态保持不变；已提交管理层的部门仍锁定，可由部门撤回提交后修改，或由管理员驳回并开放全部部门。"}
             </p>
           )}
           {["create", "open"].includes(dialog.kind) && (
