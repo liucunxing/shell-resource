@@ -393,8 +393,8 @@ export function AboutPage() {
                 <span>PostgreSQL</span>
               </div>
               <p className="small-text muted">
-                历史与经销商主数据由数据团队刷新到 PostgreSQL；应用后端从 PG
-                提取授权事实调用允许的 LLM，并保存 Insight 与依据版本。
+                历史与经销商主数据由数据团队刷新到 PostgreSQL；应用后端按授权范围读取数据，
+                保存规划版本、预算分配及提交记录。
               </p>
             </div>
           </Card>
@@ -408,15 +408,15 @@ export function AboutPage() {
               {[
                 [
                   "本地可交互",
-                  "拆分、Excel 往返、反复同步、最新版本汇总与本人/部门 Insight。",
+                  "拆分、Excel 往返、反复同步与最新版本汇总。",
                 ],
                 [
                   "模拟配置",
-                  "MKT / ICE / CAPEX，Owner 编号、意见、批次发布与 AI 分析。",
+                  "MKT / ICE / CAPEX，Owner 编号、意见与批次发布。",
                 ],
                 [
                   "未连接服务",
-                  "SSO、PG、真实后端鉴权、多人协作、真实 LLM、AI4BI iframe。",
+                  "SSO、PG、真实后端鉴权与多人协作。",
                 ],
               ].map(([name, value]) => (
                 <div className="list-item" key={name}>
@@ -434,7 +434,7 @@ export function AboutPage() {
               <ol className="small-text muted">
                 <li>Marketer 配置本人 Initiative</li>
                 <li>添加其他预算安排并配平</li>
-                <li>查看本人汇总或单项 Insight</li>
+                <li>查看本人汇总与历史指标</li>
                 <li>同步最新分配</li>
                 <li>管理层筛选、排序查看最新版本</li>
                 <li>Marketer 再次调整并同步，最新更新时间随之刷新</li>

@@ -1,5 +1,7 @@
 # Backend 协作规则
 
+2026-11-16 当前范围确认：旧右侧抽屉的历史参考、Insight、嵌入 Data Agent 不属于本版，直接清理其前后端模块、专属测试及构建引用。保留组合页/编辑页历史指标、经销商数据和正常详情下钻；Portal 登录与认证代码暂不使用但保留。保留数据库历史表和既有迁移，不执行数据删除。本轮集中推送，不部署。
+
 先遵循 [根规则](../AGENTS.md) 和 [当前业务需求](../docs/CURRENT_REQUIREMENTS.md)。
 
 ## 架构与一致性
@@ -45,7 +47,7 @@ SQLite 只能证明本地逻辑；PG ARRAY、迁移及事务需要实际 Postgre
 
 用户于 2026-11-15 明确：原型演示数据仅导入本地 SQLite，远端 PG 保留真实业务数据，两者不得混用。本地直接访问，无需登录或帆软跳转。`tests.v20_prototype_fixture` 将V19合成业务快照按V20部门权限适配后导入独立 `.cache/v20-prototype`，旧V19缓存保留；旧 `tests.v19_browser_fixture` 的简化合成数据留在 `.cache/v19-final`，不能覆盖。仅 loopback fixture 注入 `example.test` 合成身份和角色切换；普通 API/Portal 入口继续原有校验。原型的模拟月份、合同或指标不能用于填补远端源缺失。
 
-用户最新确认：history manifest及Insight事实明确C3为USD、历史投资归一为USD、规划投资为CNY。Yield单位USD/USD、历史费用先除以配置汇率，不称multiple；原数值公式及正值有效性保留。跨Sector编码是不同业务身份，不跨Sector合并。不得重写源金额或补造汇率。
+用户最新确认：history manifest及历史指标明确C3为USD、历史投资归一为USD、规划投资为CNY。Yield单位USD/USD、历史费用先除以配置汇率，不称multiple；原数值公式及正值有效性保留。跨Sector编码是不同业务身份，不跨Sector合并。不得重写源金额或补造汇率。
 
 2026-11-15用户授权：明确的只读探源任务可使用现有个人登录跨catalog/schema查表；这与应用接入分开。不得因此更换应用认证、扩大运行时权限或写源库。
 

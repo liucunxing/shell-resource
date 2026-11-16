@@ -38,7 +38,7 @@ ai_timeout_seconds = 60
 
 ## 数据来源与权限范围
 
-当前预算、分配、规划版本/部门流转、用户权限、配置和 Insight 记录存储在 PostgreSQL `data` schema。经销商名单和历史读取 `data.distributor_sellin_resource_history`，并非页面实时读取 Databricks；保留的 Databricks Repository 与配置不是运行调用证据。旧参考导入写 `workspace_references`，不会更新这张历史宽表。
+当前预算、分配、规划版本/部门流转、用户权限、配置存储在 PostgreSQL `data` schema。经销商名单和历史读取 `data.distributor_sellin_resource_history`，并非页面实时读取 Databricks；保留的 Databricks Repository 与配置不是运行调用证据。旧右侧参考导入接口已移除，当前历史宽表仍按原规则读取。
 
 Databricks 仅允许应用 Service Principal 访问被分配且授权的 schema，当前配置目标是 `prod.resource_planning.dim_distributor`。不得使用个人 CLI/token 回退，也不能直接接入其他 schema。2026-11-14 个人只读核查在该范围可见两个基础视图，各 2,678 行、3 个字段；应用 SP 认证仍为 `401 invalid_client`，因此尚未证明应用身份能读取。这是旧Databricks探源快照。本期历史来源仍为PG；PPP误加需求已取消，同期经销商target及业务覆盖期间的当前缺项见[PG评估](../docs/PG_SELLIN_ASSESSMENT.md)。
 

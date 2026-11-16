@@ -25,7 +25,6 @@ from app.schemas.dto.workbench import (
     DistributorAllocationUpdateDTO,
     InitiativeDraftUpdateDTO,
     PublishDTO,
-    ReferenceImportDTO,
 )
 from app.schemas.vo.workbench import (
     DistributorAllocationVO,
@@ -266,15 +265,6 @@ async def put_admin_config(
     user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[dict]:
     return success(await _admin_service(session, user).update_config(payload))
-
-
-@router.post("/admin/reference", response_model=ApiResponse[dict], summary="导入历史参考批次")
-async def post_admin_reference(
-    payload: ReferenceImportDTO,
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
-) -> ApiResponse[dict]:
-    return success(await _admin_service(session, user).import_reference(payload))
 
 
 @router.get(

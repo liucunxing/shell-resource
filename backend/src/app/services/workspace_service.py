@@ -207,8 +207,6 @@ class WorkspaceService:
             },
             "reference": snapshot["manifest"],
             "guide": config.guide if config else {"version": 0, "text": ""},
-            "insights": {},
-            "analysisPrompts": {},
             "budgetReasons": config.budget_reasons if config else default_budget_reasons(),
             "budgetReasonVersion": config.budget_reason_version if config else 0,
             "publications": publication_map,

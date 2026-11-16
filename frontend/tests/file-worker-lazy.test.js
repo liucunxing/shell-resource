@@ -17,10 +17,9 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-it("does not load either workbook module for worker startup or reference JSON", async () => {
+it("does not load either workbook module on worker startup", async () => {
   await import("../src/workbench/file-import.worker.js");
-  await self.onmessage({ data: { kind: "reference", text: '{"dealers":[]}' } });
-  expect(self.postMessage).toHaveBeenCalledWith({ preview: { dealers: [] } });
+  expect(self.postMessage).not.toHaveBeenCalled();
   expect(loaded.allocation).not.toHaveBeenCalled();
   expect(loaded.admin).not.toHaveBeenCalled();
 });

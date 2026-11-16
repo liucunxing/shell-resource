@@ -1,9 +1,5 @@
 self.onmessage = async ({ data }) => {
   try {
-    if (data.kind === "reference") {
-      self.postMessage({ preview: JSON.parse(data.text) });
-      return;
-    }
     if (
       ![
         "admin",
@@ -16,7 +12,7 @@ self.onmessage = async ({ data }) => {
     ) {
       throw new Error("不支持此文件操作，请重新选择文件。");
     }
-    // Keep workbook logic and ExcelJS out of the UI graph and JSON-only tasks.
+    // Keep workbook logic and ExcelJS out of the UI graph.
     const { default: excel } = data.kind.startsWith("admin-")
       ? await import("./domain/admin-bulk-excel.js")
       : data.kind === "admin"

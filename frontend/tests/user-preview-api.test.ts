@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { request } from "../src/workbench/api.js";
 import { getPreviewUserEmail, setPreviewUserEmail } from "../src/workbench/userPreview";
-import { initializePortalSession, launchPortalDataAgent, disposePortalChild } from "../src/portal/session";
+import { initializePortalSession, disposePortalChild } from "../src/portal/session";
 
 const instanceId = "12345678-1234-4234-8234-123456789abc";
 const ok = (data = {}) => ({ ok: true, status: 200, json: async () => ({ code: 200, data }) });
@@ -71,11 +71,4 @@ describe("read-only user preview transport", () => {
     expect(options.credentials).toBe("same-origin");
   });
 
-  it("blocks the Portal parent Data Agent bridge during preview", async () => {
-    const fetcher = vi.fn();
-    vi.stubGlobal("fetch", fetcher);
-    setPreviewUserEmail("owner@example.test");
-    await expect(launchPortalDataAgent()).rejects.toThrow("只读模式");
-    expect(fetcher).not.toHaveBeenCalled();
-  });
 });

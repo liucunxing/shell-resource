@@ -44,22 +44,6 @@ it("shows and exports both sectors for one code and selects reference history by
   expect(() => X.historyReference(state, identity, data, "DEMO-DEALER-001")).toThrow(/选择业务线/);
 });
 
-it("uses the matching sector in calculated Insight instead of the last history row", () => {
-  const state = E.createState(D, "working");
-  const item = state.initiatives.find((initiative) => initiative.department === "MKT");
-  const dealerId = item.rows[0].dealerId;
-  const source = { ...D, dealers: [
-    { id: dealerId, sector: item.sector, history: { yield: 7 } },
-    { id: dealerId, sector: "ANOTHER-SECTOR", history: { yield: 999999 } },
-  ] };
-  const result = E.generateInsight(state, `initiative:${item.id}`, {
-    role: "owner", ownerId: item.ownerId, department: item.department,
-  }, { data: source });
-  const low = result.items.find((entry) => entry.key === "low_yield");
-  expect(low.evidence).toContain("为 7");
-  expect(low.evidence).not.toContain("999,999");
-});
-
 it("combines the four-sector filter with code/name and exports only matches", () => {
   const model = { tab: "history", columns: [{ key: "sector", label: "Sector" }, { key: "dealerName", label: "名称" }], rows: [
     { sector: "PCMO", dealerCode: "DEMO-DEALER-001", dealerName: "成都示例经销商" },

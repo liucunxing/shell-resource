@@ -22,7 +22,7 @@ const importErrorMessage = (failure, rows = []) =>
       rows[Number(index) - 1] ? `Excel第${rows[Number(index) - 1]}行` : match,
   );
 
-export function AdminImportPanel({ kind, onImported }) {
+export function AdminImportPanel({ kind }) {
   const { state, identity, previewMode, apiMode, refresh, notify } =
     useWorkbench();
   const [busy, setBusy] = useState(false),
@@ -150,9 +150,13 @@ export function AdminImportPanel({ kind, onImported }) {
       await send({ ...preview.payload, preview: false });
       check(preview.capture, request);
       setPreview(null);
+      // The refreshed roles reload the users list; a second invalidation here
+      // would repeat that request after the full workspace refresh.
+      if (!await refresh({ preservePage: true })) {
+        notify(`已导入 ${preview.items.length} 条${title}，但刷新失败，请重新加载后继续。`, true);
+        return;
+      }
       notify(`已导入 ${preview.items.length} 条${title}。`);
-      await refresh({ preservePage: true });
-      onImported?.();
     } catch (failure) {
       if (request === sequence.current)
         setError(importErrorMessage(failure, preview.rowNumbers));

@@ -1,12 +1,11 @@
 from collections.abc import Sequence
 
-from sqlalchemy import Numeric, RowMapping, Text, delete, func, literal, select
+from sqlalchemy import Numeric, RowMapping, Text, func, literal, select
 from sqlalchemy.dialects.postgresql import JSONB, aggregate_order_by
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 
 from app.models.do.distributor_history import distributor_sellin_resource_history
-from app.models.do.workspace import WorkspaceReferenceDO
 
 
 class ReferenceRepository:
@@ -110,11 +109,3 @@ class ReferenceRepository:
     async def count_dealers(self) -> int:
         statement = select(func.count()).select_from(distributor_sellin_resource_history)
         return int((await self.session.scalar(statement)) or 0)
-
-    async def clear_year(self, planning_year: int) -> None:
-        await self.session.execute(
-            delete(WorkspaceReferenceDO).where(WorkspaceReferenceDO.planning_year == planning_year)
-        )
-
-    def add(self, entity: WorkspaceReferenceDO) -> None:
-        self.session.add(entity)

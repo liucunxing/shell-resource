@@ -34,7 +34,6 @@ vitestTest(
       const state = E.createState(data, "working");
       const item = firstMkt(state);
       const owner = ownerFor(item);
-      E.generateInsight(state, "initiative:" + item.id, owner, { data });
       const dealerBefore = clone(item.rows);
       reduceFirstDealer(state, item, 12.34);
       const unauthorized = JSON.stringify(state);
@@ -77,7 +76,6 @@ vitestTest(
       assert.equal(item.revision, revisionBefore + 1);
       assert.equal(state.audit.length, auditBefore + 1);
       assert.equal(state.audit.at(-1).action, "balance_other_budget");
-      assert.equal(E.insightIsStale(state, "initiative:" + item.id), true);
     });
 
     test("零差额严格无操作；超支只可扣减专用余额且保留人工说明", () => {

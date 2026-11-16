@@ -1,5 +1,6 @@
 import asyncio
 from logging.config import fileConfig
+from typing import Any
 
 from alembic import context
 from sqlalchemy import Connection, pool
@@ -19,6 +20,18 @@ config.set_main_option(
 target_metadata = BaseDO.metadata
 
 
+def include_object(
+    object_: Any, name: str, type_: str, reflected: bool, compare_to: Any,
+) -> bool:
+    # V20 removed Insight runtime models, while its persisted history is retained.
+    # Suppress only drops of these two unmapped, reflected tables, not other changes.
+    return not (
+        type_ == "table" and reflected and compare_to is None
+        and getattr(object_, "schema", None) == "data"
+        and name in {"insight_records", "insight_prompts"}
+    )
+
+
 def run_migrations_offline() -> None:
     context.configure(
         url=config.get_main_option("sqlalchemy.url"),
@@ -26,13 +39,17 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
+        include_object=include_object,
     )
     with context.begin_transaction():
         context.run_migrations()
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
+    context.configure(
+        connection=connection, target_metadata=target_metadata, compare_type=True,
+        include_object=include_object,
+    )
     with context.begin_transaction():
         context.run_migrations()
 

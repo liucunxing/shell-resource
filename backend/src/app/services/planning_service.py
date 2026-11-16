@@ -782,8 +782,9 @@ class PlanningService:
         if previous_scope is not None:
             affected_scopes.add(previous_scope)
         for sector, department in affected_scopes:
-            for other in await self.department_budgets(version_id, sector, department):
-                other_state = await self.ensure_state(other.id)
+            department_budgets = await self.department_budgets(version_id, sector, department)
+            department_states = await self.states_for(department_budgets, create_missing=True)
+            for other_state in department_states.values():
                 other_state.owner_edit_locked = False
                 other_state.confirmed_publication_id = None
                 other_state.confirmed_by = None
