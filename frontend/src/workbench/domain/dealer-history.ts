@@ -40,7 +40,8 @@ export interface HistoryDealer {
 export const HISTORY_RESOURCES = ["MRD", "ICE Rebate", "SP&A", "Capex"];
 
 export function isActiveDealer(dealer: HistoryDealer): boolean {
-  return dealer.status === "active" || String(dealer.status) === "1";
+  const status = String(dealer.status ?? "").trim().toLowerCase();
+  return status === "active" || status === "1";
 }
 
 export function finiteHistoryValue(value: unknown): number | null {

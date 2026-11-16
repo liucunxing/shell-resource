@@ -1,0 +1,39 @@
+/* Login layout must override shared component utilities in every browser. */
+.login-shell .login-email-field {
+  display: grid;
+  gap: 9px;
+  color: #423b37;
+  font-size: 12px;
+  font-weight: 700;
+}
+.login-shell .login-input-wrap input {
+  width: 100%;
+  height: 54px;
+  padding: 0 16px 0 48px;
+  border: 1px solid #d8cfc5;
+  border-radius: 11px;
+  background: #fff;
+  font-size: 14px;
+}
+.login-shell .login-input-wrap input[readonly] {
+  background: #f1efec;
+}
+.login-shell .login-submit {
+  display: flex;
+  justify-content: space-between;
+  height: 54px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 11px;
+  background: #d71920;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+}
+.login-shell .login-submit:hover:not(:disabled) { background: #ae1017; }
+.login-shell .login-submit:disabled {
+  background: #bd6870;
+  color: #fff;
+  opacity: 1;
+  cursor: not-allowed;
+}

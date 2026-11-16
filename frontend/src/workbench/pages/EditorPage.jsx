@@ -56,6 +56,7 @@ import {
   finiteHistoryValue,
   historyYoyLabel,
   initiativeDealers,
+  isActiveDealer,
 } from "../domain/dealer-history";
 import { exportExcelInWorker, previewExcelInWorker } from "../file-import.js";
 import { concentration, portfolioRows } from "../domain/portfolio-analytics.js";
@@ -286,7 +287,14 @@ function HistoryControls({
   return (
     <div className="v19-editor-history">
       <span>历史参考</span>
-      <HistoryPeriodTabs value={period} onValueChange={onPeriodChange} ytdCutoffMonth={ytdCutoffMonth}>经销商 target 以 KL 展示；Phasing = Delivery Vol ÷ 同期间 target，目标缺失、非正数或期间未确认时不计算。</HistoryPeriodTabs>
+      <HistoryPeriodTabs
+        value={period}
+        onValueChange={onPeriodChange}
+        ytdCutoffMonth={ytdCutoffMonth}
+      >
+        经销商 target 以 KL 展示；Phasing = Delivery Vol ÷ 同期间
+        target，目标缺失、非正数或期间未确认时不计算。
+      </HistoryPeriodTabs>
       {onMetricChange && (
         <Tabs
           value={metric === "vol" ? "vol" : "c3"}
@@ -298,7 +306,6 @@ function HistoryControls({
           </TabsList>
         </Tabs>
       )}
-
     </div>
   );
 }
@@ -429,9 +436,9 @@ function EditorContent({
     [scopeSearch, setScopeSearch] = useState(""),
     [scopeSd, setScopeSd] = useState("all"),
     [scopeRsm, setScopeRsm] = useState("all"),
-    [scopeStatus, setScopeStatus] = useState("all"),
     [scopePage, setScopePage] = useState(1),
     [trialCompare, setTrialCompare] = useState(false),
+    [fillNotice, setFillNotice] = useState(null),
     [allocationQuery, setAllocationQuery] = useState(""),
     [allocatedOnly, setAllocatedOnly] = useState(false),
     [allocationSort, setAllocationSort] = useState({
@@ -446,6 +453,7 @@ function EditorContent({
     ),
     [undo, setUndo] = useState(null),
     [busy, setBusy] = useState(false);
+  useEffect(() => setFillNotice(null), [initiativeId]);
   useEffect(() => {
     const previous = previousAcknowledgement.current;
     if (previous.key !== acknowledgementKey) {
@@ -472,10 +480,16 @@ function EditorContent({
     const viewport = allocationScroll.current;
     const header = viewport?.querySelector("thead");
     if (!viewport || !header) return;
-    const navigation = viewport.closest(".workspace")?.querySelector(".v19-appnav");
+    const navigation = viewport
+      .closest(".workspace")
+      ?.querySelector(".v19-appnav");
     const stickHeader = () => {
-      const pageTop = Math.max(0, navigation?.getBoundingClientRect().bottom ?? 0);
-      const tableTop = viewport.getBoundingClientRect().top + viewport.clientTop;
+      const pageTop = Math.max(
+        0,
+        navigation?.getBoundingClientRect().bottom ?? 0,
+      );
+      const tableTop =
+        viewport.getBoundingClientRect().top + viewport.clientTop;
       const headerHeight = header.getBoundingClientRect().height;
       const bottomLimit = Math.max(0, viewport.clientHeight - headerHeight);
       const top = Math.min(Math.max(0, pageTop - tableTop), bottomLimit);
@@ -641,7 +655,11 @@ function EditorContent({
       dealerMeta(dealerId),
       i.rows.find((row) => row.dealerId === dealerId),
     );
-  const scopeDealers = dealers.filter((dealer) => {
+  const activeScopeDealers = dealers.filter(isActiveDealer);
+  const selectedScopeRows = i.rows.filter((row) =>
+    isActiveDealer(dealerMeta(row.dealerId)),
+  );
+  const scopeDealers = activeScopeDealers.filter((dealer) => {
     const term = scopeSearch.trim().toLowerCase();
     return (
       (!term ||
@@ -649,12 +667,15 @@ function EditorContent({
           .toLowerCase()
           .includes(term)) &&
       (scopeSd === "all" || dealer.sd === scopeSd) &&
-      (scopeRsm === "all" || dealer.rsm === scopeRsm) &&
-      (scopeStatus === "all" || dealer.status === scopeStatus)
+      (scopeRsm === "all" || dealer.rsm === scopeRsm)
     );
   });
   const scopeOptions = (key) =>
-    [...new Set(dealers.map((dealer) => dealer[key]).filter(Boolean))].sort();
+    [
+      ...new Set(
+        activeScopeDealers.map((dealer) => dealer[key]).filter(Boolean),
+      ),
+    ].sort();
   const changeRow = (n, amount) =>
     update({
       rows: i.rows.map((r, index) => (index === n ? { ...r, amount } : r)),
@@ -694,7 +715,7 @@ function EditorContent({
       ),
     });
   const close = () => setModal(null);
-  const download = async (directoryOnly = false) => {
+  const download = async (directoryOnly = false, rosterOnly = false) => {
     const previewEpoch = getPreviewEpoch();
     if (!directoryOnly && !guard()) return;
     setBusy(true);
@@ -705,15 +726,17 @@ function EditorContent({
       if (!Array.isArray(directory))
         throw Error("经销商目录加载失败，暂不能下载，请稍后重试。");
       const exportData = { ...data, distributorDirectory: directory };
-      const bytes = directoryOnly
-        ? await exportExcelInWorker("directory", exportData)
-        : await exportExcelInWorker(
-            "allocation",
-            state,
-            i.id,
-            identity,
-            exportData,
-          );
+      const bytes = rosterOnly
+        ? await exportExcelInWorker("roster", selectedScopeRows, dealers)
+        : directoryOnly
+          ? await exportExcelInWorker("directory", exportData)
+          : await exportExcelInWorker(
+              "allocation",
+              state,
+              i.id,
+              identity,
+              exportData,
+            );
       await validatePortalSession();
       assertPreviewResponseCurrent(previewEpoch);
       if (!alive.current) return;
@@ -724,9 +747,11 @@ function EditorContent({
       );
       const a = document.createElement("a");
       a.href = url;
-      a.download = directoryOnly
-        ? "经销商列表.xlsx"
-        : `${i.department}_${i.name}_${i.id}_分配模板.xlsx`;
+      a.download = rosterOnly
+        ? `${i.name}_已选经销商名单.xlsx`
+        : directoryOnly
+          ? "经销商列表.xlsx"
+          : `${i.department}_${i.name}_${i.id}_分配模板.xlsx`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
@@ -774,18 +799,23 @@ function EditorContent({
           i.sector,
           directoryDealers,
         );
-        setModal({
-          type: "fill",
-          revision: i.revision,
-          metricLabel: label,
-          ...allocation,
-          unavailable: allocation.unavailable.map((label) => {
-            const row = i.rows.find((entry) =>
-              label.endsWith(`（${entry.dealerId}）`),
-            );
-            return row ? dealerLabel(row.dealerId) : label;
-          }),
-        });
+        if (!allocation.hasHistory) {
+          setFillNotice(null);
+          throw Error("历史权重合计为 0，不能应用试算。");
+        }
+        if (update({ rows: allocation.rows })) {
+          setFillNotice({
+            metricLabel: label,
+            hasHistory: true,
+            unavailable: allocation.unavailable.map((name) => {
+              const row = i.rows.find((entry) =>
+                name.endsWith(`（${entry.dealerId}）`),
+              );
+              return row ? dealerLabel(row.dealerId) : name;
+            }),
+          });
+          notify("已应用历史占比试算，请检查明细并保存草稿。");
+        }
       } catch (e) {
         notify(e.message, true);
       }
@@ -903,7 +933,8 @@ function EditorContent({
         ? [{ ...i, rows: detail.previewRows }]
         : [i];
   const weightedPhasing = aggregateHistoryPhasing(
-    i.rows.map((row) => dealerMeta(row.dealerId).history), historyPeriod,
+    i.rows.map((row) => dealerMeta(row.dealerId).history),
+    historyPeriod,
   ).ratio;
   const allocationValue = (row, key) => {
     const dealer = dealerMeta(row.dealerId),
@@ -951,7 +982,9 @@ function EditorContent({
       investment: historyInvestment(h, historyPeriod),
       yield: historyYield(h, historyPeriod),
       investmentShare: investmentShareFor(row.dealerId, historyPeriod),
-      support: (awardsByDealer.get(String(row.dealerId)) || []).map((award) => award.name).join("、"),
+      support: (awardsByDealer.get(String(row.dealerId)) || [])
+        .map((award) => award.name)
+        .join("、"),
       note: row.note || "",
     }[key];
   };
@@ -1184,7 +1217,9 @@ function EditorContent({
                 </div>
                 <div className="studio-scope-summary">
                   {scopeOptions("sd").map((sd) => {
-                    const all = dealers.filter((dealer) => dealer.sd === sd);
+                    const all = activeScopeDealers.filter(
+                      (dealer) => dealer.sd === sd,
+                    );
                     const picked = all.filter((dealer) =>
                       i.rows.some((row) => row.dealerId === dealer.id),
                     );
@@ -1257,25 +1292,12 @@ function EditorContent({
                       </NativeSelectOption>
                     ))}
                   </NativeSelect>
-                  <NativeSelect
-                    value={scopeStatus}
-                    onChange={(event) => {
-                      setScopeStatus(event.target.value);
-                      setScopePage(1);
-                    }}
-                  >
-                    <NativeSelectOption value="all">
-                      全部状态
-                    </NativeSelectOption>
-                    {scopeOptions("status").map((value) => (
-                      <NativeSelectOption key={value}>
-                        {value}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
                 </div>
                 <div className="table-scroll studio-wide-table">
-                  <Table pageIndex={scopePage - 1} pageSize={20} onSort={() => setScopePage(1)}
+                  <Table
+                    pageIndex={scopePage - 1}
+                    pageSize={20}
+                    onSort={() => setScopePage(1)}
                     containerClassName="overflow-visible"
                     className="v19-scope-review"
                   >
@@ -1317,9 +1339,7 @@ function EditorContent({
                         )}
                         <TableHead className="num">Vol</TableHead>
                         <TableHead className="num">C3</TableHead>
-                        <TableHead className="num">
-                          2025 投资（K$）
-                        </TableHead>
+                        <TableHead className="num">2025 投资（K$）</TableHead>
                         <TableHead className="num">2025 资源占比</TableHead>
                         <TableHead className="num">
                           2026 YTD 投资（K$）
@@ -1328,155 +1348,169 @@ function EditorContent({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {scopeDealers
-                        .map((dealer) => {
-                          const h = dealer.history || {},
-                            selected = i.rows.find(
-                              (row) => row.dealerId === dealer.id,
-                            );
-                          return (
-                            <TableRow key={dealer.id}>
-                              <TableCell>
-                                <Checkbox
-                                  aria-label={`选择 ${dealerLabel(dealer.id)}`}
-                                  checked={!!selected}
-                                  disabled={
-                                    !editable ||
-                                    !selected
-                                  }
-                                  onCheckedChange={(checked) =>
-                                    doGuard(() => {
-                                      if (!(selected?.amount > 0 && !checked))
-                                        rememberSelectionViewport();
-                                      if (!checked && selected?.amount > 0)
-                                        setModal({
-                                          type: "remove",
-                                          dealerId: dealer.id,
-                                          amount: selected.amount,
-                                        });
-                                      else if (!checked)
-                                        update({
-                                          rows: i.rows.filter(
-                                            (row) => row.dealerId !== dealer.id,
-                                          ),
-                                        });
-                                    })
-                                  }
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="link"
-                                  onClick={() =>
-                                    setDetail({
-                                      type: "dealer",
-                                      dealerId: String(dealer.id),
-                                      sector: i.sector,
-                                      period: historyPeriod,
-                                      basis: "c3",
-                                      directoryOnly: true,
-                                    })
-                                  }
-                                >
-                                  {dealer.name || "—"}
-                                </Button>
-                                <small>{dealerCode(dealer.id)}</small>
-                              </TableCell>
-                              <TableCell>
-                                {dealer.sd || "—"} / {dealer.rsm || "—"}
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="secondary">
-                                  {dealer.status || "—"}
-                                </Badge>
-                              </TableCell>
-                              {["2025", "2026Ytd"].map((period) => (
-                                <Fragment key={period}>
-                                  <TableCell className="num" sortValue={h[
-                                        period === "2025"
-                                          ? "vol2025"
-                                          : "vol2026Ytd"
-                                      ]}>
-                                    {histFmt(
-                                      h[
-                                        period === "2025"
-                                          ? "vol2025"
-                                          : "vol2026Ytd"
-                                      ],
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="num" sortValue={h[
-                                        period === "2025"
-                                          ? "c32025"
-                                          : "c32026Ytd"
-                                      ]}>
-                                    {histFmt(
-                                      h[
-                                        period === "2025"
-                                          ? "c32025"
-                                          : "c32026Ytd"
-                                      ],
-                                    )}
-                                  </TableCell>
-                                  <TableCell
-                                    className="num" sortValue={historyPhasing(h, period)}
-                                    title="Phasing = Delivery Vol ÷ 对应期间经销商目标；目标须大于 0"
-                                  >
-                                    {historyPhasing(h, period) == null
-                                      ? "—"
-                                      : `${fmt(historyPhasing(h, period) * 100)}%`}
-                                  </TableCell>
-                                  <TableCell className="num" sortValue={historyYield(h, period)}>
-                                    {historyYield(h, period) == null
-                                      ? "—"
-                                      : `${fmt(historyYield(h, period))}`}
-                                  </TableCell>
-                                </Fragment>
-                              ))}
-                              <TableCell className="num">
-                                {historyYoyLabel(h, "vol")}
-                              </TableCell>
-                              <TableCell className="num">
-                                {historyYoyLabel(h, "c3")}
-                              </TableCell>
-                              {["2025", "2026Ytd"].map((period) => (
-                                <Fragment key={period}>
-                                  <TableCell className="num" sortValue={historyInvestment(h, period)}>
-                                    {histFmt(historyInvestment(h, period))}
-                                  </TableCell>
-                                  <TableCell className="num" sortValue={investmentShareFor(dealer.id, period)}>
-                                    {investmentShareFor(dealer.id, period) ==
-                                    null
-                                      ? "—"
-                                      : `${fmt(investmentShareFor(dealer.id, period))}%`}
-                                  </TableCell>
-                                </Fragment>
-                              ))}
-                              <TableCell>
-                                <Button
-                                  variant="link"
-                                  disabled={!otherInitiatives(dealer.id).length}
-                                  onClick={() =>
-                                    setDetail({
-                                      type: "dealer",
-                                      dealerId: String(dealer.id),
-                                      sector: i.sector,
-                                      period: historyPeriod,
-                                      basis: "c3",
-                                      ownerOthers: true,
-                                      title:
-                                        "本人其他 Initiative · " + dealer.name,
-                                    })
-                                  }
-                                >
-                                  {otherInitiatives(dealer.id).length
-                                    ? `${otherInitiatives(dealer.id).length} 项 · ${fmt(otherInitiatives(dealer.id).reduce((sum, entry) => sum + entry.row.amount, 0) / 10000)} 万`
-                                    : "—"}
-                                </Button>
-                              </TableCell>
-                            </TableRow>
+                      {scopeDealers.map((dealer) => {
+                        const h = dealer.history || {},
+                          selected = i.rows.find(
+                            (row) => row.dealerId === dealer.id,
                           );
-                        })}
+                        return (
+                          <TableRow key={dealer.id}>
+                            <TableCell>
+                              <Checkbox
+                                aria-label={`选择 ${dealerLabel(dealer.id)}`}
+                                checked={!!selected}
+                                disabled={!editable || !selected}
+                                onCheckedChange={(checked) =>
+                                  doGuard(() => {
+                                    if (!(selected?.amount > 0 && !checked))
+                                      rememberSelectionViewport();
+                                    if (!checked && selected?.amount > 0)
+                                      setModal({
+                                        type: "remove",
+                                        dealerId: dealer.id,
+                                        amount: selected.amount,
+                                      });
+                                    else if (!checked)
+                                      update({
+                                        rows: i.rows.filter(
+                                          (row) => row.dealerId !== dealer.id,
+                                        ),
+                                      });
+                                  })
+                                }
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="link"
+                                onClick={() =>
+                                  setDetail({
+                                    type: "dealer",
+                                    dealerId: String(dealer.id),
+                                    sector: i.sector,
+                                    period: historyPeriod,
+                                    basis: "c3",
+                                    directoryOnly: true,
+                                  })
+                                }
+                              >
+                                {dealer.name || "—"}
+                              </Button>
+                              <small>{dealerCode(dealer.id)}</small>
+                            </TableCell>
+                            <TableCell>
+                              {dealer.sd || "—"} / {dealer.rsm || "—"}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">
+                                {dealer.status || "—"}
+                              </Badge>
+                            </TableCell>
+                            {["2025", "2026Ytd"].map((period) => (
+                              <Fragment key={period}>
+                                <TableCell
+                                  className="num"
+                                  sortValue={
+                                    h[
+                                      period === "2025"
+                                        ? "vol2025"
+                                        : "vol2026Ytd"
+                                    ]
+                                  }
+                                >
+                                  {histFmt(
+                                    h[
+                                      period === "2025"
+                                        ? "vol2025"
+                                        : "vol2026Ytd"
+                                    ],
+                                  )}
+                                </TableCell>
+                                <TableCell
+                                  className="num"
+                                  sortValue={
+                                    h[
+                                      period === "2025" ? "c32025" : "c32026Ytd"
+                                    ]
+                                  }
+                                >
+                                  {histFmt(
+                                    h[
+                                      period === "2025" ? "c32025" : "c32026Ytd"
+                                    ],
+                                  )}
+                                </TableCell>
+                                <TableCell
+                                  className="num"
+                                  sortValue={historyPhasing(h, period)}
+                                  title="Phasing = Delivery Vol ÷ 对应期间经销商目标；目标须大于 0"
+                                >
+                                  {historyPhasing(h, period) == null
+                                    ? "—"
+                                    : `${fmt(historyPhasing(h, period) * 100)}%`}
+                                </TableCell>
+                                <TableCell
+                                  className="num"
+                                  sortValue={historyYield(h, period)}
+                                >
+                                  {historyYield(h, period) == null
+                                    ? "—"
+                                    : `${fmt(historyYield(h, period))}`}
+                                </TableCell>
+                              </Fragment>
+                            ))}
+                            <TableCell className="num">
+                              {historyYoyLabel(h, "vol")}
+                            </TableCell>
+                            <TableCell className="num">
+                              {historyYoyLabel(h, "c3")}
+                            </TableCell>
+                            {["2025", "2026Ytd"].map((period) => (
+                              <Fragment key={period}>
+                                <TableCell
+                                  className="num"
+                                  sortValue={historyInvestment(h, period)}
+                                >
+                                  {histFmt(historyInvestment(h, period))}
+                                </TableCell>
+                                <TableCell
+                                  className="num"
+                                  sortValue={investmentShareFor(
+                                    dealer.id,
+                                    period,
+                                  )}
+                                >
+                                  {investmentShareFor(dealer.id, period) == null
+                                    ? "—"
+                                    : `${fmt(investmentShareFor(dealer.id, period))}%`}
+                                </TableCell>
+                              </Fragment>
+                            ))}
+                            <TableCell>
+                              <Button
+                                variant="link"
+                                disabled={!otherInitiatives(dealer.id).length}
+                                onClick={() =>
+                                  setDetail({
+                                    type: "dealer",
+                                    dealerId: String(dealer.id),
+                                    sector: i.sector,
+                                    period: historyPeriod,
+                                    basis: "c3",
+                                    ownerOthers: true,
+                                    title:
+                                      "本人其他 Initiative · " + dealer.name,
+                                  })
+                                }
+                              >
+                                {otherInitiatives(dealer.id).length
+                                  ? `${otherInitiatives(dealer.id).length} 项 · ${fmt(otherInitiatives(dealer.id).reduce((sum, entry) => sum + entry.row.amount, 0) / 10000)} 万`
+                                  : "—"}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
@@ -1508,6 +1542,139 @@ function EditorContent({
                   </div>
                 </div>
               </Card>
+              <Card
+                className="panel studio-selected-roster"
+                aria-labelledby="selected-roster-title"
+              >
+                <div className="panel-header">
+                  <div>
+                    <h2 id="selected-roster-title">
+                      最终名单 · {selectedScopeRows.length} 家
+                    </h2>
+                    <p className="small-text muted">
+                      已选经销商（仅 Active），不受上方搜索、SD / RSM
+                      筛选和分页影响。
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => download(false, true)}
+                  >
+                    下载名单 Excel
+                  </Button>
+                </div>
+                <div
+                  className="table-scroll selected-roster-scroll"
+                  tabIndex={0}
+                  role="region"
+                  aria-label="已选经销商名单，可滚动"
+                >
+                  <Table
+                    containerClassName="overflow-visible"
+                    aria-label="已选经销商名单"
+                  >
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>编码</TableHead>
+                        <TableHead>名称</TableHead>
+                        <TableHead>SD</TableHead>
+                        <TableHead>RSM</TableHead>
+                        <TableHead>状态</TableHead>
+                        <TableHead className="num">已分配（元）</TableHead>
+                        <TableHead>操作</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedScopeRows.length ? (
+                        selectedScopeRows.map((row) => {
+                          const dealer = dealerMeta(row.dealerId);
+                          return (
+                            <TableRow key={row.dealerId}>
+                              <TableCell>{dealerCode(row.dealerId)}</TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="link"
+                                  onClick={() =>
+                                    setDetail({
+                                      type: "dealer",
+                                      dealerId: String(row.dealerId),
+                                      sector: i.sector,
+                                      period: historyPeriod,
+                                      basis: "c3",
+                                    })
+                                  }
+                                >
+                                  {dealerName(row.dealerId)}
+                                </Button>
+                              </TableCell>
+                              <TableCell>{dealer.sd || "—"}</TableCell>
+                              <TableCell>{dealer.rsm || "—"}</TableCell>
+                              <TableCell>
+                                <Badge variant="secondary">Active</Badge>
+                              </TableCell>
+                              <TableCell className="num">
+                                {fmt(row.amount)}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  disabled={!editable}
+                                  aria-label={`移除 ${dealerLabel(row.dealerId)}`}
+                                  onClick={() =>
+                                    doGuard(() => {
+                                      if (row.amount > 0)
+                                        setModal({
+                                          type: "remove",
+                                          dealerId: row.dealerId,
+                                          amount: row.amount,
+                                        });
+                                      else
+                                        update({
+                                          rows: i.rows.filter(
+                                            (item) =>
+                                              item.dealerId !== row.dealerId,
+                                          ),
+                                        });
+                                    })
+                                  }
+                                >
+                                  移除
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={7} className="empty">
+                            尚未选择 Active 经销商
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                    <TableFooter>
+                      <TableRow>
+                        <TableCell colSpan={5}>
+                          合计 · {selectedScopeRows.length} 家
+                        </TableCell>
+                        <TableCell className="num">
+                          {fmt(
+                            selectedScopeRows.reduce(
+                              (sum, row) => sum + Number(row.amount || 0),
+                              0,
+                            ),
+                          )}
+                        </TableCell>
+                        <TableCell />
+                      </TableRow>
+                    </TableFooter>
+                  </Table>
+                </div>
+                <p className="small-text muted">
+                  移除已获配经销商需确认，释放金额返回待分配；不会自动重算其他经销商金额。
+                </p>
+              </Card>
             </>
           )}
           {activeStep === 3 && (
@@ -1516,10 +1683,11 @@ function EditorContent({
                 <div>
                   <h2>试算方案</h2>
                   <p className="small-text muted">
-                    采用试算会覆盖当前金额，保留名单与主动预留；确认前显示预览。
+                    采用试算会直接覆盖当前金额，保留名单与主动预留；请检查明细并保存草稿。
                   </p>
                 </div>
               </div>
+              {fillNotice && <MissingHistoryNotice {...fillNotice} />}
               <HistoryControls
                 ytdCutoffMonth={state.ytdCutoffMonth}
                 period={trialPeriod}
@@ -1877,7 +2045,8 @@ function EditorContent({
                 role="region"
                 aria-label="经销商分配明细，可上下和横向滚动"
               >
-                <Table sortingMode="manual"
+                <Table
+                  sortingMode="manual"
                   containerClassName="overflow-visible"
                   className="allocation-table v19-allocation-table"
                   data-editable={editable}
@@ -1903,7 +2072,9 @@ function EditorContent({
                     </TableRow>
                     <TableRow>
                       {editable && (
-                        <TableHead scope="col" aria-label="选择配平经销商">选择</TableHead>
+                        <TableHead scope="col" aria-label="选择配平经销商">
+                          选择
+                        </TableHead>
                       )}
                       {allocationColumns.map(([key, title]) => (
                         <SortHead
@@ -1914,9 +2085,7 @@ function EditorContent({
                           sortKey={key}
                           data-column={key}
                           className={
-                            ["name", "sd", "rsm", "note"].includes(
-                              key,
-                            )
+                            ["name", "sd", "rsm", "note"].includes(key)
                               ? ""
                               : "num"
                           }
@@ -2022,9 +2191,14 @@ function EditorContent({
                                             initiativeId: item.id,
                                             awardedProject: true,
                                             dealerId: String(r.dealerId),
-                                            scopeDealerKeys: [`${i.sector}:${r.dealerId}`],
+                                            scopeDealerKeys: [
+                                              `${i.sector}:${r.dealerId}`,
+                                            ],
                                             period: historyPeriod,
-                                            basis: historyMetric === "vol" ? "vol" : "c3",
+                                            basis:
+                                              historyMetric === "vol"
+                                                ? "vol"
+                                                : "c3",
                                           })
                                         }
                                       >
@@ -2032,7 +2206,9 @@ function EditorContent({
                                       </Button>
                                     ))}
                                   </div>
-                                ) : "—"
+                                ) : (
+                                  "—"
+                                )
                               ) : key === "note" ? (
                                 editable ? (
                                   <Input
@@ -2446,7 +2622,6 @@ function EditorContent({
               modal.title ||
               {
                 remove: "移除经销商分配",
-                fill: "按历史占比辅助填充",
                 balance: "指定经销商配平",
                 import: "Excel 导入预览",
                 history: "单项同步历史",
@@ -2467,6 +2642,7 @@ function EditorContent({
                       })
                     ) {
                       setChangeReason("");
+                      setFillNotice(null);
                       close();
                     }
                   }}
@@ -2489,21 +2665,6 @@ function EditorContent({
                   }}
                 >
                   确认移除
-                </Button>
-              ) : modal.type === "fill" ? (
-                <Button
-                  variant="default"
-                  className="button primary"
-                  disabled={!modal.hasHistory}
-                  onClick={() => {
-                    if (!modal.hasHistory)
-                      return notify("历史权重合计为 0，不能应用试算。", true);
-                    if (i.revision !== modal.revision)
-                      return notify("工作稿已变化，请重新预览。", true);
-                    if (update({ rows: modal.rows })) close();
-                  }}
-                >
-                  应用本次填充
                 </Button>
               ) : modal.type === "balance" ? (
                 <Button
@@ -2572,7 +2733,9 @@ function EditorContent({
                               </Button>
                             </TableCell>
                             <TableCell>{item.resourceType}</TableCell>
-                            <TableCell sortValue={row.amount}>{fmt(row.amount)}</TableCell>
+                            <TableCell sortValue={row.amount}>
+                              {fmt(row.amount)}
+                            </TableCell>
                             <TableCell>
                               {pct(row.amount, E.totals([item]).allocated)}%
                             </TableCell>
@@ -2610,44 +2773,6 @@ function EditorContent({
                 分配后，金额将成为未解释差额，不会自动移到其他行。
               </p>
             )}
-            {modal.type === "fill" && (
-              <>
-                <p>
-                  以当前经销商范围的 {modal.metricLabel}
-                  占比拆分预算，保留其他预算安排。此操作不代表投资推荐。
-                </p>
-                <MissingHistoryNotice
-                  metricLabel={modal.metricLabel}
-                  unavailable={modal.unavailable}
-                  hasHistory={modal.hasHistory}
-                />
-                {!modal.rows.length && (
-                  <p role="status">
-                    尚未添加经销商，可分配预算保留为未分配差额。
-                  </p>
-                )}
-                <div className="table-scroll">
-                  <Table containerClassName="overflow-visible">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>经销商</TableHead>
-                        <TableHead>当前金额</TableHead>
-                        <TableHead>预览金额</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {modal.rows.map((r, n) => (
-                        <TableRow key={r.dealerId}>
-                          <TableCell>{dealerCode(r.dealerId)}</TableCell>
-                          <TableCell sortValue={i.rows[n].amount}>{fmt(i.rows[n].amount)}</TableCell>
-                          <TableCell sortValue={r.amount}>{fmt(r.amount)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </>
-            )}
             {modal.type === "balance" && (
               <>
                 <p>
@@ -2677,7 +2802,10 @@ function EditorContent({
                               <TableCell className="num" sortValue={row.amount}>
                                 {fmt(row.amount)}
                               </TableCell>
-                              <TableCell className="num" sortValue={after.amount}>
+                              <TableCell
+                                className="num"
+                                sortValue={after.amount}
+                              >
                                 {fmt(after.amount)}
                               </TableCell>
                               <TableCell className="num">
@@ -2769,7 +2897,9 @@ function EditorContent({
                               (reason) => reason.id === r.reasonId,
                             )?.label || r.reasonId}
                           </TableCell>
-                          <TableCell sortValue={r.amount}>{fmt(r.amount)}</TableCell>
+                          <TableCell sortValue={r.amount}>
+                            {fmt(r.amount)}
+                          </TableCell>
                           <TableCell>{r.note || "—"}</TableCell>
                         </TableRow>
                       ))}
@@ -2813,7 +2943,9 @@ function EditorContent({
                                     <TableCell>
                                       {dealerCode(r.dealerId)}
                                     </TableCell>
-                                    <TableCell sortValue={r.amount}>{fmt(r.amount)}</TableCell>
+                                    <TableCell sortValue={r.amount}>
+                                      {fmt(r.amount)}
+                                    </TableCell>
                                   </TableRow>
                                 ))}
                               </TableBody>

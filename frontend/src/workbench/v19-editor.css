@@ -103,6 +103,14 @@
 .v19-editor .editor-layout {
   display: block;
 }
+.v19-editor .selected-roster-scroll {
+  max-height: 330px;
+  overflow: auto;
+}
+.v19-editor .studio-selected-roster .panel-header {
+  flex-wrap: wrap;
+  gap: 12px;
+}
 .v19-editor .panel {
   display: flex;
   flex-direction: column;
