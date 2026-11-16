@@ -16,6 +16,7 @@ vi.mock("../src/workbench/WorkbenchContext.jsx", () => ({
 const current = {
   id: "202702",
   name: "第二版",
+  createdBy: "admin@example.com",
   published: true,
   open: true,
   revision: 5,
@@ -57,7 +58,7 @@ describe("V19 version table and deadlines", () => {
       deadline: null,
     });
   });
-  it("closes an open version when saving an already expired deadline", () => {
+  it("keeps expiry separate from the administrator closing a fully submitted version", () => {
     expect(
       deadlineUpdate(
         current,
@@ -67,10 +68,9 @@ describe("V19 version table and deadlines", () => {
     ).toEqual({
       expected_revision: 5,
       deadline: "2026-11-01T00:00:00.000Z",
-      open: false,
     });
   });
-  it("renders table totals, a separate deadline panel and read-only preview controls", () => {
+  it("renders creators and deadlines in the version table with read-only preview controls", () => {
     useWorkbench.mockReturnValue({
       state: {
         planningVersions: [
@@ -79,8 +79,7 @@ describe("V19 version table and deadlines", () => {
             id: "202701",
             name: "第一版",
             published: true,
-            open: false,
-            revision: 3,
+                  revision: 3,
           },
         ],
         currentVersionId: current.id,
@@ -93,8 +92,10 @@ describe("V19 version table and deadlines", () => {
     expect(html).toContain("启用 Initiative");
     expect(html).toContain("预算合计（万）");
     expect(html).toContain("提交截止时间");
+    expect(html).toContain("admin@example.com");
+    expect(html).not.toContain("<h2>提交截止时间</h2>");
     expect(html).toContain("2026-12-01T17:30");
     expect(html).toMatch(/disabled=""[^>]*>撤回发布/);
-    expect(html).toMatch(/disabled=""[^>]*>保存截止时间/);
+    expect(html).toMatch(/disabled=""[^>]*>保存/);
   });
 });

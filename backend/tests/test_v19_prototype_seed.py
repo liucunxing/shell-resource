@@ -164,7 +164,7 @@ async def test_synthetic_identities_and_role_views_match_source_workflow(seeded)
 
 
 @pytest.mark.asyncio
-async def test_imported_submission_can_return_edit_resubmit_and_confirm_through_services(seeded):
+async def test_imported_submission_can_withdraw_edit_resubmit_and_confirm_through_services(seeded):
     session, _, _ = seeded
     lead = await resolve_workbench_permission(session, "v19-u12@example.test")
     planner = PlanningService(session, lead)
@@ -173,13 +173,13 @@ async def test_imported_submission_can_return_edit_resubmit_and_confirm_through_
     assert department["canConfirm"]
     budget_id = int(department["items"][0]["id"])
     await planner.department_action(
-        "202701",
-        "return",
-        DepartmentActionDTO(
-            sector="PCMO",
-            department="ICE",
-            expected_revision=version.revision,
-            initiative_id=budget_id,
+        "202701", "confirm", DepartmentActionDTO(
+            sector="PCMO", department="ICE", expected_revision=version.revision,
+        ),
+    )
+    await planner.department_action(
+        "202701", "withdraw", DepartmentActionDTO(
+            sector="PCMO", department="ICE", expected_revision=version.revision,
             reason="本地闭环验证",
         ),
     )

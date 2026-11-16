@@ -10,6 +10,7 @@ import {
   TableCell,
 } from "../../components/ui/table";
 import { Badge } from "../../components/ui/badge";
+import { Checkbox } from "../../components/ui/checkbox";
 import { Label } from "../../components/ui/label";
 import { Input } from "../../components/ui/input";
 import {
@@ -52,14 +53,13 @@ export function beijingDeadlineInput(value) {
     : "";
 }
 
-export function deadlineUpdate(version, input, now = Date.now()) {
+export function deadlineUpdate(version, input) {
   const date = input ? new Date(`${input}:00+08:00`) : null;
   if (date && !Number.isFinite(date.getTime()))
     throw new Error("请填写有效的北京时间");
   return {
     expected_revision: version.revision,
     deadline: date ? date.toISOString() : null,
-    ...(version.open && date && date.getTime() <= now ? { open: false } : {}),
   };
 }
 
@@ -85,6 +85,7 @@ export function PlanningVersionsPage() {
     [error, setError] = useState("");
   const [deadlineDrafts, setDeadlineDrafts] = useState({});
   const [deadlineError, setDeadlineError] = useState("");
+  const [deleteAcknowledged, setDeleteAcknowledged] = useState(false);
   const [form, setForm] = useState({
     id: "",
     name: "",
@@ -111,6 +112,25 @@ export function PlanningVersionsPage() {
             : {}),
         });
         api.setPlanningVersion(form.id.trim());
+      } else if (dialog.kind === "edit-confirm") {
+        await api.updatePlanningVersion(dialog.version.id, {
+          ...deadlineUpdate(dialog.version, form.deadline),
+          id: form.id.trim(), name: form.name.trim(),
+        });
+        if ((state.currentVersionId || state.planningVersion?.id) === dialog.version.id)
+          api.setPlanningVersion(form.id.trim());
+      } else if (dialog.kind === "deadline-confirm") {
+        await api.updatePlanningVersion(dialog.version.id, deadlineUpdate(dialog.version, dialog.deadline));
+        setDeadlineDrafts((drafts) => {
+          const next = { ...drafts }; delete next[dialog.version.id]; return next;
+        });
+      } else if (dialog.kind === "delete-confirm") {
+        await api.deletePlanningVersion(dialog.version.id, {
+          expected_revision: dialog.info.revision,
+          confirm_submitted: dialog.info.submittedCount > 0 && deleteAcknowledged,
+        });
+        if ((state.currentVersionId || state.planningVersion?.id) === dialog.version.id)
+          api.setPlanningVersion("");
       } else {
         await api.updatePlanningVersion(dialog.version.id, {
           expected_revision: dialog.version.revision,
@@ -137,28 +157,17 @@ export function PlanningVersionsPage() {
       setBusy(false);
     }
   };
-  const saveDeadline = async (version) => {
+  const startDelete = async (version) => {
     setBusy(true);
     setDeadlineError("");
     try {
-      const value =
-        deadlineDrafts[version.id] ?? beijingDeadlineInput(version.deadline);
-      await api.updatePlanningVersion(
-        version.id,
-        deadlineUpdate(version, value),
-      );
-      await refresh({ preservePage: true });
-      setDeadlineDrafts((drafts) => {
-        const next = { ...drafts };
-        delete next[version.id];
-        return next;
-      });
-      notify("提交截止时间已保存。");
+      const info = await api.planningVersionDeletionInfo(version.id);
+      if (!info.canDelete) throw Error("请先关闭提交，再删除规划版本。");
+      setDeleteAcknowledged(false);
+      open({ kind: info.submittedCount ? "delete-warning" : "delete-confirm", version, info });
     } catch (failure) {
-      setDeadlineError(failure.message || "提交截止时间保存失败，请重试。");
-    } finally {
-      setBusy(false);
-    }
+      setDeadlineError(failure.message || "无法检查版本，请刷新后重试。");
+    } finally { setBusy(false); }
   };
   return (
     <>
@@ -185,6 +194,8 @@ export function PlanningVersionsPage() {
               <TableRow>
                 <TableHead>版本 / 来源</TableHead>
                 <TableHead>名称</TableHead>
+                <TableHead>创建人</TableHead>
+                <TableHead>提交截止时间（北京时间）</TableHead>
                 <TableHead className="num">启用 Initiative</TableHead>
                 <TableHead className="num">预算合计（万）</TableHead>
                 <TableHead>发布 / 开放状态</TableHead>
@@ -199,6 +210,25 @@ export function PlanningVersionsPage() {
                     <small>来源 {version.sourceVersionId || "历史预算"}</small>
                   </TableCell>
                   <TableCell>{version.name}</TableCell>
+                  <TableCell>{version.createdBy || "—"}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Input
+                        type="datetime-local"
+                        aria-label={`${version.id} 提交截止时间（北京时间）`}
+                        value={deadlineDrafts[version.id] ?? beijingDeadlineInput(version.deadline)}
+                        disabled={previewMode || !apiMode || busy}
+                        onChange={(event) => setDeadlineDrafts((drafts) => ({
+                          ...drafts, [version.id]: event.target.value,
+                        }))}
+                      />
+                      <Button variant="outline" size="sm" type="button"
+                        disabled={previewMode || !apiMode || busy || deadlineDrafts[version.id] === undefined || deadlineDrafts[version.id] === beijingDeadlineInput(version.deadline)}
+                        onClick={() => open({ kind: "deadline-confirm", version, deadline: deadlineDrafts[version.id] ?? beijingDeadlineInput(version.deadline) })}>
+                        保存
+                      </Button>
+                    </div>
+                  </TableCell>
                   <TableCell className="num">
                     {versionSummary(version, state)?.count ?? "—"}
                   </TableCell>
@@ -219,6 +249,16 @@ export function PlanningVersionsPage() {
                   </TableCell>
                   <TableCell>
                     <div className="actions">
+                      <Button variant="outline" size="sm" type="button"
+                        disabled={previewMode || !apiMode || busy}
+                        onClick={() => {
+                          setForm({ id: version.id, name: version.name, deadline: beijingDeadlineInput(version.deadline) });
+                          open({ kind: "edit", version });
+                        }}>编辑</Button>
+                      <Button variant="outline" size="sm" type="button"
+                        disabled={previewMode || !apiMode || busy || (version.published && version.open)}
+                        title={version.published && version.open ? "请先关闭提交" : "删除版本"}
+                        onClick={() => startDelete(version)}>删除</Button>
                       <Button
                         variant="outline"
                         size="sm"
@@ -273,7 +313,7 @@ export function PlanningVersionsPage() {
               ))}
               {!versions.length && (
                 <TableRow>
-                  <TableCell colSpan="6">
+                  <TableCell colSpan="8">
                     <div className="empty">
                       尚未创建规划版本。首次创建将从历史年度预算与最后提交快照建立独立版本。
                     </div>
@@ -287,81 +327,31 @@ export function PlanningVersionsPage() {
           启用项目数与预算合计只统计已加载版本；其他版本未加载时显示“—”，点击“配置项目”读取该版。
         </p>
       </Card>
-      <Card className="panel studio-admin-panel gap-4 p-4">
-        <div className="panel-header">
-          <div>
-            <h2>提交截止时间</h2>
-            <p>
-              按北京时间设置，可留空。截止后停止修改与提交；设置已到期时间会同步关闭提交，清空时间不会自动重新开放。
-            </p>
-          </div>
-        </div>
-        {displayedVersions.map((version) => (
-          <div
-            key={version.id}
-            className="flex flex-wrap items-center justify-between gap-4 border-b border-border py-3 last:border-0"
-          >
-            <div>
-              <strong>{version.id}</strong>
-              <div className="small-text muted">{version.name}</div>
-            </div>
-            <div className="flex flex-wrap items-end gap-3">
-              <Label className="grid gap-2">
-                截止时间（北京时间，可留空）
-                <Input
-                  type="datetime-local"
-                  aria-label={`${version.id} 提交截止时间（北京时间）`}
-                  value={
-                    deadlineDrafts[version.id] ??
-                    beijingDeadlineInput(version.deadline)
-                  }
-                  disabled={previewMode || !apiMode || busy}
-                  onChange={(event) =>
-                    setDeadlineDrafts((drafts) => ({
-                      ...drafts,
-                      [version.id]: event.target.value,
-                    }))
-                  }
-                />
-              </Label>
-              <span className="small-text muted">{versionStatus(version)}</span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={
-                  previewMode ||
-                  !apiMode ||
-                  busy ||
-                  deadlineDrafts[version.id] === undefined ||
-                  deadlineDrafts[version.id] ===
-                    beijingDeadlineInput(version.deadline)
-                }
-                onClick={() => saveDeadline(version)}
-              >
-                保存截止时间
-              </Button>
-            </div>
-          </div>
-        ))}
-        {deadlineError && (
-          <Alert variant="destructive" role="alert">
-            <AlertDescription>{deadlineError}</AlertDescription>
-          </Alert>
-        )}
-      </Card>
+      <p className="tiny">截止时间可留空；到期后停止修改、提交和部门撤回。到期不等于管理员关闭；所有部门提交齐全后才能关闭提交。</p>
+      {deadlineError && (
+        <Alert variant="destructive" role="alert">
+          <AlertDescription>{deadlineError}</AlertDescription>
+        </Alert>
+      )}
       {dialog && (
         <WorkflowDialog
           title={
-            dialog.kind === "create"
-              ? "创建规划版本"
-              : `${dialog.kind === "publish" ? "发布并开放" : dialog.kind === "close" ? "关闭提交" : dialog.kind === "withdraw" ? "撤回发布" : "重新开放"} · ${dialog.version.name}`
+            dialog.kind === "create" ? "创建规划版本" :
+            dialog.kind === "edit" ? `编辑规划版本 · ${dialog.version.id}` :
+            dialog.kind === "edit-confirm" || dialog.kind === "deadline-confirm" ? "确认修改规划版本" :
+            dialog.kind === "delete-warning" ? "删除前请确认" :
+            dialog.kind === "delete-confirm" ? "确认删除规划版本" :
+            `${dialog.kind === "publish" ? "发布并开放" : dialog.kind === "close" ? "关闭提交" : dialog.kind === "withdraw" ? "撤回发布" : "重新开放"} · ${dialog.version.name}`
           }
           busy={busy}
           onClose={() => setDialog(null)}
-          onConfirm={persist}
+          onConfirm={dialog.kind === "edit" ? () => open({ ...dialog, kind: "edit-confirm" }) :
+            dialog.kind === "delete-warning" ? () => open({ ...dialog, kind: "delete-confirm" }) : persist}
+          confirmLabel={dialog.kind === "edit" || dialog.kind === "delete-warning" ? "继续" : dialog.kind === "delete-confirm" ? "确认删除" : "确认"}
           disabled={
-            dialog.kind === "create" &&
-            (!/^20\d{2}(0[1-9]|1[0-2])$/.test(form.id) || !form.name.trim())
+            (["create", "edit"].includes(dialog.kind) &&
+              (!/^20\d{2}(0[1-9]|1[0-2])$/.test(form.id) || !form.name.trim())) ||
+            (dialog.kind === "delete-warning" && !deleteAcknowledged)
           }
         >
           {dialog.kind === "create" ? (
@@ -407,13 +397,30 @@ export function PlanningVersionsPage() {
                 </NativeSelect>
               </Label>
             </div>
+          ) : dialog.kind === "edit" ? (
+            <div className="grid gap-4">
+              <Label>版本编码（YYYYMM）<Input value={form.id} maxLength="6" onChange={(event) => setForm({ ...form, id: event.target.value.replace(/\D/g, "") })} /></Label>
+              <Label>版本名称<Input value={form.name} maxLength="100" onChange={(event) => setForm({ ...form, name: event.target.value })} /></Label>
+              <Label>提交截止时间（北京时间，可留空）<Input type="datetime-local" value={form.deadline} onChange={(event) => setForm({ ...form, deadline: event.target.value })} /></Label>
+            </div>
+          ) : dialog.kind === "delete-warning" ? (
+            <div className="grid gap-4">
+              <p>该版本有 {dialog.info.submittedCount} 条提交记录。删除后业务用户将无法访问该版本，项目和提交记录保留供审计。</p>
+              <Label className="flex items-center gap-2"><Checkbox checked={deleteAcknowledged} onCheckedChange={(checked) => setDeleteAcknowledged(checked === true)} />我已了解并确认删除该版本</Label>
+            </div>
+          ) : dialog.kind === "delete-confirm" ? (
+            <p>确认删除版本 {dialog.version.id} · {dialog.version.name}？删除后版本将从业务列表移除，历史数据保留供审计。</p>
+          ) : dialog.kind === "edit-confirm" ? (
+            <p>确认将版本 {dialog.version.id} 修改为 {form.id} · {form.name}，截止时间为 {form.deadline ? form.deadline.replace("T", " ") + "（北京时间）" : "不设截止时间"}？</p>
+          ) : dialog.kind === "deadline-confirm" ? (
+            <p>确认将版本 {dialog.version.id} 的截止时间修改为 {dialog.deadline ? dialog.deadline.replace("T", " ") + "（北京时间）" : "不设截止时间"}？</p>
           ) : (
             <p>
               {dialog.kind === "close"
-                ? "关闭后所有 Owner 停止编辑和提交。已提交、已确认方案保留。"
+                ? "所有部门提交齐全后才能关闭。关闭后 Owner 不能修改或提交，各部门不能再提交或撤回，已有方案保留为最终结果。"
                 : dialog.kind === "withdraw"
                   ? "撤回发布并关闭提交后，业务角色将不可访问该版本。配置和已提交方案保留，重新发布后恢复可见。"
-                  : "开放当前版本后，其他版本关闭编辑。Owner 提交状态保持不变；需修改的项目应由部门负责人退回。"}
+                  : "开放当前版本后，Owner 提交状态保持不变；已提交管理层的部门仍锁定，可由部门撤回提交后修改，或由管理员驳回并开放全部部门。"}
             </p>
           )}
           {["create", "open"].includes(dialog.kind) && (

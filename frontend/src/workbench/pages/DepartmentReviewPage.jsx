@@ -1,4 +1,5 @@
 import { Alert, AlertDescription } from "../../components/ui/alert";
+import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import {
   NativeSelect,
@@ -30,10 +31,25 @@ const stamp = (value) =>
   value ? new Date(value).toLocaleString("zh-CN") : "—";
 export function reviewStatus(item) {
   return item.workflow?.requiresResubmission
-    ? "退回待重提"
+    ? "待重新提交"
     : item.workflow?.submitted
       ? "已提交"
       : "未提交";
+}
+
+export function departmentWindowOpen(version, now = Date.now()) {
+  const deadline = version?.deadline ? Date.parse(version.deadline) : null;
+  return Boolean(version?.published && version.open && !version.expired &&
+    (deadline === null || (Number.isFinite(deadline) && deadline > now)));
+}
+
+export function releaseDeadline(input, now = Date.now()) {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(input))
+    throw Error("请填写新的提交截止时间（北京时间）。");
+  const date = new Date(`${input}:00+08:00`);
+  if (!Number.isFinite(date.getTime())) throw Error("请填写有效的北京时间。");
+  if (date.getTime() <= now) throw Error("新的截止时间必须晚于当前时间。");
+  return date.toISOString();
 }
 
 export function DepartmentReviewPage() {
@@ -60,6 +76,7 @@ export function DepartmentReviewPage() {
     [loading, setLoading] = useState(false);
   const [dialog, setDialog] = useState(null),
     [reason, setReason] = useState(""),
+    [deadline, setDeadline] = useState(""),
     [busy, setBusy] = useState(false);
   const [sort, setSort] = useState({ key: "name", direction: 1 });
   const current = state.planningVersion;
@@ -108,13 +125,13 @@ export function DepartmentReviewPage() {
     };
   }, [apiMode, current?.id, current?.revision, scopeKey]);
   if (!["lead", "admin"].includes(identity.role))
-    return <div className="empty">仅部门负责人可确认部门方案。</div>;
+    return <div className="empty">仅部门负责人和管理员可查看部门方案。</div>;
+  const windowOpen = departmentWindowOpen(result?.version || current);
   const items = [...(result?.items || [])].sort((a, b) => {
     const value = (item) => ({
-      status: reviewStatus(item), confirmed: item.workflow?.confirmed ? "已确认" : "未确认",
+      status: reviewStatus(item), confirmed: item.workflow?.confirmed ? "已提交管理层" : "未提交管理层",
       revision: item.workflow?.submittedRevision, submittedAt: item.workflow?.submittedAt || item.publishedAt,
       allocated: item.workflow?.submitted ? E.totals([item]).allocated : null,
-      returnReason: item.workflow?.returnReason,
     })[sort.key] ?? item[sort.key] ?? "";
     return (
       String(value(a)).localeCompare(String(value(b)), "zh-CN", {
@@ -127,33 +144,39 @@ export function DepartmentReviewPage() {
       key,
       direction: old.key === key ? -old.direction : 1,
     }));
-  const start = (action, target = {}) => {
+  const start = (action) => {
     setReason("");
+    setDeadline("");
     setError("");
-    setDialog({ action, ...target });
+    setDialog({ action });
   };
   const act = async () => {
     setBusy(true);
     setError("");
     try {
-      await api.reviewDepartment(current.id, dialog.action, {
-        ...selectedScope,
-        expected_revision: result.version.revision,
-        ...(dialog.action !== "confirm" ? { reason: reason.trim() } : {}),
-        ...(dialog.initiative
-          ? { initiative_id: Number(dialog.initiative.id) }
-          : {}),
-        ...(dialog.owner ? { owner_email: dialog.owner } : {}),
-      });
+      if (dialog.action === "release") {
+        await api.releasePlanningVersion(current.id, {
+          expected_revision: (result?.version || current).revision,
+          deadline: releaseDeadline(deadline), reason: reason.trim(),
+        });
+      } else {
+        if (!departmentWindowOpen(result?.version || current))
+          throw Error("当前版本已截止或已关闭，不能提交或撤回部门方案。");
+        await api.reviewDepartment(current.id, dialog.action, {
+          ...selectedScope,
+          expected_revision: result.version.revision,
+          ...(dialog.action === "withdraw" ? { reason: reason.trim() } : {}),
+        });
+      }
       setDialog(null);
       await refresh({ preservePage: true });
       await load();
       notify(
         dialog.action === "confirm"
-          ? "部门方案已统一确认。"
+          ? "部门方案已提交管理层。"
           : dialog.action === "withdraw"
-            ? "已撤回部门确认，Owner 提交仍保留。"
-            : "所选范围已退回，等待 Owner 重新提交。",
+            ? "已撤回部门提交，当前部门全部 Owner 可直接修改，已有提交保留。"
+            : "已驳回并开放当前版本全部部门，新的截止时间已生效。",
       );
     } catch (failure) {
       setError(failure.message);
@@ -165,8 +188,8 @@ export function DepartmentReviewPage() {
     <>
       <PageHead
         eyebrow="DEPARTMENT CONFIRMATION"
-        title="确认部门方案"
-        description="先核对每个 Owner 与 Initiative 的提交情况，再统一确认。"
+        title={identity.role === "admin" ? "部门方案与驳回" : "部门方案提交"}
+        description="核对 Owner 提交情况后，统一提交管理层；开放且未截止时可撤回修改。"
       />
       <PlanningVersionBar
         scope={
@@ -177,7 +200,7 @@ export function DepartmentReviewPage() {
       >
         {current && scopes.length > 1 && (
           <Label className="v19-scope-label">
-            确认范围
+            查看范围
             <NativeSelect
               value={scopeKey}
               onChange={(event) => setScope(event.target.value)}
@@ -214,65 +237,50 @@ export function DepartmentReviewPage() {
             <div className="panel-header">
               <div>
                 <h2>
-                  {result?.confirmed ? "部门方案已确认" : "部门方案未确认"}
+                  {result?.confirmed ? "部门已提交管理层" : "部门尚未提交管理层"}
                 </h2>
                 <p>
                   {loading
                     ? "正在加载提交状态…"
-                    : `${result?.submitted || 0} / ${result?.total || 0} 项已提交 · ${result?.confirmed ? "部门已确认" : "部门未确认"}`}
+                    : `${result?.submitted || 0} / ${result?.total || 0} 项已提交 · ${result?.confirmed ? "部门已提交管理层" : "部门未提交管理层"}`}
                 </p>
               </div>
               <div className="actions">
-                <Button
-                  disabled={
-                    identity.role === "admin" || previewMode ||
-                    busy ||
-                    !result?.canConfirm ||
-                    result?.confirmed
-                  }
-                  onClick={() => start("confirm")}
-                >
-                  统一确认部门方案
-                </Button>
-                <Button
-                  variant="outline"
-                  disabled={previewMode || busy || !result?.confirmed}
-                  onClick={() => start("withdraw")}
-                >
-                  {identity.role === "admin" ? "退回部门负责人" : "撤回部门确认"}
-                </Button>
-                <Button
-                  variant="outline"
-                  disabled={
-                    identity.role === "admin" || previewMode ||
-                    busy ||
-                    result?.confirmed ||
-                    !result?.submitted
-                  }
-                  onClick={() => start("return")}
-                >
-                  退回全部 Owner，开放修改
-                </Button>
+                {identity.role === "admin" ? (
+                  <Button variant="outline"
+                    disabled={previewMode || !apiMode || busy || loading || !current.published}
+                    onClick={() => start("release")}>
+                    驳回并开放全部部门
+                  </Button>
+                ) : (
+                  <>
+                    <Button disabled={previewMode || !apiMode || busy || loading || !windowOpen || !result?.canConfirm}
+                      onClick={() => start("confirm")}>
+                      提交部门方案至管理层
+                    </Button>
+                    <Button variant="outline"
+                      disabled={previewMode || !apiMode || busy || loading || !windowOpen || !result?.canWithdraw}
+                      onClick={() => start("withdraw")}>
+                      撤回部门提交
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
-            {
-              <p className="studio-table-note">
-                仅撤回部门确认：Owner 保持“已提交”，可以直接再次确认。退回指定
-                Initiative 或 Owner 后，仅对应项目变为“未确认 ·
-                待重新提交”，其余 Owner
-                不受影响。所有项目重新提交齐全后，才能统一确认。
-              </p>
-            }
+            <p className="studio-table-note">
+              部门提交前 Owner 可直接修改；撤回部门提交后，当前部门全部 Owner 恢复编辑，已有提交保留。
+              保存修改后须重新提交，未修改的项目无需重复提交。截止或管理员关闭后，部门不能再提交或撤回。
+              {identity.role === "admin" && " 管理员驳回会开放当前版本全部部门，不受查看范围限制，并重新设置截止时间。"}
+            </p>
             <div className="table-scroll v20-review-scroll">
               <Table sortingMode="manual" containerClassName="overflow-visible">
                 <TableHeader>
                   <TableRow>
-                    {[["name", "Initiative"], ["ownerId", "Owner"], ["status", "Owner 提交状态"], ["confirmed", "部门确认状态"], ["revision", "提交版本"], ["submittedAt", "提交时间"], ["allocated", "分配金额（元）"], ["returnReason", "退回原因"]].map(([key,label]) => (
+                    {[["name", "Initiative"], ["ownerId", "Owner"], ["status", "Owner 提交状态"], ["confirmed", "部门提交状态"], ["revision", "提交版本"], ["submittedAt", "提交时间"], ["allocated", "分配金额（元）"]].map(([key,label]) => (
                       <TableHead key={key} aria-sort={sort.key === key ? (sort.direction === 1 ? "ascending" : "descending") : "none"}>
                         <Button variant="ghost" type="button" className="v19-sort" onClick={() => sortBy(key)}>{label}{sort.key === key ? (sort.direction === 1 ? " ↑" : " ↓") : " ↕"}</Button>
                       </TableHead>
                     ))}
-                    <TableHead>操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -292,7 +300,7 @@ export function DepartmentReviewPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {item.workflow?.confirmed ? "已确认" : "未确认"}
+                        {item.workflow?.confirmed ? "已提交管理层" : "未提交管理层"}
                       </TableCell>
                       <TableCell>
                         {item.workflow?.submittedRevision != null
@@ -307,33 +315,11 @@ export function DepartmentReviewPage() {
                           ? money(E.totals([item]).allocated)
                           : "—"}
                       </TableCell>
-                      <TableCell>
-                        {item.workflow?.returnReason || "—"}
-                      </TableCell>
-                      <TableCell>
-                        <div className="actions">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            type="button"
-                            disabled={
-                              identity.role === "admin" || previewMode ||
-                              result.confirmed ||
-                              !item.workflow?.submitted
-                            }
-                            onClick={() =>
-                              start("return", { initiative: item })
-                            }
-                          >
-                            退回该 Initiative
-                          </Button>
-                        </div>
-                      </TableCell>
                     </TableRow>
                   ))}
                   {!loading && !items.length && (
                     <TableRow>
-                      <TableCell colSpan="9">
+                      <TableCell colSpan="7">
                         <div className="empty">当前范围没有启用项目。</div>
                       </TableCell>
                     </TableRow>
@@ -342,76 +328,39 @@ export function DepartmentReviewPage() {
               </Table>
             </div>
           </Card>
-          <Card className="panel v19-owner-return-panel">
-            <h2>按 Owner 开放修改</h2>
-            <div className="v19-owner-return-grid">
-              {[...new Set(items.map((i) => i.ownerId))].map((owner) => {
-                const own = items.filter((i) => i.ownerId === owner),
-                  submitted = own.filter(
-                    (i) =>
-                      i.workflow?.submitted &&
-                      !i.workflow?.requiresResubmission,
-                  ).length;
-                return (
-                  <Card key={owner}>
-                    <b>{own[0]?.ownerLabel || owner}</b>
-                    <p>
-                      已提交 {submitted} / {own.length} 个 Initiative
-                    </p>
-                    <Button
-                      variant="outline"
-                      disabled={
-                        identity.role === "admin" || previewMode || busy || result?.confirmed || !submitted
-                      }
-                      onClick={() => start("return", { owner })}
-                    >
-                      退回该 Owner，开放修改
-                    </Button>
-                  </Card>
-                );
-              })}
-            </div>
-            <p className="muted">
-              已确认时请先撤回部门确认。退回按当前部门、当前版本进行，不影响该
-              Owner 在其他部门或版本的项目。
-            </p>
-          </Card>
         </>
       )}
       {dialog && (
         <WorkflowDialog
-          title={
-            dialog.action === "confirm"
-              ? "统一确认部门方案"
-              : dialog.action === "withdraw"
-                ? "撤回部门确认"
-                : "退回方案"
-          }
+          title={dialog.action === "release" ? "驳回并开放全部部门" :
+            dialog.action === "confirm" ? "提交部门方案至管理层" : "撤回部门提交"}
           busy={busy}
           onClose={() => setDialog(null)}
           onConfirm={act}
-          disabled={dialog.action !== "confirm" && !reason.trim()}
+          confirmLabel={dialog.action === "release" ? "确认驳回并全部开放" : "确认"}
+          disabled={(dialog.action !== "confirm" && !reason.trim()) ||
+            (dialog.action === "release" && !deadline)}
         >
           <p>
             {dialog.action === "confirm"
-              ? `将确认完整部门范围的 ${result.total} 个项目，单个项目筛选不会改变确认范围。`
+              ? `将当前部门范围的 ${result.total} 个项目提交管理层，并锁定 Owner 编辑。`
               : dialog.action === "withdraw"
-                ? "仅撤回部门确认与管理层可见性，保留全部 Owner 提交。未退回项目可直接再次统一确认。"
-                : dialog.initiative
-                  ? `仅退回 ${dialog.initiative.name}；同一 Owner 的其他项目保持提交。`
-                  : dialog.owner
-                    ? `退回 ${dialog.owner} 在当前部门范围的项目；其他 Owner 保持提交。`
-                    : "退回当前部门范围全部已提交项目。"}
+                ? "撤回当前部门提交后，管理层不再看到该部门分配；本部门全部 Owner 立即恢复编辑，已有提交保留。"
+                : `将驳回版本 ${current.id} · ${current.name} 的全部部门方案，并一键恢复所有 Owner 编辑。已有提交保留，管理层在各部门重新提交前不展示相应分配。此操作不受当前查看范围限制。`}
           </p>
+          {dialog.action === "release" && (
+            <Label className="grid gap-2">
+              新的提交截止时间（北京时间，必填）
+              <Input type="datetime-local" value={deadline}
+                onChange={(event) => setDeadline(event.target.value)} />
+              <span className="tiny">必须重新设置为晚于当前时间的截止时间。</span>
+            </Label>
+          )}
           {dialog.action !== "confirm" && (
             <Label>
               原因（必填）
-              <Textarea
-                rows="3"
-                maxLength="160"
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-              />
+              <Textarea rows="3" maxLength="160" value={reason}
+                onChange={(event) => setReason(event.target.value)} />
             </Label>
           )}
           {error && (

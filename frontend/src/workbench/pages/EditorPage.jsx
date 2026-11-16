@@ -1202,7 +1202,7 @@ function EditorContent({
           <Alert className="note-box">
             <AlertDescription>
               {i.workflow?.submitted
-                ? "方案已由部门确认。需修改时请由部门负责人退回该项目；撤回部门确认本身不会开放编辑。"
+                ? "方案已提交管理层。开放且未截止时，部门负责人撤回部门提交即可恢复编辑；管理员也可驳回并开放全部部门。"
                 : "当前方案只读，请核对版本开放状态、截止时间和 Owner 归属。"}
             </AlertDescription>
           </Alert>
