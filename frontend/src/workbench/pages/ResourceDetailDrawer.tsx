@@ -569,9 +569,7 @@ export function ResourceDetailDrawer({
       </div>
       <p className="resource-detail-note">
         历史投资总额、Yield、历史投资占比公开；费用明细只使用接口已授权返回的大类。负费用正常计入净额。Phasing
-        = Delivery Vol ÷ 同期间经销商
-        target；汇总仅对有效正目标记录的销量和目标分别求和再相除，任一目标或销量缺失、期间未确认时保留
-        —。
+        直接读取源表对应年份的结果，1 表示 100%；单家直接展示源值，多家按同年源 target 加权。非正权重不参与，缺少权重或源 Phasing 时汇总显示 —。
         {!historical.aligned
           ? "Actual 与历史费用覆盖不一致或未知，暂不计算 Yield。"
           : ""}

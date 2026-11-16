@@ -56,9 +56,11 @@ def test_manifest_declares_units_and_unavailable_metrics_without_substitution():
     assert rules["yield"]["displaySuffix"] == ""
     assert rules["yoy"]["nonPositiveBaseReason"] == "no_base"
     assert rules["phasing"]["available"] is False
-    assert rules["phasing"]["unavailableReason"] == "missing_contract_volume"
+    assert rules["phasing"]["unavailableReason"] == "missing_source_phasing"
     assert rules["phasing"]["trafficLight"]["relativeYellowBand"] == 0.1
     assert rules["phasing"]["contractPeriod"] == "same_period_as_actual"
     assert rules["phasing"]["targetKind"] == "dealer_volume_target"
-    assert "months 1-N" in rules["phasing"]["periodRule"]
+    assert "matching year" in rules["phasing"]["periodRule"]
+    assert rules["phasing"]["requiresTargetConfirmation"] is False
+    assert rules["phasing"]["sourcePhasingUsed"] is True
     assert "ppp" not in rules

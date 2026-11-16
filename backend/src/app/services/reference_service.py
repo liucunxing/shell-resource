@@ -1,4 +1,5 @@
 from decimal import Decimal
+from math import isfinite
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -210,6 +211,7 @@ class ReferenceService:
                 self.target_coverage["sourceUnit"] if self.target_coverage else None
             ),
             "targetSourceFields": {},
+            "phasingSourceFields": {},
         }
         for year, suffix in (("2025", "2025"), ("2026", "2026Ytd")):
             raw_target = row.get(f"target_{year}")
@@ -219,9 +221,18 @@ class ReferenceService:
             result[f"sourceTarget{suffix}"] = (
                 float(raw_target) if raw_target is not None else None
             )
-            result[f"sourcePhasing{suffix}"] = (
-                float(raw_phasing) if raw_phasing is not None else None
+            # Source ratios are the business-authoritative Phasing values. They
+            # do not depend on independently confirmed target units or periods.
+            result["phasingSourceFields"][suffix] = bool(
+                row.get(f"_has_phasing_{year}", raw_phasing is not None)
             )
+            phasing = float(raw_phasing) if raw_phasing is not None else None
+            phasing_reason = "missing_source_phasing" if phasing is None else None
+            if phasing is not None and not isfinite(phasing):
+                phasing, phasing_reason = None, "invalid_source_phasing"
+            result[f"sourcePhasing{suffix}"] = phasing
+            result[f"phasing{suffix}"] = phasing
+            result[f"phasing{suffix}UnavailableReason"] = phasing_reason
             reason = None
             if not present:
                 reason = "missing_target_source_field"
@@ -251,17 +262,6 @@ class ReferenceService:
                 ))
             result[f"contract{suffix}"] = target
             result[f"target{suffix}UnavailableReason"] = reason
-            volume = row.get(f"volume_{year}")
-            phasing_reason = reason
-            if not phasing_reason and (target is None or target <= 0):
-                phasing_reason = "non_positive_target"
-            if not phasing_reason and volume is None:
-                phasing_reason = "missing_actual"
-            result[f"phasing{suffix}UnavailableReason"] = phasing_reason
-            result[f"phasing{suffix}"] = (
-                float(Decimal(str(volume)) / Decimal(str(target)))
-                if not phasing_reason else None
-            )
         return result
 
     async def metadata(self, planning_year: int) -> dict:

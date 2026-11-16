@@ -1,5 +1,15 @@
 # 经销商 target 与 Phasing 接入
 
+## 2026-11-16 最新规则（覆盖下方历史实现）
+
+用户明确要求直接取PG已计算Phasing。API `phasing2025`/`phasing2026Ytd`分别映射源`phasing_2025`/`phasing_2026`；1为100%，0有效，NULL或非有限值保持空，不再用Vol/target回算。源值不受target或Actual批次确认失效门控；这些确认对target/其他指标仍独立生效，不自动续期。
+
+全局表格、抽屉、导出使用相同助手。单业务身份直接源值；多条按同年源target正权重加权源Phasing，缺失不能当0或简单平均。
+
+真实PG只读核查：共1,489个身份，2025源非空535条、2026源非空695条。12088918在CRTO为1.00/0.87（100%/87%），PCMO为1.17/0.87（117%/87%）。修复前确认expired令接口所有Phasing为NULL；不得再次将这些有效源值屏蔽。
+
+以下2026-11-15记录仅为历史实施证据，重算/门控及旧计数不再代表当前Phasing展示。
+
 2026-11-15 用户明确确认：`data.distributor_sellin_resource_history.target_2025`、`target_2026` 单位均为 L；分别为2025全年、2026年1–9月。应用显示 KL，不使用旧 `data.distributor_target` 回退，不按9/12自行折算。
 
 ## 读取与公式
@@ -39,3 +49,7 @@
 - 浏览器实测管理层2026YTD：经销商12088919（PCMO）target693.75KL、Vol630.2KL、Phasing90.84%，明细与抽屉一致；2025对应target0，Phasing为“—”。3个旧项目共12分配行、8家经销商全部正确匹配历史，未重复跨Sector。
 - 截图位于忽略目录 `output/playwright/main-pg-target-drawer.png`，未提交真实业务截图。
 - 本次为本机main连接远端PG预览与代码同步，不代表远端应用部署或真实SSO/UAT验收。
+
+2026-11-16本轮只读实测：在服务器容器/tmp独立Python进程加载修复代码，逐条比较1,489个Sector＋编码的两个年度源Phasing与API投影，全部一致；有效值恢复535/695条。target/Actual确认仍expired，配置未自动续期，源表未修改。该证据不代表真实账号SSO及写入验收。
+
+本轮回归：后端872项、前端445项通过，Ruff/Mypy及前端build/check:bundle通过。Playwright本地合成预览仅拦截浏览器响应，在contract=null时验证源ratio1/1.17/.87/0显示100%/117%/87%/0%；没有写数据库，不代表真实SSO验收。
