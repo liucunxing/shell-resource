@@ -35,6 +35,7 @@ class InitiativeWorkflowDO(BaseDO):
     confirmed_publication_id: Mapped[int | None] = mapped_column(BigInteger)
     confirmed_by: Mapped[str | None] = mapped_column(String(255))
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    owner_edit_locked: Mapped[bool] = mapped_column(nullable=False, default=False)
     requires_resubmission: Mapped[bool] = mapped_column(nullable=False, default=False)
     return_reason: Mapped[str | None] = mapped_column(Text)
     change_reason: Mapped[str] = mapped_column(String(160), nullable=False, default="")

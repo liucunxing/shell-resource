@@ -74,7 +74,6 @@ export function PlanningVersionsPage() {
     state,
     refresh,
     selectPlanningVersion,
-    navigate,
     notify,
     previewMode,
     apiMode,
@@ -224,10 +223,7 @@ export function PlanningVersionsPage() {
                         variant="outline"
                         size="sm"
                         type="button"
-                        onClick={async () => {
-                          if (await selectPlanningVersion(version.id))
-                            navigate("admin-initiatives");
-                        }}
+                        onClick={() => selectPlanningVersion(version.id, { targetPage: "admin-initiatives" })}
                       >
                         配置项目
                       </Button>
