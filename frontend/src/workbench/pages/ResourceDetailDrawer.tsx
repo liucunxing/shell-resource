@@ -758,7 +758,12 @@ export function ResourceDetailDrawer({
         </div>
       )}
       <div className="resource-detail-heading">
-        <h3>经销商与投资明细（{rows.length} 家）</h3>
+        <h3>
+          {showCohortDimensions
+            ? `经销商与 ${dimensionLabel} 分配明细`
+            : "经销商与投资明细"}
+          （{rows.length} 家）
+        </h3>
         <Input
           aria-label="搜索抽屉经销商"
           value={query}
@@ -1345,7 +1350,7 @@ export function ResourceDetailDrawer({
               )}
               {(current.type === "resource" ||
                 current.type === "organization" ||
-                current.type === "cohort") &&
+                (current.type === "cohort" && !showCohortDimensions)) &&
                 sources}
               <Accordion type="single" collapsible defaultValue="history">
                 <AccordionItem value="history">

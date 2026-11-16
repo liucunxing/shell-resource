@@ -8,6 +8,8 @@ V20包含SD/RSM切换和四组组织对照、V17经销商分配明细表头、�
 
 全局切换统一使用紧凑中性灰 shadcn Tabs；2026 YTD 的截止月说明移至 ! 悬浮提示。变更与本地检查见[切换组件验证](docs/TABS_REFRESH_VALIDATION.md)。
 
+管理层集中度抽屉按 V20 展示四维投资构成，明细标题随维度切换；已移除额外的固定 Initiative 来源表，经销商下钻仍可查看项目来源。见[集中度核查与验证](docs/EXECUTIVE_CONCENTRATION_FOLLOWUP.md)。
+
 > 服务器发布、重启、健康检查、日志和证书续期，请先阅读 [服务器运维手册](docs/SERVER_OPERATIONS.md)。
 
 当前工程提供年度预算分配、其他预算、Excel 回传、草稿保存、提交与部门确认、规划版本、角色范围查询、管理员配置和百炼六点 Insight。同一应用站点提供前端静态文件与 API。
