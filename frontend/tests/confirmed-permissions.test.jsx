@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import E from "../src/workbench/domain/engine.js";
 import X from "../src/workbench/domain/explore.js";
 import D from "../src/workbench/domain/demo-data.json";
-import { InsightPanel, BusinessPromptEditor } from "../src/workbench/pages/InsightPanel.jsx";
 import { ManagementPage } from "../src/workbench/pages/OverviewPages.jsx";
 import { EditorPage } from "../src/workbench/pages/EditorPage.jsx";
 import { HistoricalResourceSettings } from "../src/workbench/pages/HistoricalResourceSettings.jsx";
@@ -17,19 +16,6 @@ beforeEach(() => {
   shared.context = { state, identity, data: D, view: E.selectView(state, identity), apiMode: true,
     initiativeId: state.initiatives[0].id, dirtyIds: new Set(), savedForSyncIds: new Set(),
     editorOperations: {}, directoryStatus: {}, notify: vi.fn(), loadDistributorDirectory: vi.fn() };
-});
-
-it.each(["management", "admin"])("%s has the appropriate generation perspective", (role) => {
-  shared.context.identity.role = role;
-  const html = renderToStaticMarkup(<InsightPanel />);
-  if (role === "admin") {
-    expect(html).toContain("模拟用户视角");
-    expect(html).toContain("试用分析");
-  } else {
-    expect(html).toContain("生成分析");
-    expect(html).toContain("最新同步版本，不包含未同步草稿");
-  }
-  expect(html).not.toContain("分析方案由能力包维护");
 });
 
 it("management overview follows the customer V19 readonly board", () => {
@@ -58,14 +44,6 @@ it("the resource settings support shared resource types and explain the historic
   expect(html).not.toContain("角色默认权限");
   expect(html).toContain("保存部门默认");
   expect(html).toContain("暂不拆部门");
-});
-
-it("business prompts expose prior versions and clearly defer their effect to regeneration", () => {
-  const html = renderToStaticMarkup(<BusinessPromptEditor prompt={{ version: 2, text: "新关注点",
-    versions: [{ version: 1, text: "原关注点" }, { version: 2, text: "新关注点" }] }} onSaved={vi.fn()} />);
-  expect(html).toContain("保存，下次生成生效");
-  expect(html).toContain("原关注点");
-  expect(html).toContain("已有摘要保留原版本");
 });
 
 it.each(["owner", "lead"])("%s historical display and export obey home affiliation and preserve public totals", (role) => {

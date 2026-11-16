@@ -1,6 +1,5 @@
 import { createEmbedChild } from "@oneportal/embed-browser-sdk/child";
-import type { DataAgentLaunch, EmbedChild, EmbedContext } from "@oneportal/embed-browser-sdk/child";
-import { assertNotUserPreview, assertPreviewResponseCurrent, getPreviewEpoch } from "../workbench/userPreview";
+import type { EmbedChild, EmbedContext } from "@oneportal/embed-browser-sdk/child";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export const PORTAL_API_BASE = "/portal-embed/api/v1/workbench";
@@ -99,39 +98,6 @@ export async function validatePortalSession(signal?: AbortSignal): Promise<void>
   const session = await trustedJson(`/portal-embed/api/session/${previous.instanceId}`, previous.instanceId, signal) as { csrfToken?: unknown };
   if (active !== previous || typeof session.csrfToken !== "string" || !session.csrfToken) throw sessionFailure();
   active.csrfToken = session.csrfToken;
-}
-
-export type PortalDataAgentLaunch = DataAgentLaunch;
-
-/** Only the authenticated Portal parent can exchange the vendor credential. */
-export async function launchPortalDataAgent(question?: string, signal?: AbortSignal): Promise<PortalDataAgentLaunch> {
-  assertNotUserPreview();
-  const previewEpoch = getPreviewEpoch();
-  const previous = active;
-  const child = previous?.child;
-  if (!isPortalEntry() || !previous || !child) {
-    throw new Error("请在 Portal 中打开资源投资工具后使用问数。");
-  }
-  const assertCurrent = () => {
-    assertPreviewResponseCurrent(previewEpoch);
-    assertNotUserPreview();
-    if (signal?.aborted) throw new DOMException("已取消", "AbortError");
-    if (active !== previous) throw sessionFailure();
-  };
-  assertCurrent();
-  await validatePortalSession(signal);
-  assertCurrent();
-  const result = await child.launchDataAgent(question, signal);
-  assertCurrent();
-  // A shared Cookie can change while Portal is exchanging the vendor credential.
-  await validatePortalSession(signal);
-  assertCurrent();
-  let url: URL;
-  try { url = new URL(result.iframeUrl); }
-  catch { throw new Error("问数访问地址无效，请重试。"); }
-  if (url.origin !== result.targetOrigin || url.username || url.password ||
-      url.protocol !== "https:") throw new Error("问数访问地址无效，请重试。");
-  return { iframeUrl: result.iframeUrl, targetOrigin: result.targetOrigin };
 }
 
 export async function logoutPortalSession(): Promise<void> {

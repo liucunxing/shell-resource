@@ -11,12 +11,10 @@ COPY frontend/ ./
 ARG VITE_API_BASE_URL=/api/v1/workbench
 ARG VITE_PLANNING_YEAR=2027
 ARG VITE_LOGIN_EMAIL_EDITABLE=false
-ARG VITE_YIWEN_IFRAME_URL=https://dataaitest.digitalshell.com.cn/
 
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL} \
     VITE_PLANNING_YEAR=${VITE_PLANNING_YEAR} \
-    VITE_LOGIN_EMAIL_EDITABLE=${VITE_LOGIN_EMAIL_EDITABLE} \
-    VITE_YIWEN_IFRAME_URL=${VITE_YIWEN_IFRAME_URL}
+    VITE_LOGIN_EMAIL_EDITABLE=${VITE_LOGIN_EMAIL_EDITABLE}
 
 RUN npm run build
 
@@ -59,7 +57,6 @@ COPY --chown=app:app backend/migrations ./migrations
 COPY --chown=app:app backend/alembic.ini ./alembic.ini
 COPY --chown=app:app backend/scripts ./scripts
 COPY --chown=app:app backend/docs ./docs
-COPY --chown=app:app backend/insight_capabilities ./insight_capabilities
 COPY --from=frontend-builder --chown=app:app /build/frontend/dist /app/frontend/dist
 
 USER app

@@ -1,3 +1,5 @@
+> 历史接入记录：2026-11-16 起资源工具 V20 已移除此嵌入模块，本文不作为当前部署步骤。Portal 登录代码保留。
+
 # Portal 资源工具内嵌 Data Agent
 
 本页描述 Portal JWT 资源工具入口。帆软 `/?user_email=...` 入口由资源工具后端独立换票，见[帆软工作台配置](portal-email-login.md)。

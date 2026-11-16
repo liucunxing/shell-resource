@@ -18,13 +18,6 @@
 # RESOURCE_PORTAL_PARENT_ORIGINS uses comma-separated canonical origins.
 
 [development]
-# FineReport direct exchange, for isolated UAT identities. See deploy/portal-email-login.md.
-data_agent_base_url = ""
-data_agent_api_token = ""
-data_agent_ingress_key = ""
-data_agent_space = "default"
-data_agent_access_mode = "uat"
-data_agent_uat_emails = []
 app_name = "资源投资工作台"
 app_version = "1.4.0"
 debug = true
@@ -34,16 +27,6 @@ database_url = "postgresql+asyncpg://USER:ENCODED_PASSWORD@DEV_HOST:5432/DEV_DAT
 db_echo = true
 cors_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
 serve_frontend = true
-# Copy the compatible-mode Base URL from your Bailian console.
-ai_base_url = ""
-ai_model = "qwen-plus"
-ai_api_key = ""
-ai_timeout_seconds = 60
-insight_timeout_seconds = 60
-# Review signals in CNY; not automatic approval/rejection rules.
-insight_investment_increase_multiple = 2.0
-insight_investment_decrease_multiple = 0.5
-insight_investment_absolute_change = 50000
 azure_blob_test_upload_enabled = true
 azure_blob_account_url = "https://ACCOUNT_NAME.blob.core.chinacloudapi.cn"
 azure_blob_account_key = "REPLACE_WITH_STORAGE_ACCOUNT_KEY"
@@ -73,15 +56,6 @@ database_url = "postgresql+asyncpg://USER:ENCODED_PASSWORD@PROD_HOST:5432/PROD_D
 db_echo = false
 cors_origins = ["https://frontend.example.com"]
 serve_frontend = true
-ai_base_url = ""
-ai_model = "qwen-plus"
-ai_api_key = ""
-ai_timeout_seconds = 60
-insight_timeout_seconds = 60
-# Review signals in CNY; not automatic approval/rejection rules.
-insight_investment_increase_multiple = 2.0
-insight_investment_decrease_multiple = 0.5
-insight_investment_absolute_change = 50000
 azure_blob_test_upload_enabled = false
 azure_blob_account_url = "https://ACCOUNT_NAME.blob.core.chinacloudapi.cn"
 azure_blob_account_key = "REPLACE_WITH_PRODUCTION_STORAGE_CREDENTIAL"
@@ -102,15 +76,6 @@ sso_client_secret = "replace-me"
 
 [test]
 serve_frontend = false
-ai_base_url = "https://example.invalid/compatible-mode/v1"
-ai_model = "qwen-plus"
-ai_api_key = ""
-ai_timeout_seconds = 5
-insight_timeout_seconds = 60
-# Review signals in CNY; not automatic approval/rejection rules.
-insight_investment_increase_multiple = 2.0
-insight_investment_decrease_multiple = 0.5
-insight_investment_absolute_change = 50000
 app_name = "资源投资工作台 Test"
 app_version = "1.4.0"
 debug = false

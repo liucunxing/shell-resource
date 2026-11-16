@@ -64,8 +64,6 @@ const blankState = () => ({
   departments: blankDepartments(),
   reference: { batchId: "—", asOf: "—" },
   guide: { version: 1, text: "" },
-  insights: {},
-  analysisPrompts: {},
   budgetReasons: [],
   budgetReasonVersion: 1,
   publications: {},
@@ -170,19 +168,11 @@ export function WorkbenchProvider({ children }) {
   const [storageWarning, setStorageWarning] = useState("");
   const [page, setPage] = useState("home");
   const [initiativeId, setInitiativeId] = useState("");
-  const [annotation, setAnnotation] = useState(false);
   const [toast, setToast] = useState(null);
   const [mobileNav, setMobileNav] = useState(false);
   const [rawRequest, setRawRequest] = useState(null);
   const [scenarioEpoch, setScenarioEpoch] = useState(0);
-  const [auxiliary, setAuxiliary] = useState({
-    open: false,
-    tab: "reference",
-    dealerId: "",
-    scope: "",
-  });
   const stateRef = useRef(state);
-  const returnFocus = useRef(null);
   const sessionEpoch = useRef(0);
   const pendingDrafts = useRef(new Set());
   const directoryLoaded = useRef(demoMode);
@@ -226,7 +216,6 @@ export function WorkbenchProvider({ children }) {
     setToast(null);
     setMobileNav(false);
     setScenarioEpoch((value) => value + 1);
-    setAuxiliary({ open: false, tab: "reference", dealerId: "", scope: "" });
   };
 
   const refresh = async (options = {}) => {
@@ -640,21 +629,6 @@ export function WorkbenchProvider({ children }) {
       return false;
     }
   };
-  const saveReference = async (value) => {
-    const epoch = sessionEpoch.current;
-    try {
-      await api.uploadReference({
-        expected_revision: stateRef.current.configRevision,
-        ...value,
-      });
-      if (epoch !== sessionEpoch.current) return false;
-      return await refresh();
-    } catch (error) {
-      if (epoch !== sessionEpoch.current) return false;
-      notify(error.message || "历史参考导入失败，请重试。", true);
-      return false;
-    }
-  };
 
   const setDevelopmentEmail = async (email) => {
     if (portalMode) {
@@ -746,31 +720,7 @@ export function WorkbenchProvider({ children }) {
     setPage(homeFor(chosen));
     setInitiativeId("");
     setRawRequest(null);
-    setAuxiliary({
-      open: chosen.role === "lead",
-      tab: "insight",
-      dealerId: "",
-      scope: E.departments(chosen)[0] || "global",
-    });
     return true;
-  };
-  const openAuxiliary = (tab, selection) => {
-    returnFocus.current = document.activeElement;
-    setAuxiliary((current) => ({
-      ...current,
-      open: true,
-      tab,
-      ...(tab === "reference" && selection
-        ? { dealerId: String(selection), dealerSector: undefined }
-        : {}),
-      ...(tab === "insight" ? { scope: selection || "" } : {}),
-    }));
-  };
-  const closeAuxiliary = () => {
-    setAuxiliary((current) => ({ ...current, open: false }));
-    requestAnimationFrame(
-      () => returnFocus.current?.isConnected && returnFocus.current.focus(),
-    );
   };
   const openRaw = (tab = "history", search = "") => {
     if (navigate("raw")) setRawRequest({ tab, search, id: Date.now() });
@@ -820,17 +770,10 @@ export function WorkbenchProvider({ children }) {
     manageAdminBudget,
     importAdminBudgets,
     saveConfig,
-    saveReference,
     notify,
     toast,
     dismissToast: () => setToast(null),
     storageWarning,
-    annotation,
-    setAnnotation,
-    auxiliary,
-    setAuxiliary,
-    openAuxiliary,
-    closeAuxiliary,
     mobileNav,
     setMobileNav,
     rawRequest,

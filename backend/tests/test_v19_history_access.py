@@ -1,5 +1,4 @@
 from dataclasses import replace
-from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
@@ -17,8 +16,6 @@ from app.portal_embed.session import fingerprint, workbench_user
 from app.schemas.dto.workbench import AdminConfigDTO, AdminUserDTO
 from app.services.admin_service import AdminService
 from app.services.reference_service import ReferenceService
-from test_insight import service as fake_insight_service
-from test_insight import workspace
 from test_workspace import _session
 
 
@@ -164,47 +161,3 @@ def test_reason_catalog_keeps_an_enabled_unique_label_and_thresholds_are_ordered
     with pytest.raises(ValidationError):
         AdminConfigDTO(expected_revision=0, healthThresholds={
             "concentrationYellow": 10, "concentrationRed": 5, "dealerYellow": 3, "dealerRed": 6})
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("role", ["lead", "management"])
-async def test_v19_withdrawn_amounts_do_not_survive_in_cached_insight(role):
-    insight, repository = fake_insight_service(role)
-    source = workspace()
-    source["state"]["planningVersion"] = {"id": 1, "name": "V19"}
-    scope = "MKT" if role == "lead" else "global"
-    descriptor = insight._scope(source, scope)
-    prompt = await insight._prompt(2027, scope, descriptor)
-    repository.records.append(SimpleNamespace(record={
-        "access": insight._access(descriptor),
-        "signature": insight._signature(source, scope, prompt),
-        "result": "withdrawn-secret-amount",
-    }))
-    source["state"]["initiatives"][0]["rows"] = []
-    source["state"]["initiatives"][0]["otherBudgets"] = []
-
-    async def current(_):
-        return source
-
-    insight._workspace = current
-    result = await insight.get_insight(scope=scope, planning_year=2027)
-    assert "withdrawn-secret-amount" not in str(result)
-    assert result["record"] is None if role == "lead" else result["record"]["status"] == "preview"
-
-
-@pytest.mark.asyncio
-async def test_old_all_resource_insight_cache_is_hidden_after_department_ceiling():
-    insight, repository = fake_insight_service("admin")
-    insight.user.affiliation_sector = "PCMO"
-    insight.user.affiliation_department = "MKT"
-    insight.user.history_resources = list(RESOURCE_TYPES)
-    source = workspace()
-    descriptor = insight._scope(source, "global")
-    access = insight._access(descriptor)
-    access["historicalResources"] = list(RESOURCE_TYPES)
-    repository.records.append(SimpleNamespace(record={
-        "access": access, "result": "PRIVATE_FOREIGN_EXPENSE_FROM_OLD_ANALYSIS",
-    }))
-    result = await insight.get_insight(scope="global", planning_year=2027)
-    assert "PRIVATE_FOREIGN_EXPENSE_FROM_OLD_ANALYSIS" not in str(result)
-    assert result["record"]["status"] == "preview"

@@ -6,11 +6,9 @@ const shared = vi.hoisted(() => ({ portalMode: true }));
 vi.mock("../src/workbench/WorkbenchContext.jsx", () => ({
   useWorkbench: () => ({
     portalMode: shared.portalMode, apiMode: true, identity: { role: "owner", key: "A", email: "a@example.invalid" },
-    state: {}, auxiliary: { open: false }, roles: [], page: "home", scenarioEpoch: 0,
+    state: {}, roles: [], page: "home", scenarioEpoch: 0,
   }),
 }));
-vi.mock("../src/workbench/WorkPanel.jsx", () => ({ WorkPanel: () => null }));
-vi.mock("../src/workbench/WorkPanelResizer", () => ({ useWorkPanelWidth: () => ({ width: 480 }) }));
 vi.mock("../src/workbench/ToastNotice.jsx", () => ({ ToastNotice: () => null }));
 
 const hash = "#portal-instance=11111111-1111-4111-8111-111111111111";

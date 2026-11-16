@@ -1,6 +1,5 @@
 import hashlib
 import json
-from datetime import UTC, datetime
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -15,10 +14,8 @@ from app.models.do.budget import BudgetDO
 from app.models.do.workspace import (
     UserPermissionDO,
     WorkspaceConfigDO,
-    WorkspaceReferenceDO,
 )
 from app.repositories.admin_repository import AdminRepository
-from app.repositories.reference_repository import ReferenceRepository
 from app.schemas.dto.workbench import (
     AdminBudgetDeleteDTO,
     AdminBudgetEditDTO,
@@ -28,7 +25,6 @@ from app.schemas.dto.workbench import (
     AdminConfigDTO,
     AdminUserDTO,
     AdminUsersImportDTO,
-    ReferenceImportDTO,
 )
 from app.services.workspace_service import WorkspaceService
 
@@ -37,7 +33,6 @@ class AdminService(WorkspaceService):
     def __init__(self, session: AsyncSession, user: WorkbenchUser) -> None:
         super().__init__(session, user)
         self.admin_repository = AdminRepository(session)
-        self.reference_repository = ReferenceRepository(session)
 
     def _admin(self) -> None:
         if self.user.role != "admin" or self.user.preview_actor_email:
@@ -132,7 +127,7 @@ class AdminService(WorkspaceService):
                 select(UserPermissionDO).order_by(UserPermissionDO.id).with_for_update()
                 .execution_options(populate_existing=True)
             )).all())
-            if await self.users_revision() != payload.expected_revision:
+            if self._users_revision(users) != payload.expected_revision:
                 raise HTTPException(409, "人员配置已变化，请刷新后重新预览")
             by_email = {user.email.strip().lower(): user for user in users}
             if len(by_email) != len(users):
@@ -140,14 +135,18 @@ class AdminService(WorkspaceService):
             # A partial import must not be blocked by unrelated legacy gaps;
             # it still cannot create a new gap or remove existing lead coverage.
             previous_gaps = self._uncovered_owner_scopes(users)
+            assigned_by_email = await self.admin_repository.assigned_departments_by_email([
+                by_email[item.email].email for item in payload.items if item.email in by_email
+            ])
             created, updated = 0, 0
+            audit_changes = []
             for index, item in enumerate(payload.items, 2):
                 user = by_email.get(item.email)
                 before = self._user_record(user) if user else None
-                if user and await self.admin_repository.user_has_budgets(user.email):
+                assigned = assigned_by_email.get(item.email, set())
+                if user and assigned:
                     unchanged = all(getattr(item, field) == getattr(user, field)
                                     for field in ("email", "display_name", "role", "enabled"))
-                    assigned = await self.admin_repository.assigned_departments(user.email)
                     if (not unchanged or item.sector != list(user.sector or [])
                             or not assigned.issubset(item.department)):
                         raise HTTPException(
@@ -162,9 +161,7 @@ class AdminService(WorkspaceService):
                     for key, value in item.model_dump().items():
                         setattr(user, key, value)
                     updated += before != self._user_record(user)
-                await self.session.flush()
-                self.repository.add_log(0, "USER_IMPORT", self.user.email, before,
-                                        self._user_record(user), f"导入人员：{item.email}")
+                audit_changes.append((user, before))
             if not any(user.enabled and user.role == "admin" for user in users):
                 raise HTTPException(422, "至少保留一名启用的管理员")
             new_gaps = self._uncovered_owner_scopes(users) - previous_gaps
@@ -174,10 +171,13 @@ class AdminService(WorkspaceService):
                     422, f"导入将使 {email} 的 {department} / {sector} 缺少启用的部门负责人",
                 )
             await self.session.flush()
+            for user, before in audit_changes:
+                self.repository.add_log(0, "USER_IMPORT", self.user.email, before,
+                                        self._user_record(user), f"导入人员：{user.email}")
             result = {
                 "created": created, "updated": updated, "total": len(payload.items),
                 "revision": (
-                    payload.expected_revision if payload.preview else await self.users_revision()
+                    payload.expected_revision if payload.preview else self._users_revision(users)
                 ),
             }
             if payload.preview:
@@ -745,57 +745,6 @@ class AdminService(WorkspaceService):
                 after,
                 "；".join(notes) or None,
             )
-            await self.session.commit()
-        except Exception:
-            await self.session.rollback()
-            raise
-        return result
-
-    async def import_reference(self, payload: ReferenceImportDTO) -> dict:
-        self._admin()
-        try:
-            config = await self._locked_config()
-            if config.revision != payload.expected_revision:
-                raise HTTPException(status_code=409, detail="配置已被修改，请刷新后重试")
-            await self.reference_repository.clear_year(payload.planning_year)
-            for dealer in payload.dealers:
-                history = dealer.history
-                resources = history.get("resources2025", {})
-                self.reference_repository.add(
-                    WorkspaceReferenceDO(
-                        planning_year=payload.planning_year,
-                        batch_id=payload.batchId,
-                        as_of=payload.asOf,
-                        dealer_id=dealer.id,
-                        dealer_name=dealer.name,
-                        vol2024=history.get("vol2024"),
-                        c32024=history.get("c32024"),
-                        vol2025=history.get("vol2025"),
-                        c32025=history.get("c32025"),
-                        vol2026_ytd=history.get("vol2026Ytd"),
-                        c32026_ytd=history.get("c32026Ytd"),
-                        mrd2025=resources.get("MRD"),
-                        spa2025=resources.get("SP&A"),
-                        ice2025=resources.get("ICE Rebate"),
-                        capex2025=resources.get("Capex"),
-                    )
-                )
-            config.reference = {
-                "displaySettings": {
-                    "ytdCutoffMonth": configured_ytd_cutoff(config.reference),
-                    "historyInvestmentExchangeRate": configured_investment_exchange_rate(
-                        config.reference,
-                    ),
-                },
-                "batchId": payload.batchId,
-                "asOf": payload.asOf,
-                "importedAt": datetime.now(UTC).isoformat(),
-                "planningYear": payload.planning_year,
-                "count": len(payload.dealers),
-            }
-            config.revision += 1
-            self.repository.add_log(0, "REFERENCE_IMPORT", self.user.email, None, config.reference)
-            result = {**config.reference, "revision": config.revision}
             await self.session.commit()
         except Exception:
             await self.session.rollback()

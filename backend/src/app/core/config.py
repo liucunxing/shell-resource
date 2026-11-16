@@ -74,13 +74,14 @@ class Settings(BaseModel):
     serve_frontend: bool = False
     frontend_dist_path: str = str(PROJECT_ROOT.parent / "frontend" / "dist")
 
-    # Server-only values. Never return this model from an API or log its secrets.
+    # Inert legacy TOML compatibility: V20 removed Insight and all model calls.
+    # Accept old keys so existing private settings still load; never expose secrets.
     ai_api_key: SecretStr | None = None
     ai_base_url: str = ""
     ai_model: str = "qwen-plus"
     ai_timeout_seconds: float = Field(default=60, gt=0, le=180)
     insight_timeout_seconds: float = Field(default=60, gt=0, le=60)
-    # Review signals, not approval rules; amounts use the source currency unit (CNY).
+    # Retired Insight thresholds; parsed only for compatibility, never evaluated.
     insight_investment_increase_multiple: float = Field(default=2, gt=1, allow_inf_nan=False)
     insight_investment_decrease_multiple: float = Field(
         default=0.5, ge=0, lt=1, allow_inf_nan=False
@@ -110,7 +111,8 @@ class Settings(BaseModel):
     sso_client_id: str | None = None
     sso_client_secret: SecretStr | None = None
 
-    # Shared service credentials. Legacy email mode is explicit and non-production only.
+    # Inert legacy TOML compatibility: the embedded Data Agent routes and exchange
+    # implementation were removed. These keys cannot enable or launch that module.
     data_agent_base_url: str = ""
     data_agent_api_token: SecretStr | None = None
     data_agent_ingress_key: SecretStr | None = None

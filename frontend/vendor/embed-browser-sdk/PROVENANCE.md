@@ -1,17 +1,21 @@
 # Vendored Portal browser SDK
 
-Source: `shell-oneportal-resource-bridge/packages/embed-browser-sdk`, package
-version 0.1.0 plus the 2026-11-02 Unreleased vendor-bridge changes on
-`feature/resource-data-agent-bridge` (base commit `8d2e1b8`). This working-tree
-snapshot is not yet committed upstream. All nine `src/` files were copied
-unchanged and byte-for-byte checked against that feature worktree. Their SHA256
-manifest is `SOURCE-SHA256.json` (UTF-8 source with LF line endings, matching Git
-blobs so it is portable across Windows/Linux); update provenance to the final upstream commit
-when the paired feature is committed. The prior first-layer snapshot was `599b82b`.
-This private source package exports TypeScript so the resource app's existing
-Vite/TypeScript build compiles it; it needs no registry publication or sibling
-checkout at install time. `package.json` is the resource build adapter, not the
-upstream publication manifest. README and CHANGELOG retain upstream documentation.
+The generic Portal embed protocol 1.0 source originated in
+`shell-oneportal-resource-bridge/packages/embed-browser-sdk`, package version
+0.1.0. The prior snapshot included the 2026-11-02 vendor extension from
+`feature/resource-data-agent-bridge` (base commit `8d2e1b8`); the original
+first-layer snapshot was `599b82b`.
 
-Update by copying the complete upstream `src/` tree, checking the wire contract,
-and running the resource frontend tests/build. Do not edit the protocol locally.
+On 2026-11-16, the Resource Studio owner explicitly retired the embedded Data
+Agent feature. This local copy therefore removes that extension's host/child
+bridges, dedicated message schema, types, errors and navigation hooks. The
+Portal authentication, generic embed launch/validation, readiness and session
+protocol are retained. This is an application-specific subset, not an unchanged
+upstream snapshot. Future upstream updates must preserve that retirement.
+
+`SOURCE-SHA256.json` records the six remaining source files, normalized to UTF-8
+with LF endings for portable verification. This private package exports
+TypeScript for the resource app's Vite/TypeScript build; `package.json` is its
+local build adapter. Run the resource frontend tests, build and bundle check
+after changing this copy. Portal session coverage includes the real SDK child
+readiness/session lifecycle as well as application authentication and CSRF.

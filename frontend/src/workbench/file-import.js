@@ -37,6 +37,3 @@ export const previewExcelInWorker = (kind, buffer, ...args) =>
 
 export const exportExcelInWorker = (kind, ...args) =>
   runFileWorker({ operation: "export", kind, args });
-
-export const parseReferenceInWorker = (text) =>
-  runFileWorker({ kind: "reference", text });

@@ -6,11 +6,10 @@ const planningYear = Number(import.meta.env.VITE_PLANNING_YEAR || 2027);
 export const DEV_EMAIL_KEY = "shell-resource-dev-email";
 
 export class ApiError extends Error {
-  constructor(message, status, requestId = "") {
+  constructor(message, status) {
     super(message);
     this.name = "ApiError";
     this.status = status;
-    this.requestId = /^[a-f0-9]{32}$/.test(requestId) ? requestId : "";
   }
 }
 
@@ -91,7 +90,6 @@ export async function request(path, options = {}) {
     if (isPortalEntry()) handlePortalRejection(response.status, body.msg);
     throw new ApiError(
       body.msg || "请求未完成，请重试。", response.status,
-      response.headers?.get("X-Insight-Request-ID") || "",
     );
   }
   return body.data;
@@ -191,32 +189,6 @@ export const deleteAdminUser = (id) => request(`/admin/users/${encodeURIComponen
 });
 export const updateConfig = (value) => request("/admin/config", {
   method: "PUT", body: JSON.stringify(value),
-});
-export const uploadReference = (value) => request("/admin/reference", {
-  method: "POST", body: JSON.stringify(value),
-});
-export const getInsights = (scope, presetId = "comprehensive") => request(`/insights?scope=${encodeURIComponent(scope)}&planning_year=${planningYear}&preset_id=${encodeURIComponent(presetId)}`);
-export const getInsightPreviewContext = (email) => request(`/insights/preview?user_email=${encodeURIComponent(email)}&planning_year=${planningYear}`);
-export const generateInsightPreview = (email, scope, presetId) => generateInsights(scope, presetId, email);
-export async function generateInsights(scope, presetId = "comprehensive", previewEmail = null) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 65000);
-  try {
-    return await request(previewEmail ? "/insights/preview" : "/insights/generate", {
-      method: "POST", signal: controller.signal,
-      body: JSON.stringify({ scope, planning_year: planningYear, preset_id: presetId,
-        ...(previewEmail ? { user_email: previewEmail } : {}) }),
-    });
-  } catch (error) {
-    if (controller.signal.aborted)
-      throw new ApiError("分析等待超时，请稍后刷新查看或重试。", 504);
-    throw error;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-export const saveInsightPrompt = (scope, text, expectedVersion) => request("/insights/prompt", {
-  method: "PUT", body: JSON.stringify({ scope, planning_year: planningYear, text, expected_version: expectedVersion }),
 });
 export { planningYear };
 import { handlePortalRejection, isPortalEntry, portalRequestOptions, PORTAL_API_BASE } from "../portal/session";

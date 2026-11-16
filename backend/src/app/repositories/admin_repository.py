@@ -12,6 +12,7 @@ from sqlalchemy import (
     true,
     update,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.selectable import Exists
@@ -162,6 +163,19 @@ class AdminRepository:
             ).all()
         )
 
+    async def assigned_departments_by_email(self, emails: list[str]) -> dict[str, set[str]]:
+        if not emails:
+            return {}
+        email = func.lower(func.trim(BudgetDO.owner_email))
+        rows = await self.session.execute(
+            select(email, BudgetDO.department)
+            .where(email.in_([value.lower() for value in emails])).distinct()
+        )
+        result: dict[str, set[str]] = {}
+        for owner_email, department in rows:
+            result.setdefault(str(owner_email), set()).add(str(department))
+        return result
+
     async def user_has_budgets(self, email: str) -> bool:
         return bool(await self.session.scalar(select(self._budget_for_email(email))))
 
@@ -190,14 +204,23 @@ class AdminRepository:
 
     async def used_reason_ids(self) -> set[str]:
         used = set((await self.session.scalars(select(OtherBudgetDO.reason_id).distinct())).all())
-        # Submitted snapshots retain reasons after draft rows change or are removed.
-        snapshots: Sequence[dict] = (
-            await self.session.scalars(select(WorkspacePublicationDO.snapshot))
-        ).all()
-        for snapshot in snapshots:
-            initiative = snapshot.get("initiative", snapshot)
+        # Project just reason rows, never the much larger dealer allocation/history payload.
+        # Preserve the original legacy top-level fallback only when initiative is absent.
+        snapshot = WorkspacePublicationDO.snapshot
+        has_initiative = (
+            func.json_type(snapshot, "$.initiative").is_not(None)
+            if self.session.get_bind().dialect.name == "sqlite"
+            else func.jsonb_exists(cast(snapshot, JSONB), "initiative")
+        )
+        snapshots = await self.session.execute(select(
+            has_initiative, snapshot["initiative"]["otherBudgets"], snapshot["otherBudgets"],
+        ))
+        for nested, initiative_rows, legacy_rows in snapshots:
+            reasons = initiative_rows if nested else legacy_rows
+            if not isinstance(reasons, list):
+                continue
             used.update(
-                row["reasonId"] for row in initiative.get("otherBudgets", [])
+                row["reasonId"] for row in reasons
                 if isinstance(row, dict) and row.get("reasonId")
             )
         return used

@@ -353,7 +353,6 @@ export function AdminUsersPanel() {
         <div className="actions">
           <AdminImportPanel
             kind="users"
-            onImported={() => setRevision((value) => value + 1)}
           />
           <Button
             variant="ghost"

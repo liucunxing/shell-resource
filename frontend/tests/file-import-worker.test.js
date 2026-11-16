@@ -3,7 +3,6 @@ import E from "../src/workbench/domain/engine.js";
 import AX from "../src/workbench/domain/admin-excel.js";
 import demoData from "../src/workbench/domain/demo-data.json";
 import {
-  parseReferenceInWorker,
   previewExcelInWorker,
 } from "../src/workbench/file-import.js";
 
@@ -69,32 +68,4 @@ describe("background Excel preview", () => {
     expect(worker.terminated).toBe(true);
   });
 
-  it("parses historical reference JSON in the background", async () => {
-    const posted = [];
-    vi.stubGlobal("self", { postMessage: (message) => posted.push(message) });
-    vi.resetModules();
-    await import("../src/workbench/file-import.worker.js");
-    await self.onmessage({
-      data: { kind: "reference", text: '{"batchId":"2026-08","dealers":[]}' },
-    });
-
-    expect(posted[0].preview).toEqual({ batchId: "2026-08", dealers: [] });
-  });
-
-  it("transfers historical reference text through the worker bridge", async () => {
-    class FakeWorker {
-      postMessage(message) {
-        expect(message.kind).toBe("reference");
-        queueMicrotask(() =>
-          this.onmessage({ data: { preview: JSON.parse(message.text) } }),
-        );
-      }
-
-      terminate() {}
-    }
-    vi.stubGlobal("Worker", FakeWorker);
-    expect(await parseReferenceInWorker('{"batchId":"2026-08"}')).toEqual({
-      batchId: "2026-08",
-    });
-  });
 });
