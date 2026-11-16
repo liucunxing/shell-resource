@@ -5,7 +5,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   Buildings,
@@ -168,6 +168,22 @@ export default function WorkbenchApp() {
     switchingPreview,
     stopUserPreview,
   } = useWorkbench();
+  const navigationRef = useRef(null);
+  useLayoutEffect(() => {
+    const header = navigationRef.current;
+    if (!header) return;
+    const workspace = header.parentElement;
+    const measure = () => workspace.style.setProperty(
+      "--appnav-height", `${header.getBoundingClientRect().height}px`,
+    );
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    measure();
+    return () => {
+      observer.disconnect();
+      workspace.style.removeProperty("--appnav-height");
+    };
+  }, [identity]);
   const localPreview = getLocalPreviewConfig();
   if (!identity && (previewMode || switchingPreview))
     return (
@@ -237,7 +253,7 @@ export default function WorkbenchApp() {
       )}
       <div className="app-shell studio-shell v19-shell v19-fidelity-shell">
         <div className="workspace">
-          <header className="v19-appnav">
+          <header className="v19-appnav" ref={navigationRef}>
             <div className="v19-wordmark">
               <span className="v19-brand-icon">
                 <img src="/resource-studio-icon.svg" alt="" />
