@@ -170,6 +170,7 @@ export function AdminUsersPanel() {
     previewMode,
     startUserPreview,
     switchingPreview,
+    loading: workspaceLoading,
   } = useWorkbench();
   const [initiativeDetail, setInitiativeDetail] = useState(null);
   const [draftFilters, setDraftFilters] = useState(EMPTY_FILTERS);
@@ -190,6 +191,9 @@ export function AdminUsersPanel() {
   );
 
   useEffect(() => {
+    // A workspace refresh also reloads roles and permissions. Wait for its
+    // final scope before issuing the list request, instead of fetching twice.
+    if (workspaceLoading) return;
     let active = true;
     setLoading(true);
     setLoadError("");
@@ -207,7 +211,7 @@ export function AdminUsersPanel() {
     return () => {
       active = false;
     };
-  }, [filters, offset, revision, identity?.email, roles]);
+  }, [filters, offset, revision, identity?.email, roles, workspaceLoading]);
 
   const close = () => {
     if (!saving) {
@@ -316,7 +320,7 @@ export function AdminUsersPanel() {
       if (dialog.kind === "delete" && result.items.length === 1 && offset > 0)
         setOffset(Math.max(0, offset - PAGE_SIZE));
       else setRevision((value) => value + 1);
-      await refresh();
+      await refresh({ preservePage: true });
     } catch (error) {
       if (
         dialog.kind === "delete" &&

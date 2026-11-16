@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
@@ -35,6 +36,9 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Workspace history and static bundles are large; negotiate compression without
+    # caching permission-scoped responses. Also covers the mounted Portal app.
+    app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=4)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
