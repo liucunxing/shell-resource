@@ -107,6 +107,10 @@ export const createPlanningVersion = (value) => request("/planning-versions", {
 export const updatePlanningVersion = (id, value) => request(`/planning-versions/${encodeURIComponent(id)}`, {
   method: "PATCH", body: JSON.stringify(value),
 });
+export const planningVersionDeletionInfo = (id) => request(`/planning-versions/${encodeURIComponent(id)}/deletion-info`);
+export const deletePlanningVersion = (id, value) => request(`/planning-versions/${encodeURIComponent(id)}/delete`, {
+  method: "POST", body: JSON.stringify(value),
+});
 export const createVersionInitiative = (versionId, value) => request(`/planning-versions/${encodeURIComponent(versionId)}/initiatives`, { method: "POST", body: JSON.stringify(value) });
 export const updateVersionInitiative = (versionId, id, value) => request(`/planning-versions/${encodeURIComponent(versionId)}/initiatives/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(value) });
 export const departmentReview = (versionId, sector, department) => request(

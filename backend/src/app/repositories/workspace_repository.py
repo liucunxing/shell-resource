@@ -131,7 +131,8 @@ class WorkspaceRepository:
             version_id = await self.session.scalar(
                 select(PlanningVersionDO.id)
                 .where(
-                    PlanningVersionDO.planning_year == year, PlanningVersionDO.published.is_(True)
+                    PlanningVersionDO.planning_year == year, PlanningVersionDO.published.is_(True),
+                    PlanningVersionDO.deleted_at.is_(None)
                 )
                 .order_by(
                     PlanningVersionDO.open.desc(),

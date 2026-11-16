@@ -14,6 +14,7 @@ from app.repositories.workspace_repository import WorkspaceRepository
 from app.schemas.dto.planning import (
     DepartmentActionDTO,
     PlanningVersionCreateDTO,
+    PlanningVersionDeleteDTO,
     PlanningVersionUpdateDTO,
 )
 from app.schemas.dto.workbench import InitiativeDraftUpdateDTO, PublishDTO
@@ -125,7 +126,6 @@ async def test_source_copy_only_last_submission_and_version_isolation():
     session, admin, budgets = await prepare()
     try:
         await submit(session, budgets[0])
-        await act(session, "return", reason="重新安排", initiative_id=budgets[0].id)
         await service(session, user()).save_draft(
             budgets[0].id,
             InitiativeDraftUpdateDTO(
@@ -255,6 +255,11 @@ async def test_return_scope_reason_and_stale_decisions():
         with pytest.raises(HTTPException) as wrong_project:
             await act(session, "return", reason="测试", initiative_id=1)
         assert wrong_project.value.status_code == 422
+        with pytest.raises(HTTPException) as never_confirmed:
+            await act(session, "return", reason="无需退回", initiative_id=budgets[0].id)
+        assert never_confirmed.value.status_code == 422
+        await act(session, "confirm")
+        await act(session, "withdraw", reason="部门复核")
         version = await session.get(PlanningVersionDO, "202701")
         stale_revision = version.revision
         result = await act(session, "return", reason="Owner核对", owner_email="A@example.com")
@@ -408,6 +413,9 @@ async def test_http_version_routes_validate_scope_and_preview_read_only():
         ).status_code == 403
         created = await client.post("planning-versions", headers=admin, json=payload)
         assert created.status_code == 200
+        assert created.json()["data"]["createdBy"] == "admin@example.com"
+        listed = await client.get("planning-versions?planning_year=2027", headers=admin)
+        assert listed.json()["data"][0]["createdBy"] == "admin@example.com"
         assert (await client.get("planning-versions?planning_year=2027", headers=owner)).json()[
             "data"
         ] == []
@@ -581,7 +589,6 @@ async def test_dirty_cross_sector_roster_is_blocked_on_save_and_publish():
     session, _, budgets = await prepare()
     try:
         await submit(session, budgets[0])
-        await act(session, "return", reason="核对", initiative_id=budgets[0].id)
         # Simulate data persisted by an older application before the configuration guard.
         budgets[0].sector = "CRTO"
         budgets[0].owner_email = "crto@example.com"
@@ -714,5 +721,64 @@ async def test_owner_can_revise_until_confirmation_and_admin_return_keeps_lock()
             budgets[1].id))["workflow"]["editable"]
         await submit(session, budgets[0])
         assert (await owner.get_draft(budgets[0].id))["workflow"]["editable"]
+    finally:
+        await session.close()
+
+
+@pytest.mark.asyncio
+async def test_version_edit_and_deletion_preserve_history():
+    session, admin, budgets = await prepare()
+    try:
+        await submit(session, budgets[0])
+        version = await session.get(PlanningVersionDO, "202701")
+        with pytest.raises(HTTPException) as opened:
+            await admin.delete(
+                "202701", PlanningVersionDeleteDTO(expected_revision=version.revision)
+            )
+        assert opened.value.status_code == 409
+        changed = await admin.update("202701", PlanningVersionUpdateDTO(
+            expected_revision=version.revision, id="202703", name="更正名称"
+        ))
+        assert changed["id"] == "202703" and changed["name"] == "更正名称"
+        assert all(b.planning_version_id == "202703" for b in budgets)
+        info = await admin.deletion_info("202703")
+        assert info["submittedCount"] == 1 and not info["canDelete"]
+        changed = await admin.update("202703", PlanningVersionUpdateDTO(
+            expected_revision=info["revision"], open=False
+        ))
+        with pytest.raises(HTTPException) as missing_ack:
+            await admin.delete("202703", PlanningVersionDeleteDTO(
+                expected_revision=changed["revision"]
+            ))
+        assert missing_ack.value.status_code == 409
+        await admin.delete("202703", PlanningVersionDeleteDTO(
+            expected_revision=changed["revision"], confirm_submitted=True
+        ))
+        assert await admin.versions(2027) == []
+        assert len(await WorkspaceRepository(session).publications_for(budgets[0].id)) == 1
+        with pytest.raises(HTTPException) as deleted:
+            await admin.version("202703")
+        assert deleted.value.status_code == 404
+        assert await admin.resolve(2027) is None
+    finally:
+        await session.close()
+
+
+@pytest.mark.asyncio
+async def test_renaming_source_updates_derived_versions_and_detects_stale_revision():
+    session, admin, _ = await prepare()
+    try:
+        await admin.create(PlanningVersionCreateDTO(
+            id="202702", name="后续版本", planning_year=2027, source_version_id="202701"
+        ))
+        source = await session.get(PlanningVersionDO, "202701")
+        await admin.update("202701", PlanningVersionUpdateDTO(
+            expected_revision=source.revision, id="202704"
+        ))
+        derived = await admin.version("202702")
+        assert derived.source_version_id == "202704" and derived.revision == 1
+        with pytest.raises(HTTPException) as stale:
+            await admin.delete("202702", PlanningVersionDeleteDTO(expected_revision=0))
+        assert stale.value.status_code == 409
     finally:
         await session.close()
