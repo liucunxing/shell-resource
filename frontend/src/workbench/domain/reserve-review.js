@@ -16,6 +16,13 @@ export function reserveAcknowledgementFingerprint(initiative) {
   });
 }
 
+// A current-version submission survives draft edits, department withdrawal and
+// admin release. A copied source-version baseline is not such a submission.
+export function hasCurrentVersionSubmission(initiative) {
+  if (initiative?.workflow) return Boolean(initiative.workflow.publicationId);
+  return initiative?.publicationId != null;
+}
+
 /** @param {Pick<Storage, "getItem"> | undefined} storage */
 export function hasReserveAcknowledgement(
   identity,
@@ -23,6 +30,7 @@ export function hasReserveAcknowledgement(
   initiative,
   storage = globalThis.sessionStorage,
 ) {
+  if (hasCurrentVersionSubmission(initiative)) return true;
   try {
     return (
       storage?.getItem(

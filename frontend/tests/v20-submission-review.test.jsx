@@ -5,6 +5,8 @@ import { useWorkbench } from "../src/workbench/WorkbenchContext.jsx";
 import {
   reserveAcknowledgementKey,
   reserveAcknowledgementFingerprint,
+  hasReserveAcknowledgement,
+  hasCurrentVersionSubmission,
 } from "../src/workbench/domain/reserve-review.js";
 
 vi.mock("../src/workbench/WorkbenchContext.jsx", () => ({
@@ -13,6 +15,21 @@ vi.mock("../src/workbench/WorkbenchContext.jsx", () => ({
 afterEach(() => vi.unstubAllGlobals());
 
 describe("V20 batch submission reserve review", () => {
+  it("reuses current-version submissions across sessions and draft edits, but not copied baselines", () => {
+    const identity = { email: "owner@example.test", role: "owner" };
+    const storage = { getItem: () => null };
+    const submitted = { id: "p", budget: 100, otherBudgets: [],
+      workflow: { publicationId: "12", submitted: false, editable: true } };
+    expect(hasReserveAcknowledgement(identity, "202612", submitted, storage)).toBe(true);
+    expect(hasReserveAcknowledgement(identity, "202612", {
+      ...submitted, budget: 200, otherBudgets: [{ amount: 50, reasonId: "reserve" }],
+    }, storage)).toBe(true);
+    expect(hasReserveAcknowledgement(identity, "202701", {
+      ...submitted, publicationId: "source-publication", workflow: { publicationId: null },
+    }, storage)).toBe(false);
+    expect(hasCurrentVersionSubmission({ publicationId: "local-demo-submission" })).toBe(true);
+    expect(hasCurrentVersionSubmission({ publishedRevision: 2 })).toBe(false);
+  });
   it("does not enable batch submission from a saved draft until the same session reviewed this project", () => {
     const identity = { email: "owner@example.test", role: "owner" };
     const item = {
@@ -58,5 +75,11 @@ describe("V20 batch submission reserve review", () => {
       'disabled=""',
     );
     expect(context.publish).not.toHaveBeenCalled();
+    item.otherBudgets[0].amount = 10;
+    values.clear();
+    item.workflow.publicationId = "12";
+    const resumed = renderToStaticMarkup(<SubmissionPage />);
+    expect(submitButton(resumed)).not.toContain('disabled=""');
+    expect(resumed).not.toContain("待核对预算与预留");
   });
 });
