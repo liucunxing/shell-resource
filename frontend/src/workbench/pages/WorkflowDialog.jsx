@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -29,7 +30,7 @@ export function WorkflowDialog({
       }}
     >
       <DialogContent
-        className={`max-h-[90dvh] grid-rows-[auto_minmax(0,1fr)_auto] ${wide ? "sm:max-w-5xl" : ""}`}
+        className={`max-h-[90dvh] ${wide ? "sm:max-w-5xl" : ""}`}
         showCloseButton={false}
         aria-describedby={undefined}
         onEscapeKeyDown={(event) => {
@@ -55,7 +56,7 @@ export function WorkflowDialog({
             ×
           </Button>
         </DialogHeader>
-        <div className="grid min-h-0 min-w-0 gap-4 overflow-auto">{children}</div>
+        <DialogBody className="grid gap-4">{children}</DialogBody>
         <DialogFooter>
           <Button variant="outline" disabled={busy} onClick={onClose}>
             {onConfirm ? "取消" : "关闭"}

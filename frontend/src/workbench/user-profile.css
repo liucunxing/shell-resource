@@ -24,7 +24,7 @@
   width: min(800px, calc(100vw - 48px));
   max-width: none;
   max-height: calc(100dvh - 48px);
-  overflow-y: auto;
+  overflow: hidden;
   padding: 24px;
   border-top: 3px solid #fbce07;
   border-radius: 5px;

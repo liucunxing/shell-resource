@@ -4,12 +4,18 @@
   color: #394b58;
   font-size: 13px;
   background: #fff;
+  min-width: 0;
+  overflow: hidden;
 }
 .resource-detail-header {
   padding: 22px 54px 18px 24px;
   flex-shrink: 0;
   border-bottom: 1px solid #d6e0e6;
   background: #f2f5f7;
+  min-width: 0;
+  max-height: 35dvh;
+  overflow: auto;
+  overflow-wrap: anywhere;
 }
 .resource-detail-header h2 {
   font-size: 22px;
@@ -25,6 +31,8 @@
   overflow: auto;
   min-height: 0;
   flex: 1;
+  min-width: 0;
+  overscroll-behavior: contain;
 }
 .resource-detail-controls {
   display: flex;

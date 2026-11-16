@@ -8,6 +8,8 @@ V20包含SD/RSM切换和四组组织对照、V17经销商分配明细表头、�
 
 全局切换统一使用紧凑中性灰 shadcn Tabs；2026 YTD 的截止月说明移至 ! 悬浮提示。变更与本地检查见[切换组件验证](docs/TABS_REFRESH_VALIDATION.md)。
 
+缩放适配：顶部导航随可用宽度换行，弹窗标题/底部操作保留、长内容独立滚动，抽屉限制长标题高度。1920×1080、150%缩放对应逻辑空间及低高度场景的检查范围见[弹窗与抽屉验证](docs/VIEWPORT_COMPATIBILITY.md)。
+
 管理层集中度抽屉按 V20 展示四维投资构成，明细标题随维度切换；已移除额外的固定 Initiative 来源表，经销商下钻仍可查看项目来源。见[集中度核查与验证](docs/EXECUTIVE_CONCENTRATION_FOLLOWUP.md)。
 
 > 服务器发布、重启、健康检查、日志和证书续期，请先阅读 [服务器运维手册](docs/SERVER_OPERATIONS.md)。

@@ -22,6 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -349,7 +350,7 @@ function EditorDialog({ title, children, action, close, compact = false }) {
       }}
     >
       <DialogContent
-        className={`w-[96vw] ${compact ? "sm:max-w-[1120px] studio-trial-dialog" : "sm:max-w-[1480px]"} max-h-[85dvh] overflow-auto`}
+        className={`${compact ? "sm:max-w-[1120px] studio-trial-dialog" : "sm:max-w-[1480px]"} max-h-[90dvh]`}
         showCloseButton={false}
         aria-describedby={undefined}
         onCloseAutoFocus={(event) => {
@@ -363,7 +364,7 @@ function EditorDialog({ title, children, action, close, compact = false }) {
             关闭
           </Button>
         </DialogHeader>
-        {children}
+        <DialogBody>{children}</DialogBody>
         <DialogFooter>
           <Button variant="outline" onClick={close}>
             取消 / 返回
