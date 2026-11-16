@@ -310,7 +310,14 @@ function HistoryControls({
     </div>
   );
 }
-function AmountInput({ value, label, save, disabled = false }) {
+export function amountInputError(raw, budgetLimit) {
+  if (raw === null || !/^\d+(\.\d{0,2})?$/.test(raw)) return null;
+  return budgetLimit != null && Number(raw) > budgetLimit
+    ? "预留金额与已分配金额合计超过项目总预算，请修正后继续。"
+    : null;
+}
+
+function AmountInput({ value, label, save, disabled = false, budgetLimit = null }) {
   const [raw, setRaw] = useState(null);
   const [failed, setFailed] = useState(false);
   const valid =
@@ -324,6 +331,7 @@ function AmountInput({ value, label, save, disabled = false }) {
       aria-label={label}
       aria-invalid={!valid || failed}
       data-unsaved-invalid={!valid || failed ? "true" : undefined}
+      data-invalid-message={!valid || failed ? amountInputError(raw, budgetLimit) || undefined : undefined}
       className={!valid || failed ? "inline-error" : ""}
       value={raw ?? value}
       onChange={(e) => {
@@ -596,11 +604,13 @@ function EditorContent({
       operation,
     });
   const guard = () => {
-    if (document.querySelector('[data-unsaved-invalid="true"]')) {
+    const invalid = document.querySelector('[data-unsaved-invalid="true"]');
+    if (invalid) {
       notify(
-        "有尚未保存的无效输入，请填写非负金额（最多两位小数）后继续。",
+        invalid.dataset.invalidMessage || "有尚未保存的无效输入，请填写非负金额（最多两位小数）后继续。",
         true,
       );
+      invalid.focus();
       return false;
     }
     return true;
@@ -2430,6 +2440,7 @@ function EditorContent({
                             <AmountInput
                               label={`第 ${n + 1} 项安排金额`}
                               value={r.amount}
+                              budgetLimit={i.budget - totals.allocated - (totals.otherBudget - r.amount)}
                               save={(v) => changeOther(n, "amount", v)}
                             />
                           ) : (

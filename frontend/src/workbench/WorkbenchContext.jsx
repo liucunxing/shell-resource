@@ -334,7 +334,7 @@ export function WorkbenchProvider({ children }) {
   const inputReady = () => {
     const invalid = document.querySelector('[data-unsaved-invalid="true"]');
     if (!invalid) return true;
-    notify("请先修正当前输入，再继续操作。", true);
+    notify(invalid.dataset.invalidMessage || "请先修正当前输入，再继续操作。", true);
     invalid.matches("input,textarea")
       ? invalid.focus()
       : invalid.querySelector("input,textarea")?.focus();
