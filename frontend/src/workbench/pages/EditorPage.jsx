@@ -1359,7 +1359,7 @@ function EditorContent({
                               <Checkbox
                                 aria-label={`选择 ${dealerLabel(dealer.id)}`}
                                 checked={!!selected}
-                                disabled={!editable || !selected}
+                                disabled={!editable}
                                 onCheckedChange={(checked) =>
                                   doGuard(() => {
                                     if (!(selected?.amount > 0 && !checked))
@@ -1375,6 +1375,13 @@ function EditorContent({
                                         rows: i.rows.filter(
                                           (row) => row.dealerId !== dealer.id,
                                         ),
+                                      });
+                                    else if (!selected)
+                                      update({
+                                        rows: [
+                                          ...i.rows,
+                                          { dealerId: dealer.id, amount: 0, note: "" },
+                                        ],
                                       });
                                   })
                                 }
