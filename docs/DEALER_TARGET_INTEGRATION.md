@@ -53,3 +53,5 @@
 2026-11-16本轮只读实测：在服务器容器/tmp独立Python进程加载修复代码，逐条比较1,489个Sector＋编码的两个年度源Phasing与API投影，全部一致；有效值恢复535/695条。target/Actual确认仍expired，配置未自动续期，源表未修改。该证据不代表真实账号SSO及写入验收。
 
 本轮回归：后端872项、前端445项通过，Ruff/Mypy及前端build/check:bundle通过。Playwright本地合成预览仅拦截浏览器响应，在contract=null时验证源ratio1/1.17/.87/0显示100%/117%/87%/0%；没有写数据库，不代表真实SSO验收。
+
+本日后续纠正：Target不能因期间确认expired抹去源值；固定L直读、页面KL，期间说明独立。YTD Yield确认改为仅相关2026字段摘要，旧24字段核验一致后升级既有确认。见[全局空值核验](HISTORY_AVAILABILITY_20261116.md)。

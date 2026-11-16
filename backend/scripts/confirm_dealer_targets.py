@@ -61,7 +61,10 @@ async def confirm(args: argparse.Namespace) -> dict:
                     rows[0].get(f"_has_target_{year}") for year in (2025, 2026)
                 ):
                     raise ValueError("源表target_2025/target_2026字段不完整，不可确认")
-                coverage = verified_history_coverage(config.reference, digest)
+                coverage = verified_history_coverage(
+                    config.reference, digest,
+                    await session.scalar(repository.history_fingerprint_statement()),
+                )
                 before = {
                     "revision": config.revision,
                     "dealerTargetConfirmation": (config.reference or {}).get(
