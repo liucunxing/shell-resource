@@ -15,6 +15,10 @@ import { isPortalEntry, logoutPortalSession } from "../portal/session";
 import { getPreviewEpoch, getPreviewUserEmail, setPreviewUserEmail } from "./userPreview";
 
 export const STORAGE_KEY = "shell-resource-workbench-v13";
+export function resolveEditorTarget(requestedId, previousId, initiatives) {
+  const target = requestedId || previousId;
+  return initiatives.some((item) => item.id === target) ? target : null;
+}
 const portalMode = isPortalEntry();
 const demoMode = !portalMode && import.meta.env.VITE_DATA_MODE === "demo";
 if (!demoMode && !portalMode) api.acceptPortalEmail();
@@ -697,11 +701,17 @@ export function WorkbenchProvider({ children }) {
   };
   const navigate = (nextPage, id) => {
     if (!inputReady()) return false;
-    if (
-      nextPage === "editor" &&
-      !view.initiatives.some((item) => item.id === id)
-    )
-      return false;
+    if (nextPage === "editor") {
+      const targetId = resolveEditorTarget(id, initiativeId, view.initiatives);
+      if (!targetId) {
+        if (id) return false;
+        setInitiativeId("");
+        setPage("home");
+        setMobileNav(false);
+        return true;
+      }
+      setInitiativeId(targetId);
+    }
     setPage(nextPage);
     if (id) setInitiativeId(id);
     setMobileNav(false);
