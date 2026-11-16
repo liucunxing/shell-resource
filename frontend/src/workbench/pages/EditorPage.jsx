@@ -1,3 +1,4 @@
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MoneyInput } from "./MoneyInput";
 import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
 import { MetricHelp } from "./MetricHelp";
@@ -181,6 +182,14 @@ export function MissingHistoryNotice({ metricLabel, unavailable, hasHistory }) {
       </AlertDescription>
     </Alert>
   );
+}
+
+export function submissionBlockReasons({ errors, needsReason, operation }) {
+  return [
+    ...errors.map((error) => error.replace("标记完成", "提交当前方案")),
+    ...(needsReason ? ["请填写本版变更原因。"] : []),
+    ...(operation ? [operation === "publish" ? "正在提交，请稍候。" : "正在保存，请稍候。"] : []),
+  ];
 }
 
 export function canSynchronizeLatest({
@@ -609,6 +618,11 @@ function EditorContent({
       errorCount: errors.length,
       operation,
     });
+  const submissionReasons = submissionBlockReasons({
+    errors,
+    needsReason: Boolean(state.planningVersion?.sourceVersionId && !changeReason.trim()),
+    operation,
+  });
   const guard = () => {
     const invalid = document.querySelector('[data-unsaved-invalid="true"]');
     if (invalid) {
@@ -2613,23 +2627,30 @@ function EditorContent({
                   >
                     下一步 →
                   </Button>
+                ) : !canSynchronize && submissionReasons.length ? (
+                  <div className="submission-blocked">
+                    <TooltipProvider delayDuration={100}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span tabIndex={0} className="submission-blocked-trigger" aria-label={`无法提交：${submissionReasons.join("；")}`}>
+                            <Button variant="default" className="button primary" disabled>
+                              {operation === "publish" ? "正在提交…" : `提交到 ${state.planningVersion?.id || "当前版本"} →`}
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="submission-blocked-tooltip">
+                          {submissionReasons.map((reason) => <div key={reason}>{reason}</div>)}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <div className="submission-blocked-reason" role="status">
+                      {submissionReasons.map((reason) => <div key={reason}>{reason}</div>)}
+                    </div>
+                  </div>
                 ) : (
-                  <Button
-                    variant="default"
-                    className="button primary"
-                    disabled={!canSynchronize}
-                    title={
-                      !savedForSync || hasUnsavedChanges
-                        ? "提交时自动保存当前方案"
-                        : errors.length > 0
-                          ? "请先修正当前分配问题"
-                          : undefined
-                    }
-                    onClick={handlePublish}
-                  >
-                    {operation === "publish"
-                      ? "正在提交…"
-                      : `提交到 ${state.planningVersion?.id || "当前版本"} →`}
+                  <Button variant="default" className="button primary" disabled={!canSynchronize}
+                    title="提交时自动保存当前方案" onClick={handlePublish}>
+                    {operation === "publish" ? "正在提交…" : `提交到 ${state.planningVersion?.id || "当前版本"} →`}
                   </Button>
                 )}
               </div>
