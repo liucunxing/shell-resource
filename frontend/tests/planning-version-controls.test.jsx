@@ -16,6 +16,7 @@ vi.mock("../src/workbench/WorkbenchContext.jsx", () => ({
 const current = {
   id: "202702",
   name: "第二版",
+  createdBy: "admin@example.com",
   published: true,
   open: true,
   revision: 5,
@@ -70,7 +71,7 @@ describe("V19 version table and deadlines", () => {
       open: false,
     });
   });
-  it("renders table totals, a separate deadline panel and read-only preview controls", () => {
+  it("renders creators and deadlines in the version table with read-only preview controls", () => {
     useWorkbench.mockReturnValue({
       state: {
         planningVersions: [
@@ -93,8 +94,10 @@ describe("V19 version table and deadlines", () => {
     expect(html).toContain("启用 Initiative");
     expect(html).toContain("预算合计（万）");
     expect(html).toContain("提交截止时间");
+    expect(html).toContain("admin@example.com");
+    expect(html).not.toContain("<h2>提交截止时间</h2>");
     expect(html).toContain("2026-12-01T17:30");
     expect(html).toMatch(/disabled=""[^>]*>撤回发布/);
-    expect(html).toMatch(/disabled=""[^>]*>保存截止时间/);
+    expect(html).toMatch(/disabled=""[^>]*>保存/);
   });
 });
