@@ -467,10 +467,6 @@ export function WorkbenchProvider({ children }) {
       (item) => item.id === String(id),
     );
     if (!local || pendingDrafts.current.has(String(id))) return false;
-    if (!savedForSyncIds.has(String(id)) || (!demoMode && dirtyIds.has(String(id)))) {
-      notify("请先保存草稿，再同步最新分配。", true);
-      return false;
-    }
     const epoch = sessionEpoch.current;
     const requested = structuredClone(local);
     pendingDrafts.current.add(String(id));
@@ -493,7 +489,11 @@ export function WorkbenchProvider({ children }) {
         notify("已同步最新分配，仍可继续修改。");
         return publication;
       }
-      const publication = await api.publish(id, requested, note);
+      const savedResult = await api.saveDraft(id, { ...requested, changeReason: note }, serverRevisions[id]);
+      if (epoch !== sessionEpoch.current) return false;
+      const saved = savedResult.initiative || savedResult;
+      acceptSavedDraft(id, saved, requested);
+      const publication = await api.publish(id, saved, note);
       if (epoch !== sessionEpoch.current) return false;
       const next = structuredClone(stateRef.current);
       const history = next.publications[id] || [];
@@ -514,11 +514,11 @@ export function WorkbenchProvider({ children }) {
         return next;
       });
       if (current?.workflow) {
-        current.workflow = { ...current.workflow, submitted: true, editable: false, requiresResubmission: false, returnReason: null };
+        current.workflow = publication.initiative?.workflow || { ...current.workflow, submitted: true, editable: true, requiresResubmission: false, returnReason: null };
         current.status = "completed";
         replaceState({ ...next });
       }
-      notify(current?.workflow ? "方案已提交，进入只读；如需修改请由部门负责人退回。" : "已同步最新分配。");
+      notify(current?.workflow ? "方案已提交，部门确认前仍可修改；修改后请再次提交。" : "已同步最新分配。");
       return publication;
     } catch (error) {
       if (epoch !== sessionEpoch.current) return false;

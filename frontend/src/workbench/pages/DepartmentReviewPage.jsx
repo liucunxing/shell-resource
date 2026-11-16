@@ -225,7 +225,7 @@ export function DepartmentReviewPage() {
               <div className="actions">
                 <Button
                   disabled={
-                    previewMode ||
+                    identity.role === "admin" || previewMode ||
                     busy ||
                     !result?.canConfirm ||
                     result?.confirmed
@@ -239,12 +239,12 @@ export function DepartmentReviewPage() {
                   disabled={previewMode || busy || !result?.confirmed}
                   onClick={() => start("withdraw")}
                 >
-                  撤回部门确认
+                  {identity.role === "admin" ? "退回部门负责人" : "撤回部门确认"}
                 </Button>
                 <Button
                   variant="outline"
                   disabled={
-                    previewMode ||
+                    identity.role === "admin" || previewMode ||
                     busy ||
                     result?.confirmed ||
                     !result?.submitted
@@ -317,7 +317,7 @@ export function DepartmentReviewPage() {
                             size="sm"
                             type="button"
                             disabled={
-                              previewMode ||
+                              identity.role === "admin" || previewMode ||
                               result.confirmed ||
                               !item.workflow?.submitted
                             }
@@ -361,7 +361,7 @@ export function DepartmentReviewPage() {
                     <Button
                       variant="outline"
                       disabled={
-                        previewMode || busy || result?.confirmed || !submitted
+                        identity.role === "admin" || previewMode || busy || result?.confirmed || !submitted
                       }
                       onClick={() => start("return", { owner })}
                     >

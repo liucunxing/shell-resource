@@ -32,12 +32,12 @@ async def test_empty_plan_can_select_save_read_remove_and_reselect_active_dealer
             expected_revision=emptied["revision"], rows=[{"dealerId": "d1", "amount": 100}],
         ))
         await service.publish(budget.id, PublishDTO(expected_revision=reselected["revision"]))
-        with pytest.raises(HTTPException) as frozen:
-            await service.save_draft(budget.id, InitiativeDraftUpdateDTO(
-                expected_revision=reselected["revision"],
-                rows=[{"dealerId": "d1", "amount": 100}, {"dealerId": "d2", "amount": 0}],
-            ))
-        assert frozen.value.status_code == 409
+        revised = await service.save_draft(budget.id, InitiativeDraftUpdateDTO(
+            expected_revision=reselected["revision"],
+            rows=[{"dealerId": "d1", "amount": 100}, {"dealerId": "d2", "amount": 0}],
+        ))
+        assert revised["workflow"]["editable"]
+        assert not revised["workflow"]["submitted"]
     finally:
         await session.close()
 

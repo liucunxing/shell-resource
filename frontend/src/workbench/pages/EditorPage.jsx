@@ -183,7 +183,7 @@ export function canSynchronizeLatest({
   operation,
 }) {
   return (
-    savedForSync && !hasUnsavedChanges && errorCount === 0 && operation === null
+    errorCount === 0 && operation === null
   );
 }
 
@@ -1192,7 +1192,7 @@ function EditorContent({
           <Alert className="note-box">
             <AlertDescription>
               {i.workflow?.submitted
-                ? "方案已提交，当前为只读。需修改时请由部门负责人退回该项目；撤回部门确认本身不会开放编辑。"
+                ? "方案已由部门确认。需修改时请由部门负责人退回该项目；撤回部门确认本身不会开放编辑。"
                 : "当前方案只读，请核对版本开放状态、截止时间和 Owner 归属。"}
             </AlertDescription>
           </Alert>
@@ -2533,8 +2533,8 @@ function EditorContent({
                 <AlertDescription>
                   {i.workflow
                     ? i.workflow.submitted
-                      ? "当前方案已提交，进入只读。"
-                      : "分配与预算平衡；提交后进入只读，退回后才可重新编辑。"
+                      ? "当前方案已提交，部门确认前仍可修改。"
+                      : "分配与预算平衡；提交会自动保存草稿，部门确认前仍可修改。"
                     : "分配与预算平衡，可以提交。"}
                 </AlertDescription>
               </Alert>
@@ -2563,7 +2563,7 @@ function EditorContent({
                       ? "草稿已保存，可以提交"
                       : synchronizedRevision
                         ? "当前修订已提交"
-                        : "请先保存草稿后再提交"
+                        : "提交时自动保存草稿"
                   : "有效修改自动保存到本机"}
               </strong>{" "}
               · {time(i.savedAt)}
@@ -2598,7 +2598,7 @@ function EditorContent({
                     disabled={!canSynchronize}
                     title={
                       !savedForSync || hasUnsavedChanges
-                        ? "请先保存草稿，再提交当前方案"
+                        ? "提交时自动保存当前方案"
                         : errors.length > 0
                           ? "请先修正当前分配问题"
                           : undefined

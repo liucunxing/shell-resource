@@ -10,20 +10,20 @@ const state = (patch = {}) => ({
 });
 
 describe("owner save and synchronization flow", () => {
-  it("disables synchronization before an explicit successful save", () => {
-    expect(canSynchronizeLatest(state())).toBe(false);
+  it("allows direct submission before saving", () => {
+    expect(canSynchronizeLatest(state())).toBe(true);
   });
 
   it("enables synchronization only for a clean and valid saved draft", () => {
     expect(canSynchronizeLatest(state({ savedForSync: true }))).toBe(true);
   });
 
-  it("invalidates synchronization after a new edit", () => {
+  it("allows automatic saving of new edits", () => {
     expect(
       canSynchronizeLatest(
         state({ savedForSync: true, hasUnsavedChanges: true }),
       ),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("keeps synchronization disabled during a request or validation error", () => {

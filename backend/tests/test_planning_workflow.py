@@ -470,7 +470,7 @@ async def test_http_version_routes_validate_scope_and_preview_read_only():
                 headers=owner,
                 json={"expected_revision": 1, "rows": []},
             )
-        ).status_code == 409
+        ).status_code == 200
         stale = await client.patch(
             "planning-versions/202701", headers=admin, json={"expected_revision": 1, "open": False}
         )
@@ -678,5 +678,41 @@ async def test_inherited_fractional_budget_requires_explicit_correction_before_p
         )
         assert opened["open"] and opened["published"]
         assert legacy.plan_budget_amount == Decimal("100.50")
+    finally:
+        await session.close()
+
+
+@pytest.mark.asyncio
+async def test_owner_can_revise_until_confirmation_and_admin_return_keeps_lock():
+    session, admin, budgets = await prepare()
+    try:
+        owner = service(session, user())
+        await submit(session, budgets[0])
+        assert (await owner.get_draft(budgets[0].id))["workflow"]["editable"]
+        draft = await owner.save_draft(budgets[0].id, InitiativeDraftUpdateDTO(
+            expected_revision=1, rows=[{"dealerId": "d1", "amount": 100}]
+        ))
+        assert not draft["workflow"]["submitted"]
+        await submit(session, budgets[1])
+        with pytest.raises(HTTPException):
+            await act(session, "confirm")
+        await owner.publish(budgets[0].id, PublishDTO(expected_revision=2))
+        await act(session, "confirm")
+        version = await session.get(PlanningVersionDO, "202701")
+        await admin.department_action("202701", "withdraw", DepartmentActionDTO(
+            sector="PCMO", department="MKT", expected_revision=version.revision, reason="管理层复核"
+        ))
+        for budget in budgets:
+            assert not (await admin.workflow(budget))["editable"]
+            with pytest.raises(HTTPException):
+                await service(session, user(budget.owner_email)).save_draft(
+                    budget.id, InitiativeDraftUpdateDTO(expected_revision=budget.revision)
+                )
+        await act(session, "return", initiative_id=budgets[0].id, reason="只调整第一项")
+        assert (await owner.get_draft(budgets[0].id))["workflow"]["editable"]
+        assert not (await service(session, user(budgets[1].owner_email)).get_draft(
+            budgets[1].id))["workflow"]["editable"]
+        await submit(session, budgets[0])
+        assert (await owner.get_draft(budgets[0].id))["workflow"]["editable"]
     finally:
         await session.close()
