@@ -4,7 +4,7 @@ import httpx
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
-from sqlalchemy import select
+from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.controllers.workbench_controller import router
@@ -12,6 +12,7 @@ from app.core.exception_handlers import register_exception_handlers
 from app.db.session import get_db_session
 from app.models.do.budget import BudgetDO
 from app.models.do.workspace import UserPermissionDO
+from app.services.admin_service import AdminService
 from test_workspace import _session
 
 
@@ -83,6 +84,58 @@ def payload(**overrides):
         "affiliation_department": "ICE",
         **overrides,
     }
+
+
+@pytest.mark.asyncio
+async def test_user_listing_uses_one_snapshot_without_global_write_lock(api):
+    client, engine = api
+    statements = []
+
+    def record_statement(_connection, _cursor, statement, _parameters, _context, _many):
+        statements.append(statement)
+
+    event.listen(engine.sync_engine, "before_cursor_execute", record_statement)
+    try:
+        response = await client.get("admin/users", headers=headers(), params={"limit": 2})
+    finally:
+        event.remove(engine.sync_engine, "before_cursor_execute", record_statement)
+    assert response.status_code == 200
+    # One identity lookup plus one coherent listing; no configuration lock and
+    # no separate count, revision or lead-coverage queries.
+    assert len(statements) == 2
+    assert all("workspace_config" not in statement.lower() for statement in statements)
+    assert all("for update" not in statement.lower() for statement in statements)
+    data = response.json()["data"]
+    assert data["total"] == 4 and len(data["items"]) == 2
+    assert data["items"][0]["email"] == "a@example.com"
+    assert data["items"][0]["has_initiatives"] is True
+    assert data["lead_sectors_by_department"] == {"ICE": ["CRTO", "PCMO"], "MKT": ["PCMO"]}
+    async with AsyncSession(engine) as session:
+        users = list((await session.scalars(select(UserPermissionDO))).all())
+        assert data["revision"] == AdminService._users_revision(users)
+
+
+@pytest.mark.asyncio
+async def test_user_listing_empty_pages_keep_full_revision_and_lead_coverage(api):
+    client, engine = api
+    full = (await client.get("admin/users", headers=headers())).json()["data"]
+    for params in ({"offset": 999}, {"email": "missing"}, {"email": "%"}, {"name": "_"}):
+        result = (await client.get("admin/users", headers=headers(), params=params)).json()["data"]
+        assert result["items"] == []
+        assert result["total"] == (full["total"] if "offset" in params else 0)
+        assert result["revision"] == full["revision"]
+        assert result["lead_sectors_by_department"] == full["lead_sectors_by_department"]
+    async with AsyncSession(engine) as session:
+        hidden_user = await session.scalar(
+            select(UserPermissionDO).where(UserPermissionDO.email == "ice-lead@example.com")
+        )
+        hidden_user.enabled = False
+        await session.commit()
+    filtered = (await client.get(
+        "admin/users", headers=headers(), params={"email": "admin"},
+    )).json()["data"]
+    assert filtered["revision"] != full["revision"]
+    assert filtered["lead_sectors_by_department"] == {"MKT": ["PCMO"]}
 
 
 @pytest.mark.asyncio

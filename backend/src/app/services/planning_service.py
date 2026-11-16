@@ -1,12 +1,14 @@
 """Versioned planning, immutable submissions and atomic department decisions."""
 
+from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import cast
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlalchemy import func, select, update
+from sqlalchemy import Table, func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.timestamps import iso_timestamp
@@ -115,6 +117,27 @@ class PlanningService:
             await self.session.flush()
         return state
 
+    async def states_for(
+        self, budgets: list[BudgetDO], *, create_missing: bool = False,
+    ) -> dict[int, InitiativeWorkflowDO]:
+        if not budgets:
+            return {}
+        states = {state.budget_id: state for state in await self.session.scalars(
+            select(InitiativeWorkflowDO).where(
+                InitiativeWorkflowDO.budget_id.in_([budget.id for budget in budgets])
+            )
+        )}
+        if create_missing:
+            for budget in budgets:
+                if budget.id not in states:
+                    state = InitiativeWorkflowDO(
+                        budget_id=budget.id, requires_resubmission=False, change_reason="",
+                    )
+                    self.session.add(state)
+                    states[budget.id] = state
+            await self.session.flush()
+        return states
+
     def permitted(self, budget: BudgetDO) -> bool:
         if self.user.role in {"admin", "management"}:
             return True
@@ -134,12 +157,15 @@ class PlanningService:
             return await self.version(budget.planning_version_id, lock=True)
         return None
 
-    async def writable(self, budget: BudgetDO) -> PlanningVersionDO | None:
+    async def writable(
+        self, budget: BudgetDO, version: PlanningVersionDO | None = None,
+    ) -> PlanningVersionDO | None:
         if not budget.planning_version_id:
             return None
         if self.user.preview_actor_email or not self.permitted(budget):
             raise HTTPException(403, "当前身份不能修改此项目")
-        version = await self.version(budget.planning_version_id, lock=True)
+        if version is None or version.id != budget.planning_version_id:
+            version = await self.version(budget.planning_version_id, lock=True)
         if (
             not version.published
             or not version.open
@@ -171,13 +197,7 @@ class PlanningService:
     ) -> dict[int, dict]:
         if not budgets:
             return {}
-        states = {
-            state.budget_id: state for state in await self.session.scalars(
-                select(InitiativeWorkflowDO).where(
-                    InitiativeWorkflowDO.budget_id.in_([budget.id for budget in budgets])
-                )
-            )
-        }
+        states = await self.states_for(budgets)
         known_publications = {
             item.id: item for history in publications.values() for item in history
         }
@@ -257,12 +277,30 @@ class PlanningService:
             .order_by(BudgetDO.id)
         )
         originals = list((await self.session.scalars(query.with_for_update())).all())
+        latest = await self.repository.latest_submissions_for([item.id for item in originals])
+        from app.core.dealer_identity import dealer_identity
+        from app.repositories.reference_repository import ReferenceRepository
+
+        # Resolve identity once across the copied sectors, without historical financial columns.
+        has_rows = any(item.snapshot.get("initiative", {}).get("rows") for item in latest.values())
+        records = await ReferenceRepository(self.session).list_directory(
+            sectors=tuple(sorted({item.sector for item in originals})),
+        ) if has_rows else []
+        records_by_sector: dict[str, list[Mapping]] = {}
+        for record in records:
+            records_by_sector.setdefault(str(record["sector"]), []).append(record)
+        directory_by_sector = {
+            sector: {dealer_identity(row): row for row in sector_records}
+            for sector, sector_records in records_by_sector.items()
+        }
         copies = []
         for original in originals:
-            history = await self.repository.publications_for(original.id)
             # Copy only the last submitted snapshot, including a returned submission.
-            snapshot = deepcopy(history[-1].snapshot.get("initiative", {})) if history else {}
-            await self._normalize_legacy_copy_rows(original, snapshot.get("rows", []))
+            publication = latest.get(original.id)
+            snapshot = deepcopy(publication.snapshot.get("initiative", {})) if publication else {}
+            await self._normalize_legacy_copy_rows(
+                original, snapshot.get("rows", []), records_by_sector.get(original.sector, []),
+            )
             copies.append((original, snapshot))
         version = PlanningVersionDO(
             id=payload.id,
@@ -277,7 +315,9 @@ class PlanningService:
         )
         self.session.add(version)
         await self.session.flush()
+        new_budgets = []
         for original, snapshot in copies:
+            rows, other = snapshot.get("rows", []), snapshot.get("otherBudgets", [])
             budget = BudgetDO(
                 planning_year=original.planning_year,
                 planning_version_id=version.id,
@@ -289,20 +329,32 @@ class PlanningService:
                 initiative_name=original.initiative_name,
                 owner_email=original.owner_email,
                 plan_budget_amount=original.plan_budget_amount,
-                allocate_budget_amount=0,
+                allocate_budget_amount=sum(
+                    (Decimal(str(r["amount"])) for r in rows + other), Decimal(0)
+                ),
                 revision=0,
                 status=0,
                 input_source="VERSION_COPY",
             )
             self.session.add(budget)
-            await self.session.flush()
+            new_budgets.append((budget, snapshot))
+        # Allocate parent IDs in one flush, then insert child tables without per-row RETURNING.
+        await self.session.flush()
+        allocations, reserves = [], []
+        for budget, snapshot in new_budgets:
             rows, other = snapshot.get("rows", []), snapshot.get("otherBudgets", [])
-            await self.repository.replace_rows(budget, rows)
-            await self.repository.replace_other(budget.id, other)
-            budget.allocate_budget_amount = sum(
-                (Decimal(str(r["amount"])) for r in rows + other), Decimal(0)
+            allocations.extend(self.repository.allocation_values(
+                budget, rows, directory_by_sector.get(budget.sector, {}),
+            ))
+            reserves.extend(self.repository.other_values(budget.id, other))
+        await self.repository.insert_allocations(allocations)
+        await self.repository.insert_other(reserves)
+        if new_budgets:
+            await self.session.execute(
+                insert(cast(Table, InitiativeWorkflowDO.__table__)),
+                [{"budget_id": budget.id, "requires_resubmission": False, "change_reason": ""}
+                 for budget, _ in new_budgets],
             )
-            await self.ensure_state(budget.id)
         self.repository.add_log(
             0,
             "VERSION_CREATE",
@@ -314,7 +366,9 @@ class PlanningService:
         await self.session.commit()
         return version_view(version)
 
-    async def _normalize_legacy_copy_rows(self, budget: BudgetDO, rows: list[dict]) -> None:
+    async def _normalize_legacy_copy_rows(
+        self, budget: BudgetDO, rows: list[dict], records: Sequence[Mapping] | None = None,
+    ) -> None:
         """Resolve plain legacy codes only in the detached copy, never in source snapshots."""
         from app.core.dealer_identity import dealer_identity
         from app.repositories.reference_repository import ReferenceRepository
@@ -322,9 +376,8 @@ class PlanningService:
         legacy_rows = [row for row in rows if not row["dealerId"].startswith("history:")]
         if not legacy_rows:
             return
-        records = await ReferenceRepository(self.session).list_dealers(
-            list({row["dealerId"] for row in legacy_rows}), (budget.sector,)
-        )
+        if records is None:
+            records = await ReferenceRepository(self.session).list_directory((budget.sector,))
         identities: dict[str, set[str]] = {}
         for record in records:
             identities.setdefault(str(record["distributor_code"]), set()).add(
@@ -462,7 +515,7 @@ class PlanningService:
         budgets = list((await self.session.scalars(
             select(BudgetDO).where(BudgetDO.planning_version_id == version_id)
         )).all())
-        states = [await self.ensure_state(budget.id) for budget in budgets]
+        states = (await self.states_for(budgets, create_missing=True)).values()
         if payload.deadline <= utc_now():
             raise HTTPException(422, "新的关闭时间必须晚于当前时间")
         for state in states:
@@ -556,18 +609,18 @@ class PlanningService:
         from app.services.workspace_service import WorkspaceService
 
         workspace = WorkspaceService(self.session, self.user)
+        states = await self.states_for(budgets)
+        publications = await self.repository.publications_by_ids([
+            state.publication_id for state in states.values() if state.publication_id is not None
+        ])
         items = []
         for budget in budgets:
-            state = await self.state(budget.id)
-            publication = (
-                await self.session.get(WorkspacePublicationDO, state.publication_id)
-                if state and state.publication_id
-                else None
-            )
+            state = states.get(budget.id)
+            publication = publications.get(state.publication_id or 0) if state else None
             item = WorkspaceService._budget_projection(budget, [], [])
             if publication:
                 item.update(workspace._publication(publication)["initiative"])
-            item["workflow"] = await self.workflow(budget, version)
+            item["workflow"] = self._workflow_projection(budget, version, state, publication)
             item["ownerLabel"] = budget.owner_email
             item["allocationVisible"] = bool(publication)
             items.append(item)
@@ -604,14 +657,20 @@ class PlanningService:
         if not version.published or not version.open or deadline_passed(version):
             raise HTTPException(409, "版本已关闭提交、已截止或未发布，不能提交或撤回部门方案")
         budgets = await self.department_budgets(version_id, payload.sector, payload.department)
-        states = [(b, await self.ensure_state(b.id)) for b in budgets]
+        by_budget = await self.states_for(budgets, create_missing=True)
+        states = [(b, by_budget[b.id]) for b in budgets]
         if not states:
             raise HTTPException(422, "当前部门没有启用项目")
         if payload.initiative_id or payload.owner_email:
             raise HTTPException(422, "部门确认和撤回必须针对整个部门")
         if action == "confirm":
+            publications = await self.repository.publications_by_ids([
+                state.publication_id for _, state in states if state.publication_id is not None
+            ])
             if not version.published or any([
-                not (await self.workflow(b, version))["submitted"] for b, _ in states
+                not self._workflow_projection(
+                    b, version, state, publications.get(state.publication_id or 0),
+                )["submitted"] for b, state in states
             ]):
                 raise HTTPException(409, "所有启用项目提交齐全后才能统一确认")
             for _, state in states:

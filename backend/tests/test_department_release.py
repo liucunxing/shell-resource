@@ -201,17 +201,16 @@ async def test_release_rechecks_deadline_after_loading_all_workflows(monkeypatch
         )
         clock = [deadline - timedelta(seconds=1)]
         loaded = []
-        ensure_state = admin.ensure_state
+        states_for = admin.states_for
 
-        async def delayed_workflow(budget_id):
-            state = await ensure_state(budget_id)
-            loaded.append(state)
-            if len(loaded) == len(budgets):
-                clock[0] = deadline
-            return state
+        async def delayed_workflows(loaded_budgets, *, create_missing=False):
+            states = await states_for(loaded_budgets, create_missing=create_missing)
+            loaded.extend(states.values())
+            clock[0] = deadline
+            return states
 
         monkeypatch.setattr("app.services.planning_service.utc_now", lambda: clock[0])
-        monkeypatch.setattr(admin, "ensure_state", delayed_workflow)
+        monkeypatch.setattr(admin, "states_for", delayed_workflows)
         with pytest.raises(HTTPException) as elapsed:
             await admin.release(version.id, command)
         assert elapsed.value.status_code == 422
