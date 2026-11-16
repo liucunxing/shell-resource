@@ -1,3 +1,4 @@
+import { MoneyInput } from "./MoneyInput";
 import { AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import {
@@ -1030,12 +1031,9 @@ export function AdminPage() {
             <>
               <Label className="form-field">
                 新的 Initiative 总预算
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
+                <MoneyInput
                   value={value}
-                  onChange={(event) => setValue(event.target.value)}
+                  onValueChange={setValue}
                 />
               </Label>
               <Alert

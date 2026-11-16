@@ -262,7 +262,7 @@ export function InitiativeContributionBar({
               background: detailInitiativeColor(source),
             }}
           >
-            <title>{`${source.name}：${(source.amount / 10000).toFixed(2)} 万元`}</title>
+            <title>{`${source.name}：${(source.amount / 10000).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 万元`}</title>
           </span>
         ))}
     </div>

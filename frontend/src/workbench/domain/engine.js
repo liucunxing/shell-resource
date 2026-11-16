@@ -230,7 +230,9 @@ function validateInitiative(i, data, reasons) {
 function completionErrors(i, data, reasons) {
   const errors = validateInitiative(i, data, reasons);
   if (!errors.length && cents(totals([i]).gap) !== 0)
-    errors.push("预算未平衡，请处理未解释差额后标记完成。");
+    errors.push(cents(totals([i]).gap) < 0
+      ? "预留金额与已分配金额合计超过项目总预算，请修正后继续。"
+      : "预算未平衡，请处理未解释差额后标记完成。");
   if (!errors.length && Array.isArray(i.otherBudgets))
     i.otherBudgets.forEach((row, index) => {
       if (i.workflow && !(reasons || DEFAULT_BUDGET_REASONS).some((reason) => reason.id === row.reasonId && reason.enabled))

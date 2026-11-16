@@ -8,6 +8,7 @@ import {
   versionSummary,
 } from "../src/workbench/pages/PlanningVersionsPage.jsx";
 import { useWorkbench } from "../src/workbench/WorkbenchContext.jsx";
+import { PlanningVersionBar } from "../src/workbench/pages/PlanningVersionBar.jsx";
 
 vi.mock("../src/workbench/WorkbenchContext.jsx", () => ({
   useWorkbench: vi.fn(),
@@ -94,8 +95,19 @@ describe("V19 version table and deadlines", () => {
     expect(html).toContain("提交截止时间");
     expect(html).toContain("admin@example.com");
     expect(html).not.toContain("<h2>提交截止时间</h2>");
-    expect(html).toContain("2026-12-01T17:30");
-    expect(html).toMatch(/disabled=""[^>]*>撤回发布/);
-    expect(html).toMatch(/disabled=""[^>]*>保存/);
+    expect(html).toContain("2026-12-01 17:30");
+    expect(html).not.toContain("撤回发布");
+    expect(html).not.toContain('type="datetime-local"');
+    expect(html).not.toContain(">保存</button>");
+    expect(html).toMatch(/data-variant="destructive"[^>]*disabled=""[^>]*>删除/);
+  });
+
+  it("shows the selected version's Beijing deadline to owner and lead", () => {
+    for (const role of ["owner", "lead"]) {
+      useWorkbench.mockReturnValue({ state: { planningVersion: current, planningVersions: [current] }, identity: { role }, apiMode: true });
+      expect(renderToStaticMarkup(<PlanningVersionBar />)).toContain("提交截止时间：2026-12-01 17:30（北京时间）");
+      useWorkbench.mockReturnValue({ state: { planningVersion: { ...current, deadline: null }, planningVersions: [] }, identity: { role }, apiMode: true });
+      expect(renderToStaticMarkup(<PlanningVersionBar />)).toContain("提交截止时间：未设置（北京时间）");
+    }
   });
 });

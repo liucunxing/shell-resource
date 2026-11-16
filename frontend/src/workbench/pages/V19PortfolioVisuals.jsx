@@ -534,11 +534,12 @@ export function CumulativeChart({ rows, top, basis, onSelect }) {
   return (
     <svg
       className="v19-concentration-chart"
-      viewBox="0 0 600 280"
+      viewBox="0 0 600 310"
       role="img"
       aria-label="投资金额与历史产出累计占比曲线"
       onClick={(event) => { if (event.target.closest('[role="button"]')) return; const rect=event.currentTarget.getBoundingClientRect(); const x=((event.clientX-rect.left)/rect.width*600-48)/5.2; onSelect([20,50,80].reduce((best,n)=>Math.abs(n-x)<Math.abs(best-x)?n:best,20)); }}
     >
+      <g transform="translate(0 30)">
       {[0, 25, 50, 75, 100].map((y) => (
         <g key={y}>
           <line
@@ -620,7 +621,7 @@ export function CumulativeChart({ rows, top, basis, onSelect }) {
                 pointerEvents="all"
               />
               <line x1={48 + q.x * 5.2} x2={48 + q.x * 5.2} y1="36" y2="226" stroke="#9aaebb" strokeDasharray="3 3" pointerEvents="none" />
-              <text className="v19-top-label" x={48 + q.x * 5.2} y="32" textAnchor="middle">Top {x}%</text>
+              <text className="v19-top-label" x={48 + q.x * 5.2} y={32 - overlapping.indexOf(x) * 15} textAnchor="middle">Top {x}%</text>
               {x === top && <><text className="v19-chart-value investment" x={Math.min(450, 58 + q.x * 5.2)} y={Math.max(48, 218 - q.a * 1.9)}>投资 {pct(q.a)}</text><text className="v19-chart-value output" x={Math.min(450, 58 + q.x * 5.2)} y={Math.min(220, 242 - q.m * 1.9)}>{basis === "vol" ? "Vol" : "C3"} {pct(q.m)}</text></>}
               <circle
                 cx={48 + q.x * 5.2}
@@ -647,6 +648,7 @@ export function CumulativeChart({ rows, top, basis, onSelect }) {
       <text x="310" y="272" textAnchor="middle">
         经销商（按投入从高到低）累计占比 →
       </text>
+      </g>
     </svg>
   );
 }
