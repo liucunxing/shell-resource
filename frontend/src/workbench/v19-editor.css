@@ -405,6 +405,21 @@
   max-width: 240px;
   white-space: normal;
 }
+.v19-editor .v19-allocation-table tbody td {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  vertical-align: middle;
+}
+.v19-editor .v19-allocation-table .v19-dealer-name > button {
+  display: block;
+  width: 100%;
+  height: auto;
+  padding: 0;
+  text-align: left;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .v19-dealer-name strong {
   display: block;
   font-size: 12px;
@@ -415,7 +430,8 @@
   display: block;
   font-size: 10px;
   color: #6e8290;
-  margin-top: 3px;
+  margin-top: 2px;
+  line-height: 1.3;
 }
 .v19-editor .v19-allocation-table .v19-money-cell {
   min-width: 164px;
