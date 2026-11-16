@@ -51,14 +51,21 @@ def verified_dealer_target_coverage(
 
 def verified_history_coverage(
     reference: dict[str, Any] | None, source_fingerprint: str | None,
+    history_fingerprint: str | None = None,
 ) -> dict[str, Any] | None:
-    """A business confirmation applies only to the exact source batch it reviewed."""
+    """Validate the explicitly recorded scope, never silently reinterpret old digests."""
     value = (reference or {}).get("historyCoverageConfirmation")
-    if not isinstance(value, dict) or not source_fingerprint:
+    if not isinstance(value, dict):
+        return None
+    scope = value.get("sourceFingerprintScope")
+    if scope not in (None, "history_2026_v1"):
+        return None
+    digest = history_fingerprint if scope == "history_2026_v1" else source_fingerprint
+    if not digest:
         return None
     if (
-        value.get("sourceFingerprint") != source_fingerprint
-        or not re.fullmatch(r"[0-9a-f]{32}", source_fingerprint)
+        value.get("sourceFingerprint") != digest
+        or not re.fullmatch(r"[0-9a-f]{32}", digest)
         or value.get("year") != 2026
         or type(value.get("year")) is not int
         or value.get("startMonth") != 1
@@ -70,12 +77,15 @@ def verified_history_coverage(
     for key in ("actualThroughMonth", "investmentThroughMonth"):
         if type(value.get(key)) is not int or not 1 <= value[key] <= 12:
             return None
-    return {
+    verified = {
         key: value[key] for key in (
             "sourceFingerprint", "year", "startMonth", "actualThroughMonth",
             "investmentThroughMonth", "confirmedAt",
         )
     }
+    if scope is not None:
+        verified["sourceFingerprintScope"] = scope
+    return verified
 
 
 def configured_investment_exchange_rate(reference: dict[str, Any] | None) -> float:

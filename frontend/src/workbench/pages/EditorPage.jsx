@@ -53,6 +53,8 @@ import {
   allocationHistoryField,
   historyDisplayValue,
   historyInvestment,
+  historyShareDenominators,
+  historyShare,
   historyYield,
   historyPhasing,
   aggregateHistoryPhasing,
@@ -905,6 +907,12 @@ function EditorContent({
           )
           .map((row) => ({ item, row })),
       );
+  const selectedHistories = i.rows.map((row) => dealerMeta(row.dealerId).history);
+  const shareDenominators = {
+    "2025": historyShareDenominators(selectedHistories, "2025"),
+    "2026Ytd": historyShareDenominators(selectedHistories, "2026Ytd"),
+  };
+  const currentShareDenominators = shareDenominators[historyPeriod];
   const selectedInvestment = (period) => {
     const values = i.rows.map((row) =>
       historyInvestment(dealerMeta(row.dealerId).history, period),
@@ -914,13 +922,9 @@ function EditorContent({
       : null;
   };
   const investmentShareFor = (dealerId, period) => {
-    const total = selectedInvestment(period),
-      value = historyInvestment(dealerMeta(dealerId).history, period);
-    return i.rows.some((row) => row.dealerId === dealerId) &&
-      value != null &&
-      total > 0
-      ? (value / total) * 100
-      : null;
+    const value = historyInvestment(dealerMeta(dealerId).history, period);
+    return i.rows.some((row) => row.dealerId === dealerId)
+      ? historyShare(value, shareDenominators[period].investment) : null;
   };
   const historyVolKey = historyPeriod === "2026Ytd" ? "vol2026Ytd" : "vol2025";
   const historyC3Key = historyPeriod === "2026Ytd" ? "c32026Ytd" : "c32025";
@@ -981,18 +985,8 @@ function EditorContent({
       h = dealer.history || {};
     const amountShare =
       totals.allocated > 0 ? (row.amount / totals.allocated) * 100 : null;
-    const volShare =
-      scopeHistoryTotals.volComplete &&
-      scopeHistoryTotals.vol > 0 &&
-      h[historyVolKey] != null
-        ? (h[historyVolKey] / scopeHistoryTotals.vol) * 100
-        : null;
-    const c3Share =
-      scopeHistoryTotals.c3Complete &&
-      scopeHistoryTotals.c3 > 0 &&
-      h[historyC3Key] != null
-        ? (h[historyC3Key] / scopeHistoryTotals.c3) * 100
-        : null;
+    const volShare = historyShare(h[historyVolKey], currentShareDenominators.vol);
+    const c3Share = historyShare(h[historyC3Key], currentShareDenominators.c3);
     if (key.startsWith("expense:"))
       return (
         h[historyPeriod === "2025" ? "resources2025" : "resources2026Ytd"]?.[
@@ -1012,10 +1006,7 @@ function EditorContent({
       gapC3:
         amountShare != null && c3Share != null ? amountShare - c3Share : null,
       contract: finiteHistoryValue(h[historyContractKey]),
-      contractShare:
-        h[historyContractKey] != null && contractTotal > 0
-          ? (h[historyContractKey] / contractTotal) * 100
-          : null,
+      contractShare: historyShare(h[historyContractKey], currentShareDenominators.contract),
       vol: finiteHistoryValue(h[historyVolKey]),
       c3: finiteHistoryValue(h[historyC3Key]),
       phasing: historyPhasing(h, historyPeriod),
@@ -1066,22 +1057,16 @@ function EditorContent({
       {
         amount: totals.allocated,
         amountShare: totals.allocated > 0 ? 100 : null,
-        volShare:
-          scopeHistoryTotals.volComplete && scopeHistoryTotals.vol > 0
-            ? 100
-            : null,
-        c3Share:
-          scopeHistoryTotals.c3Complete && scopeHistoryTotals.c3 > 0
-            ? 100
-            : null,
+        volShare: currentShareDenominators.vol > 0 ? 100 : null,
+        c3Share: currentShareDenominators.c3 > 0 ? 100 : null,
         contract: contractTotal,
-        contractShare: contractTotal > 0 ? 100 : null,
+        contractShare: currentShareDenominators.contract > 0 ? 100 : null,
         vol: scopeHistoryTotals.volComplete ? scopeHistoryTotals.vol : null,
         c3: scopeHistoryTotals.c3Complete ? scopeHistoryTotals.c3 : null,
         phasing: weightedPhasing,
         investment: allocationInvestmentTotal,
         yield: weightedYield,
-        investmentShare: allocationInvestmentTotal > 0 ? 100 : null,
+        investmentShare: currentShareDenominators.investment > 0 ? 100 : null,
       }[key] ?? null
     );
   };
@@ -2373,7 +2358,7 @@ function EditorContent({
               <div className="v19-allocation-pagination">
                 <span>
                   显示 {allocationFiltered.length} / {i.rows.length} 家 ·
-                  占比与加权值按完整名单计算
+                  占比分母按完整名单中的有效值合计，缺失行不视为零；加权值按完整名单计算
                 </span>
                 <div>
                   <Button

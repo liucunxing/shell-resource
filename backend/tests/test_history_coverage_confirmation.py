@@ -97,3 +97,63 @@ async def test_ytd_projection_requires_verified_same_period_and_complete_signed_
         assert history["ytdYieldUnavailableReason"] is None
     else:
         assert history["ytdYieldUnavailableReason"]
+
+
+def test_scoped_confirmation_ignores_unrelated_full_source_digest_changes():
+    ref = {"historyCoverageConfirmation": confirmation(sourceFingerprintScope="history_2026_v1")}
+    for full_digest in (DIGEST, "b" * 32, None):
+        verified = verified_history_coverage(ref, full_digest, DIGEST)
+        assert verified is not None
+        assert verified["actualThroughMonth"] == 9
+        assert verified["sourceFingerprintScope"] == "history_2026_v1"
+    assert verified_history_coverage(ref, DIGEST, "b" * 32) is None
+    assert verified_history_coverage(ref, DIGEST, None) is None
+    legacy = {"historyCoverageConfirmation": confirmation()}
+    assert verified_history_coverage(legacy, "b" * 32, DIGEST) is None
+    unsupported = {"historyCoverageConfirmation": confirmation(sourceFingerprintScope="unknown")}
+    assert verified_history_coverage(unsupported, DIGEST, DIGEST) is None
+
+
+def test_history_digest_projection_includes_only_identity_and_actual_expense_inputs():
+    from sqlalchemy.dialects import postgresql
+
+    from app.repositories.reference_repository import ReferenceRepository
+
+    sql = str(ReferenceRepository.history_fingerprint_statement().compile(
+        dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True},
+    ))
+    for field in ("sector", "distributor_code", "volume_2026", "c3_2026", "mrd_2026",
+                  "reb_2026", "btl_2026", "capex_2026"):
+        assert f"distributor_sellin_resource_history.{field}" in sql
+    for field in ("target_2025", "phasing_2025", "target_2026", "phasing_2026", "sd",
+                  "rsm", "distributor_name", "yield_2026", "volume_2025"):
+        assert f"distributor_sellin_resource_history.{field}" not in sql
+    assert "string_agg" in sql and "ORDER BY" in sql
+
+
+@pytest.mark.asyncio
+async def test_scoped_period_evidence_restores_ytd_yield_after_target_only_changes():
+    row = {**history_row("Synthetic"), "_source_fingerprint": "b" * 32,
+           "_history_fingerprint": DIGEST}
+
+    class Repository:
+        async def list_dealers(self, *args, **kwargs):
+            return [row]
+
+    class ConfigRepository:
+        async def config(self):
+            return SimpleNamespace(reference={"historyCoverageConfirmation": confirmation(
+                sourceFingerprintScope="history_2026_v1",
+            )}, department_resources={}, role_resources={})
+
+    service = ReferenceService(object())
+    service.repository = Repository()
+    service.workspace_repository = ConfigRepository()
+    history = (await service.get_dealers(2027))[0]["history"]
+    assert service.coverage_confirmation_status == "verified"
+    assert history["yield2026Ytd"] is not None
+    assert history["actualThroughMonth"] == history["investmentThroughMonth"] == 9
+    row["_history_fingerprint"] = "c" * 32
+    history = (await service.get_dealers(2027))[0]["history"]
+    assert service.coverage_confirmation_status == "expired"
+    assert history["yield2026Ytd"] is None

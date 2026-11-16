@@ -83,6 +83,31 @@ export function historyInvestment(
     : amounts.reduce<number>((sum, value) => sum + value!, 0);
 }
 
+/** Denominators use known values across the complete selection, not the current page.
+ * A missing dealer cell stays missing; it does not erase other dealers' shares.
+ */
+export function historyShareDenominators(
+  histories: (DealerHistory | undefined)[],
+  period: HistoryPeriod,
+) {
+  const total = (values: unknown[]): number | null => {
+    const known = values.map(finiteHistoryValue).filter((value): value is number => value !== null);
+    return known.length ? known.reduce((sum, value) => sum + value, 0) : null;
+  };
+  return {
+    vol: total(histories.map((history) => history?.[`vol${period}`])),
+    c3: total(histories.map((history) => history?.[`c3${period}`])),
+    contract: total(histories.map((history) => history?.[`contract${period}`])),
+    investment: total(histories.map((history) => historyInvestment(history, period))),
+  };
+}
+
+export function historyShare(value: unknown, denominator: number | null): number | null {
+  const numeric = finiteHistoryValue(value);
+  return numeric !== null && denominator !== null && denominator > 0
+    ? numeric / denominator * 100 : null;
+}
+
 export function historyYield(
   history: DealerHistory | undefined,
   period: HistoryPeriod,
