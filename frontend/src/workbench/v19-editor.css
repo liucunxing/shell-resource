@@ -768,3 +768,12 @@
 .submission-blocked-trigger:focus-visible { outline: 2px solid #8a6700; outline-offset: 3px; }
 .submission-blocked-reason { color: #a04418; font-size: 12px; line-height: 1.4; text-align: right; }
 .submission-blocked-tooltip { max-width: min(380px, 85vw); white-space: normal; line-height: 1.5; }
+
+/* Keep the explanation usable even when the balance action is disabled. */
+.v19-editor .balance-action-group { display: inline-flex; align-items: stretch; border: 1px solid #c5d3db; border-radius: 6px; background: #fff; overflow: visible; }
+.v19-editor .balance-action-group .balance-action { border: 0; border-radius: 5px 0 0 5px; box-shadow: none; }
+.v19-editor .balance-action-group .balance-action-help { width: 30px; height: auto; min-height: 29px; padding: 0; border: 0; border-radius: 0 5px 5px 0; color: #375f86; }
+.v19-editor .balance-action-help span { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border: 1px solid currentColor; border-radius: 50%; font-size: 11px; font-weight: 700; }
+.v19-editor .balance-action-help:focus-visible { outline: 2px solid #8a6700; outline-offset: 2px; }
+.v19-editor .scope-select-all { width: 19px; height: 19px; border: 2px solid #55758b; background: #fff; box-shadow: 0 1px 4px rgb(25 50 70 / 25%); }
+.v19-editor .scope-select-all[data-state="checked"], .v19-editor .scope-select-all[data-state="indeterminate"] { border-color: #b58b00; background: #ffce00; color: #243c4d; }
