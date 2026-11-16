@@ -241,11 +241,14 @@
   background: #fffef9;
   font-size: 13px;
 }
+.v19-editor .v19-trial-tools > button.v19-trial-selected {
+  background: #fbce07;
+  border-color: #d4aa00;
+  color: #3f390e;
+  font-weight: 600;
+}
 .v19-trial-tools > button:last-child {
   margin-left: auto;
-  background: #fbce07;
-  color: #3f390e;
-  border-color: #fbce07;
 }
 .v19-editor .studio-trial-grid {
   display: grid;
