@@ -140,7 +140,7 @@ function phasingWeight(history: DealerHistory | undefined, period: HistoryPeriod
   return finiteHistoryValue(period === "2025" ? history?.contract2025 : history?.contract2026Ytd);
 }
 
-/** Source-target weighted ratios; a missing source ratio is never a zero.
+/** Source-target weighted ratios over complete valid pairs only; missing is not zero.
  * `volume` is the legacy result key for the weighted numerator, not Actual Vol.
  */
 export function aggregateHistoryPhasing(
@@ -159,10 +159,9 @@ export function aggregateHistoryPhasing(
   let target = 0;
   for (const history of histories) {
     const weight = phasingWeight(history, period);
-    if (weight === null) return unavailable;
-    if (weight <= 0) continue;
+    if (weight === null || weight <= 0) continue;
     const ratio = historyPhasing(history, period);
-    if (ratio === null) return unavailable;
+    if (ratio === null) continue;
     volume += ratio * weight;
     target += weight;
   }

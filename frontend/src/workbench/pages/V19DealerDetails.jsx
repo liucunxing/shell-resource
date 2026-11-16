@@ -215,7 +215,7 @@ export function V19DealerDetails({
     <Card className="v19-board-section v19-dealer-details">
       <div className="v19-section-heading">
         <div>
-          <h2>经销商明细 · 资源叠加与历史对照 <MetricHelp>跨 Initiative 按经销商与 Sector 业务身份汇总；搜索、排序和分页不改变投资及历史产出的占比分母。历史费用明细按用户授权范围显示。各历史占比按当前名单中该指标有效值合计计算，缺失项不视作零。经销商 target 以 KL 展示；Phasing 直接读取源表对应年份的结果，1 表示 100%；源值缺失时显示 —。多经销商汇总按同年源 target 加权，缺少权重或源 Phasing 时不计算，非正权重不参与。点击经销商查看资源构成、投资来源与历史明细。</MetricHelp></h2>
+          <h2>经销商明细 · 资源叠加与历史对照 <MetricHelp>跨 Initiative 按经销商与 Sector 业务身份汇总；搜索、排序和分页不改变投资及历史产出的占比分母。历史费用明细按用户授权范围显示。各历史占比按当前名单中该指标有效值合计计算，缺失项不视作零。经销商 target 以 KL 展示；Phasing 直接读取源表对应年份的结果，1 表示 100%；源值缺失时显示 —。多经销商汇总仅对同年源 target 大于 0 且源 Phasing 有值的经销商加权，结果仅代表有效数据范围；无有效数据时显示 —。点击经销商查看资源构成、投资来源与历史明细。</MetricHelp></h2>
         </div>
       </div>
       <div className="v19-board-body">

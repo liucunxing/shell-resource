@@ -130,10 +130,20 @@ describe("imported distributor history", () => {
       { phasing2026Ytd: 0.5, sourceTarget2026Ytd: null, contract2026Ytd: 5000 },
       { phasing2026Ytd: null, sourceTarget2026Ytd: 5000 },
     ]) {
-      expect(aggregateHistoryPhasing([...eligible, unknown], "2026Ytd")).toEqual({ volume: null, target: null, ratio: null });
+      expect(aggregateHistoryPhasing([...eligible, unknown], "2026Ytd")).toEqual({ volume: 7000, target: 10000, ratio: 0.7 });
     }
     expect(aggregateHistoryPhasing([{ phasing2026Ytd: 1.17 }], "2026Ytd").ratio).toBe(1.17);
     expect(aggregateHistoryPhasing([], "2026Ytd").ratio).toBeNull();
+    expect(aggregateHistoryPhasing([
+      { phasing2025: null, sourceTarget2025: 500 },
+      { phasing2025: 1, sourceTarget2025: null },
+      { phasing2025: 2, sourceTarget2025: 0 },
+    ], "2025").ratio).toBeNull();
+    expect(aggregateHistoryPhasing([
+      { phasing2025: 0, sourceTarget2025: 100 },
+      { phasing2025: Infinity, sourceTarget2025: 500 },
+      { phasing2025: 1, sourceTarget2025: NaN },
+    ], "2025").ratio).toBe(0);
     expect(aggregateHistoryPhasing([
       { phasing2025: 0, sourceTarget2025: 100 },
       { phasing2025: 1, sourceTarget2025: 100 },

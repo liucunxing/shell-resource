@@ -415,7 +415,7 @@ describe("V20 V17 allocation table contract", () => {
         expect(totals).toMatchObject({ contract: 8000 + target, vol: 7000, phasing: 0.75 });
       } else {
         expect(totals.contract).toBeNull();
-        expect(totals.phasing).toBeNull();
+        expect(totals.phasing).toBe(0.75);
       }
     }
     const allZero = source.map((dealer) => ({
