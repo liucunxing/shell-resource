@@ -1,3 +1,4 @@
+import { MoneyInput } from "./MoneyInput";
 import { AlertDescription } from "@/components/ui/alert";
 import {
   NativeSelect,
@@ -471,22 +472,17 @@ function InitiativesPage({
                     </NativeSelect>
                   </TableCell>
                   <TableCell>
-                    <Input
+                    <MoneyInput
                       aria-label={`${row.name || "新增项目"} 预算（元）`}
-                      ref={(node) => {
+                      inputRef={(node) => {
                         const key = `${row._key}:budget`;
                         if (node) fieldRefs.current.set(key, node);
                         else fieldRefs.current.delete(key);
                       }}
                       aria-invalid={invalidField === `${row._key}:budget`}
-                      type="number"
-                      min="0"
-                      step="1"
                       value={row.budget}
                       disabled={busy || previewMode}
-                      onChange={(event) =>
-                        edit(row, "budget", event.target.value)
-                      }
+                      onValueChange={(value) => edit(row, "budget", value)}
                     />
                   </TableCell>
                   <TableCell>
