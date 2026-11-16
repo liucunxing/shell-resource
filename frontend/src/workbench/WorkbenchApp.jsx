@@ -109,6 +109,7 @@ function navigationFor(identity, initiativeId) {
     return [["management", Stack, "全局投资看板", "部门已确认方案"]];
   return [
     ["admin-versions", GearSix, "版本与发布", ""],
+    ["department-review", ShieldCheck, "部门方案退回", "退回部门负责人复核"],
     ["admin-initiatives", ClipboardText, "项目配置", ""],
     ["admin-users", UserList, "用户与权限", ""],
     ["admin-enums", SlidersHorizontal, "组织与枚举", ""],

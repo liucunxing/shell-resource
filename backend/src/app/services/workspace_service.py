@@ -705,8 +705,13 @@ class WorkspaceService:
         if budget.planning_version_id:
             await self._validate_version_dealer_scope(budget, requested_ids)
         new_ids = requested_ids - existing_ids
-        if new_ids:
-            raise HTTPException(status_code=422, detail="当前不允许新增经销商分配")
+        directory_ids = (
+            await self.directory_service.distributor_codes((budget.sector,)) if new_ids else set()
+        )
+        if not new_ids.issubset(directory_ids):
+            raise HTTPException(
+                status_code=422, detail="新增经销商必须属于本项目业务线且状态为 active"
+            )
         config = await self.repository.config()
         allowed = {
             str(item.get("id"))

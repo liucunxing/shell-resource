@@ -141,8 +141,8 @@ class PlanningService:
         ):
             raise HTTPException(409, "当前版本未开放、已截止或项目已取消，请联系管理员")
         state = await self.state(budget.id)
-        if state and state.publication_id and not state.requires_resubmission:
-            raise HTTPException(409, "方案已提交，须部门负责人退回所选项目后才能修改")
+        if state and (state.owner_edit_locked or state.confirmed_publication_id):
+            raise HTTPException(409, "方案已由部门确认，须部门负责人退回所选项目后才能修改")
         return version
 
     async def workflow(self, budget: BudgetDO, version: PlanningVersionDO | None = None) -> dict:
@@ -154,7 +154,8 @@ class PlanningService:
         )
         if version is None and budget.planning_version_id:
             version = await self.version(budget.planning_version_id)
-        submitted = bool(publication and state and not state.requires_resubmission)
+        submitted = bool(publication and state and not state.requires_resubmission
+                         and publication.published_revision == budget.revision)
         confirmed = bool(
             submitted and state and state.confirmed_publication_id == state.publication_id
         )
@@ -174,7 +175,7 @@ class PlanningService:
                 and version.open
                 and not deadline_passed(version)
                 and budget.enabled
-                and not submitted
+                and not (state and (state.owner_edit_locked or state.confirmed_publication_id))
                 and self.user.role in {"owner", "lead"}
                 and (budget.owner_email or "").lower() == self.user.email.lower()
                 and not self.user.preview_actor_email
@@ -438,11 +439,12 @@ class PlanningService:
         if action != "return" and (payload.initiative_id or payload.owner_email):
             raise HTTPException(422, "部门确认和撤回必须针对整个部门")
         if action == "confirm":
-            if not version.published or any(
-                not s.publication_id or s.requires_resubmission for _, s in states
-            ):
+            if not version.published or any([
+                not (await self.workflow(b, version))["submitted"] for b, _ in states
+            ]):
                 raise HTTPException(409, "所有启用项目提交齐全后才能统一确认")
             for _, state in states:
+                state.owner_edit_locked = True
                 state.confirmed_publication_id = state.publication_id
                 state.confirmed_by = self.user.email
                 state.confirmed_at = utc_now()
@@ -474,6 +476,7 @@ class PlanningService:
             if not states:
                 raise HTTPException(422, "所选范围没有可退回的已提交项目")
             for budget, state in states:
+                state.owner_edit_locked = False
                 state.requires_resubmission = True
                 state.return_reason = payload.reason
                 budget.status = 0
