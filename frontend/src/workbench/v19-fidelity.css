@@ -95,6 +95,7 @@ body {
   height: 65px;
   min-width: 0;
   overflow-x: auto;
+  overflow-y: hidden;
   background: transparent;
 }
 .v19-appnav .v19-primary-nav [data-slot="button"] {
@@ -234,8 +235,10 @@ body {
   color: #dd1d21;
   background: #fde7e9;
 }
-.v19-primary-nav:has(button:nth-child(6)) [data-slot="button"] {
-  flex-grow: 1;
+.v19-appnav .v19-primary-nav:has(button:nth-child(6)) [data-slot="button"] {
+  flex: 1 0 auto;
+  min-width: 0;
+  padding-inline: 12px;
 }
 .v19-org-grid {
   display: grid;

@@ -1,4 +1,5 @@
 import engine from "./engine.js";
+import { isActiveDealer } from "./dealer-history";
 const excelLibrary = async () => (await import("exceljs")).default;
 ("use strict");
 const LEGACY_FORMAT = "资源投资分配模板 V1.3",
@@ -12,15 +13,16 @@ const META = [
   "预算（只读）",
   "草稿修订号",
 ];
-const LEGACY_META = [
-  "模板版本",
-  "Initiative编号",
-  ...META,
-];
+const LEGACY_META = ["模板版本", "Initiative编号", ...META];
 const HEAD = ["经销商编码", "分配金额", "说明"],
   LEGACY_HEAD = ["行业务键", "经销商编码", "分配金额", "说明"],
   OTHER_HEAD = ["原因类型", "分配金额", "说明"],
-  LEGACY_OTHER_HEAD = ["预算项编号（留空表示新增）", "原因", "金额", "填写原因"],
+  LEGACY_OTHER_HEAD = [
+    "预算项编号（留空表示新增）",
+    "原因",
+    "金额",
+    "填写原因",
+  ],
   LEGACY_POOL = ["预算池类型", "金额", "说明"];
 const DEFAULT_REASONS = [
   { id: "reserve", label: "新增经销商预留", enabled: true },
@@ -150,7 +152,21 @@ function dealerDirectory(data = {}) {
     : Array.isArray(data.dealers)
       ? data.dealers
       : [];
-  return [...new Map(rows.filter((dealer) => dealer.status == null || dealer.status === "active" || String(dealer.status) === "1").map((dealer) => [json([String(dealer.id), dealer.sector || ""]), dealer])).values()];
+  return [
+    ...new Map(
+      rows
+        .filter(
+          (dealer) =>
+            dealer.status == null ||
+            dealer.status === "active" ||
+            String(dealer.status) === "1",
+        )
+        .map((dealer) => [
+          json([String(dealer.id), dealer.sector || ""]),
+          dealer,
+        ]),
+    ).values(),
+  ];
 }
 async function exportWorkbook(state, id, identity, data = {}) {
   const i = editable(state, id, identity),
@@ -173,7 +189,18 @@ async function exportWorkbook(state, id, identity, data = {}) {
   rows.addRow(detailed ? [...HEAD, "SD", "RSM", "记录标识"] : HEAD);
   (i.rows || []).forEach((r) => {
     const dealer = byId.get(String(r.dealerId)) || {};
-    rows.addRow(detailed ? [dealer.code || r.dealerCode || r.dealerId, r.amount, r.note || "", dealer.sd || r.sd || "", dealer.rsm || r.rsm || "", r.dealerId] : [r.dealerId, r.amount, r.note || ""]);
+    rows.addRow(
+      detailed
+        ? [
+            dealer.code || r.dealerCode || r.dealerId,
+            r.amount,
+            r.note || "",
+            dealer.sd || r.sd || "",
+            dealer.rsm || r.rsm || "",
+            r.dealerId,
+          ]
+        : [r.dealerId, r.amount, r.note || ""],
+    );
   });
   if (detailed) rows.getColumn(6).hidden = true;
   style(rows, [24, 20, 65]);
@@ -182,11 +209,7 @@ async function exportWorkbook(state, id, identity, data = {}) {
   other.addRow(OTHER_HEAD);
   currentOther(i).forEach((r) => {
     const reason = configuredReasons(state).find((x) => x.id === r.reasonId);
-    other.addRow([
-      reason ? reason.label : r.reasonId,
-      r.amount,
-      r.note || "",
-    ]);
+    other.addRow([reason ? reason.label : r.reasonId, r.amount, r.note || ""]);
   });
   style(other, [26, 20, 70]);
   other.getColumn(2).numFmt = "#,##0.00";
@@ -233,15 +256,40 @@ async function exportDealerDirectory(data) {
   addDealerDirectory(book, data);
   return book.xlsx.writeBuffer();
 }
+async function exportSelectedRoster(rows, dealers) {
+  const book = new (await excelLibrary()).Workbook();
+  const sheet = book.addWorksheet("已选经销商");
+  sheet.addRow([
+    "经销商编码",
+    "经销商名称",
+    "SD",
+    "RSM",
+    "状态",
+    "已分配（元）",
+  ]);
+  const byId = new Map(dealers.map((dealer) => [String(dealer.id), dealer]));
+  for (const row of rows) {
+    const dealer = byId.get(String(row.dealerId));
+    if (!dealer || !isActiveDealer(dealer)) continue;
+    sheet.addRow([
+      String(dealer.code || dealer.id),
+      dealer.name || "",
+      dealer.sd || "",
+      dealer.rsm || "",
+      "Active",
+      Number(row.amount || 0),
+    ]);
+  }
+  style(sheet, [24, 48, 24, 24, 18, 24]);
+  return book.xlsx.writeBuffer();
+}
 function parseOtherV14(sheet, state, out, read) {
   checkHeaders(read, out, sheet, OTHER_HEAD);
   checkWidth(out, sheet, 3);
   const byLabel = new Map(configuredReasons(state).map((r) => [r.label, r])),
     ids = new Set();
   for (let n = 2; n <= sheet.rowCount; n++) {
-    const [label, rawAmount, note] = [1, 2, 3].map((c) =>
-      read(sheet, n, c),
-    );
+    const [label, rawAmount, note] = [1, 2, 3].map((c) => read(sheet, n, c));
     if ([label, rawAmount, note].every((v) => v === "")) continue;
     const id = `import-other-${n}`;
     if (ids.has(id)) out.errors.push(`其他预算安排 第${n}行重复。`);
@@ -253,7 +301,8 @@ function parseOtherV14(sheet, state, out, read) {
       );
     else if (reason.enabled === false)
       out.errors.push(`其他预算安排 第${n}行不能新增已停用的原因。`);
-    if (typeof note !== "string") out.errors.push(`其他预算安排 第${n}行说明必须为文本。`);
+    if (typeof note !== "string")
+      out.errors.push(`其他预算安排 第${n}行说明必须为文本。`);
     const amount = money(rawAmount, out, `其他预算安排 第${n}行金额`);
     if (amount > 0 && !safeText(note).trim())
       out.errors.push(`其他预算安排 第${n}行金额大于0时必须填写原因。`);
@@ -272,19 +321,33 @@ function parseOtherV13(sheet, state, out, read) {
     ids = new Set();
   let generated = 0;
   for (let n = 2; n <= sheet.rowCount; n++) {
-    const [rawId, label, rawAmount, note] = [1, 2, 3, 4].map((c) => read(sheet, n, c));
+    const [rawId, label, rawAmount, note] = [1, 2, 3, 4].map((c) =>
+      read(sheet, n, c),
+    );
     if ([rawId, label, rawAmount, note].every((v) => v === "")) continue;
-    const id = rawId === "" ? `import-other-${++generated}` : String(rawId).trim();
-    if (!id || ids.has(id)) out.errors.push(`其他预算安排 第${n}行预算项编号无效或重复。`);
+    const id =
+      rawId === "" ? `import-other-${++generated}` : String(rawId).trim();
+    if (!id || ids.has(id))
+      out.errors.push(`其他预算安排 第${n}行预算项编号无效或重复。`);
     ids.add(id);
     const reason = typeof label === "string" ? byLabel.get(label.trim()) : null;
-    if (!reason) out.errors.push(`其他预算安排 第${n}行原因必须来自管理员配置的下拉选项。`);
+    if (!reason)
+      out.errors.push(
+        `其他预算安排 第${n}行原因必须来自管理员配置的下拉选项。`,
+      );
     else if (rawId === "" && reason.enabled === false)
       out.errors.push(`其他预算安排 第${n}行不能新增已停用的原因。`);
-    if (typeof note !== "string") out.errors.push(`其他预算安排 第${n}行填写原因必须为文本。`);
+    if (typeof note !== "string")
+      out.errors.push(`其他预算安排 第${n}行填写原因必须为文本。`);
     const amount = money(rawAmount, out, `其他预算安排 第${n}行金额`);
-    if (amount > 0 && !safeText(note).trim()) out.errors.push(`其他预算安排 第${n}行金额大于0时必须填写原因。`);
-    out.otherBudgets.push({ id, reasonId: reason ? reason.id : "", amount, note: safeText(note) });
+    if (amount > 0 && !safeText(note).trim())
+      out.errors.push(`其他预算安排 第${n}行金额大于0时必须填写原因。`);
+    out.otherBudgets.push({
+      id,
+      reasonId: reason ? reason.id : "",
+      amount,
+      note: safeText(note),
+    });
   }
 }
 function parseLegacyPool(sheet, out, read) {
@@ -349,9 +412,13 @@ async function previewImport(buffer, state, id, identity, data) {
     ds = book.getWorksheet("经销商分配"),
     isV14 =
       book.worksheets.length === 5 &&
-      ["模板信息", "经销商分配", "其他预算安排", "经销商列表", "原因类型参考"].every(
-        (name) => book.getWorksheet(name),
-      ),
+      [
+        "模板信息",
+        "经销商分配",
+        "其他预算安排",
+        "经销商列表",
+        "原因类型参考",
+      ].every((name) => book.getWorksheet(name)),
     templateFormat = isV14 ? "" : meta && read(meta, 2, 2),
     isLegacyPool = templateFormat === LEGACY_POOL_FORMAT,
     isLegacy = templateFormat === LEGACY_FORMAT || isLegacyPool,
@@ -413,31 +480,57 @@ async function previewImport(buffer, state, id, identity, data) {
   checkWidth(out, ds, detailed ? 6 : isV14 ? 3 : 4);
   const sourceRecords = [...(data.dealers || []), ...dealerDirectory(data)];
   const dealers = new Set([
-      ...dealerDirectory(data).filter((d) => !d.sector || d.sector === i.sector).map((d) => String(d.id)),
+      ...dealerDirectory(data)
+        .filter((d) => !d.sector || d.sector === i.sector)
+        .map((d) => String(d.id)),
       ...i.rows.map((row) => String(row.dealerId)),
     ]),
     keys = new Set(),
     ids = new Set();
   for (let n = 2; n <= ds.rowCount; n++) {
-    const row = Array.from({ length: isV14 ? 3 : 4 }, (_, c) => read(ds, n, c + 1));
+    const row = Array.from({ length: isV14 ? 3 : 4 }, (_, c) =>
+      read(ds, n, c + 1),
+    );
     if (row.every((v) => v === "")) continue;
     const [key, inputDealer, amount, note] = isV14
       ? [null, row[0], row[1], row[2]]
       : row;
     let dealer = inputDealer;
     if (detailed) {
-      const sd = String(read(ds, n, 4) || ""), rsm = String(read(ds, n, 5) || "");
-      const matches = [...new Map(sourceRecords.filter((record) =>
-        (!record.sector || record.sector === i.sector) && String(record.code || record.id) === String(inputDealer) && (record.sd || "") === sd && (record.rsm || "") === rsm
-      ).map((record) => [String(record.id), record])).values()];
+      const sd = String(read(ds, n, 4) || ""),
+        rsm = String(read(ds, n, 5) || "");
+      const matches = [
+        ...new Map(
+          sourceRecords
+            .filter(
+              (record) =>
+                (!record.sector || record.sector === i.sector) &&
+                String(record.code || record.id) === String(inputDealer) &&
+                (record.sd || "") === sd &&
+                (record.rsm || "") === rsm,
+            )
+            .map((record) => [String(record.id), record]),
+        ).values(),
+      ];
       dealer = matches.length === 1 ? String(matches[0].id) : read(ds, n, 6);
-      if (matches.length !== 1 && !i.rows.some((old) => old.dealerId === dealer && (old.dealerCode || old.dealerId) === inputDealer))
-        out.errors.push(`经销商分配 第${n}行编码、SD、RSM 无法唯一匹配历史记录。`);
+      if (
+        matches.length !== 1 &&
+        !i.rows.some(
+          (old) =>
+            old.dealerId === dealer &&
+            (old.dealerCode || old.dealerId) === inputDealer,
+        )
+      )
+        out.errors.push(
+          `经销商分配 第${n}行编码、SD、RSM 无法唯一匹配历史记录。`,
+        );
     }
     if (typeof dealer !== "string" || !dealers.has(dealer))
       out.errors.push(`经销商分配 第${n}行经销商编码不存在或格式不正确。`);
     if (!isV14 && key !== i.id + "::" + dealer)
       out.errors.push(`经销商分配 第${n}行行业务键应为 ${i.id}::${dealer}。`);
+    if (!i.rows.some((old) => String(old.dealerId) === String(dealer)))
+      out.errors.push(`经销商分配 第${n}行不允许新增经销商。`);
     if ((!isV14 && keys.has(key)) || ids.has(dealer))
       out.errors.push(`经销商分配 第${n}行行业务键或经销商重复。`);
     if (typeof note !== "string")
@@ -521,4 +614,10 @@ function confirmImport(preview, state, identity, data) {
   return result;
 }
 
-export default { exportWorkbook, exportDealerDirectory, previewImport, confirmImport };
+export default {
+  exportWorkbook,
+  exportDealerDirectory,
+  exportSelectedRoster,
+  previewImport,
+  confirmImport,
+};

@@ -98,6 +98,12 @@ vitestTest(
       assert.deepEqual(unchanged.errors, []);
       assert.equal(unchanged.summary.gap, 10);
       assert.equal(unchanged.changes.length, 0);
+      const withNewDealer = await alter(bytes, (b) => {
+        b.getWorksheet("经销商分配").addRow(["D003", 0, ""]);
+      });
+      const blocked = await X.previewImport(withNewDealer, state, "I001", identity, data);
+      assert.ok(blocked.errors.some((error) => error.includes("不允许新增经销商")));
+
       const before = JSON.stringify(state),
         writeBefore = state.initiatives[0].revision;
       X.confirmImport(unchanged, state, identity, data);

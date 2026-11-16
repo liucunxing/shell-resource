@@ -14,6 +14,10 @@ import { allocateByHistory } from "../src/workbench/domain/history-allocation";
 import E from "../src/workbench/domain/engine.js";
 
 describe("imported distributor history", () => {
+  it("accepts only explicitly active statuses", () => {
+    expect(["active", " ACTIVE ", "1", 1].every((status) => isActiveDealer({ id: "a", status }))).toBe(true);
+    expect(["closed", "0", 0, "", null, undefined].some((status) => isActiveDealer({ id: "a", status }))).toBe(false);
+  });
   it("keeps an expired source coverage confirmation visibly unknown", () => {
     expect(configuredYtdLabel(null)).toBe("2026 YTD（截止月待确认）");
     expect(configuredYtdLabel(9)).toBe("2026 YTD（1–9月）");

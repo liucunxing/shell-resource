@@ -4,6 +4,7 @@
 @import "tw-animate-css";
 @import "./styles.css" layer(legacy);
 @import "./workbench/v19-fidelity.css";
+@import "./workbench/login-compat.css";
 
 @custom-variant dark (&:is(.dark *));
 

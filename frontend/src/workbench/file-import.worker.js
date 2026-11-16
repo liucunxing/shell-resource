@@ -9,6 +9,7 @@ self.onmessage = async ({ data }) => {
         "admin",
         "allocation",
         "directory",
+        "roster",
         "admin-users",
         "admin-initiatives",
       ].includes(data.kind)
@@ -26,9 +27,11 @@ self.onmessage = async ({ data }) => {
       : data.args;
     if (data.operation === "export") {
       const bytes =
-        data.kind === "directory"
-          ? await excel.exportDealerDirectory(...data.args)
-          : await excel.exportWorkbook(...args);
+        data.kind === "roster"
+          ? await excel.exportSelectedRoster(...data.args)
+          : data.kind === "directory"
+            ? await excel.exportDealerDirectory(...data.args)
+            : await excel.exportWorkbook(...args);
       const buffer =
         bytes instanceof ArrayBuffer
           ? bytes
@@ -39,7 +42,8 @@ self.onmessage = async ({ data }) => {
       self.postMessage({ bytes: buffer }, [buffer]);
       return;
     }
-    if (data.kind === "directory") throw new Error("经销商目录仅支持导出。");
+    if (["directory", "roster"].includes(data.kind))
+      throw new Error("经销商名单仅支持导出。");
     const preview = await excel.previewImport(data.buffer, ...args);
     self.postMessage({ preview });
   } catch (error) {
