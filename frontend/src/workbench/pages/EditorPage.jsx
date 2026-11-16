@@ -1997,6 +1997,9 @@ function EditorContent({
                     >
                       指定经销商配平
                     </Button>
+                    <MetricHelp label="指定经销商配平说明">
+                      请先在下方分配表勾选至少一家经销商，且待分配金额不为 0。待分配须为整数元，配平后各家金额不能为负。差额将在勾选的经销商之间均摊，确认前可预览。
+                    </MetricHelp>
                   </div>
                 )}
               </div>
