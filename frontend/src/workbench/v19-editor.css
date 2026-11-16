@@ -46,7 +46,13 @@
   padding: 3px 7px;
 }
 .v19-editor .v19-workspace-tabs {
+  position: sticky;
+  top: var(--appnav-height, 68px);
+  z-index: 30;
   margin-bottom: 18px;
+  background: #e9edf0;
+  box-shadow: 0 3px 8px #24313d16;
+  border-radius: 7px;
 }
 .v19-editor .v19-workspace-tabs [data-slot="tabs-list"] {
   display: grid;
@@ -342,8 +348,8 @@
     font-size: 23px;
   }
   .v19-editor .v19-workspace-tabs [data-slot="tabs-trigger"] {
-    font-size: 11px;
-    padding: 4px;
+    font-size: 12px;
+    padding: 5px 4px;
     white-space: normal;
   }
   .v19-work-budget-cards .v19-budget-card {
