@@ -168,16 +168,22 @@ export function balanceSelectedDealers(rows, selectedIds, pendingAmount) {
 }
 
 export function MissingHistoryNotice({ metricLabel, unavailable, hasHistory }) {
+  const [expanded, setExpanded] = useState(false);
   if (!unavailable.length) return null;
   return (
     <Alert role="status" className="notice">
       <AlertDescription>
         <p>以下经销商无有效的 {metricLabel} 数据，本次分配默认为 0：</p>
         <ul>
-          {unavailable.map((name) => (
+          {(expanded ? unavailable : unavailable.slice(0, 1)).map((name) => (
             <li key={name}>{name}</li>
           ))}
         </ul>
+        {unavailable.length > 1 && (
+          <Button type="button" variant="link" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
+            {expanded ? "收起" : `展示全部（${unavailable.length} 家）`}
+          </Button>
+        )}
         {!hasHistory && <p>全部经销商均无量，可分配预算保留为未分配差额。</p>}
       </AlertDescription>
     </Alert>
@@ -1328,16 +1334,6 @@ function EditorContent({
                     ))}
                   </NativeSelect>
                 </div>
-                <div className="actions">
-                  <Button type="button" variant="outline"
-                    disabled={!editable || !scopeDealers.length || scopeDealers.every((dealer) => i.rows.some((row) => String(row.dealerId) === String(dealer.id)))}
-                    onClick={() => doGuard(() => {
-                      rememberSelectionViewport();
-                      update({ rows: selectAllFilteredDealers(i.rows, scopeDealers) });
-                    })}>
-                    全选筛选结果（{scopeDealers.length} 家，含所有页）
-                  </Button>
-                </div>
                 <div className="table-scroll studio-wide-table">
                   <Table
                     pageIndex={scopePage - 1}
@@ -1348,7 +1344,35 @@ function EditorContent({
                   >
                     <TableHeader>
                       <TableRow>
-                        <TableHead rowSpan={2}>选择</TableHead>
+                        <TableHead rowSpan={2}>
+                          <span className="inline-flex items-center gap-2">
+                            <Checkbox
+                              className="scope-select-all"
+                              aria-label={`全选筛选结果（${scopeDealers.length} 家，含所有页）`}
+                              disabled={!editable || !scopeDealers.length}
+                              checked={(() => {
+                                const selectedIds = new Set(i.rows.map((row) => String(row.dealerId)));
+                                const count = scopeDealers.filter((dealer) => selectedIds.has(String(dealer.id))).length;
+                                return count === 0 ? false : count === scopeDealers.length ? true : "indeterminate";
+                              })()}
+                              onCheckedChange={(checked) => doGuard(() => {
+                                rememberSelectionViewport();
+                                if (checked) {
+                                  update({ rows: selectAllFilteredDealers(i.rows, scopeDealers) });
+                                  return;
+                                }
+                                const ids = new Set(scopeDealers.map((dealer) => String(dealer.id)));
+                                const removed = i.rows.filter((row) => ids.has(String(row.dealerId)));
+                                if (removed.some((row) => Number(row.amount) !== 0)) {
+                                  setModal({ type: "remove-filtered", ids: [...ids], count: removed.length });
+                                } else {
+                                  update({ rows: i.rows.filter((row) => !ids.has(String(row.dealerId))) });
+                                }
+                              })}
+                            />
+                            选择
+                          </span>
+                        </TableHead>
                         <TableHead rowSpan={2}>经销商</TableHead>
                         <TableHead rowSpan={2}>SD / RSM</TableHead>
                         <TableHead rowSpan={2}>状态</TableHead>
@@ -1971,9 +1995,10 @@ function EditorContent({
                         importFile(file);
                       }}
                     />
+                    <span className="balance-action-group">
                     <Button
                       variant="outline"
-                      className="button small"
+                      className="button small balance-action"
                       disabled={!balanceIds.length || totals.gap === 0}
                       onClick={() => {
                         const rows = balanceSelectedDealers(
@@ -2000,9 +2025,8 @@ function EditorContent({
                     >
                       指定经销商配平
                     </Button>
-                    <MetricHelp label="指定经销商配平说明">
-                      请先在下方分配表勾选至少一家经销商，且待分配金额不为 0。待分配须为整数元，配平后各家金额不能为负。差额将在勾选的经销商之间均摊，确认前可预览。
-                    </MetricHelp>
+                    <Button type="button" variant="ghost" className="balance-action-help" aria-label="指定经销商配平使用说明" onClick={() => setModal({ type: "balance-help" })}><span aria-hidden="true">!</span></Button>
+                    </span>
                   </div>
                 )}
               </div>
@@ -2679,6 +2703,8 @@ function EditorContent({
               modal.title ||
               {
                 remove: "移除经销商分配",
+                "remove-filtered": "取消选择筛选结果",
+                "balance-help": "指定经销商配平使用说明",
                 balance: "指定经销商配平",
                 import: "Excel 导入预览",
                 history: "单项同步历史",
@@ -2723,6 +2749,11 @@ function EditorContent({
                 >
                   确认移除
                 </Button>
+              ) : modal.type === "remove-filtered" ? (
+                <Button variant="destructive" className="button danger" onClick={() => {
+                  const ids = new Set(modal.ids);
+                  if (update({ rows: i.rows.filter((row) => !ids.has(String(row.dealerId))) })) close();
+                }}>确认移除</Button>
               ) : modal.type === "balance" ? (
                 <Button
                   variant="default"
@@ -2834,6 +2865,16 @@ function EditorContent({
                 移除 {dealerLabel(modal.dealerId)} 的 {fmt(modal.amount)}{" "}
                 分配后，金额将成为未解释差额，不会自动移到其他行。
               </p>
+            )}
+            {modal.type === "remove-filtered" && (
+              <p>筛选结果中将移除 {modal.count} 家已选经销商，其中已有分配金额的部分将成为未解释差额，不会自动移到其他行。</p>
+            )}
+            {modal.type === "balance-help" && (
+              <>
+                <p>同时满足以下条件时，可以点击指定经销商配平：</p>
+                <ol><li>在下方经销商分配表中，勾选至少一家参与配平的经销商。</li><li>项目的待分配金额不为 0。</li></ol>
+                <p>待分配金额须为整数元，配平后各家金额不能为负。差额将在勾选的经销商之间均摊，确认前可预览。</p>
+              </>
             )}
             {modal.type === "balance" && (
               <>
