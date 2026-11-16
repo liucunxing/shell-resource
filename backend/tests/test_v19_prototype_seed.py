@@ -173,6 +173,17 @@ async def test_imported_submission_can_return_edit_resubmit_and_confirm_through_
     assert department["canConfirm"]
     budget_id = int(department["items"][0]["id"])
     await planner.department_action(
+        "202701", "confirm", DepartmentActionDTO(
+            sector="PCMO", department="ICE", expected_revision=version.revision,
+        ),
+    )
+    await planner.department_action(
+        "202701", "withdraw", DepartmentActionDTO(
+            sector="PCMO", department="ICE", expected_revision=version.revision,
+            reason="本地闭环验证",
+        ),
+    )
+    await planner.department_action(
         "202701",
         "return",
         DepartmentActionDTO(

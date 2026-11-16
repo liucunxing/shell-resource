@@ -6,7 +6,7 @@ from decimal import Decimal
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.timestamps import iso_timestamp
@@ -18,6 +18,7 @@ from app.repositories.workspace_repository import WorkspaceRepository
 from app.schemas.dto.planning import (
     DepartmentActionDTO,
     PlanningVersionCreateDTO,
+    PlanningVersionDeleteDTO,
     PlanningVersionUpdateDTO,
     VersionInitiativeDTO,
     VersionInitiativesImportDTO,
@@ -39,6 +40,7 @@ def version_view(version: PlanningVersionDO) -> dict:
     return {
         "id": version.id,
         "name": version.name,
+        "createdBy": version.created_by,
         "planningYear": version.planning_year,
         "sourceVersionId": version.source_version_id,
         "published": version.published,
@@ -59,7 +61,9 @@ class PlanningService:
             raise HTTPException(403, "仅管理员可以配置规划版本")
 
     async def versions(self, year: int) -> list[PlanningVersionDO]:
-        query = select(PlanningVersionDO).where(PlanningVersionDO.planning_year == year)
+        query = select(PlanningVersionDO).where(
+            PlanningVersionDO.planning_year == year, PlanningVersionDO.deleted_at.is_(None)
+        )
         if self.user.role != "admin":
             query = query.where(PlanningVersionDO.published.is_(True))
         return list(
@@ -71,7 +75,9 @@ class PlanningService:
         )
 
     async def version(self, version_id: str, *, lock: bool = False) -> PlanningVersionDO:
-        query = select(PlanningVersionDO).where(PlanningVersionDO.id == version_id)
+        query = select(PlanningVersionDO).where(
+            PlanningVersionDO.id == version_id, PlanningVersionDO.deleted_at.is_(None)
+        )
         if lock:
             query = query.with_for_update().execution_options(populate_existing=True)
         version = await self.session.scalar(query)
@@ -91,7 +97,7 @@ class PlanningService:
         exists = await self.session.scalar(
             select(PlanningVersionDO.id).where(PlanningVersionDO.planning_year == year).limit(1)
         )
-        if exists:
+        if exists and self.user.role != "admin":
             raise HTTPException(409, "本年度版本尚未发布，请联系管理员")
         return None
 
@@ -163,6 +169,7 @@ class PlanningService:
             "submitted": submitted,
             "confirmed": confirmed,
             "requiresResubmission": bool(state and state.requires_resubmission),
+            "ownerEditLocked": bool(state and state.owner_edit_locked),
             "returnReason": state.return_reason if state else None,
             "publicationId": str(publication.id) if publication else None,
             "submittedRevision": publication.published_revision if publication else None,
@@ -200,7 +207,10 @@ class PlanningService:
                 raise HTTPException(422, "新版本须晚于所选已发布来源版本")
         elif await self.session.scalar(
             select(PlanningVersionDO.id)
-            .where(PlanningVersionDO.planning_year == payload.planning_year)
+            .where(
+                PlanningVersionDO.planning_year == payload.planning_year,
+                PlanningVersionDO.deleted_at.is_(None),
+            )
             .limit(1)
         ):
             raise HTTPException(422, "已有规划版本，请明确选择复制来源")
@@ -312,10 +322,27 @@ class PlanningService:
         version = await self.version(version_id, lock=True)
         self.check_revision(version, payload.expected_revision)
         before = version_view(version)
+        if "name" in payload.model_fields_set:
+            if payload.name is None:
+                raise HTTPException(422, "版本名称不能为空")
+            version.name = payload.name
+        if "id" in payload.model_fields_set:
+            if payload.id is None:
+                raise HTTPException(422, "版本编码不能为空")
+            if payload.id != version_id:
+                if await self.session.get(PlanningVersionDO, payload.id):
+                    raise HTTPException(409, "版本编码已存在或已被历史版本使用")
+                await self.session.execute(update(BudgetDO).where(
+                    BudgetDO.planning_version_id == version_id
+                ).values(planning_version_id=payload.id))
+                await self.session.execute(update(PlanningVersionDO).where(
+                    PlanningVersionDO.source_version_id == version_id
+                ).values(source_version_id=payload.id, revision=PlanningVersionDO.revision + 1))
+                version.id = payload.id
         if payload.published is True or payload.open is True:
             budgets = await self.session.scalars(
                 select(BudgetDO).where(
-                    BudgetDO.planning_version_id == version_id, BudgetDO.enabled.is_(True)
+                    BudgetDO.planning_version_id == version.id, BudgetDO.enabled.is_(True)
                 )
             )
             if any(
@@ -341,6 +368,7 @@ class PlanningService:
                         .where(
                             PlanningVersionDO.planning_year == version.planning_year,
                             PlanningVersionDO.id != version.id,
+                            PlanningVersionDO.deleted_at.is_(None),
                             PlanningVersionDO.open.is_(True),
                         )
                         .with_for_update()
@@ -354,6 +382,42 @@ class PlanningService:
         self.repository.add_log(0, "VERSION_UPDATE", self.user.email, before, version_view(version))
         await self.session.commit()
         return version_view(version)
+
+    async def deletion_info(self, version_id: str) -> dict:
+        self.admin()
+        version = await self.version(version_id)
+        count = await self.session.scalar(
+            select(func.count(WorkspacePublicationDO.id)).where(
+                WorkspacePublicationDO.budget_id.in_(
+                    select(BudgetDO.id).where(BudgetDO.planning_version_id == version_id)
+                )
+            )
+        )
+        return {"revision": version.revision, "submittedCount": count or 0,
+                "canDelete": not version.open or not version.published}
+
+    async def delete(self, version_id: str, payload: PlanningVersionDeleteDTO) -> dict:
+        self.admin()
+        from app.services.admin_service import AdminService
+
+        await AdminService(self.session, self.user)._locked_config()
+        version = await self.version(version_id, lock=True)
+        self.check_revision(version, payload.expected_revision)
+        if version.published and version.open:
+            raise HTTPException(409, "请先关闭提交，再删除规划版本")
+        info = await self.deletion_info(version_id)
+        if info["submittedCount"] and not payload.confirm_submitted:
+            raise HTTPException(409, "该版本存在已提交内容，请勾选确认后再次确认删除")
+        before = version_view(version)
+        version.open = False
+        version.published = False
+        version.deleted_at = utc_now()
+        version.revision += 1
+        self.repository.add_log(0, "VERSION_DELETE", self.user.email, before,
+                                {"submittedCount": info["submittedCount"]},
+                                "删除版本，历史数据保留供审计")
+        await self.session.commit()
+        return {"id": version_id, "deleted": True}
 
     @staticmethod
     def check_revision(version: PlanningVersionDO, expected: int) -> None:
@@ -466,6 +530,7 @@ class PlanningService:
                 (b, s)
                 for b, s in states
                 if s.publication_id
+                and s.owner_edit_locked
                 and not s.requires_resubmission
                 and (not payload.initiative_id or b.id == payload.initiative_id)
                 and (
@@ -474,7 +539,7 @@ class PlanningService:
                 )
             ]
             if not states:
-                raise HTTPException(422, "所选范围没有可退回的已提交项目")
+                raise HTTPException(422, "所选范围没有已锁定且可退回的已提交项目")
             for budget, state in states:
                 state.owner_edit_locked = False
                 state.requires_resubmission = True

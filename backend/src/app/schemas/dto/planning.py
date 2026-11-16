@@ -25,8 +25,10 @@ class PlanningVersionCreateDTO(BaseModel):
 
 
 class PlanningVersionUpdateDTO(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     expected_revision: int = Field(ge=0)
+    id: str | None = Field(default=None, pattern=r"^20\d{2}(0[1-9]|1[0-2])$")
+    name: str | None = Field(default=None, min_length=1, max_length=100)
     published: bool | None = None
     open: bool | None = None
     deadline: datetime | None = None
@@ -35,6 +37,12 @@ class PlanningVersionUpdateDTO(BaseModel):
     @classmethod
     def timezone_required(cls, value: datetime | None) -> datetime | None:
         return PlanningVersionCreateDTO.timezone_required(value)
+
+
+class PlanningVersionDeleteDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_revision: int = Field(ge=0)
+    confirm_submitted: bool = False
 
 
 class DepartmentActionDTO(BaseModel):

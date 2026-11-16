@@ -320,21 +320,26 @@ async def check_api(connection: AsyncConnection, checks: list[dict[str, str]]) -
         await api.call("GET", f"initiatives/{ids['crto-c']}/draft", "owner-a", status=404)
         record(checks, "cross_sector_direct_draft_denied")
         await api.submit("owner-a", ids["mkt-a1"], dealer)
+        draft = await api.call("GET", f"initiatives/{ids['mkt-a1']}/draft", "owner-a")
         await api.call(
-            "PUT",
-            f"initiatives/{ids['mkt-a1']}/draft",
-            "owner-a",
-            status=409,
-            body={"expected_revision": 1, "rows": []},
+            "PUT", f"initiatives/{ids['mkt-a1']}/draft", "owner-a",
+            body={"expected_revision": draft["revision"],
+                  "rows": [{"dealerId": dealer, "amount": 100}],
+                  "changeReason": "Synthetic edit after submission"},
         )
+        changed = await api.department()
+        first = next(item for item in changed["items"] if item["id"] == ids["mkt-a1"])
+        record(checks, "submitted_owner_can_edit_before_confirmation_and_requires_resubmission",
+               not first["workflow"]["submitted"] and not changed["canConfirm"])
         await api.call(
-            "POST",
-            f"initiatives/{ids['mkt-a1']}/distributor-allocations",
-            "owner-a",
+            "POST", f"initiatives/{ids['mkt-a1']}/distributor-allocations", "owner-a",
             status=409,
             body={"distributor_code": "PG-V19-D2", "distributor_budget_amount": 0},
         )
-        record(checks, "submitted_owner_frozen_in_draft_and_legacy_mutation_api")
+        record(checks, "legacy_mutation_api_rejects_versioned_project")
+        await api.submit("owner-a", ids["mkt-a1"], dealer)
+        await api.action("return", status=422, reason="Not yet confirmed")
+        record(checks, "return_disabled_before_first_department_confirmation")
         await api.action("confirm", status=409)
         record(checks, "all_enabled_initiatives_required_before_department_confirmation")
         await api.submit("owner-a", ids["mkt-a2"], dealer)
@@ -353,6 +358,12 @@ async def check_api(connection: AsyncConnection, checks: list[dict[str, str]]) -
         )
         confirmed = await api.action("confirm")
         record(checks, "department_confirms_all_three_in_one_scope", confirmed["confirmed"] == 3)
+        locked_draft = await api.call("GET", f"initiatives/{ids['mkt-a1']}/draft", "owner-a")
+        await api.call(
+            "PUT", f"initiatives/{ids['mkt-a1']}/draft", "owner-a", status=409,
+            body={"expected_revision": locked_draft["revision"], "rows": []},
+        )
+        record(checks, "department_confirmation_locks_owner_edit")
         management = await api.workspace("management")
         visible_ids = {
             item["id"] for item in management["state"]["initiatives"] if item["allocationVisible"]
@@ -402,7 +413,9 @@ async def check_api(connection: AsyncConnection, checks: list[dict[str, str]]) -
         record(
             checks,
             "owner_return_is_limited_to_current_department",
-            all(current[ids[k]]["workflow"]["requiresResubmission"] for k in ("mkt-a1", "mkt-a2"))
+            current[ids["mkt-a2"]]["workflow"]["requiresResubmission"]
+            and current[ids["mkt-a1"]]["workflow"]["submitted"]
+            and not current[ids["mkt-a1"]]["workflow"]["ownerEditLocked"]
             and current[ids["mkt-b"]]["workflow"]["submitted"]
             and other_department["items"][0]["workflow"]["submitted"],
         )

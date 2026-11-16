@@ -247,7 +247,7 @@ export function DepartmentReviewPage() {
                     identity.role === "admin" || previewMode ||
                     busy ||
                     result?.confirmed ||
-                    !result?.submitted
+                    !items.some((item) => item.workflow?.submitted && item.workflow?.ownerEditLocked)
                   }
                   onClick={() => start("return")}
                 >
@@ -257,7 +257,7 @@ export function DepartmentReviewPage() {
             </div>
             {
               <p className="studio-table-note">
-                仅撤回部门确认：Owner 保持“已提交”，可以直接再次确认。退回指定
+                部门确认前 Owner 可直接修改，无需退回。仅撤回部门确认：Owner 保持“已提交”，可以直接再次确认。退回指定
                 Initiative 或 Owner 后，仅对应项目变为“未确认 ·
                 待重新提交”，其余 Owner
                 不受影响。所有项目重新提交齐全后，才能统一确认。
@@ -319,7 +319,7 @@ export function DepartmentReviewPage() {
                             disabled={
                               identity.role === "admin" || previewMode ||
                               result.confirmed ||
-                              !item.workflow?.submitted
+                              !item.workflow?.submitted || !item.workflow?.ownerEditLocked
                             }
                             onClick={() =>
                               start("return", { initiative: item })
@@ -352,6 +352,7 @@ export function DepartmentReviewPage() {
                       i.workflow?.submitted &&
                       !i.workflow?.requiresResubmission,
                   ).length;
+                const returnable = own.some((item) => item.workflow?.submitted && item.workflow?.ownerEditLocked);
                 return (
                   <Card key={owner}>
                     <b>{own[0]?.ownerLabel || owner}</b>
@@ -361,7 +362,7 @@ export function DepartmentReviewPage() {
                     <Button
                       variant="outline"
                       disabled={
-                        identity.role === "admin" || previewMode || busy || result?.confirmed || !submitted
+                        identity.role === "admin" || previewMode || busy || result?.confirmed || !returnable
                       }
                       onClick={() => start("return", { owner })}
                     >
