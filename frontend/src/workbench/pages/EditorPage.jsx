@@ -506,10 +506,12 @@ function EditorContent({
     const navigation = viewport
       .closest(".workspace")
       ?.querySelector(".v19-appnav");
+    const steps = viewport.closest(".v19-editor")?.querySelector(".v19-workspace-tabs");
     const stickHeader = () => {
       const pageTop = Math.max(
         0,
         navigation?.getBoundingClientRect().bottom ?? 0,
+        steps?.getBoundingClientRect().bottom ?? 0,
       );
       const tableTop =
         viewport.getBoundingClientRect().top + viewport.clientTop;
@@ -531,6 +533,7 @@ function EditorContent({
     resize.observe(viewport);
     resize.observe(header);
     if (navigation) resize.observe(navigation);
+    if (steps) resize.observe(steps);
     // Keep the header below navigation when the page scrolls past the table's top edge.
     window.addEventListener("scroll", update, { capture: true, passive: true });
     stickHeader();
