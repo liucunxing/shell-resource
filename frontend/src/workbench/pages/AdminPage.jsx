@@ -3,6 +3,7 @@ import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import {
   Dialog,
   DialogContent,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -101,19 +102,21 @@ function AdminDialog({
       }}
     >
       <DialogContent
-        className="sm:max-w-4xl max-h-[88dvh] overflow-y-auto"
+        className="sm:max-w-4xl max-h-[90dvh]"
         showCloseButton={false}
         aria-describedby={undefined}
       >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        <div className="modal-body">{children}</div>
+        <DialogBody>
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          {children}
+        </DialogBody>
         <DialogFooter>
           <Button variant="outline" type="button" onClick={onClose}>
             {onConfirm ? "取消" : "关闭"}

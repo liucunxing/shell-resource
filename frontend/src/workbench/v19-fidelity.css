@@ -330,6 +330,29 @@ body {
   background: #fff;
   color: #404040;
 }
+[data-slot="dialog-header"] {
+  overflow-wrap: anywhere;
+}
+[data-slot="dialog-header"] [data-slot="button"] {
+  flex-shrink: 0;
+}
+[data-slot="dialog-content"]:has(> [data-slot="dialog-close"]) > [data-slot="dialog-header"] {
+  padding-right: 28px;
+}
+[data-slot="dialog-body"] > * {
+  min-width: 0;
+}
+[data-slot="dialog-footer"] [data-slot="button"] {
+  white-space: normal;
+  height: auto;
+  min-height: 36px;
+}
+@media (max-height: 600px) {
+  [data-slot="dialog-content"] {
+    padding: 16px;
+    gap: 12px;
+  }
+}
 @media (max-width: 1200px) {
   .v19-appnav {
     grid-template-columns: minmax(0, 1fr) auto;
