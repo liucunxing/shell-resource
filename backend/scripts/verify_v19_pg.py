@@ -373,7 +373,7 @@ async def check_api(connection: AsyncConnection, checks: list[dict[str, str]]) -
             "management_only_reads_confirmed_department_and_sector",
             visible_ids == {ids[k] for k in ("mkt-a1", "mkt-a2", "mkt-b")},
         )
-        await api.action("return", status=409, reason="Synthetic return before withdrawal")
+        await api.action("return", status=422, reason="Removed legacy return action")
         await api.action("withdraw", status=422)
         withdrawn = await api.action("withdraw", reason="Synthetic withdrawal")
         record(
@@ -392,33 +392,13 @@ async def check_api(connection: AsyncConnection, checks: list[dict[str, str]]) -
         )
         await api.action("confirm")
         await api.action("withdraw", reason="Synthetic targeted correction")
-        returned = await api.action(
-            "return", reason="Synthetic single project", initiative_id=int(ids["mkt-a1"])
-        )
-        current = {row["id"]: row for row in returned["items"]}
-        record(
-            checks,
-            "single_project_return_does_not_return_sibling_same_owner",
-            current[ids["mkt-a1"]]["workflow"]["requiresResubmission"]
-            and current[ids["mkt-a2"]]["workflow"]["submitted"]
-            and current[ids["mkt-b"]]["workflow"]["submitted"]
-            and not returned["canConfirm"],
-        )
-        await api.submit("owner-a", ids["mkt-a1"], dealer)
-        returned = await api.action(
-            "return", reason="Synthetic Owner correction", owner_email="owner-a@example.test"
-        )
-        current = {row["id"]: row for row in returned["items"]}
+        current = (await api.department())["items"]
+        record(checks, "withdraw_unlocks_whole_department_and_keeps_submissions",
+               all(row["workflow"]["submitted"] and not row["workflow"]["ownerEditLocked"]
+                   for row in current))
         other_department = await api.department("ICE")
-        record(
-            checks,
-            "owner_return_is_limited_to_current_department",
-            current[ids["mkt-a2"]]["workflow"]["requiresResubmission"]
-            and current[ids["mkt-a1"]]["workflow"]["submitted"]
-            and not current[ids["mkt-a1"]]["workflow"]["ownerEditLocked"]
-            and current[ids["mkt-b"]]["workflow"]["submitted"]
-            and other_department["items"][0]["workflow"]["submitted"],
-        )
+        record(checks, "withdraw_keeps_other_department_submission",
+               other_department["items"][0]["workflow"]["submitted"])
         draft = await api.call("GET", f"initiatives/{ids['mkt-a1']}/draft", "owner-a")
         await api.call(
             "PUT",
@@ -468,6 +448,18 @@ async def check_api(connection: AsyncConnection, checks: list[dict[str, str]]) -
             and copied[source_keys["mkt-a1"]]["id"] != ids["mkt-a1"],
         )
         await api.call(
+            "PATCH", f"planning-versions/{SECOND}", status=409,
+            body={"expected_revision": 0, "published": True, "open": True},
+        )
+        record(checks, "new_version_cannot_close_unconfirmed_source")
+        await api.submit("owner-a", ids["mkt-a1"], dealer)
+        await api.action("confirm")
+        for sector, department, actor in [("PCMO", "ICE", "lead"), ("CRTO", "MKT", "lead-crto")]:
+            revision = (await api.workspace("admin", FIRST))["state"]["planningVersion"]["revision"]
+            await api.call("POST", f"planning-versions/{FIRST}/department/confirm", actor,
+                           body={"sector": sector, "department": department,
+                                 "expected_revision": revision})
+        await api.call(
             "PATCH",
             f"planning-versions/{SECOND}",
             body={"expected_revision": 0, "published": True, "open": True},
@@ -493,14 +485,13 @@ async def check_api(connection: AsyncConnection, checks: list[dict[str, str]]) -
             f"planning-versions/{SECOND}",
             body={
                 "expected_revision": current_version["revision"],
-                "open": False,
                 "deadline": (datetime.now(UTC) - timedelta(minutes=1)).isoformat(),
             },
         )
         expired = await api.workspace("owner-a", SECOND)
         record(
             checks,
-            "closed_expired_version_disables_owner_editing",
+            "expired_version_disables_owner_editing",
             expired["state"]["planningVersion"]["expired"]
             and all(not item["editable"] for item in expired["state"]["initiatives"]),
         )

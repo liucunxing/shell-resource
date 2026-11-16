@@ -26,11 +26,11 @@ describe("V19 persisted workflow client", () => {
     await api.saveDraft("22", { revision: 3, rows: [], otherBudgets: [], changeReason: "核对名单后调整" }, 3);
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toMatchObject({ expected_revision: 3, changeReason: "核对名单后调整" });
   });
-  it("submits explicit version revision and only the selected return target", async () => {
+  it("withdraws the complete department using the explicit version revision", async () => {
     const fetch = vi.fn().mockResolvedValue(success()); vi.stubGlobal("fetch", fetch);
-    await api.reviewDepartment("202702", "return", { sector: "PCMO", department: "MKT", expected_revision: 9, reason: "核对单项名单", initiative_id: 22 });
-    expect(fetch.mock.calls[0][0]).toBe("/api/v1/workbench/planning-versions/202702/department/return");
-    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ sector: "PCMO", department: "MKT", expected_revision: 9, reason: "核对单项名单", initiative_id: 22 });
+    await api.reviewDepartment("202702", "withdraw", { sector: "PCMO", department: "MKT", expected_revision: 9, reason: "核对部门方案" });
+    expect(fetch.mock.calls[0][0]).toBe("/api/v1/workbench/planning-versions/202702/department/withdraw");
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ sector: "PCMO", department: "MKT", expected_revision: 9, reason: "核对部门方案" });
   });
   it("honors server read-only state even for the correctly assigned Owner", () => {
     const state = E.createState(data, "working"), item = state.initiatives[0];
@@ -53,7 +53,7 @@ describe("V19 persisted workflow client", () => {
   });
   it("does not turn withdrawal of confirmation into an Owner return", () => {
     expect(reviewStatus({ workflow: { submitted: true, confirmed: false } })).toBe("已提交");
-    expect(reviewStatus({ workflow: { submitted: false, requiresResubmission: true } })).toBe("退回待重提");
+    expect(reviewStatus({ workflow: { submitted: false, requiresResubmission: true } })).toBe("待重新提交");
   });
   it("shows expired deadlines without claiming the version remains open", () => {
     expect(versionStatus({ published: true, open: true, deadline: "2000-01-01T00:00:00Z" })).toBe("已截止");

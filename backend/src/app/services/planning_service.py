@@ -19,6 +19,7 @@ from app.schemas.dto.planning import (
     DepartmentActionDTO,
     PlanningVersionCreateDTO,
     PlanningVersionDeleteDTO,
+    PlanningVersionReleaseDTO,
     PlanningVersionUpdateDTO,
     VersionInitiativeDTO,
     VersionInitiativesImportDTO,
@@ -147,8 +148,10 @@ class PlanningService:
         ):
             raise HTTPException(409, "当前版本未开放、已截止或项目已取消，请联系管理员")
         state = await self.state(budget.id)
-        if state and (state.owner_edit_locked or state.confirmed_publication_id):
-            raise HTTPException(409, "方案已由部门确认，须部门负责人退回所选项目后才能修改")
+        if state and state.confirmed_publication_id:
+            raise HTTPException(
+                409, "方案已提交管理层，须部门撤回提交或管理员驳回全部部门后才能修改"
+            )
         return version
 
     async def workflow(self, budget: BudgetDO, version: PlanningVersionDO | None = None) -> dict:
@@ -169,7 +172,7 @@ class PlanningService:
             "submitted": submitted,
             "confirmed": confirmed,
             "requiresResubmission": bool(state and state.requires_resubmission),
-            "ownerEditLocked": bool(state and state.owner_edit_locked),
+            "ownerEditLocked": bool(state and state.confirmed_publication_id),
             "returnReason": state.return_reason if state else None,
             "publicationId": str(publication.id) if publication else None,
             "submittedRevision": publication.published_revision if publication else None,
@@ -182,7 +185,7 @@ class PlanningService:
                 and version.open
                 and not deadline_passed(version)
                 and budget.enabled
-                and not (state and (state.owner_edit_locked or state.confirmed_publication_id))
+                and not (state and state.confirmed_publication_id)
                 and self.user.role in {"owner", "lead"}
                 and (budget.owner_email or "").lower() == self.user.email.lower()
                 and not self.user.preview_actor_email
@@ -322,6 +325,12 @@ class PlanningService:
         version = await self.version(version_id, lock=True)
         self.check_revision(version, payload.expected_revision)
         before = version_view(version)
+        effective_published = (version.published if payload.published is None
+                               else payload.published)
+        effective_open = version.open if payload.open is None else payload.open
+        if (effective_published and not effective_open
+                and (payload.open is False or payload.published is True)):
+            await self.require_departments_submitted(version.id)
         if "name" in payload.model_fields_set:
             if payload.name is None:
                 raise HTTPException(422, "版本名称不能为空")
@@ -358,30 +367,86 @@ class PlanningService:
                 if name != "deadline" and getattr(payload, name) is None:
                     raise HTTPException(422, "发布与开放状态不能为 null")
                 setattr(version, name, getattr(payload, name))
-        if version.open and (not version.published or deadline_passed(version)):
+        # Expiry stops work without silently treating it as administrator finalization.
+        # Only an explicit reopening must have a future (or unset) deadline.
+        if version.open and (not version.published or (
+            payload.open is True and deadline_passed(version)
+        )):
             raise HTTPException(422, "仅已发布且未截止的版本可以开放")
         if version.open:
-            others = list(
-                (
-                    await self.session.scalars(
-                        select(PlanningVersionDO)
-                        .where(
-                            PlanningVersionDO.planning_year == version.planning_year,
-                            PlanningVersionDO.id != version.id,
-                            PlanningVersionDO.deleted_at.is_(None),
-                            PlanningVersionDO.open.is_(True),
-                        )
-                        .with_for_update()
-                    )
-                ).all()
-            )
-            for other in others:
-                other.open = False
-                other.revision += 1
+            await self.close_other_versions(version)
         version.revision += 1
         self.repository.add_log(0, "VERSION_UPDATE", self.user.email, before, version_view(version))
         await self.session.commit()
         return version_view(version)
+
+    async def require_departments_submitted(self, version_id: str) -> None:
+        rows = (await self.session.execute(
+            select(BudgetDO.sector, BudgetDO.department, BudgetDO.revision,
+                   InitiativeWorkflowDO.publication_id,
+                   InitiativeWorkflowDO.confirmed_publication_id,
+                   InitiativeWorkflowDO.requires_resubmission,
+                   WorkspacePublicationDO.published_revision)
+            .outerjoin(InitiativeWorkflowDO, InitiativeWorkflowDO.budget_id == BudgetDO.id)
+            .outerjoin(WorkspacePublicationDO,
+                       WorkspacePublicationDO.id == InitiativeWorkflowDO.publication_id)
+            .where(BudgetDO.planning_version_id == version_id, BudgetDO.enabled.is_(True))
+        )).all()
+        missing = sorted({f"{r.sector}/{r.department}" for r in rows if not (
+            r.publication_id and r.confirmed_publication_id == r.publication_id
+            and not r.requires_resubmission and r.published_revision == r.revision
+        )})
+        if not rows or missing:
+            raise HTTPException(409, "所有部门提交齐全后才能关闭提交；尚未齐交："
+                                + ("、".join(missing) if missing else "没有启用项目"))
+
+    async def close_other_versions(self, version: PlanningVersionDO) -> None:
+        others = list((await self.session.scalars(
+            select(PlanningVersionDO).where(
+                PlanningVersionDO.planning_year == version.planning_year,
+                PlanningVersionDO.id != version.id,
+                PlanningVersionDO.deleted_at.is_(None), PlanningVersionDO.open.is_(True),
+            ).with_for_update()
+        )).all())
+        for other in others:
+            await self.require_departments_submitted(other.id)
+        for other in others:
+            other.open = False
+            other.revision += 1
+
+    async def release(self, version_id: str, payload: PlanningVersionReleaseDTO) -> dict:
+        self.admin()
+        from app.services.admin_service import AdminService
+
+        await AdminService(self.session, self.user)._locked_config()
+        version = await self.version(version_id, lock=True)
+        self.check_revision(version, payload.expected_revision)
+        # Recheck after waiting for the lock, not just during request parsing.
+        if payload.deadline <= utc_now():
+            raise HTTPException(422, "新的关闭时间必须晚于当前时间")
+        if not version.published:
+            raise HTTPException(409, "仅已发布版本可以驳回全部部门")
+        await self.close_other_versions(version)
+        before = version_view(version)
+        budgets = list((await self.session.scalars(
+            select(BudgetDO).where(BudgetDO.planning_version_id == version_id)
+        )).all())
+        states = [await self.ensure_state(budget.id) for budget in budgets]
+        if payload.deadline <= utc_now():
+            raise HTTPException(422, "新的关闭时间必须晚于当前时间")
+        for state in states:
+            state.owner_edit_locked = False
+            state.confirmed_publication_id = None
+            state.confirmed_by = None
+            state.confirmed_at = None
+            # Keep submissions, dirty drafts and existing resubmission requirements intact.
+        version.deadline = payload.deadline
+        version.open = True
+        version.revision += 1
+        self.repository.add_log(0, "VERSION_RELEASE", self.user.email, before,
+                                version_view(version), payload.reason)
+        await self.session.commit()
+        return {"version": version_view(version), "releasedInitiatives": len(budgets)}
 
     async def deletion_info(self, version_id: str) -> dict:
         self.admin()
@@ -486,21 +551,32 @@ class PlanningService:
             "submitted": submitted,
             "confirmed": confirmed,
             "canConfirm": bool(
-                items and submitted == len(items) and confirmed < len(items) and version.published
+                items and submitted == len(items) and confirmed < len(items)
+                and version.published and version.open and not deadline_passed(version)
+                and self.user.role == "lead" and not self.user.preview_actor_email
             ),
+            "canWithdraw": bool(confirmed and version.published and version.open
+                                and not deadline_passed(version) and self.user.role == "lead"
+                                and not self.user.preview_actor_email),
         }
 
     async def department_action(
         self, version_id: str, action: str, payload: DepartmentActionDTO
     ) -> dict:
         self.department_authorized(payload.sector, payload.department, mutate=True)
+        if self.user.role != "lead":
+            raise HTTPException(403, "部门提交和撤回仅限部门负责人；管理员请使用驳回全部部门")
+        if action not in {"confirm", "withdraw"}:
+            raise HTTPException(422, "已取消退回 Owner 流程，请撤回部门提交")
         version = await self.version(version_id, lock=True)
         self.check_revision(version, payload.expected_revision)
+        if not version.published or not version.open or deadline_passed(version):
+            raise HTTPException(409, "版本已关闭提交、已截止或未发布，不能提交或撤回部门方案")
         budgets = await self.department_budgets(version_id, payload.sector, payload.department)
         states = [(b, await self.ensure_state(b.id)) for b in budgets]
         if not states:
             raise HTTPException(422, "当前部门没有启用项目")
-        if action != "return" and (payload.initiative_id or payload.owner_email):
+        if payload.initiative_id or payload.owner_email:
             raise HTTPException(422, "部门确认和撤回必须针对整个部门")
         if action == "confirm":
             if not version.published or any([
@@ -518,35 +594,10 @@ class PlanningService:
             if not any(s.confirmed_publication_id for _, s in states):
                 raise HTTPException(409, "当前部门尚未确认")
             for _, state in states:
+                state.owner_edit_locked = False
                 state.confirmed_publication_id = None
                 state.confirmed_by = None
                 state.confirmed_at = None
-        elif action == "return":
-            if not payload.reason:
-                raise HTTPException(422, "请填写退回原因")
-            if any(s.confirmed_publication_id for _, s in states):
-                raise HTTPException(409, "请先撤回部门确认")
-            states = [
-                (b, s)
-                for b, s in states
-                if s.publication_id
-                and s.owner_edit_locked
-                and not s.requires_resubmission
-                and (not payload.initiative_id or b.id == payload.initiative_id)
-                and (
-                    not payload.owner_email
-                    or (b.owner_email or "").lower() == payload.owner_email.lower()
-                )
-            ]
-            if not states:
-                raise HTTPException(422, "所选范围没有已锁定且可退回的已提交项目")
-            for budget, state in states:
-                state.owner_edit_locked = False
-                state.requires_resubmission = True
-                state.return_reason = payload.reason
-                budget.status = 0
-        else:
-            raise HTTPException(404, "未知部门操作")
         for budget, state in states:
             self.repository.add_log(
                 budget.id,
@@ -581,7 +632,7 @@ class PlanningService:
             raise HTTPException(
                 422,
                 "项目已有经销商名单（包括零金额行），不能切换业务线。"
-                "请先在原业务线退回 Owner，由 Owner 清空名单并保存后再修改业务线",
+                "请先撤回部门提交或由管理员驳回全部部门，由 Owner 清空名单并保存后再修改业务线",
             )
         duplicate = await self.session.scalar(
             select(BudgetDO.id).where(
@@ -630,10 +681,12 @@ class PlanningService:
         for sector, department in affected_scopes:
             for other in await self.department_budgets(version_id, sector, department):
                 other_state = await self.ensure_state(other.id)
+                other_state.owner_edit_locked = False
                 other_state.confirmed_publication_id = None
                 other_state.confirmed_by = None
                 other_state.confirmed_at = None
         # Also clear confirmation on a now-disabled project.
+        state.owner_edit_locked = False
         state.confirmed_publication_id = None
         state.confirmed_by = None
         state.confirmed_at = None
