@@ -33,3 +33,12 @@
 - 1440×1000 桌面与 390×844 窄屏均无页面横向溢出。证据位于忽略目录 `output/playwright/concentration-fixed-results.txt`、`concentration-fixed-desktop.png`、`concentration-fixed-mobile.png`。
 
 用户实际访问入口尚未确认，因此不能据本地核查宣称完整复现了用户所见故障。本次未部署远端；以上结果仅证明本轮本地工程行为，不代表远端修复或业务 UAT 通过。
+
+### 同日后续：发布到用户确认的服务器入口
+
+用户随后确认问题发生在 `https://resource.digitalshell.com.cn/`。已将业务代码 `13ff335` 部署到该入口，替换上一版 `dbe4348`，新镜像 `shell-forecast:13ff335b9abf-uat-20261116T031731703211Z`。保留原邮箱登录构建参数；`settings.toml` 字节未改，`.env` 仅更新镜像标签。构建使用纯 Git archive，未带入服务器保留的未跟踪配置备份。旧发布遗留的源码属主问题仅按 Git 跟踪文件及目录清单修正为 ecs-user。
+
+- 应用 healthy、公开 HTTPS 健康接口通过；公开资源 `reserve-review-BZw0Zkut.js` 已包含本轮维度标题修正。
+- 发布前后用户、预算、分配、历史源、工作台配置五表的数量与完整数据指纹一致；数据库迁移版本仍为 `20261114_03`。其他服务及共享网关容器 ID 不变。
+- 线上管理员登录、只读模拟管理层，以及现有管理层账号直接进入均正常。但当前 `202612` 范围显示无部门已确认数据，因此本轮**未完成线上真实数据曲线点及四维抽屉交互复验**，不把本地通过结果记作线上交互通过。
+- 详细发布和核查证据位于忽略目录 `output/concentration-release-20261116/`；服务器私有回退记录为 `/opt/shell-forecast/deploy/backups/concentration-20261116T031731703211Z/record.json`。回退可恢复记录中的旧源码、`.env` 和保留的旧镜像，仅重建 app；本次无需数据库回退。
