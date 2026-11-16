@@ -3,6 +3,7 @@
 import base64
 import time
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
@@ -226,13 +227,26 @@ async def test_portal_planning_routes_use_portal_identity_and_csrf(harness):
         endpoint + "/202701/department/confirm", headers=headers,
         json={"sector": "PCMO", "department": "MKT", "expected_revision": 1},
     )
-    assert incomplete.status_code == 409, incomplete.text
+    assert incomplete.status_code == 403, incomplete.text
+    release_body = {"expected_revision": 1, "reason": "review",
+                    "deadline": (datetime.now(UTC) + timedelta(days=1)).isoformat()}
+    no_csrf = {key: value for key, value in headers.items() if key != "X-Portal-CSRF"}
+    denied_release = await harness.client.post(endpoint + "/202701/release",
+                                                headers=no_csrf, json=release_body)
+    assert denied_release.status_code == 403
+    released = await harness.client.post(endpoint + "/202701/release",
+                                         headers=headers, json=release_body)
+    assert released.status_code == 200, released.text
     _, instance = await harness.login()
     owner_headers = await harness.headers(instance)
     forbidden = await harness.client.post(endpoint, headers={
         **owner_headers, "X-User-Email": "admin@example.com",
     }, json={**payload, "id": "202702", "source_version_id": "202701"})
     assert forbidden.status_code == 403
+    spoofed_release = await harness.client.post(endpoint + "/202701/release", headers={
+        **owner_headers, "X-User-Email": "admin@example.com",
+    }, json={**release_body, "expected_revision": 2})
+    assert spoofed_release.status_code == 403
 
 
 @pytest.mark.asyncio

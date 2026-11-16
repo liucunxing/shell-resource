@@ -1,6 +1,6 @@
 """Planning version commands use explicit optimistic revisions."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -37,6 +37,21 @@ class PlanningVersionUpdateDTO(BaseModel):
     @classmethod
     def timezone_required(cls, value: datetime | None) -> datetime | None:
         return PlanningVersionCreateDTO.timezone_required(value)
+
+
+class PlanningVersionReleaseDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    expected_revision: int = Field(ge=0)
+    deadline: datetime
+    reason: str = Field(min_length=1, max_length=160)
+
+    @field_validator("deadline")
+    @classmethod
+    def future_deadline(cls, value: datetime) -> datetime:
+        PlanningVersionCreateDTO.timezone_required(value)
+        if value <= datetime.now(UTC):
+            raise ValueError("新的关闭时间必须晚于当前时间")
+        return value
 
 
 class PlanningVersionDeleteDTO(BaseModel):

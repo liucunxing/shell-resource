@@ -58,7 +58,7 @@ describe("V19 version table and deadlines", () => {
       deadline: null,
     });
   });
-  it("closes an open version when saving an already expired deadline", () => {
+  it("keeps expiry separate from the administrator closing a fully submitted version", () => {
     expect(
       deadlineUpdate(
         current,
@@ -68,7 +68,6 @@ describe("V19 version table and deadlines", () => {
     ).toEqual({
       expected_revision: 5,
       deadline: "2026-11-01T00:00:00.000Z",
-      open: false,
     });
   });
   it("renders creators and deadlines in the version table with read-only preview controls", () => {
@@ -80,8 +79,7 @@ describe("V19 version table and deadlines", () => {
             id: "202701",
             name: "第一版",
             published: true,
-            open: false,
-            revision: 3,
+                  revision: 3,
           },
         ],
         currentVersionId: current.id,

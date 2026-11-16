@@ -14,7 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dealer_identity import dealer_identity
-from app.dependencies.workbench_user import resolve_workbench_permission
+from app.dependencies.workbench_user import WorkbenchUser
 from app.models.do.budget import BudgetDO
 from app.models.do.budget_distributor import BudgetDistributorDO
 from app.models.do.distributor_history import distributor_sellin_resource_history
@@ -330,10 +330,13 @@ async def seed_prototype(
     await session.commit()
     preparations = []
     if prepare_confirmed_baseline:
-        planner = PlanningService(
-            session, await resolve_workbench_permission(session, administrator)
-        )
         baseline = db["versions"][0]
+        baseline_version = await session.get(PlanningVersionDO, baseline["id"])
+        baseline_was_open = baseline_version.open
+        # Fixture-only preparation: confirm before restoring the source's closed state.
+        baseline_version.open = True
+        await session.commit()
+        baseline_actor = "fixture-baseline-lead@example.test"
         for sector, department in sorted(
             {
                 (item["sector"], item["dept"].upper())
@@ -341,6 +344,9 @@ async def seed_prototype(
                 if item["enabled"]
             }
         ):
+            planner = PlanningService(session, WorkbenchUser(
+                baseline_actor, "lead", department, "Synthetic baseline lead", (sector,),
+            ))
             version = await planner.version(baseline["id"])
             result = await planner.department(baseline["id"], sector, department)
             if result["canConfirm"]:
@@ -358,10 +364,12 @@ async def seed_prototype(
                         "department": department,
                         "action": "confirm",
                         "confirmedProjects": result["confirmed"],
-                        "actor": administrator,
+                        "actor": baseline_actor,
                         "reason": "Local management baseline demonstration",
                     }
                 )
+        baseline_version.open = baseline_was_open
+        await session.commit()
         counts[0]["confirmed"] = sum(item["confirmedProjects"] for item in preparations)
     return {
         "kind": "local-sqlite-prototype-import",
