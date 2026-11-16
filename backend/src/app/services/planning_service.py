@@ -250,8 +250,24 @@ class PlanningService:
         from app.services.admin_service import AdminService
 
         await AdminService(self.session, self.user)._locked_config()
-        if await self.session.get(PlanningVersionDO, payload.id):
-            raise HTTPException(409, "规划版本号已存在")
+        existing = await self.session.get(PlanningVersionDO, payload.id)
+        if existing:
+            if existing.deleted_at is not None:
+                # Preserve the deleted version, its budgets and audit snapshots under
+                # a unique internal key before allocating the visible code again.
+                archive_id = f"deleted-{uuid4().hex[:22]}"
+                await self.session.execute(update(BudgetDO).where(
+                    BudgetDO.planning_version_id == payload.id
+                ).values(planning_version_id=archive_id))
+                await self.session.execute(update(PlanningVersionDO).where(
+                    PlanningVersionDO.source_version_id == payload.id
+                ).values(source_version_id=archive_id))
+                existing.id = archive_id
+                await self.session.flush()
+                self.repository.add_log(0, "VERSION_ARCHIVE_KEY", self.user.email,
+                    {"id": payload.id}, {"id": archive_id}, "保留已删除版本历史并释放编号")
+            else:
+                raise HTTPException(409, "该版本号已存在，请刷新版本列表或使用其他版本号")
         source = None
         if payload.source_version_id:
             source = await self.version(payload.source_version_id, lock=True)
@@ -457,8 +473,6 @@ class PlanningService:
             payload.open is True and deadline_passed(version)
         )):
             raise HTTPException(422, "仅已发布且未截止的版本可以开放")
-        if version.open:
-            await self.close_other_versions(version)
         version.revision += 1
         self.repository.add_log(0, "VERSION_UPDATE", self.user.email, before, version_view(version))
         await self.session.commit()
@@ -510,7 +524,6 @@ class PlanningService:
             raise HTTPException(422, "新的关闭时间必须晚于当前时间")
         if not version.published:
             raise HTTPException(409, "仅已发布版本可以驳回全部部门")
-        await self.close_other_versions(version)
         before = version_view(version)
         budgets = list((await self.session.scalars(
             select(BudgetDO).where(BudgetDO.planning_version_id == version_id)

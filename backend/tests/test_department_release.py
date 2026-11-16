@@ -245,7 +245,7 @@ async def test_admin_cannot_impersonate_department_submission_and_legacy_return_
 
 
 @pytest.mark.asyncio
-async def test_release_cannot_bypass_another_open_versions_unsubmitted_departments():
+async def test_release_keeps_other_open_version_unchanged():
     session, admin, _ = await prepare()
     try:
         await admin.create(PlanningVersionCreateDTO(
@@ -255,13 +255,11 @@ async def test_release_cannot_bypass_another_open_versions_unsubmitted_departmen
         # A historical closed, published version created by an older application.
         version.published = True
         await session.commit()
-        with pytest.raises(HTTPException) as unfinished:
-            await admin.release(version.id, PlanningVersionReleaseDTO(
-                expected_revision=version.revision, reason="review",
-                deadline=datetime.now(UTC) + timedelta(days=1),
-            ))
-        assert unfinished.value.status_code == 409
-        assert not version.open
+        await admin.release(version.id, PlanningVersionReleaseDTO(
+            expected_revision=version.revision, reason="review",
+            deadline=datetime.now(UTC) + timedelta(days=1),
+        ))
+        assert version.open
         assert (await session.get(PlanningVersionDO, "202701")).open
     finally:
         await session.close()
