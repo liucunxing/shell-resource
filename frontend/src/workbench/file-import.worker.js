@@ -42,9 +42,11 @@ self.onmessage = async ({ data }) => {
       self.postMessage({ bytes: buffer }, [buffer]);
       return;
     }
-    if (["directory", "roster"].includes(data.kind))
+    if (data.kind === "directory")
       throw new Error("经销商名单仅支持导出。");
-    const preview = await excel.previewImport(data.buffer, ...args);
+    const preview = data.kind === "roster"
+      ? await excel.previewRosterImport(data.buffer, ...args)
+      : await excel.previewImport(data.buffer, ...args);
     self.postMessage({ preview });
   } catch (error) {
     self.postMessage({

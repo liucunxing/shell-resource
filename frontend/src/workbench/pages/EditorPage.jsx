@@ -555,6 +555,7 @@ function EditorContent({
       y: window.scrollY,
     };
   };
+  const rosterFileRef = useRef(null);
   const fileRef = useRef(null),
     alive = useRef(true);
   useEffect(() => {
@@ -776,7 +777,7 @@ function EditorContent({
       if (alive.current) setBusy(false);
     }
   };
-  const importFile = async (file) => {
+  const importFile = async (file, roster = false) => {
     if (!file || !guard()) return;
     setBusy(true);
     try {
@@ -784,14 +785,14 @@ function EditorContent({
         throw Error("模板请控制在 10 MB 以内。");
       const buffer = await file.arrayBuffer();
       const preview = await previewExcelInWorker(
-        "allocation",
+        roster ? "roster" : "allocation",
         buffer,
         state,
         i.id,
         identity,
-        data,
+        roster ? dealers : data,
       );
-      if (alive.current) setModal({ type: "import", preview, name: file.name });
+      if (alive.current) setModal({ type: "import", preview, name: file.name, roster, identityKey: JSON.stringify(identity), versionId: state.planningVersion?.id, originalRows: JSON.stringify(i.rows), originalOther: JSON.stringify(i.otherBudgets) });
     } catch (e) {
       notify(e.message, true);
     } finally {
@@ -1588,13 +1589,11 @@ function EditorContent({
                       筛选和分页影响。
                     </p>
                   </div>
-                  <Button
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => download(false, true)}
-                  >
-                    下载名单 Excel
-                  </Button>
+                  <div className="actions">
+                    <Button variant="outline" disabled={busy} onClick={() => download(false, true)}>下载名单 Excel</Button>
+                    <Button variant="outline" disabled={busy || !editable} onClick={() => doGuard(() => rosterFileRef.current?.click())}>上传导入名单 Excel</Button>
+                    <input ref={rosterFileRef} type="file" accept=".xlsx" hidden onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; void importFile(file, true); }} />
+                  </div>
                 </div>
                 <div
                   className="table-scroll selected-roster-scroll"
@@ -2718,6 +2717,11 @@ function EditorContent({
                   className="button primary"
                   disabled={modal.preview.errors.length > 0}
                   onClick={async () => {
+                    if (modal.roster && (!editable || modal.versionId !== state.planningVersion?.id || modal.identityKey !== JSON.stringify(identity) || modal.originalRows !== JSON.stringify(i.rows) || modal.originalOther !== JSON.stringify(i.otherBudgets))) {
+                      notify("身份、版本或草稿已变化，请重新上传预览。", true);
+                      close();
+                      return;
+                    }
                     const values = {
                       rows: modal.preview.rows,
                       otherBudgets: modal.preview.otherBudgets,
@@ -2864,7 +2868,7 @@ function EditorContent({
                   {modal.name} ·{" "}
                   {modal.preview.errors.length
                     ? "存在错误，不能写入"
-                    : "校验通过，确认后完整替换分配明细及其他预算安排"}
+                    : modal.roster ? "校验通过：确认后新增名单并更新文件中的金额，未列出的经销商和其他预算保持不变。" : "校验通过，确认后完整替换分配明细及其他预算安排"}
                 </p>
                 {modal.preview.errors.length > 0 && (
                   <ul className="import-errors">
