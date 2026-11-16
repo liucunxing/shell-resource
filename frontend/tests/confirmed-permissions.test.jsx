@@ -53,7 +53,8 @@ it("the resource settings support shared resource types and explain the historic
   expect(html).toContain('aria-label="历史费用默认权限所属部门"');
   expect(html).toMatch(/<option[^>]*value="ICE"[^>]*>ICE<\/option>/);
   expect(html).toMatch(/<option[^>]*value="PCMO\|MKT"[^>]*>PCMO \/ MKT<\/option>/);
-  expect(html).toContain("按用户收窄权限");
+  expect(html).not.toContain("按用户收窄权限");
+  expect(html).toContain("用户管理 → 编辑用户 → 历史费用列范围");
   expect(html).not.toContain("角色默认权限");
   expect(html).toContain("保存部门默认");
   expect(html).toContain("暂不拆部门");
