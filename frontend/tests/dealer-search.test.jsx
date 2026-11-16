@@ -30,10 +30,12 @@ describe("dealer picker search", () => {
     expect(dealerDisplayLabel(id)).toBe("编码未提供");
     expect(dealerDisplayLabel(id)).not.toContain("history:");
   });
-  it("renders zero-allocation dealer names as a vertical list", () => {
+  it("initially collapses the list of dealers without history", () => {
     const html = renderToStaticMarkup(<MissingHistoryNotice metricLabel="2025 C3"
       unavailable={["经销商甲（10392457）", "经销商乙（11146913）"]} hasHistory={true} />);
-    expect(html).toContain("<li>经销商甲（10392457）</li><li>经销商乙（11146913）</li>");
+    expect(html).toContain("<li>经销商甲（10392457）</li>");
+    expect(html).not.toContain("经销商乙（11146913）");
+    expect(html).toContain("展示全部（2 家）");
     expect(html).not.toContain("全部经销商均无量");
   });
 
