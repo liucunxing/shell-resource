@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   historyDisplayValue,
   historyInvestment,
+  historyShareDenominators,
+  historyShare,
   historyYield,
   historyPhasing,
   aggregateHistoryPhasing,
@@ -181,5 +183,40 @@ describe("imported distributor history", () => {
         data,
       ),
     ).not.toEqual([]);
+  });
+});
+
+
+describe("history shares with partially missing source rows", () => {
+  const rows = [
+    { vol2025: 100, c32025: 200, contract2025: 300, totalInvestment2025: 400 },
+    { vol2025: null, c32025: null, contract2025: null, totalInvestment2025: null },
+    { vol2025: 0, c32025: 0, contract2025: 0, totalInvestment2025: 0 },
+    { vol2025: 300, c32025: 600, contract2025: 900, totalInvestment2025: 1200 },
+  ];
+  it("keeps all four valid share columns available when another dealer is missing", () => {
+    const totals = historyShareDenominators(rows, "2025");
+    expect(totals).toEqual({ vol: 400, c3: 800, contract: 1200, investment: 1600 });
+    for (const [key, field] of [["vol", "vol2025"], ["c3", "c32025"], ["contract", "contract2025"], ["investment", "totalInvestment2025"]] as const) {
+      expect(historyShare(rows[0][field], totals[key])).toBe(25);
+      expect(historyShare(rows[1][field], totals[key])).toBeNull();
+      expect(historyShare(rows[2][field], totals[key])).toBe(0);
+      expect(historyShare(rows[3][field], totals[key])).toBe(75);
+    }
+  });
+  it("does not manufacture a denominator for all missing, invalid, or non-positive totals", () => {
+    expect(historyShareDenominators([undefined, rows[1]], "2025")).toEqual({ vol: null, c3: null, contract: null, investment: null });
+    expect(historyShareDenominators([rows[2]], "2025")).toEqual({ vol: 0, c3: 0, contract: 0, investment: 0 });
+    expect(historyShare(0, 0)).toBeNull();
+    expect(historyShare(10, -10)).toBeNull();
+    expect(historyShare(Infinity, 100)).toBeNull();
+    expect(historyShareDenominators([{ vol2025: NaN, contract2025: Infinity }], "2025").contract).toBeNull();
+  });
+  it("keeps the full-selection denominator when sorting, filtering or paging a display", () => {
+    const totals = historyShareDenominators(rows, "2025");
+    const displayed = [...rows].reverse().filter(row => row.vol2025 != null).slice(0, 1);
+    expect(historyShare(displayed[0].vol2025, totals.vol)).toBe(75);
+    expect(historyShareDenominators(rows, "2026Ytd").vol).toBeNull();
+    expect(rows[0].vol2025).toBe(100);
   });
 });

@@ -40,7 +40,14 @@ class ReferenceRepository:
                 self.fingerprint_statement().scalar_subquery()
                 if self.session.get_bind().dialect.name == "postgresql" else literal(None)
             )
-            statement = statement.add_columns(fingerprint.label("_source_fingerprint"))
+            history_fingerprint = (
+                self.history_fingerprint_statement().scalar_subquery()
+                if is_postgres else literal(None)
+            )
+            statement = statement.add_columns(
+                fingerprint.label("_source_fingerprint"),
+                history_fingerprint.label("_history_fingerprint"),
+            )
         if dealer_ids is not None:
             statement = statement.where(
                 distributor_sellin_resource_history.c.distributor_code.in_(dealer_ids)
@@ -78,6 +85,23 @@ class ReferenceRepository:
         source = distributor_sellin_resource_history.alias("history_source_batch")
         hashes = select(
             func.md5(func.row_to_json(source.table_valued()).cast(Text)).label("row_hash")
+        ).subquery()
+        return select(func.md5(func.string_agg(
+            hashes.c.row_hash, aggregate_order_by(literal(""), hashes.c.row_hash),
+        )))
+
+    @staticmethod
+    def history_fingerprint_statement() -> Select:
+        """Versioned scope for period evidence: only 2026 Actual/expense inputs."""
+        fields = (
+            "sector", "distributor_code", "volume_2026", "c3_2026",
+            "mrd_2026", "reb_2026", "btl_2026", "capex_2026",
+        )
+        source = select(*(distributor_sellin_resource_history.c[name] for name in fields)).subquery(
+            "history_2026_values",
+        )
+        hashes = select(
+            func.md5(func.row_to_json(source.table_valued()).cast(Text)).label("row_hash"),
         ).subquery()
         return select(func.md5(func.string_agg(
             hashes.c.row_hash, aggregate_order_by(literal(""), hashes.c.row_hash),
