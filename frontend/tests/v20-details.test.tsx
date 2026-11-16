@@ -138,7 +138,7 @@ describe("V20 drawer chart semantics and reserve submission guard", () => {
       ),
     ).toContain("Delivery Vol累计占比");
   });
-  it("requires the current project budget and reserve review for every submission attempt", () => {
+  it("requires current budget and reserve review before the first current-version submission", () => {
     const identity = { email: "owner@example.test", role: "owner" };
     const item = {
       id: "project1",

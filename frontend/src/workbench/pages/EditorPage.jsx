@@ -70,6 +70,7 @@ import {
   reserveAcknowledgementKey,
   reserveAcknowledgementFingerprint,
   canEnterAllocationStep,
+  hasCurrentVersionSubmission,
 } from "../domain/reserve-review.js";
 export {
   reserveAcknowledgementKey,
@@ -436,6 +437,9 @@ function EditorContent({
   loadDistributorDirectory,
   notify,
 }) {
+  const previouslySubmitted = hasCurrentVersionSubmission(
+    view.initiatives.find((item) => item.id === initiativeId),
+  );
   const acknowledgementKey = reserveAcknowledgementKey(
     identity,
     state.planningVersion?.id,
@@ -461,7 +465,7 @@ function EditorContent({
     [historyPeriod, setHistoryPeriod] = useState("2025"),
     [trialPeriod, setTrialPeriod] = useState("2025"),
     [appliedTrial, setAppliedTrial] = useState(null),
-    [activeStep, setActiveStep] = useState(1),
+    [activeStep, setActiveStep] = useState(previouslySubmitted ? 3 : 1),
     [balanceIds, setBalanceIds] = useState([]),
     [scopeSearch, setScopeSearch] = useState(""),
     [scopeSd, setScopeSd] = useState("all"),
@@ -492,10 +496,10 @@ function EditorContent({
         stored = sessionStorage.getItem(acknowledgementKey) || "";
       } catch {}
       setReserveAcknowledgement(stored);
-      setActiveStep(1);
+      setActiveStep(previouslySubmitted ? 3 : 1);
     } else if (previous.fingerprint !== acknowledgementFingerprint) {
       setReserveAcknowledgement("");
-      setActiveStep(1);
+      if (!previouslySubmitted) setActiveStep(1);
       try {
         sessionStorage.removeItem(acknowledgementKey);
       } catch {}
@@ -504,7 +508,7 @@ function EditorContent({
       key: acknowledgementKey,
       fingerprint: acknowledgementFingerprint,
     };
-  }, [acknowledgementKey, acknowledgementFingerprint]);
+  }, [acknowledgementKey, acknowledgementFingerprint, previouslySubmitted]);
   const allocationScroll = useRef(null);
   useLayoutEffect(() => {
     const viewport = allocationScroll.current;
@@ -595,9 +599,9 @@ function EditorContent({
   const editable = !previewMode && E.canEdit(state, i.id, identity),
     totals = E.totals([i]),
     errors = E.completionErrors(i, data, state.budgetReasons);
-  const reserveConfirmed =
+  const reserveConfirmed = previouslySubmitted || (
     previousAcknowledgement.current.key === acknowledgementKey &&
-    reserveAcknowledgement === acknowledgementFingerprint;
+    reserveAcknowledgement === acknowledgementFingerprint);
   const acknowledgeReserve = (checked) => {
     const value = checked ? acknowledgementFingerprint : "";
     setReserveAcknowledgement(value);
@@ -2542,7 +2546,7 @@ function EditorContent({
                 <Checkbox
                   aria-label="已核对本版预算与预留，明确本次分配范围"
                   checked={!editable || reserveConfirmed}
-                  disabled={!editable}
+                  disabled={!editable || previouslySubmitted}
                   onCheckedChange={(checked) =>
                     acknowledgeReserve(checked === true)
                   }
@@ -2550,7 +2554,9 @@ function EditorContent({
                 已核对本版预算与预留，明确本次分配范围
               </Label>
               <p>
-                {editable
+                {previouslySubmitted
+                  ? "本版已有提交记录，可直接进入经销商范围和试算修改，无需重复勾选。保存和提交仍需符合预算及权限要求。"
+                  : editable
                   ? "勾选后可进入经销商名单和试算。预算、预留金额或原因改变后，需要重新核对。"
                   : "已提交或只读方案可浏览，不要求重新确认。"}
               </p>
