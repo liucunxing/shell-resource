@@ -2049,7 +2049,7 @@ function EditorContent({
                 </Label>
               </div>
               <div className="v19-ratio-legend">
-                <span title="Phasing 按同年源 target 对源表 Phasing 加权；非正权重不参与，缺少权重或源值时不计算。单家直接展示源值。">
+                <span title="Phasing 仅对同年源 target 大于 0 且源 Phasing 有值的经销商加权；缺失或非正权重不参与，结果仅代表有效数据范围。无有效数据时显示 —；单家直接展示源值。">
                   加权平均 Phasing{" "}
                   <b>
                     {weightedPhasing == null
