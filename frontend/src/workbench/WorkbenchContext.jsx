@@ -134,6 +134,15 @@ export function mergeSavedDraft(state, id, saved, requested) {
   return { next, edited };
 }
 
+export async function changePlanningVersion({ id, currentId, targetPage, setPage, setVersion, refresh }) {
+  if (String(id) === String(currentId || "")) {
+    if (targetPage) setPage(targetPage);
+    return true;
+  }
+  setVersion(id);
+  return refresh({ targetPage, expectedVersionId: id });
+}
+
 const Context = createContext(null);
 
 export function WorkbenchProvider({ children }) {
@@ -228,6 +237,8 @@ export function WorkbenchProvider({ children }) {
     try {
       const workspace = normalizeWorkspace(await api.workspace());
       if (epoch !== sessionEpoch.current) return false;
+      if (options.expectedVersionId && String(workspace.state.currentVersionId || workspace.state.planningVersion?.id || "") !== String(options.expectedVersionId))
+        throw Error("所选规划版本加载失败，请刷新后重试。");
       const previewEmail = getPreviewUserEmail();
       const workspaceEmail = String(workspace.identity?.email || "").trim().toLowerCase();
       if (previewEmail && (workspaceEmail !== previewEmail ||
@@ -247,7 +258,8 @@ export function WorkbenchProvider({ children }) {
       setSavedForSyncIds(new Set());
       setEditorOperations({});
       api.setPlanningVersion(workspace.state.currentVersionId || workspace.state.planningVersion?.id || "");
-      if (!options.preservePage) setPage(homeFor(workspace.identity));
+      if (options.targetPage) setPage(options.targetPage);
+      else if (!options.preservePage) setPage(homeFor(workspace.identity));
       return true;
     } catch (error) {
       if (epoch !== sessionEpoch.current) return false;
@@ -260,15 +272,14 @@ export function WorkbenchProvider({ children }) {
     }
   };
 
-  const selectPlanningVersion = async (id) => {
+  const selectPlanningVersion = async (id, options = {}) => {
     if (!inputReady()) return false;
     if (dirtyIds.size) {
       notify("请先保存当前草稿，再切换规划版本。", true);
       return false;
     }
-    api.setPlanningVersion(id);
     setInitiativeId("");
-    return refresh({ preservePage: page !== "editor" });
+    return changePlanningVersion({ id, currentId: stateRef.current.currentVersionId || stateRef.current.planningVersion?.id, targetPage: options.targetPage, setPage, setVersion: api.setPlanningVersion, refresh: (args) => refresh({ ...args, preservePage: page !== "editor" }) });
   };
 
   const loadDistributorDirectory = useCallback(async ({ force = false } = {}) => {
