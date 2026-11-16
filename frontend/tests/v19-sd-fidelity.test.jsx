@@ -31,7 +31,7 @@ const dealers = [
     history: {
       vol2025: 3000,
       c32025: 600,
-      contract2025: 6000,
+      contract2025: 6000, phasing2025: 0.5,
       totalInvestment2025: 400,
     },
   },
@@ -43,7 +43,7 @@ const dealers = [
     history: {
       vol2025: 1000,
       c32025: 400,
-      contract2025: 2000,
+      contract2025: 2000, phasing2025: 0.5,
       totalInvestment2025: 100,
     },
   },
@@ -97,7 +97,7 @@ describe("V19 SD presentation", () => {
         ...dealer, history: { ...dealer.history, contract2025: target },
       } : dealer);
       const { groups, totals } = summary(source);
-      expect(groups.find((group) => group.key === "西区").phasing).toBeNull();
+      expect(groups.find((group) => group.key === "西区").phasing).toBe(0.5);
       expect(totals.historicalVol).toBe(4000);
       if (target === null) {
         expect(totals.contractVolume).toBeNull();

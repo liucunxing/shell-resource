@@ -315,8 +315,7 @@ function HistoryControls({
         onValueChange={onPeriodChange}
         ytdCutoffMonth={ytdCutoffMonth}
       >
-        经销商 target 以 KL 展示；Phasing = Delivery Vol ÷ 同期间
-        target，目标缺失、非正数或期间未确认时不计算。
+        经销商 target 以 KL 展示；Phasing 直接读取源表对应年份的结果，1 表示 100%；源值缺失时显示 —。
       </HistoryPeriodTabs>
       {onMetricChange && (
         <Tabs
@@ -1519,7 +1518,7 @@ function EditorContent({
                                 <TableCell
                                   className="num"
                                   sortValue={historyPhasing(h, period)}
-                                  title="Phasing = Delivery Vol ÷ 对应期间经销商目标；目标须大于 0"
+                                  title="Phasing 直接读取源表对应年份的结果，1 表示 100%；不因 target 确认状态隐藏源值"
                                 >
                                   {historyPhasing(h, period) == null
                                     ? "—"
@@ -2065,7 +2064,7 @@ function EditorContent({
                 </Label>
               </div>
               <div className="v19-ratio-legend">
-                <span title="Phasing = 同期间有效正目标记录的 Delivery Vol 合计 ÷ target 合计；仅对有效正目标记录计算，任一目标或销量缺失时不显示。">
+                <span title="Phasing 按同年源 target 对源表 Phasing 加权；非正权重不参与，缺少权重或源值时不计算。单家直接展示源值。">
                   加权平均 Phasing{" "}
                   <b>
                     {weightedPhasing == null
@@ -2586,11 +2585,11 @@ function EditorContent({
             </Card>
           )}
           {activeStep === 3 &&
-            (errors.length ? (
-              <Alert className="note-box warn">
+            (submissionReasons.length ? (
+              <Alert className="note-box warn" role="status">
                 <AlertDescription>
-                  {errors.map((e) => (
-                    <div key={e}>{e.replace("标记完成", "提交当前方案")}</div>
+                  {submissionReasons.map((reason) => (
+                    <div key={reason}>{reason}</div>
                   ))}
                 </AlertDescription>
               </Alert>
@@ -2673,9 +2672,6 @@ function EditorContent({
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-                    <div className="submission-blocked-reason" role="status">
-                      {submissionReasons.map((reason) => <div key={reason}>{reason}</div>)}
-                    </div>
                   </div>
                 ) : (
                   <Button variant="default" className="button primary" disabled={!canSynchronize}

@@ -763,10 +763,9 @@
 .studio-trial-dialog .studio-trial-grid strong { font-size:16px; }
 @media(max-width:760px) { .studio-trial-dialog .studio-trial-grid { grid-template-columns:1fr; } }
 
-.submission-blocked { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: min(380px, 80vw); }
+.submission-blocked { display: inline-flex; }
 .submission-blocked-trigger { display: inline-flex; border-radius: 6px; }
 .submission-blocked-trigger:focus-visible { outline: 2px solid #8a6700; outline-offset: 3px; }
-.submission-blocked-reason { color: #a04418; font-size: 12px; line-height: 1.4; text-align: right; }
 .submission-blocked-tooltip { max-width: min(380px, 85vw); white-space: normal; line-height: 1.5; }
 
 /* Keep the explanation usable even when the balance action is disabled. */

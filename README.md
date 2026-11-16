@@ -2,7 +2,7 @@
 
 2026-11-15，用户已确认V20原型并授权同步工程、更新规则、测试后推送。当前以[V20同步说明](docs/V20_IMPLEMENTATION.md)和[当前需求](docs/CURRENT_REQUIREMENTS.md)为准；旧V19验收记录保留为历史证据。
 
-V20包含SD/RSM切换和四组组织对照、V17经销商分配明细表头、按所属部门限制历史费用、完整详情抽屉，以及第一步“已核对本版预留”后才可继续的流程。PPP误加字段已取消；Phasing使用同期间经销商target。
+V20包含SD/RSM切换和四组组织对照、V17经销商分配明细表头、按所属部门限制历史费用、完整详情抽屉，以及第一步“已核对本版预留”后才可继续的流程。PPP误加字段已取消；Phasing直接读取PG已计算的phasing_2025/phasing_2026。
 
 全局表格已统一表头冻结、名称/标识列靠左、数值列居中与等宽数字、真实数值排序；经销商明细每页支持10/20/50/全部。验证范围与证据见[全局表格验收](docs/GLOBAL_TABLES_VALIDATION.md)。
 
@@ -32,7 +32,7 @@ docs/       本期业务契约和协作说明
 
 Databricks 只能使用应用 Service Principal 对应且获授权的 schema，当前目标为 `prod.resource_planning.dim_distributor`。2026-11-14 限定该 schema 的个人只读核查可见两个经销商基础视图，各 2,678 行、3 个字段；未看到业务指标与月份/汇率字段。应用 SP 认证仍返回 `401 invalid_client`，个人查询不能证明应用身份可读。其他 schema 的候选数据不能直接接入，不能用个人凭据回退。
 
-最新PG核查：1,489个Sector＋经销商，无重复；2025/2026四类费用及Actual均无NULL。用户已确认本批销量、C3、费用均至2026年9月，期间字段后续补，下一次预计2027年1月更新；经销商target已接入：单位L，2025全年、2026年1–9月；182/699条正目标可计算Phasing，零值与缺失保持原样。详见[接入及对账](docs/DEALER_TARGET_INTEGRATION.md)。B2B两类费用源0需核实，20个真实账号所属组织待配置。详见[当前缺项与例子](docs/PENDING_DATA_DECISIONS.md)和[本次PG评估](docs/PG_SELLIN_ASSESSMENT.md)，不要再引用旧“2026费用全空”的结论。
+最新PG核查：1,489个Sector＋经销商，无重复；2025/2026四类费用及Actual均无NULL。用户已确认本批销量、C3、费用均至2026年9月，期间字段后续补，下一次预计2027年1月更新；经销商target已接入：单位L，2025全年、2026年1–9月；2026-11-16新核查源Phasing非空535/695条，源值直读、零与缺失保持原样。详见[接入及对账](docs/DEALER_TARGET_INTEGRATION.md)。B2B两类费用源0需核实，20个真实账号所属组织待配置。详见[当前缺项与例子](docs/PENDING_DATA_DECISIONS.md)和[本次PG评估](docs/PG_SELLIN_ASSESSMENT.md)，不要再引用旧“2026费用全空”的结论。
 
 历史C3和当前费用源均为USD，费用÷管理员汇率归一为USD，暂保持1；规划金额为CNY。负费用正常参加净额，Yield无x/倍、负值或无效显示“—”。历史费用权限按所属部门大类上限裁剪，用户/部门配置只能收窄，管理员和管理层不自动越权。
 
