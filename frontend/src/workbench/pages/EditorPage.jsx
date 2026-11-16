@@ -56,7 +56,6 @@ import {
   finiteHistoryValue,
   historyYoyLabel,
   initiativeDealers,
-  isActiveDealer,
 } from "../domain/dealer-history";
 import { exportExcelInWorker, previewExcelInWorker } from "../file-import.js";
 import { concentration, portfolioRows } from "../domain/portfolio-analytics.js";
@@ -398,7 +397,6 @@ function EditorContent({
   dirtyIds,
   savedForSyncIds,
   editorOperations,
-  directoryStatus,
   loadDistributorDirectory,
   notify,
 }) {
@@ -423,9 +421,6 @@ function EditorContent({
   });
   const [detail, setDetail] = useState(null);
   const [modal, setModal] = useState(null),
-    [newDealers, setNewDealers] = useState([]),
-    [dealerCodeSearch, setDealerCodeSearch] = useState(""),
-    [dealerNameSearch, setDealerNameSearch] = useState(""),
     [historyMetric, setHistoryMetric] = useState("c3"),
     [historyPeriod, setHistoryPeriod] = useState("2025"),
     [trialPeriod, setTrialPeriod] = useState("2025"),
@@ -630,9 +625,6 @@ function EditorContent({
     directoryDealers,
     i.sector,
   );
-  const available = dealers.filter(
-    (d) => isActiveDealer(d) && !i.rows.some((r) => r.dealerId === d.id),
-  );
   const dealerById = new Map(dealers.map((d) => [String(d.id), d]));
   const dealerName = (dealerId) =>
     dealerById.get(String(dealerId))?.name || "—";
@@ -649,11 +641,6 @@ function EditorContent({
       dealerMeta(dealerId),
       i.rows.find((row) => row.dealerId === dealerId),
     );
-  const searchedDealers = filterDealers(
-    available,
-    dealerCodeSearch,
-    dealerNameSearch,
-  );
   const scopeDealers = dealers.filter((dealer) => {
     const term = scopeSearch.trim().toLowerCase();
     return (
@@ -1286,37 +1273,6 @@ function EditorContent({
                       </NativeSelectOption>
                     ))}
                   </NativeSelect>
-                  {editable && (
-                    <Button
-                      variant="outline"
-                      className="button small"
-                      disabled={!scopeDealers.length}
-                      onClick={() => {
-                        doGuard(() =>
-                          update({
-                            rows: [
-                              ...i.rows,
-                              ...scopeDealers
-                                .filter(
-                                  (dealer) =>
-                                    isActiveDealer(dealer) &&
-                                    !i.rows.some(
-                                      (row) => row.dealerId === dealer.id,
-                                    ),
-                                )
-                                .map((dealer) => ({
-                                  dealerId: dealer.id,
-                                  amount: 0,
-                                  note: "",
-                                })),
-                            ],
-                          }),
-                        );
-                      }}
-                    >
-                      加入筛选结果
-                    </Button>
-                  )}
                 </div>
                 <div className="table-scroll studio-wide-table">
                   <Table pageIndex={scopePage - 1} pageSize={20} onSort={() => setScopePage(1)}
@@ -1386,24 +1342,13 @@ function EditorContent({
                                   checked={!!selected}
                                   disabled={
                                     !editable ||
-                                    (!isActiveDealer(dealer) && !selected)
+                                    !selected
                                   }
                                   onCheckedChange={(checked) =>
                                     doGuard(() => {
                                       if (!(selected?.amount > 0 && !checked))
                                         rememberSelectionViewport();
-                                      if (checked && !selected)
-                                        update({
-                                          rows: [
-                                            ...i.rows,
-                                            {
-                                              dealerId: dealer.id,
-                                              amount: 0,
-                                              note: "",
-                                            },
-                                          ],
-                                        });
-                                      else if (!checked && selected?.amount > 0)
+                                      if (!checked && selected?.amount > 0)
                                         setModal({
                                           type: "remove",
                                           dealerId: dealer.id,
@@ -2222,20 +2167,6 @@ function EditorContent({
                     >
                       下载经销商
                     </Button>
-                    <Button
-                      variant="link"
-                      className="button link"
-                      onClick={() =>
-                        doGuard(() => {
-                          setNewDealers([]);
-                          setDealerCodeSearch("");
-                          setDealerNameSearch("");
-                          setModal({ type: "add" });
-                        })
-                      }
-                    >
-                      + 添加经销商
-                    </Button>
                   </div>
                 )}
               </div>
@@ -2514,7 +2445,6 @@ function EditorContent({
             title={
               modal.title ||
               {
-                add: "添加经销商",
                 remove: "移除经销商分配",
                 fill: "按历史占比辅助填充",
                 balance: "指定经销商配平",
@@ -2542,29 +2472,6 @@ function EditorContent({
                   }}
                 >
                   确认采用
-                </Button>
-              ) : modal.type === "add" ? (
-                <Button
-                  variant="default"
-                  className="button primary"
-                  disabled={!newDealers.length}
-                  onClick={() => {
-                    if (
-                      update({
-                        rows: [
-                          ...i.rows,
-                          ...newDealers.map((dealerId) => ({
-                            dealerId,
-                            amount: 0,
-                            note: "",
-                          })),
-                        ],
-                      })
-                    )
-                      close();
-                  }}
-                >
-                  确认添加
                 </Button>
               ) : modal.type === "remove" ? (
                 <Button
@@ -2695,101 +2602,6 @@ function EditorContent({
                   )}{" "}
                   元
                 </p>
-              </>
-            )}
-            {modal.type === "add" && (
-              <>
-                <div className="dealer-search-grid">
-                  <Label className="form-field">
-                    经销商编码
-                    <Input
-                      type="search"
-                      autoFocus
-                      value={dealerCodeSearch}
-                      placeholder="模糊搜索经销商编码"
-                      onChange={(e) => setDealerCodeSearch(e.target.value)}
-                    />
-                  </Label>
-                  <Label className="form-field">
-                    经销商名称
-                    <Input
-                      type="search"
-                      value={dealerNameSearch}
-                      placeholder="模糊搜索经销商名称"
-                      onChange={(e) => setDealerNameSearch(e.target.value)}
-                    />
-                  </Label>
-                </div>
-                <div className="table-scroll">
-                  <Table containerClassName="overflow-visible">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead aria-label="选择经销商" />
-                        <TableHead>业务线</TableHead>
-                        <TableHead>经销商编码</TableHead>
-                        <TableHead>经销商名称</TableHead>
-                        <TableHead>SD</TableHead>
-                        <TableHead>RSM</TableHead>
-                        <TableHead>状态</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {searchedDealers.map((dealer) => (
-                        <TableRow key={dealer.id}>
-                          <TableCell>
-                            <Checkbox
-                              aria-label={`选择经销商 ${dealerLabel(dealer.id)}`}
-                              checked={newDealers.includes(dealer.id)}
-                              onCheckedChange={() =>
-                                setNewDealers((current) =>
-                                  toggleDealerSelection(current, dealer.id),
-                                )
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>{dealer.sector || "—"}</TableCell>
-                          <TableCell>{dealerCode(dealer.id)}</TableCell>
-                          <TableCell>{dealer.name || "—"}</TableCell>
-                          <TableCell>{dealer.sd || "—"}</TableCell>
-                          <TableCell>{dealer.rsm || "—"}</TableCell>
-                          <TableCell>
-                            <span
-                              className={`resource-status ${dealer.status || ""}`}
-                            >
-                              {dealer.status || "—"}
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {!searchedDealers.length && (
-                        <TableRow>
-                          <TableCell colSpan={7}>
-                            {directoryStatus === "loading" ? (
-                              "正在加载历史表经销商目录…"
-                            ) : directoryStatus === "error" ? (
-                              <>
-                                经销商目录加载失败，请稍后重试。
-                                <Button
-                                  variant="ghost"
-                                  className="button subtle small"
-                                  onClick={() =>
-                                    loadDistributorDirectory({ force: true })
-                                  }
-                                >
-                                  重新加载
-                                </Button>
-                              </>
-                            ) : available.length ? (
-                              "没有匹配的经销商"
-                            ) : (
-                              "已无可添加经销商"
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
               </>
             )}
             {modal.type === "remove" && (

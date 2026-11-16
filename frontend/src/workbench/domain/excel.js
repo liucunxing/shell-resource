@@ -438,6 +438,8 @@ async function previewImport(buffer, state, id, identity, data) {
       out.errors.push(`经销商分配 第${n}行经销商编码不存在或格式不正确。`);
     if (!isV14 && key !== i.id + "::" + dealer)
       out.errors.push(`经销商分配 第${n}行行业务键应为 ${i.id}::${dealer}。`);
+    if (!i.rows.some((old) => String(old.dealerId) === String(dealer)))
+      out.errors.push(`经销商分配 第${n}行不允许新增经销商。`);
     if ((!isV14 && keys.has(key)) || ids.has(dealer))
       out.errors.push(`经销商分配 第${n}行行业务键或经销商重复。`);
     if (typeof note !== "string")
