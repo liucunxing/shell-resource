@@ -57,6 +57,22 @@ class ReferenceRepository:
         )
         return result.mappings().all()
 
+    async def list_directory(self, sectors: tuple[str, ...] | None = None) -> Sequence[RowMapping]:
+        """Identity/status only: saving allocations does not need historical metrics."""
+        if sectors is not None and not sectors:
+            return []
+        source = distributor_sellin_resource_history.c
+        statement = select(
+            source.distributor_code, source.distributor_name, source.sector,
+            source.sd, source.rsm, source.distributor_status,
+        )
+        if sectors is not None:
+            statement = statement.where(source.sector.in_(sectors))
+        result = await self.session.execute(
+            statement.order_by(source.distributor_code, source.sector)
+        )
+        return result.mappings().all()
+
     @staticmethod
     def fingerprint_statement() -> Select:
         source = distributor_sellin_resource_history.alias("history_source_batch")

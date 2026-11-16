@@ -119,6 +119,37 @@ class WorkspaceRepository:
         )
         return list((await self.session.scalars(statement)).all())
 
+    async def projection_rows(
+        self, budget_ids: list[int], *, include_drafts: bool = True,
+    ) -> tuple[
+        dict[int, list[BudgetDistributorDO]], dict[int, list[OtherBudgetDO]],
+        dict[int, list[WorkspacePublicationDO]],
+    ]:
+        """Load only the caller's authorized budgets in a fixed number of queries."""
+        rows: dict[int, list[BudgetDistributorDO]] = {}
+        other: dict[int, list[OtherBudgetDO]] = {}
+        publications: dict[int, list[WorkspacePublicationDO]] = {}
+        if not budget_ids:
+            return rows, other, publications
+        if include_drafts:
+            for row in await self.session.scalars(
+                select(BudgetDistributorDO).where(BudgetDistributorDO.budget_id.in_(budget_ids))
+                .order_by(BudgetDistributorDO.id)
+            ):
+                if row.budget_id is not None:
+                    rows.setdefault(row.budget_id, []).append(row)
+            for reserve in await self.session.scalars(
+                select(OtherBudgetDO).where(OtherBudgetDO.budget_id.in_(budget_ids))
+                .order_by(OtherBudgetDO.id)
+            ):
+                other.setdefault(reserve.budget_id, []).append(reserve)
+        for publication in await self.session.scalars(
+            select(WorkspacePublicationDO).where(WorkspacePublicationDO.budget_id.in_(budget_ids))
+            .order_by(WorkspacePublicationDO.publication_number)
+        ):
+            publications.setdefault(publication.budget_id, []).append(publication)
+        return rows, other, publications
+
     async def latest_publications(
         self,
         year: int,
@@ -179,7 +210,7 @@ class WorkspaceRepository:
         from app.core.dealer_identity import dealer_identity
         from app.repositories.reference_repository import ReferenceRepository
 
-        records = await ReferenceRepository(self.session).list_dealers(sectors=(budget.sector,))
+        records = await ReferenceRepository(self.session).list_directory(sectors=(budget.sector,))
         directory = {dealer_identity(row): row for row in records}
         existing = {
             row.history_key or row.distributor_code: row for row in await self.rows_for(budget.id)

@@ -5,8 +5,7 @@ from app.services.distributor_directory_service import DistributorDirectoryServi
 
 
 class HistoryRepository:
-    async def list_dealers(self, dealer_ids=None, sectors=None):
-        del dealer_ids
+    async def list_directory(self, sectors=None):
         rows = [
             {
                 "distributor_code": "D1",
