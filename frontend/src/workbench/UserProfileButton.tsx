@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogBody,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -128,7 +129,7 @@ export function UserProfileButton({ identity }: { identity: ProfileIdentity }) {
         <DialogHeader>
           <DialogTitle>我的用户信息</DialogTitle>
         </DialogHeader>
-        <UserProfileDetails identity={identity} />
+        <DialogBody><UserProfileDetails identity={identity} /></DialogBody>
         <DialogFooter showCloseButton />
       </DialogContent>
     </Dialog>

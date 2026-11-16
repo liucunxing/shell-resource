@@ -4,6 +4,7 @@ import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
 import {
   Dialog,
   DialogContent,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -117,7 +118,7 @@ function UserDialog({
       }}
     >
       <DialogContent
-        className="sm:max-w-2xl max-h-[88dvh] overflow-y-auto"
+        className="sm:max-w-2xl max-h-[90dvh]"
         showCloseButton={false}
         aria-describedby={undefined}
         onEscapeKeyDown={(event) => {
@@ -130,7 +131,7 @@ function UserDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <div className="modal-body">{children}</div>
+        <DialogBody>{children}</DialogBody>
         <DialogFooter>
           <Button
             type="button"
