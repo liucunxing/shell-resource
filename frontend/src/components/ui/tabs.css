@@ -1,7 +1,7 @@
 /* Shared compact shadcn Tabs, including portalled drawers and dialogs. */
 .studio-tabs-list[data-slot="tabs-list"] {
   height: auto;
-  min-height: 32px;
+  min-height: 38px;
   max-width: 100%;
   gap: 2px;
   padding: 3px;
@@ -12,15 +12,15 @@
 }
 .studio-tabs-trigger[data-slot="tabs-trigger"] {
   height: auto;
-  min-height: 26px;
-  padding: 3px 12px;
+  min-height: 32px;
+  padding: 5px 14px;
   border: 1px solid transparent;
   border-radius: 4px;
   background: transparent;
   color: #66717e;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
-  line-height: 18px;
+  line-height: 20px;
   box-shadow: none;
   transition: background-color 120ms, color 120ms, box-shadow 120ms;
 }
@@ -31,9 +31,9 @@
 .studio-tabs-trigger[data-slot="tabs-trigger"][data-state="active"] {
   color: #263441;
   background: #fff;
-  border-color: #e0e4e8;
+  border-color: #cbd3dc;
   font-weight: 600;
-  box-shadow: 0 1px 2px #18243112;
+  box-shadow: 0 1px 4px #18243126;
 }
 .studio-tabs-trigger[data-slot="tabs-trigger"]:focus-visible {
   outline: 2px solid #64748b;
