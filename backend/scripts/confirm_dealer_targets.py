@@ -1,8 +1,9 @@
 """Confirm dealer target units/periods for one PG source batch; dry-run by default.
 
 Only --apply writes workspace_config plus audit. Source rows are never modified.
-Both years require explicit periods; the service still gates YTD Phasing on matching
-verified Actual coverage. The original history confirmation is not changed here.
+Both years require explicit periods for normalized target display. Source Phasing
+is read directly and is not gated by this confirmation. The original history
+confirmation is not changed here.
 """
 
 import argparse

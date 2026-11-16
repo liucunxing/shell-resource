@@ -18,6 +18,10 @@ export interface DealerHistory {
   c32026Ytd?: number | null;
   yield?: number | null;
   yield2026Ytd?: number | null;
+  phasing2025?: number | null;
+  phasing2026Ytd?: number | null;
+  sourceTarget2025?: number | null;
+  sourceTarget2026Ytd?: number | null;
   contract2025?: number | null;
   contract2026Ytd?: number | null;
   vol2024?: number | null;
@@ -93,44 +97,49 @@ export function historyYield(
     : null;
 }
 
-// Actual / dealer target for the same business period, both in L.
-// Legacy fixture coverage does not establish the real source target period.
+// Source Phasing is already a ratio: 1 means 100%. Never recalculate a missing
+// source cell from rounded Actual/target values or gate it on target confirmation.
 export function historyPhasing(
   history: DealerHistory | undefined,
   period: HistoryPeriod,
 ): number | null {
-  const vol = finiteHistoryValue(
-    period === "2025" ? history?.vol2025 : history?.vol2026Ytd,
+  return finiteHistoryValue(
+    period === "2025" ? history?.phasing2025 : history?.phasing2026Ytd,
   );
-  const contract = finiteHistoryValue(
-    period === "2025" ? history?.contract2025 : history?.contract2026Ytd,
-  );
-  return vol !== null && contract !== null && contract > 0
-    ? vol / contract
-    : null;
 }
 
-/** Pair the same eligible records before summing; unknown data is not a zero. */
+function phasingWeight(history: DealerHistory | undefined, period: HistoryPeriod) {
+  const key = period === "2025" ? "sourceTarget2025" : "sourceTarget2026Ytd";
+  if (history && Object.hasOwn(history, key)) return finiteHistoryValue(history[key]);
+  // Older local fixtures have normalized targets but no sourceTarget field.
+  return finiteHistoryValue(period === "2025" ? history?.contract2025 : history?.contract2026Ytd);
+}
+
+/** Source-target weighted ratios; a missing source ratio is never a zero.
+ * `volume` is the legacy result key for the weighted numerator, not Actual Vol.
+ */
 export function aggregateHistoryPhasing(
   histories: (DealerHistory | undefined)[],
   period: HistoryPeriod,
 ): { volume: number | null; target: number | null; ratio: number | null } {
   const unavailable = { volume: null, target: null, ratio: null };
   if (!histories.length) return unavailable;
+  if (histories.length === 1) {
+    const ratio = historyPhasing(histories[0], period);
+    const weight = phasingWeight(histories[0], period);
+    const target = weight === null ? null : Math.max(0, weight);
+    return { ratio, target, volume: target === 0 ? 0 : ratio !== null && target !== null ? ratio * target : null };
+  }
   let volume = 0;
   let target = 0;
   for (const history of histories) {
-    const actual = finiteHistoryValue(
-      period === "2025" ? history?.vol2025 : history?.vol2026Ytd,
-    );
-    const contract = finiteHistoryValue(
-      period === "2025" ? history?.contract2025 : history?.contract2026Ytd,
-    );
-    if (actual === null || contract === null) return unavailable;
-    if (contract > 0) {
-      volume += actual;
-      target += contract;
-    }
+    const weight = phasingWeight(history, period);
+    if (weight === null) return unavailable;
+    if (weight <= 0) continue;
+    const ratio = historyPhasing(history, period);
+    if (ratio === null) return unavailable;
+    volume += ratio * weight;
+    target += weight;
   }
   return { volume, target, ratio: target > 0 ? volume / target : null };
 }

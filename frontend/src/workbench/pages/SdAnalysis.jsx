@@ -61,6 +61,7 @@ export function sdPresentationGroups(groups) {
     ? totals.amount / totals.allocatedCount
     : null;
   totals.phasing =
+    current.length === 1 ? current[0].phasing :
     totals.phasingTarget > 0 && totals.phasingVolume != null
       ? totals.phasingVolume / totals.phasingTarget
       : null;

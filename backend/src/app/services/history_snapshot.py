@@ -19,9 +19,12 @@ def target_manifest(
     for year, suffix in ((2025, "2025"), (2026, "2026Ytd")):
         histories = [record.get("history", {}) for record in records]
         source_present = any(h.get("targetSourceFields", {}).get(suffix) for h in histories)
-        available_count = sum(h.get(f"phasing{suffix}") is not None for h in histories)
-        reasons = sorted({h.get(f"phasing{suffix}UnavailableReason") for h in histories
-                          if h.get(f"phasing{suffix}UnavailableReason")})
+        available_count = sum(
+            h.get(f"contract{suffix}") is not None and h[f"contract{suffix}"] > 0
+            for h in histories
+        )
+        reasons = sorted({h.get(f"target{suffix}UnavailableReason") for h in histories
+                          if h.get(f"target{suffix}UnavailableReason")})
         period = target_coverage["periods"][str(year)] if target_coverage else None
         periods[suffix] = {
             "sourceField": f"target_{year}", "sourceFieldPresent": source_present,
@@ -68,17 +71,27 @@ def history_manifest(
     investment_month = coverage["investmentThroughMonth"] if coverage else None
     comparable = bool(coverage and actual_month == investment_month)
     target = target_manifest(records, coverage, target_coverage, target_confirmation_status)
+    phasing_counts = {
+        suffix: sum(record.get("history", {}).get(f"phasing{suffix}") is not None
+                    for record in records)
+        for suffix in ("2025", "2026Ytd")
+    }
+    phasing_available = any(phasing_counts.values())
     target_missing = (
         ["contractVolume"] if not target["sourceFieldsPresent"] else
         ["targetUnit", "targetBusinessPeriod"] if not target_coverage else []
     )
     target_note = (
-        "经销商同期target已接入；仅正目标且Actual非空的同期记录参与Phasing。"
+        "经销商同期target已接入。"
         if target["available"] else
-        "经销商target字段已读取，单位或期间确认失效/待确认，Phasing暂不可用。"
+        "经销商target字段已读取，单位或期间确认失效/待确认；不影响读取源Phasing。"
         if target["sourceFieldsPresent"] and not target_coverage else
-        "经销商target已确认，但当前范围没有可计算Phasing的同期正目标记录。"
+        "经销商target已确认，但当前范围没有有效的同期正目标记录。"
         if target["sourceFieldsPresent"] else "经销商同期target（合同量）待接入。"
+    )
+    target_note += (
+        "经销商Phasing直接读取源表phasing_2025/phasing_2026；"
+        "源值缺失时不重算；汇总按同年源target正值加权。"
     )
     effective_month = (
         actual_month if coverage else None if coverage_confirmation_status == "expired"
@@ -155,30 +168,32 @@ def history_manifest(
                 "nonPositiveBaseLabel": "无基期",
             },
             "phasing": {
-                "formula": "deliveryVolume / contractVolume * 100",
-                "eligibility": (
-                    "contractVolume > 0 and deliveryVolume is present "
-                    "and dealer target covers the same year/months as actual"
-                ),
+                "formula": "sourcePhasing * 100",
+                "eligibility": "source phasing is finite and non-null; zero is valid",
+                "sourceFields": {"2025": "phasing_2025", "2026Ytd": "phasing_2026"},
+                "requiresTargetConfirmation": False,
                 "contractPeriod": "same_period_as_actual",
                 "targetKind": "dealer_volume_target",
-                "periodRule": "YTD actual through month N requires dealer target for months 1-N",
+                "periodRule": (
+                    "read source phasing for the matching year; "
+                    "aggregate with same-year source targets"
+                ),
                 "unit": "percent",
                 "apiUnit": "ratio",
                 "sourcePhasingUnit": "ratio",
                 "displayMultiplier": 100,
-                "reference": "sum(deliveryVolume) / sum(contractVolume) for eligible rows",
+                "reference": (
+                    "sum(sourcePhasing * sourceTarget) / sum(sourceTarget) for positive targets"
+                ),
                 "trafficLight": {
                     "relativeYellowBand": 0.1,
                     "aboveBand": "green",
                     "belowBand": "red",
                 },
-                "available": target["available"],
-                "unavailableReason": target["unavailableReason"],
-                "sourcePhasingUsed": False,
-                "availableRecordCounts": {
-                    key: value["availableRecordCount"] for key, value in target["periods"].items()
-                },
+                "available": phasing_available,
+                "unavailableReason": None if phasing_available else "missing_source_phasing",
+                "sourcePhasingUsed": True,
+                "availableRecordCounts": phasing_counts,
             },
         },
         "asOf": None,
