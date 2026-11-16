@@ -1,7 +1,8 @@
 """Describe the actual history source without inventing coverage or relabelling years.
 
-Optional dealer target fields require independent, exact-batch unit and period
-confirmation. A planning-year change cannot manufacture a new history snapshot.
+Dealer target values use the confirmed L source contract; period metadata
+is reported independently of numeric availability. A planning-year change cannot
+manufacture a new history snapshot.
 """
 
 from typing import Any
@@ -20,7 +21,7 @@ def target_manifest(
         histories = [record.get("history", {}) for record in records]
         source_present = any(h.get("targetSourceFields", {}).get(suffix) for h in histories)
         available_count = sum(
-            h.get(f"contract{suffix}") is not None and h[f"contract{suffix}"] > 0
+            h.get(f"contract{suffix}") is not None
             for h in histories
         )
         reasons = sorted({h.get(f"target{suffix}UnavailableReason") for h in histories
@@ -35,6 +36,10 @@ def target_manifest(
                 year == 2025 or coverage and period["endMonth"] == coverage["actualThroughMonth"]
             )),
             "availableRecordCount": available_count,
+            "positiveTargetCount": sum(
+                h.get(f"contract{suffix}") is not None and h[f"contract{suffix}"] > 0
+                for h in histories
+            ),
             "nonNullTargetCount": sum(
                 h.get(f"sourceTarget{suffix}") is not None for h in histories
             ),
@@ -44,14 +49,11 @@ def target_manifest(
     source_present = any(period["sourceFieldPresent"] for period in periods.values())
     available = any(period["availableRecordCount"] for period in periods.values())
     reason = None if available else (
-        "missing_contract_volume" if not source_present else
-        "target_confirmation_expired" if confirmation_status == "expired" else
-        "target_unit_period_unconfirmed" if not target_coverage else
-        "no_eligible_target_records"
+        "missing_contract_volume" if not source_present else "no_available_target_records"
     )
     return {
         "source": HISTORY_SOURCE, "sourceFieldsPresent": source_present,
-        "sourceUnit": target_coverage["sourceUnit"] if target_coverage else None,
+        "sourceUnit": "L",
         "apiUnit": "L", "displayUnit": "KL",
         "confirmationStatus": confirmation_status, "confirmation": target_coverage,
         "periods": periods, "available": available, "unavailableReason": reason,
@@ -79,14 +81,14 @@ def history_manifest(
     phasing_available = any(phasing_counts.values())
     target_missing = (
         ["contractVolume"] if not target["sourceFieldsPresent"] else
-        ["targetUnit", "targetBusinessPeriod"] if not target_coverage else []
+        ["targetBusinessPeriod"] if not target_coverage else []
     )
     target_note = (
-        "经销商同期target已接入。"
+        "经销商target按源表L值读取，页面以KL展示；期间确认状态独立标注。"
         if target["available"] else
-        "经销商target字段已读取，单位或期间确认失效/待确认；不影响读取源Phasing。"
+        "经销商target源字段存在但当前范围没有可用数值；期间确认状态不屏蔽源值。"
         if target["sourceFieldsPresent"] and not target_coverage else
-        "经销商target已确认，但当前范围没有有效的同期正目标记录。"
+        "当前范围没有可用的经销商target源值。"
         if target["sourceFieldsPresent"] else "经销商同期target（合同量）待接入。"
     )
     target_note += (
@@ -233,7 +235,7 @@ def history_manifest(
             "actualBusinessMonth",
             "investmentBusinessMonth",
             *(["contractVolume"] if not target["sourceFieldsPresent"] else [
-                "targetUnit", "targetBusinessPeriod",
+                "targetBusinessPeriod",
             ]),
         ],
         "missingFields": ([] if coverage else [

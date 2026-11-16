@@ -62,12 +62,12 @@ async def project(row_changes=None, target_changes=None, *, actual=True, confirm
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("unit,multiplier", [("L", 1), ("KL", 1000)])
-async def test_target_projection_normalizes_units_but_keeps_source_phasing(unit, multiplier):
+@pytest.mark.parametrize("unit", ["L", "KL"])
+async def test_target_projection_uses_fixed_source_l_despite_legacy_unit_metadata(unit):
     service, records = await project(target_changes={"sourceUnit": unit})
     h = records[0]["history"]
-    assert h["contract2025"] == 20 * multiplier
-    assert h["contract2026Ytd"] == 30 * multiplier
+    assert h["contract2025"] == 20
+    assert h["contract2026Ytd"] == 30
     assert h["sourceTarget2026Ytd"] == 30
     assert h["sourcePhasing2026Ytd"] == 999
     assert h["phasing2026Ytd"] == 999
@@ -98,16 +98,16 @@ async def test_missing_zero_and_negative_targets_do_not_mask_source_phasing(amou
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("unit,multiplier", [("L", 1), ("KL", 1000)])
-async def test_signed_targets_remain_distinct_from_missing_after_normalization(unit, multiplier):
+@pytest.mark.parametrize("unit", ["L", "KL"])
+async def test_signed_targets_remain_distinct_from_missing_in_fixed_source_l(unit):
     _, records = await project(
         {"target_2025": -20, "target_2026": -30}, {"sourceUnit": unit},
     )
     h = records[0]["history"]
     assert h["sourceTarget2025"] == -20
     assert h["sourceTarget2026Ytd"] == -30
-    assert h["contract2025"] == -20 * multiplier
-    assert h["contract2026Ytd"] == -30 * multiplier
+    assert h["contract2025"] == -20
+    assert h["contract2026Ytd"] == -30
     assert h["phasing2025"] == 999
     assert h["phasing2026Ytd"] == 999
     assert h["phasing2025UnavailableReason"] is None
@@ -116,7 +116,9 @@ async def test_signed_targets_remain_distinct_from_missing_after_normalization(u
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("confirmed,fingerprint", [(False, DIGEST), (True, "b" * 32)])
-async def test_signed_source_target_cannot_bypass_confirmation_gates(confirmed, fingerprint):
+async def test_signed_source_target_remains_visible_when_confirmation_expires(
+    confirmed, fingerprint,
+):
     _, records = await project(
         {"target_2025": -20, "target_2026": -30, "_source_fingerprint": fingerprint},
         confirmed=confirmed,
@@ -124,46 +126,47 @@ async def test_signed_source_target_cannot_bypass_confirmation_gates(confirmed, 
     h = records[0]["history"]
     assert h["sourceTarget2025"] == -20
     assert h["sourceTarget2026Ytd"] == -30
-    assert h["contract2025"] is None
-    assert h["contract2026Ytd"] is None
+    assert h["contract2025"] == -20
+    assert h["contract2026Ytd"] == -30
     assert h["phasing2025"] == 999
     assert h["phasing2026Ytd"] == 999
 
 
 @pytest.mark.asyncio
-async def test_new_source_or_missing_confirmation_blocks_target_but_exposes_source_values():
-    for kwargs, reason in [
-        ({"row_changes": {"_source_fingerprint": "b" * 32}}, "target_confirmation_expired"),
-        ({"confirmed": False}, "target_unit_period_unconfirmed"),
+async def test_new_source_or_missing_confirmation_does_not_hide_target_values():
+    for kwargs in [
+        {"row_changes": {"_source_fingerprint": "b" * 32}},
+        {"confirmed": False},
     ]:
         service, records = await project(**kwargs)
         h = records[0]["history"]
         assert h["sourceTarget2025"] == 20
-        assert h["contract2025"] is None
-        assert h["contract2026Ytd"] is None
-        assert h["target2026YtdUnavailableReason"] == reason
+        assert h["contract2025"] == 20
+        assert h["contract2026Ytd"] == 30
+        assert h["target2026YtdUnavailableReason"] is None
+        assert h["targetSourceUnit"] == "L"
         manifest = history_snapshot(
             2027, records, target_confirmation_status=service.target_confirmation_status,
         )["manifest"]
-        assert manifest["target"]["available"] is False
+        assert manifest["target"]["available"] is True
+        assert manifest["target"]["sourceUnit"] == "L"
         assert manifest["metricRules"]["phasing"]["available"] is True
         assert manifest["metricRules"]["phasing"]["unavailableReason"] is None
-        assert "targetUnit" in manifest["missingFields"]
+        assert "targetUnit" not in manifest["missingFields"]
 
 
 @pytest.mark.asyncio
-async def test_ytd_target_requires_actual_period_and_exact_match_without_blocking_2025():
-    for kwargs, reason in [
-        ({"actual": False}, "actual_period_unconfirmed"),
-        ({"target_changes": {"periods": {"2025": {"startMonth": 1, "endMonth": 12},
-                                          "2026": {"startMonth": 1, "endMonth": 12}}}},
-         "target_actual_period_mismatch"),
+async def test_ytd_target_value_is_independent_of_actual_period_metadata():
+    for kwargs in [
+        {"actual": False},
+        {"target_changes": {"periods": {"2025": {"startMonth": 1, "endMonth": 12},
+                                         "2026": {"startMonth": 1, "endMonth": 12}}}},
     ]:
         _, records = await project(**kwargs)
         h = records[0]["history"]
         assert h["contract2025"] == 20
-        assert h["contract2026Ytd"] is None
-        assert h["target2026YtdUnavailableReason"] == reason
+        assert h["contract2026Ytd"] == 30
+        assert h["target2026YtdUnavailableReason"] is None
 
 
 @pytest.mark.asyncio
@@ -235,3 +238,28 @@ async def test_source_phasing_preserves_same_code_distinct_sector_values():
     assert crto[0]["id"] != pcmo[0]["id"]
     assert crto[0]["history"]["phasing2025"] == 1.00
     assert pcmo[0]["history"]["phasing2025"] == 1.17
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("amount,reason", [(None, "missing_target"),
+    (float("nan"), "invalid_target"), (float("inf"), "invalid_target")])
+async def test_direct_target_missing_and_nonfinite_values_remain_json_safe(amount, reason):
+    import json
+
+    _, records = await project({"target_2025": amount, "target_2026": amount}, confirmed=False)
+    h = records[0]["history"]
+    for suffix in ("2025", "2026Ytd"):
+        assert h[f"sourceTarget{suffix}"] is None
+        assert h[f"contract{suffix}"] is None
+        assert h[f"target{suffix}UnavailableReason"] == reason
+    json.dumps(records, allow_nan=False)
+
+
+@pytest.mark.asyncio
+async def test_zero_target_is_available_numeric_data_in_manifest():
+    _, records = await project({"target_2025": 0, "target_2026": 0}, confirmed=False)
+    manifest = history_snapshot(2027, records)["manifest"]
+    assert manifest["target"]["available"] is True
+    for suffix in ("2025", "2026Ytd"):
+        assert manifest["target"]["periods"][suffix]["availableRecordCount"] == 1
+        assert manifest["target"]["periods"][suffix]["positiveTargetCount"] == 0

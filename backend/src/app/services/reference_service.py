@@ -58,6 +58,7 @@ class ReferenceService:
             )
             self.coverage = verified_history_coverage(
                 reference, rows[0].get("_source_fingerprint") if rows else None,
+                rows[0].get("_history_fingerprint") if rows else None,
             )
             self.coverage_confirmation_status = (
                 "verified" if self.coverage else "expired" if has_coverage_confirmation
@@ -207,9 +208,7 @@ class ReferenceService:
 
     def _target_history(self, row: Any) -> dict[str, Any]:
         result: dict[str, Any] = {
-            "targetSourceUnit": (
-                self.target_coverage["sourceUnit"] if self.target_coverage else None
-            ),
+            "targetSourceUnit": "L",
             "targetSourceFields": {},
             "phasingSourceFields": {},
         }
@@ -218,9 +217,17 @@ class ReferenceService:
             raw_phasing = row.get(f"phasing_{year}")
             present = bool(row.get(f"_has_target_{year}", raw_target is not None))
             result["targetSourceFields"][suffix] = present
-            result[f"sourceTarget{suffix}"] = (
-                float(raw_target) if raw_target is not None else None
+            target = float(raw_target) if raw_target is not None else None
+            target_reason = "missing_target_source_field" if not present else (
+                "missing_target" if target is None else None
             )
+            if target is not None and not isfinite(target):
+                target, target_reason = None, "invalid_target"
+            # These data-team-owned columns have a confirmed L source contract.
+            # Coverage metadata may expire without making the numeric source empty.
+            result[f"sourceTarget{suffix}"] = target
+            result[f"contract{suffix}"] = target if present else None
+            result[f"target{suffix}UnavailableReason"] = target_reason
             # Source ratios are the business-authoritative Phasing values. They
             # do not depend on independently confirmed target units or periods.
             result["phasingSourceFields"][suffix] = bool(
@@ -233,35 +240,6 @@ class ReferenceService:
             result[f"sourcePhasing{suffix}"] = phasing
             result[f"phasing{suffix}"] = phasing
             result[f"phasing{suffix}UnavailableReason"] = phasing_reason
-            reason = None
-            if not present:
-                reason = "missing_target_source_field"
-            elif not self.target_coverage:
-                reason = (
-                    "target_confirmation_expired" if self.target_confirmation_status == "expired"
-                    else "target_unit_period_unconfirmed"
-                )
-            elif year == "2026" and not self.coverage:
-                reason = "actual_period_unconfirmed"
-            elif year == "2026" and self.coverage and (
-                self.target_coverage["periods"][year]["endMonth"]
-                != self.coverage["actualThroughMonth"]
-            ):
-                reason = "target_actual_period_mismatch"
-            elif raw_target is None:
-                reason = "missing_target"
-            elif not Decimal(str(raw_target)).is_finite():
-                reason = "invalid_target"
-            target = None
-            if not reason and self.target_coverage:
-                # Known non-positive targets remain distinct from unknown values;
-                # paired Phasing aggregation excludes them, without poisoning all
-                # other eligible rows. Unit/period gates still apply before this.
-                target = float(Decimal(str(raw_target)) * (
-                    1000 if self.target_coverage["sourceUnit"] == "KL" else 1
-                ))
-            result[f"contract{suffix}"] = target
-            result[f"target{suffix}UnavailableReason"] = reason
         return result
 
     async def metadata(self, planning_year: int) -> dict:

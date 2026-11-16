@@ -1,7 +1,7 @@
 """Bind explicit business period confirmation to one source batch; dry-run by default.
 
 Writes only workspace_config.reference/revision and its audit entry, never source data.
-The source digest uses the same full-row PostgreSQL algorithm as assess_sellin_pg.py.
+The history_2026_v1 digest covers only identity and 2026 Actual/expense inputs.
 """
 
 import argparse
@@ -33,17 +33,18 @@ async def confirm(args: argparse.Namespace) -> dict:
                 config = (await session.scalars(
                     select(WorkspaceConfigDO).where(WorkspaceConfigDO.id == 1).with_for_update()
                 )).one()
-                digest = await session.scalar(ReferenceRepository.fingerprint_statement())
+                digest = await session.scalar(ReferenceRepository.history_fingerprint_statement())
                 if digest != args.source_fingerprint:
                     raise ValueError("源批次指纹已变化，必须重新核对该批次期间")
                 confirmation = {
-                    "sourceFingerprint": digest, "year": 2026, "startMonth": 1,
+                    "sourceFingerprint": digest, "sourceFingerprintScope": "history_2026_v1",
+                    "year": 2026, "startMonth": 1,
                     "actualThroughMonth": args.actual_month,
                     "investmentThroughMonth": args.investment_month,
                     "confirmedAt": datetime.now(UTC).isoformat(),
                 }
                 if not verified_history_coverage(
-                    {"historyCoverageConfirmation": confirmation}, digest,
+                    {"historyCoverageConfirmation": confirmation}, None, digest,
                 ):
                     raise ValueError("期间确认参数无效")
                 before = {
@@ -75,7 +76,9 @@ async def confirm(args: argparse.Namespace) -> dict:
                         "业务确认当前源批次Actual与费用累计期间；新批次需重新确认",
                     )
                     await session.flush()
-                    if await session.scalar(ReferenceRepository.fingerprint_statement()) != digest:
+                    if await session.scalar(
+                        ReferenceRepository.history_fingerprint_statement(),
+                    ) != digest:
                         raise ValueError("操作期间源批次已变化，配置修改已回滚")
                     report["afterRevision"] = config.revision
                 return report
@@ -85,7 +88,7 @@ async def confirm(args: argparse.Namespace) -> dict:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source-fingerprint", required=True)
+    parser.add_argument("--source-fingerprint", required=True, help="history_2026_v1 digest")
     parser.add_argument("--actual-month", type=int, required=True)
     parser.add_argument("--investment-month", type=int, required=True)
     parser.add_argument("--expected-revision", type=int)

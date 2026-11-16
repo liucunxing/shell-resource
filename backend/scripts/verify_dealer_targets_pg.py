@@ -1,7 +1,7 @@
 """Read-only reconciliation of optional dealer target fields against the live source.
 
 No business rows, identities or connection strings are written to the report.
-This checks the real PG projection and configured period gates, not a demo fixture.
+This checks the real PG projection and independent period metadata, not a demo fixture.
 """
 
 import argparse
@@ -64,7 +64,7 @@ async def verify() -> dict:
                     ):
                         actual = history.get(field)
                         expected_source = float(source) if source is not None else None
-                        if field.startswith("sourcePhasing") and expected_source is not None:
+                        if expected_source is not None:
                             expected_source = expected_source if isfinite(expected_source) else None
                         assert actual == expected_source, (
                             f"Raw source projection mismatch: {field}"
@@ -84,10 +84,9 @@ async def verify() -> dict:
                         counts["apiTarget"] += 1
                         counts["apiPositiveTarget"] += int(normalized > 0)
                         assert target is not None, "Missing target became an API value"
-                        scale = 1000 if service.target_coverage["sourceUnit"] == "KL" else 1
-                        assert normalized == float(target * scale), "Target scaling mismatch"
-                    elif target is not None:
-                        counts["gated"] += 1
+                        assert normalized == float(target), "Fixed-L source target mismatch"
+                    elif target is not None and isfinite(float(target)):
+                        raise AssertionError("Finite source target was hidden")
                 report["years"][str(year)] = counts
             # Exercise confirmed/unconfirmed unit/period branches entirely in
             # Python memory. This is test input, never business confirmation.
@@ -130,10 +129,8 @@ async def verify() -> dict:
                     history = projected[(row["sector"], row["distributor_code"])]
                     for year, suffix in ((2025, "2025"), (2026, "2026Ytd")):
                         raw = row[f"target_{year}"]
-                        aligned = year == 2025 or month == actual_month
-                        expected = float(raw * (1000 if unit == "KL" else 1)) if (
-                            aligned and raw is not None
-                        ) else None
+                        expected = float(raw) if raw is not None else None
+                        expected = expected if expected is None or isfinite(expected) else None
                         assert history[f"contract{suffix}"] == expected
                         source_ratio = row[f"phasing_{year}"]
                         ratio = float(source_ratio) if source_ratio is not None else None
