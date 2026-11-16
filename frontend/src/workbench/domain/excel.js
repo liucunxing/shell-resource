@@ -283,6 +283,49 @@ async function exportSelectedRoster(rows, dealers) {
   style(sheet, [24, 48, 24, 24, 18, 24]);
   return book.xlsx.writeBuffer();
 }
+async function previewRosterImport(buffer, state, id, identity, dealers) {
+  const out = { initiativeId: id, revision: null, rows: [], otherBudgets: [], errors: [], changes: [], summary: { before: 0, after: 0, gap: 0 } };
+  let initiative;
+  try { initiative = editable(state, id, identity); }
+  catch (error) { out.errors.push(error.message); return out; }
+  out.revision = initiative.revision;
+  out.summary.before = total(initiative);
+  out.rows = clone(initiative.rows);
+  out.otherBudgets = clone(currentOther(initiative));
+  const book = new (await excelLibrary()).Workbook();
+  try { await book.xlsx.load(buffer); }
+  catch { out.errors.push("文件不是可读取的 Excel 工作簿，请使用下载的名单 Excel。"); return out; }
+  const sheet = book.getWorksheet("已选经销商");
+  if (!sheet || book.worksheets.length !== 1) { out.errors.push("请使用下载的已选经销商名单 Excel。"); return out; }
+  if (sheet.rowCount > 5001) { out.errors.push("单次最多导入 5000 行。"); return out; }
+  const read = readFactory(out);
+  checkHeaders(read, out, sheet, ["经销商编码", "经销商名称", "SD", "RSM", "状态", "已分配（元）"]);
+  checkWidth(out, sheet, 6);
+  const seen = new Set();
+  let count = 0;
+  for (let n = 2; n <= sheet.rowCount; n++) {
+    const cells = [1, 2, 3, 4, 5, 6].map((column) => read(sheet, n, column));
+    if (cells.every((value) => value === "")) continue;
+    count++;
+    const [code, , sd, rsm, , amount] = cells;
+    const matches = dealers.filter((dealer) => isActiveDealer(dealer) && (!dealer.sector || dealer.sector === initiative.sector) &&
+      String(dealer.code || dealer.id) === String(code).trim() && String(dealer.sd || "") === String(sd).trim() && String(dealer.rsm || "") === String(rsm).trim());
+    if (matches.length !== 1) { out.errors.push(`第${n}行编码、SD、RSM 无法唯一匹配当前业务线的 Active 经销商。`); continue; }
+    const dealerId = matches[0].id;
+    if (seen.has(String(dealerId))) { out.errors.push(`第${n}行经销商重复。`); continue; }
+    seen.add(String(dealerId));
+    const value = money(amount, out, `第${n}行金额`);
+    const index = out.rows.findIndex((row) => String(row.dealerId) === String(dealerId));
+    const before = index < 0 ? null : out.rows[index];
+    const after = before ? { ...before, amount: value } : { dealerId, amount: value, note: "" };
+    if (index < 0) out.rows.push(after); else out.rows[index] = after;
+    if (!before || before.amount !== after.amount) out.changes.push({ dealerId, before, after });
+  }
+  if (!count) out.errors.push("名单中没有可导入的经销商。");
+  out.summary.after = round(out.rows.reduce((sum, row) => sum + row.amount, 0) + out.otherBudgets.reduce((sum, row) => sum + row.amount, 0));
+  out.summary.gap = round(initiative.budget - out.summary.after);
+  return out;
+}
 function parseOtherV14(sheet, state, out, read) {
   checkHeaders(read, out, sheet, OTHER_HEAD);
   checkWidth(out, sheet, 3);
@@ -616,6 +659,7 @@ export default {
   exportWorkbook,
   exportDealerDirectory,
   exportSelectedRoster,
+  previewRosterImport,
   previewImport,
   confirmImport,
 };
