@@ -311,11 +311,6 @@ function updateInitiative(state, id, patch, identity, data) {
       (k) => delete normalized[k],
     );
   }
-  if (normalized.rows) {
-    const existing = new Set(i.rows.map((row) => String(row.dealerId)));
-    if (normalized.rows.some((row) => !existing.has(String(row.dealerId))))
-      fail("当前不允许新增经销商分配。");
-  }
   const candidate = Object.assign({}, i, normalized, {
     _budgetReasons: state.budgetReasons,
   });
