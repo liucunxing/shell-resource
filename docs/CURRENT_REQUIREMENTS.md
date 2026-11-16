@@ -1,5 +1,7 @@
 # 当前业务与数据要求
 
+2026-11-16 当前范围确认：旧右侧抽屉的历史参考、Insight、嵌入 Data Agent 不属于本版，直接清理其前后端模块、专属测试及构建引用。保留组合页/编辑页历史指标、经销商数据和正常详情下钻；Portal 登录与认证代码暂不使用但保留。保留数据库历史表和既有迁移，不执行数据删除。本轮集中推送，不部署。
+
 更新：2026-11-15。用户已确认V20并授权同步工程、测试后推送，批准基线与详细改动见[V20同步说明](V20_IMPLEMENTATION.md)。指标依据供应商V2.0第3、11–14章及用户后续确认；较早文档的全年YTD合同、PPP目标、角色扩张费用权限等说法已被本页替代。保留部门确认后冻结、部门确认与版本隔离。
 
 ## 规划与协作
@@ -37,9 +39,9 @@ Owner 主导航顺序：我的 Initiative → 拆分工作台 → 我的投入�
 |---|---|---|
 | 预算、分配、其他预算、规划版本与流转 | PostgreSQL `data` schema | 通过后端按用户范围读取/写入 |
 | 经销商名单、Vol/C3、历史费用 | PG `data.distributor_sellin_resource_history` | 当前宽表为 2024/2025/2026 字段；并非应用实时查询 Databricks |
-| 用户、所属组织、权限、配置、审计、Insight 记录 | PostgreSQL | Insight 使用授权范围事实，模型连接另行配置 |
+| 用户、所属组织、权限、配置、审计 | PostgreSQL | 由后端校验当前身份与业务范围 |
 | Databricks 预留集成 | 应用 SP 对应的 `prod.resource_planning` | 不能将个人可读的其他 schema 直接接入应用 |
-| 小 One | 独立服务入口/iframe | 资源工具代码不能证明下游实际数据源或授权范围 |
+| Portal 登录 | 保留现有认证代码 | 用户暂不使用，按要求保留，不与已移除的嵌入 Data Agent 混同 |
 
 旧 `/admin/reference` 导入写入 `workspace_references`，不等于更新当前历史宽表。代码中保留的 Databricks 配置与 Repository 不等于当前页面已调用 Databricks。
 

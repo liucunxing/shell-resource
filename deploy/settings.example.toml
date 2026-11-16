@@ -2,16 +2,6 @@
 # This file is a template only. Never commit the populated settings.toml.
 
 [development]
-# FineReport direct exchange. See the explicit access modes below.
-data_agent_base_url = ""
-data_agent_api_token = ""
-data_agent_ingress_key = ""
-data_agent_space = "default"
-# workbench: all enabled workbench users after verified identity; no per-user list.
-# workbench_email: explicitly trust the existing email entry (non-production only).
-# uat: additionally restrict to data_agent_uat_emails (default, fail closed).
-data_agent_access_mode = "uat"
-data_agent_uat_emails = []
 app_name = "资源投资工作台 UAT"
 app_version = "1.4.0"
 debug = false
@@ -22,16 +12,6 @@ db_echo = false
 cors_origins = []
 serve_frontend = true
 frontend_dist_path = "/app/frontend/dist"
-
-ai_base_url = ""
-ai_model = "qwen-plus"
-ai_api_key = ""
-ai_timeout_seconds = 60
-insight_timeout_seconds = 60
-# Review signals in CNY; not automatic approval/rejection rules.
-insight_investment_increase_multiple = 2.0
-insight_investment_decrease_multiple = 0.5
-insight_investment_absolute_change = 50000
 
 azure_blob_test_upload_enabled = false
 azure_blob_account_url = ""
@@ -82,16 +62,6 @@ db_echo = false
 cors_origins = []
 serve_frontend = true
 frontend_dist_path = "/app/frontend/dist"
-
-ai_base_url = ""
-ai_model = "qwen-plus"
-ai_api_key = ""
-ai_timeout_seconds = 60
-insight_timeout_seconds = 60
-# Review signals in CNY; not automatic approval/rejection rules.
-insight_investment_increase_multiple = 2.0
-insight_investment_decrease_multiple = 0.5
-insight_investment_absolute_change = 50000
 
 azure_blob_test_upload_enabled = false
 azure_blob_account_url = ""

@@ -4,8 +4,6 @@ import E from "../src/workbench/domain/engine.js";
 import D from "../src/workbench/domain/demo-data.json";
 import { UserPreviewBanner } from "../src/workbench/UserPreviewBanner";
 import { EditorPage } from "../src/workbench/pages/EditorPage.jsx";
-import { InsightPanel } from "../src/workbench/pages/InsightPanel.jsx";
-import { WorkPanel } from "../src/workbench/WorkPanel.jsx";
 import WorkbenchApp from "../src/workbench/WorkbenchApp.jsx";
 import { AdminUsersPanel } from "../src/workbench/pages/AdminUsersPanel.jsx";
 import { HistoricalResourceSettings } from "../src/workbench/pages/HistoricalResourceSettings.jsx";
@@ -21,8 +19,7 @@ beforeEach(() => {
   shared.context = { state, identity, data: D, view: E.selectView(state, identity), apiMode: true,
     previewMode: true, previewActor: { email: "admin@example.test" },
     initiativeId: item.id, dirtyIds: new Set(), savedForSyncIds: new Set(),
-    editorOperations: {}, directoryStatus: {}, notify: vi.fn(), loadDistributorDirectory: vi.fn(),
-    auxiliary: { open: true, tab: "chat" } };
+    editorOperations: {}, directoryStatus: {}, notify: vi.fn(), loadDistributorDirectory: vi.fn() };
 });
 
 describe("user preview read-only surfaces", () => {
@@ -42,19 +39,6 @@ describe("user preview read-only surfaces", () => {
     expect(html).not.toContain(">同步最新分配<");
     expect(html).not.toContain(">按比例分配<");
     expect(html).not.toContain('type="file"');
-  });
-
-  it("keeps Insight visible but disables generation", () => {
-    const html = renderToStaticMarkup(<InsightPanel />);
-    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>生成分析<\/button>/);
-  });
-
-  it("never mounts a Data Agent frame during a user preview", () => {
-    const html = renderToStaticMarkup(<WorkPanel overlay={false} />);
-    expect(html).toContain("模拟查看期间暂停问数");
-    expect(html).not.toContain('title="Data Agent 问数界面"');
-    expect(html).not.toContain("正在打开 Data Agent");
-    expect(html).not.toContain("embedded-ask");
   });
 
   it("keeps a return path after a simulated user's refresh fails", () => {
@@ -77,8 +61,5 @@ describe("user preview read-only surfaces", () => {
       departments={["MKT"]} saveConfig={vi.fn()} readOnly />);
     expect(settings).toMatch(/<input[^>]*disabled=""/);
     expect(settings).toMatch(/<button[^>]*disabled=""[^>]*>保存部门默认<\/button>/);
-    const insight = renderToStaticMarkup(<InsightPanel />);
-    expect(insight).toMatch(/<select\b(?=[^>]*aria-label="模拟用户视角")(?=[^>]*disabled="")[^>]*>/);
-    expect(insight).toMatch(/<button[^>]*disabled=""[^>]*>试用分析<\/button>/);
   });
 });

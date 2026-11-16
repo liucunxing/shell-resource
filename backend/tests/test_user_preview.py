@@ -1,7 +1,6 @@
 """Admin previews use target permissions without changing either login session."""
 
 from dataclasses import dataclass
-from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -9,10 +8,8 @@ import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.controllers import data_agent_controller
 from app.models.do.base import BaseDO
 from app.models.do.workspace import UserPermissionDO
-from app.services.insight_service import InsightService
 from test_portal_receiver import PREFIX, Harness
 from test_portal_receiver import harness as harness
 
@@ -98,20 +95,19 @@ async def test_preview_owner_cannot_read_other_owners_or_admin_apis(preview_api)
 
 
 @pytest.mark.asyncio
-async def test_insight_read_uses_target_owner_and_rejects_another_scope(preview_api):
+async def test_retired_insight_read_has_no_real_or_preview_entry(preview_api):
     api = preview_api
     path = f"/insights?planning_year=2027&scope=owner:{OWNER}"
     direct = await api.client.get(
         "/api/v1/workbench" + path, headers={"X-User-Email": OWNER},
     )
     preview = await api.client.get(api.prefix + path, headers=api.headers())
-    assert preview.status_code == direct.status_code == 200, preview.text
-    assert preview.json() == direct.json()
+    assert preview.status_code == direct.status_code == 404, preview.text
     denied = await api.client.get(
         api.prefix + "/insights?planning_year=2027&scope=owner:b@example.com",
         headers=api.headers(),
     )
-    assert denied.status_code == 403
+    assert denied.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -239,19 +235,11 @@ async def snapshot(db: AsyncSession) -> dict:
     ("PUT", "/admin/users/1", {}),
     ("DELETE", "/admin/users/1", None),
     ("PUT", "/admin/config", {}),
-    ("POST", "/admin/reference", {}),
-    ("PUT", "/insights/prompt", {}),
-    ("POST", "/insights/generate", {"scope": "global", "planning_year": 2027}),
-    ("POST", "/insights/preview", {
-        "scope": "global", "planning_year": 2027, "user_email": "management@example.com",
-    }),
 ])
 async def test_preview_rejects_writes_without_mutation(
-    preview_api, monkeypatch, method, path, body,
+    preview_api, method, path, body,
 ):
     api = preview_api
-    generate = AsyncMock(return_value={})
-    monkeypatch.setattr(InsightService, "generate", generate)
     before = await snapshot(api.db)
     response = await api.client.request(
         method, api.prefix + path, headers=api.headers(ADMIN), json=body,
@@ -259,26 +247,21 @@ async def test_preview_rejects_writes_without_mutation(
     assert response.status_code == 403, response.text
     assert "仅供查看" in response.json()["msg"]
     assert await snapshot(api.db) == before
-    generate.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_admin_target_cannot_nest_insight_preview(preview_api):
+async def test_retired_insight_preview_has_no_admin_entry(preview_api):
     api = preview_api
     response = await api.client.get(
         api.prefix + "/insights/preview?user_email=a@example.com&planning_year=2027",
         headers=api.headers(ADMIN),
     )
-    assert response.status_code == 403
-    assert "退出模拟" in response.json()["msg"]
+    assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_preview_cannot_launch_data_agent(preview_api, monkeypatch):
+async def test_preview_cannot_launch_data_agent(preview_api):
     api = preview_api
-    exchange = AsyncMock(return_value="https://vendor.example.invalid/")
-    monkeypatch.setattr(data_agent_controller, "exchange_data_agent_ticket", exchange)
     response = await api.client.post(api.prefix + "/data-agent/launch", headers=api.headers())
-    # The Portal receiver deliberately has no direct Data Agent launch endpoint.
-    assert response.status_code == (404 if api.portal else 403)
-    exchange.assert_not_awaited()
+    # Neither V20 entry mounts the retired embedded Data Agent controller.
+    assert response.status_code == 404

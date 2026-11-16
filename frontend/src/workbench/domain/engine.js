@@ -402,6 +402,9 @@ function snapshotInternal(state, dep, versionId) {
 function migrateState(state) {
   if (!state || !Array.isArray(state.initiatives) || !state.departments)
     fail("工作台状态不完整。");
+  // Discard retired local analysis caches without changing allocation snapshots.
+  delete state.insights;
+  delete state.analysisPrompts;
   const configured = Array.isArray(state.budgetReasons)
     ? state.budgetReasons
     : [];
@@ -553,6 +556,10 @@ function getSnapshot(state, dep, versionId, identity) {
     fail("无权读取其它部门的提交明细。");
   const snapshot = snapshotInternal(state, dep, versionId);
   if (!snapshot) return null;
+  // Old local snapshots may contain retired analysis payloads.
+  delete snapshot.insight;
+  delete snapshot.insightStatus;
+  delete snapshot.analysisBasis;
   if (identity.role === "owner") {
     const currentlyOwnedIds = new Set(
       state.initiatives
@@ -563,26 +570,8 @@ function getSnapshot(state, dep, versionId, identity) {
     snapshot.initiatives = snapshot.initiatives.filter((i) =>
       currentlyOwnedIds.has(i.id),
     );
-    // Department analysis and submission notes may quote colleagues' rows.
-    // Owner receives only fixed metadata plus their own initiative snapshot.
-    if (snapshot.insight)
-      snapshot.insightStatus = {
-        createdAt: snapshot.insight.createdAt,
-        stale: Boolean(snapshot.insight.staleAtSubmission),
-        promptVersion: snapshot.insight.promptVersion || 1,
-      };
-    delete snapshot.insight;
+    // Submission notes may quote colleagues; expose only the owner’s own rows.
     delete snapshot.note;
-    if (snapshot.analysisBasis) {
-      const basis = snapshot.analysisBasis;
-      snapshot.analysisBasis = {
-        status: basis.status,
-        generatedAt: basis.generatedAt,
-        guideVersion: basis.guideVersion,
-        promptVersion: basis.promptVersion,
-        staleAtSubmission: basis.staleAtSubmission,
-      };
-    }
     snapshot.visibility = "本人明细及部门汇总";
   }
   return snapshot;
@@ -597,8 +586,6 @@ function selectView(state, identity) {
     initiatives: [],
     departments: {},
     summaries: {},
-    insights: {},
-    insightStatus: {},
     reference: clone(state.reference),
     guide:
       identity.role === "owner"
@@ -652,34 +639,6 @@ function selectView(state, identity) {
           ),
         ),
       });
-      if (state.insights[dep]) {
-        if (identity.role === "owner")
-          result.insightStatus[dep] = {
-            createdAt: state.insights[dep].createdAt,
-            stale: insightIsStale(state, dep),
-            promptVersion: state.insights[dep].promptVersion || 1,
-          };
-        else
-          result.insights[dep] = Object.assign(clone(state.insights[dep]), {
-            stale: insightIsStale(state, dep),
-          });
-      }
-      if (identity.role === "owner") {
-        const ownerScope = "owner:" + identity.ownerId;
-        if (state.insights[ownerScope])
-          result.insights[ownerScope] = Object.assign(
-            clone(state.insights[ownerScope]),
-            { stale: insightIsStale(state, ownerScope) },
-          );
-        visible.forEach((item) => {
-          const itemScope = "initiative:" + item.id;
-          if (state.insights[itemScope])
-            result.insights[itemScope] = Object.assign(
-              clone(state.insights[itemScope]),
-              { stale: insightIsStale(state, itemScope) },
-            );
-        });
-      }
       // Final ids from other departments do not belong in an Owner/Lead view.
       result.final = state.final
         ? {
@@ -746,31 +705,7 @@ function submit(state, dep, identity, data, note) {
     initiatives: clone(items),
     reference: clone(state.reference),
     guideVersion: state.guide.version,
-    insight: state.insights[dep] ? clone(state.insights[dep]) : null,
   };
-  if (version.insight)
-    version.insight.staleAtSubmission = insightIsStale(state, dep);
-  version.analysisBasis = version.insight
-    ? {
-        insightId: version.insight.id,
-        status: version.insight.status,
-        generatedAt: version.insight.createdAt,
-        reference: clone(version.insight.reference),
-        guideVersion: version.insight.guideVersion,
-        promptVersion: version.insight.promptVersion || 1,
-        basisToken: version.insight.signature,
-        staleAtSubmission: version.insight.staleAtSubmission,
-      }
-    : {
-        insightId: null,
-        status: "not_generated",
-        generatedAt: null,
-        reference: null,
-        guideVersion: null,
-        promptVersion: null,
-        basisToken: null,
-        staleAtSubmission: null,
-      };
   d.versions.push(version);
   d.activeVersionId = version.id;
   d.status = "submitted";
@@ -827,21 +762,6 @@ function getBudgetReasons(state, identity) {
   identityCheck(identity);
   return clone(state.budgetReasons);
 }
-function clearReassignmentCaches(
-  state,
-  initiativeId,
-  previousOwnerId,
-  nextOwnerId,
-) {
-  [
-    "owner:" + previousOwnerId,
-    "owner:" + nextOwnerId,
-    "initiative:" + initiativeId,
-  ].forEach((scope) => {
-    delete state.insights[scope];
-    if (state.analysisPrompts) delete state.analysisPrompts[scope];
-  });
-}
 function validateOwnerAssignment(item, ownerId, identity, users = []) {
   if (identity?.apiMode) {
     const owner = users.find(
@@ -865,7 +785,6 @@ function setOwner(state, id, ownerId, identity) {
   if (item.ownerId === ownerId) return clone(item);
   const previousOwnerId = item.ownerId;
   item.ownerId = ownerId;
-  clearReassignmentCaches(state, item.id, previousOwnerId, ownerId);
   changed(item);
   audit(
     state,
@@ -875,8 +794,7 @@ function setOwner(state, id, ownerId, identity) {
     "Owner " +
       previousOwnerId +
       " → " +
-      ownerId +
-      "；已清除归属相关 Insight 与提示词缓存。",
+      ownerId,
   );
   return clone(item);
 }
@@ -1033,12 +951,6 @@ function applyAdminConfiguration(
     const previous = { budget: i.budget, ownerId: i.ownerId };
     i.budget = patch.budget;
     i.ownerId = patch.ownerId;
-    if (previous.ownerId !== i.ownerId) {
-      // An Owner-scoped record may contain allocations and narrative that are
-      // no longer authorized once the Initiative is reassigned.  Remove it
-      // rather than presenting it as merely stale to either side.
-      clearReassignmentCaches(state, i.id, previous.ownerId, i.ownerId);
-    }
     changed(i);
     audit(
       state,
@@ -1100,543 +1012,16 @@ function editAdminBudget(state, id, fields, identity, users = []) {
   const candidate = clone(state);
   candidate.initiatives = candidate.initiatives.filter((item) => item.id !== id);
   applyAdminConfiguration(candidate, [], identity, users, [fields]);
-  const previousOwner = current.ownerId;
-  const previousDepartment = current.department;
   Object.assign(current, fields);
   changed(current);
-  clearReassignmentCaches(state, id, previousOwner, fields.ownerId);
-  for (const department of [previousDepartment, fields.department]) {
-    delete state.insights["department:" + department];
-    if (state.analysisPrompts) delete state.analysisPrompts["department:" + department];
-  }
   audit(state, identity, "edit_admin_budget", id, "编辑全部配置；保留分配，需重新同步。");
 }
 function deleteAdminBudget(state, id, identity) {
   role(identity, "admin");
   const current = initiative(state, id);
-  clearReassignmentCaches(state, id, current.ownerId, current.ownerId);
   state.initiatives = state.initiatives.filter((item) => item.id !== id);
   delete state.publications[id];
   audit(state, identity, "delete_admin_budget", id, "删除项目：" + current.name);
-}
-function changeReference(state, identity) {
-  role(identity, "admin");
-  state.reference = {
-    batchId: uid("MOCK-REF"),
-    asOf: state.reference.asOf,
-    importedAt: now(),
-  };
-  audit(
-    state,
-    identity,
-    "change_reference",
-    state.reference.batchId,
-    "模拟发布新批次；历史数值未补造，已提交快照保持原依据。",
-  );
-  return clone(state.reference);
-}
-function setGuide(state, text, identity) {
-  role(identity, "admin");
-  if (!hasText(text)) fail("业务分析指南不能为空。");
-  state.guide = { version: state.guide.version + 1, text: text.trim() };
-  audit(state, identity, "set_guide", "guide", "指南 v" + state.guide.version);
-  return clone(state.guide);
-}
-const DEFAULT_ANALYSIS_PROMPT =
-  "请按以下六点分析，每点 1–3 句话并给出证据与复核方向：1. 历史低 Yield 与未来投入；2. 历史高 Yield 与未来投入；3. 头部 Distributor 集中度；4. 跨部门或多 Initiative 叠加；5. 分配变化与历史 Vol/C3 趋势；6. 预算完整性及尚未到经销商的预算。只使用当前权限内事实，不作因果推断，不将排序作为阈值，不将 2026 年累计与全年比较。此配置用于模拟分析依据展示，模板不会执行任意自然语言指令。";
-function insightScope(state, scope) {
-  if (scope === "global")
-    return {
-      kind: "global",
-      scope,
-      department: null,
-      items: DEPARTMENTS.flatMap((dep) =>
-        latestPublishedItemsInternal(state, dep),
-      ),
-    };
-  if (typeof scope === "string" && scope.startsWith("initiative:")) {
-    const item = initiative(state, scope.slice("initiative:".length));
-    return {
-      kind: "initiative",
-      scope,
-      department: item.department,
-      ownerId: item.ownerId,
-      items: [item],
-      initiativeId: item.id,
-    };
-  }
-  if (typeof scope === "string" && scope.startsWith("owner:")) {
-    const ownerId = scope.slice("owner:".length);
-    const items = state.initiatives.filter((item) => item.ownerId === ownerId);
-    if (!items.length) fail("Owner Insight 范围不存在。");
-    return {
-      kind: "owner",
-      scope,
-      department: items[0].department,
-      ownerId,
-      items,
-    };
-  }
-  department(state, scope);
-  return {
-    kind: "department",
-    scope,
-    department: scope,
-    items: itemsFor(state, scope),
-  };
-}
-function assertInsightScopeAccess(state, descriptor, identity, allowAdmin) {
-  identityCheck(identity);
-  if (identity.role === "admin") {
-    if (allowAdmin) return;
-    fail("管理员无权读取分配分析内容。");
-  }
-  if (descriptor.kind === "global") {
-    if (identity.role !== "management") fail("仅管理层可查看全局 Insight。");
-    return;
-  }
-  if (identity.role === "lead" && hasDepartment(identity, descriptor.department) && descriptor.items.every((item) => hasDepartment(identity, item.department)))
-    return;
-  if (
-    identity.role === "owner" &&
-    descriptor.ownerId === identity.ownerId &&
-    hasDepartment(identity, descriptor.department) &&
-    descriptor.items.every((item) => hasDepartment(identity, item.department))
-  )
-    return;
-  fail("无权读取或编辑此 Insight 范围。");
-}
-function effectivePrompt(state, scope) {
-  return Object.assign(
-    { text: DEFAULT_ANALYSIS_PROMPT, version: 1 },
-    (state.analysisPrompts || {})[scope] || {},
-    { scope },
-  );
-}
-function getAnalysisPrompt(state, scope, identity) {
-  migrateState(state);
-  const descriptor = insightScope(state, scope);
-  assertInsightScopeAccess(state, descriptor, identity, true);
-  const editable =
-    identity.role === "admin" ||
-    (identity.role === "lead" &&
-      descriptor.kind === "department" &&
-      hasDepartment(identity, descriptor.department)) ||
-    (identity.role === "owner" &&
-      ["owner", "initiative"].includes(descriptor.kind)) ||
-    false;
-  return Object.assign({}, effectivePrompt(state, scope), { editable });
-}
-function setAnalysisPrompt(state, scope, text, identity) {
-  const current = getAnalysisPrompt(state, scope, identity);
-  if (!current.editable) fail("当前角色无权编辑此范围的分析提示词。");
-  if (!hasText(text)) fail("分析提示词不能为空。");
-  if (text.trim().length > 12000) fail("分析提示词最多 12000 字。");
-  state.analysisPrompts = state.analysisPrompts || {};
-  state.analysisPrompts[scope] = {
-    text: text.trim(),
-    version: current.version + 1,
-  };
-  audit(
-    state,
-    identity,
-    "set_analysis_prompt",
-    scope,
-    "提示词 v" + (current.version + 1),
-  );
-  return getAnalysisPrompt(state, scope, identity);
-}
-// Bump whenever analysis semantics or shared historical authorization changes.
-const ANALYSIS_BASIS_VERSION = "2026-10-20-latest-publication-owner-scope-dealer-sector-v2";
-function signature(state, scope) {
-  migrateState(state);
-  const descriptor = insightScope(state, scope);
-  const basis = descriptor.items.map((i) => [
-    i.id,
-    i.revision,
-    i.publicationId || null,
-    i.publishedRevision || null,
-    i.publishedAt || null,
-    i.budget,
-    i.rows,
-    i.reserve,
-    i.reserveNote,
-    i.nonDealer,
-    i.otherBudgets,
-  ]);
-  const input = JSON.stringify({
-    analysisBasisVersion: ANALYSIS_BASIS_VERSION,
-    scope,
-    basis,
-    reference: state.reference,
-    guideVersion: state.guide.version,
-    budgetReasons: state.budgetReasons,
-    budgetReasonVersion: state.budgetReasonVersion,
-    prompt: effectivePrompt(state, scope),
-  });
-  // A compact change-detection token only; not an authentication or security primitive.
-  let a = 2166136261,
-    b = 2246822507;
-  for (let n = 0; n < input.length; n++) {
-    a = Math.imul(a ^ input.charCodeAt(n), 16777619);
-    b = Math.imul(b ^ input.charCodeAt(n), 3266489909);
-  }
-  return (
-    "basis-" +
-    (a >>> 0).toString(16).padStart(8, "0") +
-    (b >>> 0).toString(16).padStart(8, "0")
-  );
-}
-function insightIsStale(state, scope) {
-  const record = state.insights[scope];
-  return (
-    !record ||
-    record.signature !== signature(state, scope) ||
-    record.reference.batchId !== state.reference.batchId
-  );
-}
-function generateInsight(state, scope, identity, options) {
-  migrateState(state);
-  const descriptor = insightScope(state, scope);
-  assertInsightScopeAccess(state, descriptor, identity, false);
-  if (descriptor.kind === "global" && !(options && options.preview))
-    fail("管理层 Insight 为只读预览，不写入工作台状态。");
-  if (
-    descriptor.kind === "department" &&
-    identity.role !== "lead" &&
-    identity.role !== "admin"
-  )
-    fail("仅本部门负责人可生成部门 Insight。");
-  if (options && options.fail)
-    fail("模拟 Insight 生成失败；原记录保留，草稿不受影响。");
-  let source,
-    reference = clone(state.reference),
-    basisLabel,
-    publicationReferences = null;
-  if (descriptor.kind === "global") {
-    source = descriptor.items;
-    if (!source.length) fail("暂无已发布 Initiative，不能生成管理层预览。");
-    publicationReferences = source.map((item) => {
-      const publication = latestPublicationInternal(state, item.id);
-      return {
-        initiativeId: item.id,
-        publicationId: publication.id,
-        reference: clone(publication.reference),
-      };
-    });
-    const batches = [
-      ...new Set(publicationReferences.map((item) => item.reference.batchId)),
-    ];
-    reference =
-      batches.length === 1
-        ? clone(publicationReferences[0].reference)
-        : {
-            batchId: "MIXED-PUBLISHED-REFERENCES",
-            asOf: null,
-            importedAt: null,
-          };
-    basisLabel =
-      "各部门最新已发布 Initiative · " +
-      source.length +
-      " 项" +
-      (batches.length === 1
-        ? " · 参考 " + batches[0]
-        : " · 发布参考批次不一致，需分别复核");
-  } else if (["owner", "initiative"].includes(descriptor.kind)) {
-    source = descriptor.items;
-    basisLabel =
-      descriptor.kind === "initiative"
-        ? "本人当前 Initiative 工作稿"
-        : "本人当前 Initiative 汇总工作稿";
-  } else {
-    source = descriptor.items;
-    basisLabel = "本部门当前工作稿";
-  }
-  if (
-    descriptor.kind === "department" &&
-    reference.batchId !== state.reference.batchId
-  )
-    fail(
-      "当前提交版本绑定旧参考批次，不能生成当前有效 Insight；请查看原分析记录，或退回方案后按新批次重新提交。",
-    );
-  const total = totals(source);
-  const reasonLabels = new Map(
-    state.budgetReasons.map((row) => [row.id, row.label]),
-  );
-  const otherByReason = new Map();
-  source.forEach((item) =>
-    budgetRows(item).forEach((row) => {
-      otherByReason.set(
-        row.reasonId,
-        (otherByReason.get(row.reasonId) || 0) + cents(row.amount || 0),
-      );
-    }),
-  );
-  const dealerTotals = new Map();
-  source.forEach((i) =>
-    i.rows.forEach((r) => {
-      if (cents(r.amount) <= 0) return;
-      const d = dealerTotals.get(r.dealerId) || {
-        amount: 0,
-        initiatives: new Set(),
-        departments: new Set(),
-      };
-      d.amount += cents(r.amount);
-      d.initiatives.add(i.id);
-      d.departments.add(i.department);
-      dealerTotals.set(r.dealerId, d);
-    }),
-  );
-  const ranked = Array.from(dealerTotals, ([id, d]) => ({ id, ...d })).sort(
-    (a, b) => b.amount - a.amount || String(a.id).localeCompare(String(b.id)),
-  );
-  const format = (value) =>
-    Number(value).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
-  const rawCandidates = new Map();
-  const rawRecords = (((options || {}).data || {}).dealers || []);
-  rawRecords.forEach((dealer) => {
-    const sectors = new Set(source.filter((item) => item.rows.some((row) => String(row.dealerId) === String(dealer.id)))
-      .map((item) => item.sector).filter(Boolean));
-    if (dealer.sector && sectors.size && !sectors.has(dealer.sector)) return;
-    const code = String(dealer.id);
-    rawCandidates.set(code, [...(rawCandidates.get(code) || []), dealer]);
-  });
-  // Multi-sector ratios have no agreed aggregation rule; keep them unavailable.
-  const rawDealers = new Map([...rawCandidates].filter(([, rows]) => rows.length === 1)
-    .map(([code, rows]) => [code, rows[0]]));
-  const history = (id) => (rawDealers.get(id) || {}).history || {};
-  const numeric = (value) =>
-    typeof value === "number" && Number.isFinite(value);
-  const make = (key, finding, object, evidence, review, status) => ({
-    key,
-    finding,
-    object,
-    evidence,
-    review,
-    text: evidence + review,
-    status,
-  });
-  const top = ranked[0];
-  const topFact = top
-    ? top.id + " 的本范围 2027 分配为 " + format(money(top.amount)) + "。"
-    : "本范围暂无经销商分配。";
-  const yieldRows = ranked
-    .map((d) => {
-      const h = history(d.id);
-      const value = h.yield;
-      return numeric(value) && value > 0 ? { ...d, yield: value } : null;
-    })
-    .filter(Boolean)
-    .sort(
-      (a, b) => a.yield - b.yield || String(a.id).localeCompare(String(b.id)),
-    );
-  const yieldItem = (high) => {
-    const key = high ? "high_yield" : "low_yield";
-    const finding = high
-      ? "历史高 Yield 与未来投入不足复核"
-      : "历史低 Yield 与未来高投入复核";
-    const candidate = yieldRows[high ? yieldRows.length - 1 : 0];
-    if (!candidate)
-      return make(
-        key,
-        finding,
-        top ? top.id : scope,
-        (ranked.some((dealer) => numeric(history(dealer.id).yield) && history(dealer.id).yield <= 0)
-          ? "本范围没有可参与比较的历史 Yield；非正值不参与分析。"
-          : "缺少源数据提供的 Yield，暂不能进行历史 Yield 对比。") + topFact,
-        "请补齐同年历史依据后结合未来业务计划复核，不能仅凭投入金额认定投入过高或不足。",
-        "limited",
-      );
-    const h = history(candidate.id);
-    return make(
-      key,
-      finding,
-      candidate.id,
-      candidate.id +
-        " 在本范围有可比历史且参与分配的经销商中，2025 全年 Yield 相对" +
-        (high ? "最高" : "最低") +
-        "，为 " +
-        format(candidate.yield) +
-        "（C3美元/历史投资美元，历史投资已按配置汇率统一为美元）" +
-        "；本范围 2027 分配 " +
-        format(money(candidate.amount)) +
-        "。",
-      "这是相对排序而非判断标准；尚无 2027 业务预测，需核对新增目标及投入理由，不能认定投入过高或不足，也不能推断因果。",
-      "review",
-    );
-  };
-  const results = [yieldItem(false), yieldItem(true)];
-  const otherSummary = Array.from(
-    otherByReason,
-    ([reasonId, amount]) =>
-      (reasonLabels.get(reasonId) || reasonId) + " " + format(money(amount)),
-  ).join("；");
-  results.push(
-    make(
-      "concentration",
-      "头部 Distributor 分配集中度",
-      top ? top.id : scope,
-      top
-        ? "2027 分配最高的经销商 " +
-            top.id +
-            " 获分 " +
-            format(money(top.amount)) +
-            "，占本范围经销商分配 " +
-            (total.allocated
-              ? ((top.amount / cents(total.allocated)) * 100).toFixed(2)
-              : "0.00") +
-            "%（分母 " +
-            format(total.allocated) +
-            "）。"
-        : "本范围经销商分配为零，暂无可计算的集中度。",
-      "复核承接能力、分配理由与其它对象的覆盖情况；排序和占比不作为限制提交的阈值。",
-      top && total.allocated ? "observed" : "limited",
-    ),
-  );
-  const overlaps = ranked.filter(
-    (d) =>
-      d.amount > 0 &&
-      (descriptor.kind === "global"
-        ? d.departments.size > 1 || d.initiatives.size > 1
-        : d.initiatives.size > 1),
-  );
-  const shared = overlaps[0];
-  results.push(
-    make(
-      "overlap",
-      "跨部门或多 Initiative 叠加",
-      shared ? shared.id : scope,
-      shared
-        ? "本范围有 " +
-            overlaps.length +
-            " 个经销商承接多项资源，其中 " +
-            shared.id +
-            " 涉及 " +
-            shared.initiatives.size +
-            " 项 Initiative" +
-            (descriptor.kind === "global"
-              ? "、" + shared.departments.size + " 个部门"
-              : "（仅本人授权范围）") +
-            "，合计 " +
-            format(money(shared.amount)) +
-            "。"
-        : "本范围未观察到同一经销商的多项资源叠加。",
-      (descriptor.kind === "global"
-        ? ""
-        : "当前无其它部门资源明细授权，不能判断跨部门叠加；") +
-        "应复核用途与目标衔接，叠加本身不代表浪费或重复。",
-      shared ? "review" : "observed",
-    ),
-  );
-  const trendDealer = ranked.find((d) => {
-    const h = history(d.id);
-    return (
-      numeric(h.vol2024) &&
-      h.vol2024 > 0 &&
-      numeric(h.vol2025) &&
-      numeric(h.c32024) &&
-      h.c32024 > 0 &&
-      numeric(h.c32025)
-    );
-  });
-  if (trendDealer) {
-    const h = history(trendDealer.id);
-    const pct = (a, b) => ((a / b - 1) * 100).toFixed(2) + "%";
-    const suppliedPct = (value, fallback) =>
-      numeric(value) ? Number(value).toFixed(2) + "%" : fallback;
-    results.push(
-      make(
-        "trend",
-        "分配变化与历史 Vol / C3 趋势",
-        trendDealer.id,
-        trendDealer.id +
-          " 的 2025 对 2024 全年 Vol 同比 " +
-          suppliedPct(h.yoyVol2425, pct(h.vol2025, h.vol2024)) +
-          "，C3 同比 " +
-          suppliedPct(h.yoyC32425, pct(h.c32025, h.c32024)) +
-          "；2027 本范围计划分配 " +
-          format(money(trendDealer.amount)) +
-          "。",
-        "尚无 2027 Vol/C3 预测，需业务说明投入变化与目标是否匹配；2026 年 1–8 月累计不与全年同比、不默认年化。",
-        "review",
-      ),
-    );
-  } else
-    results.push(
-      make(
-        "trend",
-        "分配变化与历史 Vol / C3 趋势",
-        scope,
-        "缺少本范围经销商可比较的 2024 / 2025 全年 Vol、C3，暂不能判断历史趋势。",
-        "需补齐同口径历史和 2027 业务目标；2026 年累计不能与全年同比，也不自动年化。",
-        "limited",
-      ),
-    );
-  results.push(
-    make(
-      "completeness",
-      "预算完整性及尚未到经销商的预算",
-      scope,
-      "2027 预算 " +
-        format(total.budget) +
-        "，经销商分配 " +
-        format(total.allocated) +
-        "，其他预算安排 " +
-        format(total.otherBudget) +
-        (otherSummary ? "（" + otherSummary + "）" : "") +
-        "，未解释差额 " +
-        format(total.gap) +
-        "。",
-      total.gap === 0
-        ? "金额已平衡，仍需核实各项其他预算的用途和落地条件；预算平衡不代表全部已分到经销商。"
-        : "请解释或调整未平衡差额，并确认各项其他预算用途；未到经销商的预算不直接视为遗漏。",
-      total.gap === 0 ? "observed" : "review",
-    ),
-  );
-  const prompt = effectivePrompt(state, scope);
-  const record = {
-    id: uid("INSIGHT"),
-    scope,
-    mock: true,
-    status: "generated",
-    signature: signature(state, scope),
-    analysisMethodVersion: ANALYSIS_BASIS_VERSION,
-    reference,
-    publicationReferences,
-    guideVersion: state.guide.version,
-    createdAt: now(),
-    basisLabel,
-    items: results,
-    guideText: state.guide.text,
-    promptText: prompt.text,
-    promptVersion: prompt.version,
-    promptScope: prompt.scope,
-    disclaimer:
-      "模拟 Insight；六点固定模板，提示词作为可编辑分析依据保存，不调用真实模型；不推断因果、不跨年计算 Yield。",
-  };
-  state.insights[scope] = record;
-  audit(state, identity, "generate_insight", scope, record.id);
-  return clone(record);
-}
-function previewInsight(state, scope, identity, options) {
-  // Management gets a computed read-only preview; the source state and its
-  // audit log remain untouched.
-  const working = clone(state);
-  return generateInsight(
-    working,
-    scope,
-    identity,
-    Object.assign({}, options, { preview: true }),
-  );
-}
-function getInsight(state, scope, identity) {
-  migrateState(state);
-  const descriptor = insightScope(state, scope);
-  assertInsightScopeAccess(state, descriptor, identity, false);
-  const record = state.insights[scope];
-  return record
-    ? Object.assign(clone(record), { stale: insightIsStale(state, scope) })
-    : null;
 }
 function createState(data, scenario) {
   if (
@@ -1663,9 +1048,7 @@ function createState(data, scenario) {
     },
     guide: {
       version: 1,
-      text: "结合 2027 分配、用途和授权历史事实，输出发现、证据、对象、复核方向。保持 2024/2025 全年与 2026 年 1–8 月累计口径边界，不推断投入与 C3 的因果关系，不把跨部门叠加直接认定为浪费。",
     },
-    insights: {},
     budgetReasons: clone(DEFAULT_BUDGET_REASONS),
     budgetReasonVersion: 1,
     publications: {},
@@ -1848,20 +1231,11 @@ export default {
   applyAdminConfiguration,
   editAdminBudget,
   deleteAdminBudget,
-  changeReference,
-  setGuide,
-  getAnalysisPrompt,
-  setAnalysisPrompt,
-  generateInsight,
-  previewInsight,
-  getInsight,
-  insightIsStale,
   getSnapshot,
   publishInitiative,
   latestPublication,
   latestPublishedItems,
   selectView,
-  signature,
   cents,
   money,
   validMoney,

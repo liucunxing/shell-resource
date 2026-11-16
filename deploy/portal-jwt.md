@@ -2,7 +2,7 @@
 
 日期：2026-11-02。分支：`feature/portal-jwt-resource-entry`。
 
-本次实现 `portal-embed/1.0` 第一层接入：Portal 签发 → 资源工具独立登录 → 会话校验 → SDK READY → 资源工作台。Data Agent 下一层留待后续；新 Portal 页面不使用旧的邮箱 URL 启动 Data Agent，帆软入口原有行为保留。
+本次实现 `portal-embed/1.0` 第一层接入：Portal 签发 → 资源工具独立登录 → 会话校验 → SDK READY → 资源工作台。Portal 登录与认证代码保留，当前暂不启用；旧嵌入 Data Agent 模块已移除。
 
 ## 双入口与身份
 

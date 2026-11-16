@@ -1,5 +1,7 @@
 # 资源投资工作台 V20
 
+2026-11-16 当前范围确认：旧右侧抽屉的历史参考、Insight、嵌入 Data Agent 不属于本版，直接清理其前后端模块、专属测试及构建引用。保留组合页/编辑页历史指标、经销商数据和正常详情下钻；Portal 登录与认证代码暂不使用但保留。保留数据库历史表和既有迁移，不执行数据删除。本轮集中推送，不部署。
+
 2026-11-15，用户已确认V20原型并授权同步工程、更新规则、测试后推送。当前以[V20同步说明](docs/V20_IMPLEMENTATION.md)和[当前需求](docs/CURRENT_REQUIREMENTS.md)为准；旧V19验收记录保留为历史证据。
 
 V20包含SD/RSM切换和四组组织对照、V17经销商分配明细表头、按所属部门限制历史费用、完整详情抽屉，以及第一步“已核对本版预留”后才可继续的流程。PPP误加字段已取消；Phasing直接读取PG已计算的phasing_2025/phasing_2026。
@@ -14,7 +16,7 @@ V20包含SD/RSM切换和四组组织对照、V17经销商分配明细表头、�
 
 > 服务器发布、重启、健康检查、日志和证书续期，请先阅读 [服务器运维手册](docs/SERVER_OPERATIONS.md)。
 
-当前工程提供年度预算分配、其他预算、Excel 回传、草稿保存、提交与部门确认、规划版本、角色范围查询、管理员配置和百炼六点 Insight。同一应用站点提供前端静态文件与 API。
+当前工程提供年度预算分配、其他预算、Excel 回传、草稿保存、提交与部门确认、规划版本、角色范围查询、管理员配置。同一应用站点提供前端静态文件与 API。
 
 前端采用 React 19、TypeScript 5.9 / JSX、Vite 7、shadcn/ui（Radix）、Tailwind 与 TanStack Table。所有应用控件统一使用共享 shadcn 组件，保留 V20 原型风格和流程；新组件遵循 [前端规则](frontend/AGENTS.md)。后端采用 Python 3.11、FastAPI、SQLAlchemy Async、Alembic 和 PostgreSQL。
 
@@ -28,7 +30,7 @@ docs/       本期业务契约和协作说明
 
 ## 数据来源与接入限制
 
-当前预算、版本流转、权限、配置和 Insight 记录读写 PostgreSQL；经销商与历史指标实际读取 `data.distributor_sellin_resource_history`。保留 Databricks 配置不代表页面已实时连接 Databricks。
+当前预算、版本流转、权限、配置读写 PostgreSQL；经销商与历史指标实际读取 `data.distributor_sellin_resource_history`。保留 Databricks 配置不代表页面已实时连接 Databricks。
 
 Databricks 只能使用应用 Service Principal 对应且获授权的 schema，当前目标为 `prod.resource_planning.dim_distributor`。2026-11-14 限定该 schema 的个人只读核查可见两个经销商基础视图，各 2,678 行、3 个字段；未看到业务指标与月份/汇率字段。应用 SP 认证仍返回 `401 invalid_client`，个人查询不能证明应用身份可读。其他 schema 的候选数据不能直接接入，不能用个人凭据回退。
 
@@ -56,16 +58,16 @@ V20 本地试用：编译前端后，在 `backend` 使用已安装项目依赖�
 
 ## 本地密钥
 
-在已被 Git 忽略的 `backend/config/settings.toml` 的 `[development]` 段填写 `ai_api_key`、`ai_base_url`、`ai_model`，默认模型 `qwen-plus`。Base URL 使用百炼控制台给出的兼容地址。数据库连接和存储密钥也仅保存在该文件；修改后重启后端。不要把密钥放进前端 `VITE_*` 配置。
+数据库连接、存储及保留的 Portal 登录密钥仅保存在被 Git 忽略的 `backend/config/settings.toml` 或环境变量中，不放入前端 `VITE_*` 配置。本版不调用模型或嵌入 Data Agent；旧 AI/Data Agent 配置键仅兼容已有配置文件，不启用功能。
 
 ## 交付边界
 
-开发邮箱入口使用 `X-User-Email`，`production` 环境明确拒绝此方式；Portal JWT / Cookie 走独立认证路由，真实部署登录仍需验收。Tracking、外部审批系统和实时协同未纳入当前已验证能力；部门确认/撤回和管理员全版本驳回已实现，小 One 真实问数与下游授权需单独联调。
+开发邮箱入口使用 `X-User-Email`，`production` 环境明确拒绝此方式；Portal JWT / Cookie 走独立认证路由，真实部署登录仍需验收。Tracking、外部审批系统和实时协同未纳入当前已验证能力；部门确认/撤回和管理员全版本驳回已实现，旧右侧历史参考、Insight 和嵌入 Data Agent 已按当前 V20 范围清理。
 
 2026-11-14 19:50（+08:00）已将远端 PostgreSQL `resource_dev` 升级到 `20261114_03`，
 原有业务值核对一致；31 项 PG 隔离验收及四角色真实库只读接口检查通过。
 20 个历史用户的所属 Sector/Department 需按真实归属配置，未配置时不展示费用明细。
-应用服务器尚未部署，真实 SSO、AI 调用和业务 UAT 尚待验证。
+应用服务器尚未部署，真实 SSO 和业务 UAT 尚待验证。
 迁移演练、执行方式与证据见 [V19 工程验收记录](docs/V19_VALIDATION.md)。
 
 ## 本轮界面验收

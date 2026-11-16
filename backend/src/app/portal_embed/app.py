@@ -16,7 +16,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.exceptions import HTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from app.controllers.insight_controller import router as insight_router
 from app.controllers.planning_controller import router as planning_router
 from app.controllers.workbench_controller import router as workbench_router
 from app.core.config import Settings
@@ -151,7 +150,6 @@ def create_portal_app(settings: Settings) -> FastAPI:
     # Deliberately scoped to this mounted application, never the legacy API app.
     app.dependency_overrides[get_current_workbench_user] = get_portal_workbench_user
     app.include_router(workbench_router, prefix="/api/v1/workbench")
-    app.include_router(insight_router, prefix="/api/v1/workbench")
     app.include_router(planning_router, prefix="/api/v1/workbench")
 
     @app.post("/login")

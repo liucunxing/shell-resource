@@ -7,7 +7,6 @@ The SQLite files live under .cache and survive restarts for persistence verifica
 # The test-only profile must be selected before app modules are imported.
 # ruff: noqa: E402
 import os
-import tomllib
 from contextlib import asynccontextmanager
 from decimal import Decimal
 from pathlib import Path
@@ -16,7 +15,6 @@ ROOT = Path(__file__).resolve().parents[1]
 os.environ["APP_ENV"] = "test"
 os.environ["APP_SETTINGS_FILE"] = str(ROOT / "config" / "settings.example.toml")
 
-from pydantic import SecretStr
 from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -109,16 +107,6 @@ async def lifespan(_):
 
 settings = get_settings()
 settings.serve_frontend = True
-# A user-supplied development AI configuration can be tested with local data.
-# No credentials are returned to the page; an empty key keeps generation disabled.
-local_config = ROOT / "config" / "settings.toml"
-if local_config.is_file():
-    development = tomllib.loads(local_config.read_text(encoding="utf-8")).get("development", {})
-    settings.ai_api_key = SecretStr(development.get("ai_api_key") or "")
-    settings.ai_base_url = development.get("ai_base_url") or ""
-    settings.ai_model = development.get("ai_model") or "qwen-plus"
-    settings.ai_timeout_seconds = development.get("ai_timeout_seconds", 60)
-    settings.insight_timeout_seconds = development.get("insight_timeout_seconds", 60)
 app = create_app()
 app.router.lifespan_context = lifespan
 app.dependency_overrides[get_db_session] = local_session

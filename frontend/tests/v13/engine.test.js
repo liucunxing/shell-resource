@@ -2,8 +2,6 @@ import { test as vitestTest } from "vitest";
 import assert from "node:assert/strict";
 import E from "../../src/workbench/domain/engine.js";
 import demoData from "../../src/workbench/domain/demo-data.json";
-import fs from "node:fs";
-import vm from "node:vm";
 
 vitestTest(
   "V1.3 engine original regression contract",
@@ -244,85 +242,8 @@ vitestTest(
       assert.equal(E.totals([s.initiatives[0]]).gap, 10.01);
       assert.throws(() => E.complete(s, "M1", owner, data));
     });
-    check(
-      "Insight 金额与对象基于当前工作稿，修改/指南/月更失效且失败保留旧记录",
-      () => {
-        const s = E.createState(data);
-        assert.throws(() =>
-          E.generateInsight(s, "MKT", { role: "lead", department: "ICE" }),
-        );
-        assert.throws(() => E.generateInsight(s, "global", lead));
-        assert.throws(() => E.generateInsight(s, "global", management));
-        E.generateInsight(s, "MKT", lead);
-        assert(!E.insightIsStale(s, "MKT"));
-        assert.equal(
-          s.insights.MKT.items.find((i) => i.key === "concentration").object,
-          "D1",
-        );
-        assert.match(
-          s.insights.MKT.items.find((i) => i.key === "concentration").evidence,
-          /120/,
-        );
-        E.updateInitiative(
-          s,
-          "M1",
-          {
-            rows: [
-              { dealerId: "D1", amount: 0 },
-              { dealerId: "D2", amount: 100 },
-            ],
-          },
-          owner,
-          data,
-        );
-        assert(E.insightIsStale(s, "MKT"));
-        E.generateInsight(s, "MKT", lead);
-        assert.equal(
-          s.insights.MKT.items.find((i) => i.key === "concentration").object,
-          "D2",
-        );
-        assert.match(
-          s.insights.MKT.items.find((i) => i.key === "concentration").evidence,
-          /140/,
-        );
-        const before = copy(s.insights.MKT);
-        assert.throws(() => E.generateInsight(s, "MKT", lead, { fail: true }));
-        assert.deepEqual(s.insights.MKT, before);
-        E.setGuide(s, "复核资源用途", admin);
-        assert(E.insightIsStale(s, "MKT"));
-        E.generateInsight(s, "MKT", lead);
-        E.changeReference(s, admin);
-        assert(E.insightIsStale(s, "MKT"));
-      },
-    );
-    check("全局预览展示发布快照参考，混合批次不会伪装为当前参考", () => {
-      const s = E.createState(data, "submitted");
-      const previous = copy(s.publications);
-      const first = E.previewInsight(s, "global", management, { data });
-      assert.equal(first.reference.batchId, "MOCK-REF-V1.2");
-      E.changeReference(s, admin);
-      const beforeRepublish = E.previewInsight(s, "global", management, {
-        data,
-      });
-      assert.equal(beforeRepublish.reference.batchId, "MOCK-REF-V1.2");
-      E.publishInitiative(s, "M1", owner, data);
-      const mixed = E.previewInsight(s, "global", management, { data });
-      assert.equal(mixed.reference.batchId, "MIXED-PUBLISHED-REFERENCES");
-      assert.match(mixed.basisLabel, /不一致/);
-      assert.deepEqual(s.publications.M2, previous.M2);
-    });
-    check("管理层 Insight 为只读预览，不能写入或触发定稿", () => {
-      const s = E.createState(data, "submitted");
-      const before = JSON.stringify(s);
-      const preview = E.previewInsight(s, "global", management, { data });
-      assert.equal(preview.items.length, 6);
-      assert.equal(JSON.stringify(s), before);
-      assert.throws(
-        () => E.generateInsight(s, "global", management, { data }),
-        /只读预览/,
-      );
-      assert.throws(() => E.finalize(s, management), /只读/);
-    });
+
+
     check(
       "发布版本读权限：Owner 本人、Lead 本部门、管理层全局；管理员只读分配内容",
       () => {
@@ -354,109 +275,19 @@ vitestTest(
         [],
       );
     });
-    check("Owner 拒绝部门分析及提示词，selector 仅有复核元数据", () => {
+
+    check("Owner 提交快照剔除部门备注，保留本人行及版本元数据", () => {
       const s = E.createState(data);
-      E.updateInitiative(
-        s,
-        "M2",
-        {
-          rows: [{ dealerId: "D2", amount: 23.45, note: "PRIVATE-ROW-NOTE" }],
-          reserve: 76.55,
-          reserveNote: "PRIVATE-RESERVE-NOTE",
-        },
-        owner2,
-        data,
-      );
-      E.setAnalysisPrompt(s, "MKT", "PRIVATE-PROMPT: D2 23.45", lead);
-      E.setGuide(s, "PRIVATE-GUIDE-TEXT", admin);
-      const record = E.generateInsight(s, "MKT", lead);
-      assert.throws(() => E.generateInsight(s, "MKT", owner), /无权/);
-      assert.throws(() => E.generateInsight(s, "global", owner), /管理层/);
-      assert.throws(() => E.getAnalysisPrompt(s, "MKT", owner), /无权/);
-      const view = E.selectView(s, owner);
-      assert.deepEqual(view.insights, {});
-      assert.deepEqual(view.insightStatus.MKT, {
-        createdAt: record.createdAt,
-        stale: false,
-        promptVersion: 2,
-      });
-      const serialized = JSON.stringify(view);
-      for (const secret of [
-        "PRIVATE-ROW-NOTE",
-        "PRIVATE-RESERVE-NOTE",
-        "PRIVATE-PROMPT",
-        "PRIVATE-GUIDE-TEXT",
-        '"promptText"',
-        '"guideText"',
-        '"signature"',
-        '"evidence"',
-      ])
-        assert(!serialized.includes(secret), secret);
-      assert(!/(^|[^0-9])23\.45([^0-9]|$)/.test(serialized));
-      assert(E.selectView(s, lead).insights.MKT.items.length === 6);
-      E.setAnalysisPrompt(s, "MKT", "updated", lead);
-      assert.equal(E.selectView(s, owner).insightStatus.MKT.stale, true);
-    });
-    check(
-      "Owner 提交快照剔除部门自由文本与分析证据，保留本人行及版本元数据",
-      () => {
-        const s = E.createState(data);
-        E.setAnalysisPrompt(s, "MKT", "PRIVATE-SNAPSHOT-PROMPT", lead);
-        E.setGuide(s, "PRIVATE-SNAPSHOT-GUIDE", admin);
-        E.generateInsight(s, "MKT", lead);
-        E.complete(s, "M1", owner, data);
-        const v = E.submit(s, "MKT", lead, data, "PRIVATE-SUBMISSION-NOTE");
-        const own = E.getSnapshot(s, "MKT", v.id, owner);
-        assert.deepEqual(
-          own.initiatives.map((i) => i.id),
-          ["M1"],
-        );
-        assert.equal(own.analysisBasis.promptVersion, 2);
-        assert.equal(own.insightStatus.promptVersion, 2);
-        assert(!own.insight);
-        assert(!own.note);
-        assert(!own.analysisBasis.basisToken);
-        const serialized = JSON.stringify(own);
-        for (const secret of [
-          "PRIVATE-SNAPSHOT-PROMPT",
-          "PRIVATE-SNAPSHOT-GUIDE",
-          "PRIVATE-SUBMISSION-NOTE",
-          '"items"',
-          '"promptText"',
-          '"guideText"',
-          '"signature"',
-          '"evidence"',
-        ])
-          assert(!serialized.includes(secret), secret);
-        const full = E.getSnapshot(s, "MKT", v.id, lead);
-        assert.equal(full.insight.promptText, "PRIVATE-SNAPSHOT-PROMPT");
-        assert.equal(full.note, "PRIVATE-SUBMISSION-NOTE");
-      },
-    );
-    check("提交明确保留生成时分析依据及过期标记，独立于提交时参考/指南", () => {
-      const s = E.createState(data);
-      const generated = E.generateInsight(s, "MKT", lead);
-      E.setGuide(s, "新版指南", admin);
-      E.changeReference(s, admin);
       E.complete(s, "M1", owner, data);
-      const v = E.submit(s, "MKT", lead, data);
-      assert.equal(v.guideVersion, 2);
-      assert.equal(v.analysisBasis.guideVersion, 1);
-      assert.equal(
-        v.analysisBasis.reference.batchId,
-        generated.reference.batchId,
-      );
-      assert.equal(v.analysisBasis.insightId, generated.id);
-      assert.equal(v.analysisBasis.basisToken, generated.signature);
-      assert.equal(v.analysisBasis.staleAtSubmission, true);
-      const saved = copy(v.analysisBasis);
-      E.changeReference(s, admin);
-      E.setGuide(s, "第三版指南", admin);
-      assert.deepEqual(
-        E.getSnapshot(s, "MKT", v.id, management).analysisBasis,
-        saved,
-      );
+      const v = E.submit(s, "MKT", lead, data, "PRIVATE-SUBMISSION-NOTE");
+      const own = E.getSnapshot(s, "MKT", v.id, owner);
+      assert.deepEqual(own.initiatives.map((i) => i.id), ["M1"]);
+      assert(!own.note);
+      assert(!JSON.stringify(own).includes("PRIVATE-SUBMISSION-NOTE"));
+      assert.equal(own.reference.batchId, v.reference.batchId);
+      assert.equal(E.getSnapshot(s, "MKT", v.id, lead).note, "PRIVATE-SUBMISSION-NOTE");
     });
+
     check(
       "统一工作稿 selector：Owner 序列化不含同事行和其它部门草稿，Lead 仅本部门",
       () => {
@@ -560,29 +391,7 @@ vitestTest(
       assert.equal(second.number, first.number + 1);
       assert.deepEqual(second.initiative.rows, first.initiative.rows);
     });
-    check("六点分析固定完整，历史缺失明确限制且不伪造预测", () => {
-      const s = E.createState(data);
-      const record = E.generateInsight(s, "MKT", lead);
-      assert.deepEqual(
-        record.items.map((i) => i.key),
-        [
-          "low_yield",
-          "high_yield",
-          "concentration",
-          "overlap",
-          "trend",
-          "completeness",
-        ],
-      );
-      for (const item of record.items) {
-        assert(item.text && item.evidence && item.review && item.finding);
-        assert(["observed", "limited", "review"].includes(item.status));
-        assert.equal(item.text, item.evidence + item.review);
-      }
-      assert.equal(record.items[0].status, "limited");
-      assert.equal(record.items[4].status, "limited");
-      assert.match(record.disclaimer, /固定模板/);
-    });
+
     const historicalData = copy(data);
     historicalData.dealers = [
       {
@@ -610,212 +419,11 @@ vitestTest(
         },
       },
     ];
-    check(
-      "部门获授权只读整体 Yield，跨部门资源明细仍不读取、趋势仅本部门",
-      () => {
-        const safe = copy(historicalData);
-        for (const d of safe.dealers) {
-          Object.defineProperty(d.history.resources2025, "ICE Rebate", {
-            get() {
-              throw new Error("UNAUTHORIZED_ICE_DETAIL");
-            },
-          });
-          Object.defineProperty(d.history.resources2025, "Capex", {
-            get() {
-              throw new Error("UNAUTHORIZED_CAPEX_DETAIL");
-            },
-          });
-        }
-        const record = E.generateInsight(E.createState(data), "MKT", lead, {
-          data: safe,
-        });
-        assert(record.items.slice(0, 2).every((i) => i.status === "review"));
-        assert.equal(record.items[0].object, "D1");
-        assert.equal(record.items[1].object, "D2");
-        assert.match(record.items[0].text, /为 2.2/);
-        assert.match(record.items[1].text, /为 6/);
-        assert.match(record.items[0].text, /C3美元\/历史投资美元，历史投资已按配置汇率统一为美元/);
-        assert.match(record.items[4].text, /Vol 同比 -20.00%/);
-        assert.match(record.items[4].text, /C3 同比 10.00%/);
-        assert(!JSON.stringify(record).includes("999999"));
-        assert(!JSON.stringify(record).includes("888888"));
-      },
-    );
-    check("部门 Yield 只输出授权比值，不携带总资源或范围外经销商", () => {
-      const fixture = copy(historicalData);
-      fixture.dealers.push({
-        id: "PRIVATE-OTHER-DEALER",
-        history: { yield: 9000000 },
-      });
-      const s = E.createState(data);
-      const record = E.generateInsight(s, "MKT", lead, { data: fixture });
-      const serialized = JSON.stringify(record);
-      for (const secret of [
-        "PRIVATE-OTHER-DEALER",
-      ])
-        assert(!serialized.includes(secret), secret);
-      assert(record.items.slice(0, 2).every((i) => i.status === "review"));
-      assert.throws(
-        () => E.generateInsight(s, "MKT", owner, { data: fixture }),
-        /无权/,
-      );
-      assert.deepEqual(E.selectView(s, owner).insights, {});
-    });
-    check("Yield 缺失或非有限时不能伪造可比值", () => {
-      for (const yieldValue of [null, undefined, NaN, Infinity, -Infinity, -2.5]) {
-        const fixture = copy(historicalData);
-        fixture.dealers.forEach((d) => {
-          d.history.yield = yieldValue;
-        });
-        const record = E.generateInsight(E.createState(data), "MKT", lead, {
-          data: fixture,
-        });
-        assert(record.items.slice(0, 2).every((i) => i.status === "limited"));
-        assert(!JSON.stringify(record).includes("Infinity"));
-        assert(!JSON.stringify(record).includes("NaN"));
-      }
-      const fixture = copy(historicalData);
-      fixture.dealers.forEach((d) => {
-        d.history.yield = Infinity;
-      });
-      assert(
-        E.generateInsight(E.createState(data), "MKT", lead, { data: fixture })
-          .items.slice(0, 2)
-          .every((i) => i.status === "limited"),
-      );
-      fixture.dealers.forEach((d) => {
-        d.history.yield = 0;
-      });
-      const zero = E.generateInsight(E.createState(data), "MKT", lead, {
-        data: fixture,
-      });
-      assert(zero.items.slice(0, 2).every((i) => i.status === "limited"));
-      assert.match(zero.items[0].text, /非正值不参与分析/);
-      assert.doesNotMatch(zero.items[0].text, /缺少源数据提供的 Yield/);
-    });
-    check(
-      "全局同年 Yield 排序有证据与限制，管理层使用已提交而非后续草稿",
-      () => {
-        const s = E.createState(data, "submitted");
-        s.initiatives[0].rows[0].amount = 7654321;
-        const record = E.previewInsight(s, "global", management, {
-          data: historicalData,
-        });
-        assert.equal(record.items[0].object, "D1");
-        assert.equal(record.items[1].object, "D2");
-        assert.match(record.items[0].evidence, /2.2/);
-        assert.match(record.items[1].evidence, /为 6/);
-        assert.match(record.items[0].text, /不能认定投入过高或不足/);
-        assert.match(record.items[3].text, /3 个部门/);
-        assert(!JSON.stringify(record).includes("7654321"));
-      },
-    );
-    check("提示词权限、独立版本、旧状态兼容与负向校验", () => {
-      const s = E.createState(data, "submitted");
-      assert.throws(() => E.getAnalysisPrompt(s, "MKT", owner), /无权/);
-      assert.equal(E.getAnalysisPrompt(s, "MKT", lead).editable, true);
-      assert.equal(
-        E.getAnalysisPrompt(s, "global", management).editable,
-        false,
-      );
-      assert.throws(() => E.getAnalysisPrompt(s, "MKT", management), /无权/);
-      assert.throws(() => E.getAnalysisPrompt(s, "global", owner), /管理层/);
-      assert.throws(() => E.setAnalysisPrompt(s, "MKT", "x", owner), /无权/);
-      assert.throws(() => E.setAnalysisPrompt(s, "ICE", "x", lead), /无权/);
-      assert.throws(
-        () => E.setAnalysisPrompt(s, "MKT", "x", management),
-        /无权/,
-      );
-      assert.throws(
-        () => E.setAnalysisPrompt(s, "global", " ", admin),
-        /不能为空/,
-      );
-      assert.throws(
-        () => E.setAnalysisPrompt(s, "global", "x".repeat(12001), admin),
-        /12000/,
-      );
-      assert.throws(
-        () => E.setAnalysisPrompt(s, "UNKNOWN", "x", admin),
-        /部门不存在/,
-      );
-      const deps = copy(s.departments);
-      E.generateInsight(s, "MKT", lead);
-      E.generateInsight(s, "ICE", { role: "lead", department: "ICE" });
-      const globalPreview = E.previewInsight(s, "global", management);
-      assert.equal(globalPreview.items.length, 6);
-      const updated = E.setAnalysisPrompt(s, "MKT", "  请特别核对用途  ", lead);
-      assert.equal(updated.version, 2);
-      assert.equal(updated.text, "请特别核对用途");
-      assert(E.insightIsStale(s, "MKT"));
-      assert(!E.insightIsStale(s, "ICE"));
-      assert.deepEqual(s.departments, deps);
-      const rec = E.generateInsight(s, "MKT", lead);
-      assert.equal(rec.promptVersion, 2);
-      assert.equal(rec.promptText, "请特别核对用途");
-      assert.equal(rec.promptScope, "MKT");
-      assert.equal(rec.items.length, 6);
-      assert(!E.insightIsStale(s, "MKT"));
-      assert.throws(
-        () => E.setAnalysisPrompt(s, "global", "全局新依据", management),
-        /无权/,
-      );
-      E.setAnalysisPrompt(s, "global", "全局新依据", admin);
-      assert(!E.insightIsStale(s, "MKT"));
-      E.setAnalysisPrompt(s, "ICE", "管理员配置", admin);
-      assert.equal(E.getAnalysisPrompt(s, "ICE", admin).version, 2);
-    });
-    check("提示词版本绑定提交分析快照，更新配置不会重写冻结依据", () => {
-      const s = E.createState(data);
-      E.setAnalysisPrompt(s, "MKT", "版本二", lead);
-      E.generateInsight(s, "MKT", lead);
-      E.complete(s, "M1", owner, data);
-      const v = E.submit(s, "MKT", lead, data);
-      assert.equal(v.analysisBasis.promptVersion, 2);
-      E.setAnalysisPrompt(s, "MKT", "版本三", lead);
-      const old = E.getSnapshot(s, "MKT", v.id, management);
-      assert.equal(old.analysisBasis.promptVersion, 2);
-      assert.equal(old.insight.promptText, "版本二");
-      assert(E.insightIsStale(s, "MKT"));
-    });
 
-    check("旧持久化 Insight 在分析口径升级后待更新，提交快照保持原值", () => {
-      // Emulate the prior engine signature, which omitted the analysis-basis version.
 
-      const source = fs.readFileSync(
-        new URL("../../src/workbench/domain/engine.js", import.meta.url),
-        "utf8",
-      );
-      const legacySource = source.replace(
-        /\s*analysisBasisVersion: ANALYSIS_BASIS_VERSION,/,
-        "",
-      );
-      assert.notEqual(source, legacySource);
-      const sandbox = { module: { exports: {} } };
-      vm.runInNewContext(
-        legacySource.replace("export default", "module.exports ="),
-        sandbox,
-      );
-      const oldEngine = sandbox.module.exports;
-      const oldState = oldEngine.createState(data);
-      oldEngine.generateInsight(oldState, "MKT", lead);
-      oldEngine.complete(oldState, "M1", owner, data);
-      oldEngine.submit(oldState, "MKT", lead, data, "历史提交");
-      const restored = copy(oldState);
-      const frozen = copy(restored.departments.MKT.versions);
-      assert(E.insightIsStale(restored, "MKT"));
-      assert.equal(E.selectView(restored, lead).insights.MKT.stale, true);
-      assert.equal(E.selectView(restored, owner).insightStatus.MKT.stale, true);
-      const fresh = E.generateInsight(restored, "MKT", lead, {
-        data: historicalData,
-      });
-      assert.match(
-        fresh.analysisMethodVersion,
-        /latest-publication-owner-scope/,
-      );
-      assert(fresh.items.slice(0, 2).every((item) => item.status === "review"));
-      assert(!E.insightIsStale(restored, "MKT"));
-      assert.deepEqual(restored.departments.MKT.versions, frozen);
-    });
+
+
+
 
     console.log("\n" + count + " engine checks passed.");
   },

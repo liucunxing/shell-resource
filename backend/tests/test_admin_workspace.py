@@ -17,7 +17,6 @@ from app.models.do.workspace import (
     UserPermissionDO,
     WorkspaceConfigDO,
     WorkspacePublicationDO,
-    WorkspaceReferenceDO,
 )
 from app.schemas.dto.workbench import (
     AdminBudgetDeleteDTO,
@@ -26,7 +25,6 @@ from app.schemas.dto.workbench import (
     AdminBudgetsImportDTO,
     AdminBudgetsUpdateDTO,
     AdminConfigDTO,
-    ReferenceImportDTO,
 )
 from app.services.admin_service import AdminService
 from app.services.reference_service import ReferenceService
@@ -160,81 +158,7 @@ async def database_case(callback):
         await engine.dispose()
 
 
-def reference(revision=0, batch="B1", dealer="D1"):
-    return ReferenceImportDTO(
-        expected_revision=revision,
-        batchId=batch,
-        asOf="2026-09-23",
-        dealers=[
-            {
-                "id": dealer,
-                "name": None,
-                "history": {
-                    "c32025": 100,
-                    "vol2025": None,
-                    "resources2025": {"MRD": 10, "SP&A": 10, "ICE Rebate": 20, "Capex": 10},
-                },
-            }
-        ],
-    )
-
-
-def test_reference_reimport_replaces_and_scopes_history():
-    async def run(session, service):
-        first = await service.import_reference(reference())
-        second = await service.import_reference(reference(first["revision"], "B2", "D2"))
-        assert second["batchId"] == "B2" and second["importedAt"]
-        assert await session.scalar(select(func.count()).select_from(WorkspaceReferenceDO)) == 1
-        config = await session.get(WorkspaceConfigDO, 1)
-        assert config.reference["batchId"] == "B2"
-
-    asyncio.run(database_case(run))
-
-
-def test_reference_failure_rolls_back_delete_and_metadata():
-    async def run(session, service):
-        await service.import_reference(reference())
-        original = service.repository.add_log
-
-        def fail(*args):
-            raise RuntimeError("injected failure after delete and insert")
-
-        service.repository.add_log = fail
-        with pytest.raises(RuntimeError):
-            await service.import_reference(reference(1, "B2", "D2"))
-        service.repository.add_log = original
-        legacy = (await session.scalars(select(WorkspaceReferenceDO))).one()
-        assert legacy.dealer_id == "D1"
-        config = await session.get(WorkspaceConfigDO, 1)
-        assert config.revision == 1 and config.reference["batchId"] == "B1"
-        assert await session.scalar(select(func.count()).select_from(BudgetChangeLogDO)) == 1
-
-    asyncio.run(database_case(run))
-
-
-@pytest.mark.parametrize(
-    "history",
-    [
-        {"c32025": -1},
-        {"c32025": "NaN"},
-        {"vol2024": float("inf")},
-        {"resources2025": {"secret": 100}},
-        {"resource2025": 300},
-        {"c32025": True},
-    ],
-)
-def test_reference_rejects_invalid_source_values(history):
-    data = reference().model_dump()
-    data["dealers"][0]["history"] = history
-    with pytest.raises(ValidationError):
-        ReferenceImportDTO.model_validate(data)
-
-
-def test_duplicate_source_dealers_and_budget_ids_rejected():
-    data = reference().model_dump()
-    data["dealers"].append(data["dealers"][0])
-    with pytest.raises(ValidationError):
-        ReferenceImportDTO.model_validate(data)
+def test_duplicate_budget_ids_rejected():
     item = {"id": 1, "expected_revision": 0, "budget": 100, "ownerId": "o@x.com"}
     with pytest.raises(ValidationError):
         AdminBudgetsUpdateDTO(items=[item, item])
@@ -453,7 +377,6 @@ def test_ytd_config_persists_audits_and_stays_independent_of_source_coverage():
         assert log.before_data["ytdCutoffMonth"] == 10
         assert log.after_data["ytdCutoffMonth"] == 1
 
-        await service.import_reference(reference(1))
         current = await service.get_workspace(2027)
         assert current["state"]["ytdCutoffMonth"] == 1
         manifest = current["data"]["historySnapshot"]["manifest"]
@@ -462,10 +385,10 @@ def test_ytd_config_persists_audits_and_stays_independent_of_source_coverage():
         assert manifest["investment"]["latestMonth"] is None
         assert manifest["ytdYieldComparable"] is False
 
-        saved = await service.update_config(AdminConfigDTO(expected_revision=2, ytdCutoffMonth=12))
+        saved = await service.update_config(AdminConfigDTO(expected_revision=1, ytdCutoffMonth=12))
         assert saved["ytdCutoffMonth"] == 12
         with pytest.raises(HTTPException) as error:
-            await service.update_config(AdminConfigDTO(expected_revision=2, ytdCutoffMonth=9))
+            await service.update_config(AdminConfigDTO(expected_revision=1, ytdCutoffMonth=9))
         assert error.value.status_code == 409
         current = await service.get_workspace(2027)
         assert current["state"]["ytdCutoffMonth"] == 12
@@ -628,7 +551,7 @@ def test_mixed_admin_import_is_atomic_and_creates_new_initiative():
     asyncio.run(database_case(run))
 
 
-def test_exchange_rate_config_roundtrip_audit_and_import_preservation():
+def test_exchange_rate_config_roundtrip_audit_and_permission():
     async def run(session, service):
         initial = await service.get_workspace(2027)
         assert initial["state"]["historyInvestmentExchangeRate"] == 1
@@ -644,7 +567,6 @@ def test_exchange_rate_config_roundtrip_audit_and_import_preservation():
                 expected_revision=0, historyInvestmentExchangeRate=1,
             ))
         assert error.value.status_code == 409
-        await service.import_reference(reference(1))
         current = await service.get_workspace(2027)
         assert current["state"]["historyInvestmentExchangeRate"] == 7.2
         manifest = current["data"]["historySnapshot"]["manifest"]
@@ -654,7 +576,7 @@ def test_exchange_rate_config_roundtrip_audit_and_import_preservation():
         owner = AdminService(session, WorkbenchUser("owner@x.com", "owner", "MKT", "Owner"))
         with pytest.raises(HTTPException) as error:
             await owner.update_config(AdminConfigDTO(
-                expected_revision=2, historyInvestmentExchangeRate=1,
+                expected_revision=1, historyInvestmentExchangeRate=1,
             ))
         assert error.value.status_code == 403
 

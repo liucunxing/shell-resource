@@ -1,12 +1,9 @@
 # Changelog
 
-## Unreleased — 2026-11-02
+## Resource Studio subset — 2026-11-16
 
-- Optional `HostOptions.dataAgentLaunch` and `EmbedChild.launchDataAgent` vendor bridge,
-  isolated from generic JWT launches. Exact message binding, 30-second cancellation,
-  bounded concurrency/replay tracking, strict vendor destination checks and safe errors.
-- Abort vendor requests on iframe navigation, root/session destruction or child expiry;
-  never deliver a late token grant to a navigated or expired instance.
+- Removed the retired product-specific Agent bridge and its startup listeners.
+- Preserved the generic Portal login, embed, readiness and session protocol.
 
 ## 0.1.0 — 2026-10-29
 
