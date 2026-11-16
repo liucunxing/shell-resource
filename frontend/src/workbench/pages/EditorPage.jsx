@@ -1347,6 +1347,7 @@ function EditorContent({
                         <TableHead rowSpan={2}>
                           <span className="inline-flex items-center gap-2">
                             <Checkbox
+                              className="scope-select-all"
                               aria-label={`全选筛选结果（${scopeDealers.length} 家，含所有页）`}
                               disabled={!editable || !scopeDealers.length}
                               checked={(() => {
@@ -1994,9 +1995,10 @@ function EditorContent({
                         importFile(file);
                       }}
                     />
+                    <span className="balance-action-group">
                     <Button
                       variant="outline"
-                      className="button small"
+                      className="button small balance-action"
                       disabled={!balanceIds.length || totals.gap === 0}
                       onClick={() => {
                         const rows = balanceSelectedDealers(
@@ -2023,7 +2025,8 @@ function EditorContent({
                     >
                       指定经销商配平
                     </Button>
-                    <Button type="button" variant="ghost" className="metric-help-icon" aria-label="指定经销商配平使用说明" onClick={() => setModal({ type: "balance-help" })}>!</Button>
+                    <Button type="button" variant="ghost" className="balance-action-help" aria-label="指定经销商配平使用说明" onClick={() => setModal({ type: "balance-help" })}><span aria-hidden="true">!</span></Button>
+                    </span>
                   </div>
                 )}
               </div>
