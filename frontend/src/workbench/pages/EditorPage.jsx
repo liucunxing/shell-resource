@@ -444,6 +444,7 @@ function EditorContent({
     [historyMetric, setHistoryMetric] = useState("c3"),
     [historyPeriod, setHistoryPeriod] = useState("2025"),
     [trialPeriod, setTrialPeriod] = useState("2025"),
+    [appliedTrial, setAppliedTrial] = useState(null),
     [activeStep, setActiveStep] = useState(1),
     [balanceIds, setBalanceIds] = useState([]),
     [scopeSearch, setScopeSearch] = useState(""),
@@ -466,7 +467,7 @@ function EditorContent({
     ),
     [undo, setUndo] = useState(null),
     [busy, setBusy] = useState(false);
-  useEffect(() => setFillNotice(null), [initiativeId]);
+  useEffect(() => { setFillNotice(null); setAppliedTrial(null); }, [initiativeId, trialPeriod]);
   useEffect(() => {
     const previous = previousAcknowledgement.current;
     if (previous.key !== acknowledgementKey) {
@@ -628,7 +629,7 @@ function EditorContent({
     const changed = mutate((s) =>
       E.updateInitiative(s, i.id, patch, identity, data),
     );
-    if (changed) setUndo(previous);
+    if (changed) { setUndo(previous); setAppliedTrial(null); }
     return changed;
   };
   const doGuard = (fn) => {
@@ -820,6 +821,7 @@ function EditorContent({
           throw Error("历史权重合计为 0，不能应用试算。");
         }
         if (update({ rows: allocation.rows })) {
+          setAppliedTrial(metric);
           setFillNotice({
             metricLabel: label,
             hasHistory: true,
@@ -1736,18 +1738,14 @@ function EditorContent({
                   <Button
                     key={metric}
                     variant="outline"
+                    aria-pressed={appliedTrial === metric}
+                    className={appliedTrial === metric ? "v19-trial-selected" : undefined}
                     disabled={!editable || !i.rows.length}
                     onClick={() => historyFill(metric, trialPeriod)}
                   >
                     {label}
                   </Button>
                 ))}
-                <Button
-                  disabled={!i.rows.length}
-                  onClick={() => setTrialCompare(true)}
-                >
-                  ⇄ 对比三种试算方案
-                </Button>
                 <Button
                   variant="outline"
                   onClick={() =>
