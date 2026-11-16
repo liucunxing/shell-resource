@@ -1,6 +1,8 @@
+from collections.abc import Mapping, Sequence
 from decimal import Decimal
+from typing import cast
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import Table, delete, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.departments import departments
@@ -119,6 +121,39 @@ class WorkspaceRepository:
         )
         return list((await self.session.scalars(statement)).all())
 
+    async def latest_submissions_for(
+        self, budget_ids: list[int],
+    ) -> dict[int, WorkspacePublicationDO]:
+        """Fetch only the final immutable submission for each requested budget."""
+        if not budget_ids:
+            return {}
+        ranked = select(
+            WorkspacePublicationDO.id,
+            func.row_number().over(
+                partition_by=WorkspacePublicationDO.budget_id,
+                order_by=(WorkspacePublicationDO.publication_number.desc(),
+                          WorkspacePublicationDO.id.desc()),
+            ).label("position"),
+        ).where(WorkspacePublicationDO.budget_id.in_(budget_ids)).subquery()
+        return {item.budget_id: item for item in await self.session.scalars(
+            select(WorkspacePublicationDO).join(ranked, ranked.c.id == WorkspacePublicationDO.id)
+            .where(ranked.c.position == 1)
+        )}
+
+    async def next_publication_number(self, budget_id: int) -> int:
+        latest = await self.session.scalar(
+            select(func.max(WorkspacePublicationDO.publication_number))
+            .where(WorkspacePublicationDO.budget_id == budget_id)
+        )
+        return int(latest or 0) + 1
+
+    async def publications_by_ids(self, ids: list[int]) -> dict[int, WorkspacePublicationDO]:
+        if not ids:
+            return {}
+        return {item.id: item for item in await self.session.scalars(
+            select(WorkspacePublicationDO).where(WorkspacePublicationDO.id.in_(ids))
+        )}
+
     async def projection_rows(
         self, budget_ids: list[int], *, include_drafts: bool = True,
     ) -> tuple[
@@ -206,23 +241,40 @@ class WorkspaceRepository:
     async def config(self) -> WorkspaceConfigDO | None:
         return await self.session.get(WorkspaceConfigDO, 1)
 
-    async def replace_rows(self, budget: BudgetDO, rows: list[dict]) -> None:
+    async def replace_rows(
+        self, budget: BudgetDO, rows: list[dict], *,
+        directory: Mapping[str, Mapping] | None = None,
+        existing: Sequence[BudgetDistributorDO] | None = None,
+    ) -> None:
         from app.core.dealer_identity import dealer_identity
         from app.repositories.reference_repository import ReferenceRepository
 
-        records = await ReferenceRepository(self.session).list_directory(sectors=(budget.sector,))
-        directory = {dealer_identity(row): row for row in records}
-        existing = {
-            row.history_key or row.distributor_code: row for row in await self.rows_for(budget.id)
+        if directory is None:
+            records = await ReferenceRepository(self.session).list_directory(
+                sectors=(budget.sector,),
+            )
+            directory = {dealer_identity(row): row for row in records}
+        existing_by_id = {
+            row.history_key or row.distributor_code: row
+            for row in (existing if existing is not None else await self.rows_for(budget.id))
         }
         await self.session.execute(
             delete(BudgetDistributorDO).where(BudgetDistributorDO.budget_id == budget.id)
         )
+        values = self.allocation_values(budget, rows, directory, existing_by_id)
+        await self.insert_allocations(values)
+
+    @staticmethod
+    def allocation_values(
+        budget: BudgetDO, rows: list[dict], directory: Mapping[str, Mapping],
+        existing: Mapping[str, BudgetDistributorDO] | None = None,
+    ) -> list[dict]:
+        values = []
         for item in rows:
             source = directory.get(item["dealerId"])
-            old = existing.get(item["dealerId"])
-            self.session.add(
-                BudgetDistributorDO(
+            old = existing.get(item["dealerId"]) if existing else None
+            values.append(
+                dict(
                     budget_id=budget.id,
                     planning_year=budget.planning_year,
                     sector=budget.sector,
@@ -242,20 +294,27 @@ class WorkspaceRepository:
                     description=item.get("note"),
                 )
             )
+        return values
+
+    async def insert_allocations(self, values: list[dict]) -> None:
+        if values:
+            # The response reloads rows once; no generated ID/default is needed per allocation.
+            await self.session.execute(insert(cast(Table, BudgetDistributorDO.__table__)), values)
 
     async def replace_other(self, budget_id: int, rows: list[dict]) -> None:
         await self.session.execute(
             delete(OtherBudgetDO).where(OtherBudgetDO.budget_id == budget_id)
         )
-        for item in rows:
-            self.session.add(
-                OtherBudgetDO(
-                    budget_id=budget_id,
-                    reason_id=item["reasonId"],
-                    amount=Decimal(item["amount"]),
-                    note=item.get("note"),
-                )
-            )
+        await self.insert_other(self.other_values(budget_id, rows))
+
+    @staticmethod
+    def other_values(budget_id: int, rows: list[dict]) -> list[dict]:
+        return [dict(budget_id=budget_id, reason_id=item["reasonId"],
+                     amount=Decimal(item["amount"]), note=item.get("note")) for item in rows]
+
+    async def insert_other(self, values: list[dict]) -> None:
+        if values:
+            await self.session.execute(insert(cast(Table, OtherBudgetDO.__table__)), values)
 
     def add_log(
         self,

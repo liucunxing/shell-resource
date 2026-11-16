@@ -13,6 +13,7 @@ from app.core.resource_access import default_department_resources
 from app.core.timestamps import iso_timestamp
 from app.dependencies.workbench_user import WorkbenchUser
 from app.models.do.budget import BudgetDO
+from app.models.do.budget_distributor import BudgetDistributorDO
 from app.models.do.planning import PlanningVersionDO
 from app.models.do.workspace import (
     BudgetChangeLogDO,
@@ -251,12 +252,12 @@ class WorkspaceService:
 
     async def get_draft(self, budget_id: int) -> dict:
         budget = await self._scoped_budget(budget_id, writable=False)
-        history = await self.repository.publications_for(budget_id)
+        latest = (await self.repository.latest_submissions_for([budget_id])).get(budget_id)
         item = self._budget_projection(
             budget,
             await self.repository.rows_for(budget.id),
             await self.repository.other_for(budget.id),
-            history[-1] if history else None,
+            latest,
         )
         if budget.planning_version_id:
             planning = PlanningService(self.session, self.user)
@@ -266,8 +267,8 @@ class WorkspaceService:
                 and (budget.owner_email or "").lower() != self.user.email.lower()
             ):
                 item = (
-                    self._publication(history[-1])["initiative"]
-                    if history and workflow["submitted"]
+                    self._publication(latest)["initiative"]
+                    if latest and workflow["submitted"]
                     else self._budget_projection(budget, [], [])
                 )
             item.update(
@@ -279,13 +280,20 @@ class WorkspaceService:
 
     async def save_draft(self, budget_id: int, payload: InitiativeDraftUpdateDTO) -> dict:
         budget = await self._scoped_budget(budget_id, writable=True, for_update=True)
-        await self._validate_rows(payload.rows, payload.otherBudgets, budget)
+        records = await ReferenceRepository(self.session).list_directory(sectors=(budget.sector,))
+        directory = {dealer_identity(record): record for record in records}
+        existing = await self._validate_rows(
+            payload.rows, payload.otherBudgets, budget, directory_ids=set(directory),
+        )
         if budget.revision != payload.expected_revision:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT, detail="草稿已被其他用户修改，请刷新后重试"
             )
         async with self.session.begin_nested():
-            await self.repository.replace_rows(budget, [item.model_dump() for item in payload.rows])
+            await self.repository.replace_rows(
+                budget, [item.model_dump() for item in payload.rows],
+                directory=directory, existing=existing,
+            )
             await self.repository.replace_other(
                 budget_id, [item.model_dump() for item in payload.otherBudgets]
             )
@@ -359,7 +367,7 @@ class WorkspaceService:
                 )
             except ValueError as exc:
                 raise HTTPException(422, str(exc)) from exc
-        old = await self.repository.publications_for(budget_id)
+        publication_number = await self.repository.next_publication_number(budget_id)
         initiative = self._budget_projection(budget, rows, other)
         if budget.planning_version_id:
             initiative["changeReason"] = submission_reason
@@ -370,7 +378,7 @@ class WorkspaceService:
             publication = WorkspacePublicationDO(
                 budget_id=budget_id,
                 department=budget.department,
-                publication_number=len(old) + 1,
+                publication_number=publication_number,
                 published_revision=budget.revision,
                 snapshot={
                     "initiative": initiative,
@@ -546,8 +554,9 @@ class WorkspaceService:
         if budget is None:
             raise HTTPException(status_code=404, detail="Initiative 不存在或不在当前权限范围")
         planning = PlanningService(self.session, self.user)
+        version = None
         if budget.planning_version_id:
-            await planning.read_guard(budget)
+            version = await planning.read_guard(budget)
         if for_update or budget.planning_version_id:
             # Refresh after obtaining the version lock: ownership may have changed while waiting.
             budget = await self.repository.get_scoped_budget(
@@ -555,12 +564,17 @@ class WorkspaceService:
             )
             if budget is None:
                 raise HTTPException(409, "项目归属或状态已变化，请刷新后重试")
-        if budget.planning_version_id:
-            await planning.read_guard(budget)
+        # Recheck scope after the locked refresh; reuse the version lock already held above.
+        if budget.planning_version_id and not planning.permitted(budget):
+            raise HTTPException(404, "Initiative 不在当前授权范围")
+        if budget.planning_version_id and (
+            version is None or version.id != budget.planning_version_id
+        ):
+            version = await planning.read_guard(budget)
         if writable:
             if (budget.owner_email or "").lower() != self.user.email.lower():
                 raise HTTPException(status_code=403, detail="仅当前 Initiative 的 Owner 可编辑")
-            await planning.writable(budget)
+            await planning.writable(budget, version)
         return budget
 
     def _matches(self, budget: BudgetDO) -> bool:
@@ -695,7 +709,9 @@ class WorkspaceService:
             "department": departments(item.department),
         }
 
-    async def _validate_rows(self, rows: list, other: list, budget: BudgetDO) -> None:
+    async def _validate_rows(
+        self, rows: list, other: list, budget: BudgetDO, *, directory_ids: set[str] | None = None,
+    ) -> list[BudgetDistributorDO]:
         if budget.planning_version_id and any(
             item.amount != item.amount.to_integral_value() for item in [*rows, *other]
         ):
@@ -711,12 +727,12 @@ class WorkspaceService:
             existing_ids.update(row["dealerId"] for row in projected["rows"])
         requested_ids = {item.dealerId for item in rows}
         if budget.planning_version_id:
-            await self._validate_version_dealer_scope(budget, requested_ids)
+            await self._validate_version_dealer_scope(budget, requested_ids, directory_ids)
         new_ids = requested_ids - existing_ids
-        directory_ids = (
+        active_directory_ids = (
             await self.directory_service.distributor_codes((budget.sector,)) if new_ids else set()
         )
-        if not new_ids.issubset(directory_ids):
+        if not new_ids.issubset(active_directory_ids):
             raise HTTPException(
                 status_code=422, detail="新增经销商必须属于本项目业务线且状态为 active"
             )
@@ -739,16 +755,22 @@ class WorkspaceService:
                 raise HTTPException(
                     status_code=422, detail="其他预算原因不可用；停用原因仅可保留原有行或删除"
                 )
+        return existing
 
-    async def _validate_version_dealer_scope(self, budget: BudgetDO, dealer_ids: set[str]) -> None:
+    async def _validate_version_dealer_scope(
+        self, budget: BudgetDO, dealer_ids: set[str], permitted_ids: set[str] | None = None,
+    ) -> None:
         """Recheck the complete roster, retaining existing closed dealers in the same sector."""
         if not dealer_ids:
             return
         from app.core.dealer_identity import dealer_identity
         from app.repositories.reference_repository import ReferenceRepository
 
-        records = await ReferenceRepository(self.session).list_directory(sectors=(budget.sector,))
-        permitted_ids = {dealer_identity(record) for record in records}
+        if permitted_ids is None:
+            records = await ReferenceRepository(self.session).list_directory(
+                sectors=(budget.sector,),
+            )
+            permitted_ids = {dealer_identity(record) for record in records}
         if not dealer_ids.issubset(permitted_ids):
             raise HTTPException(422, "经销商名单包含当前业务线以外或已不存在的经销商，请核对名单")
 

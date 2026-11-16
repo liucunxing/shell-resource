@@ -66,6 +66,7 @@ export function PlanningVersionsPage() {
   const {
     state,
     refresh,
+    refreshPlanningVersions,
     selectPlanningVersion,
     notify,
     previewMode,
@@ -86,12 +87,15 @@ export function PlanningVersionsPage() {
   });
   const open = (value) => {
     setError("");
+    setDeadlineError("");
     setDialog(value);
   };
   const persist = async () => {
     setBusy(true);
     setError("");
     try {
+      const changesCurrent = dialog.kind === "create" ||
+        dialog.version?.id === (state.currentVersionId || state.planningVersion?.id);
       if (dialog.kind === "create") {
         await api.createPlanningVersion({
           id: form.id.trim(),
@@ -134,10 +138,17 @@ export function PlanningVersionsPage() {
         });
       }
       setDialog(null);
-      await refresh({ preservePage: true });
+      const refreshed = changesCurrent
+        ? await refresh({ preservePage: true })
+        : await refreshPlanningVersions();
+      if (!refreshed) {
+        notify("规划版本已保存，但刷新失败，请重新加载后继续。", true);
+        return;
+      }
       notify("规划版本已保存。");
     } catch (failure) {
       setError(failure.message);
+      setDeadlineError(failure.message);
     } finally {
       setBusy(false);
     }
@@ -233,6 +244,7 @@ export function PlanningVersionsPage() {
                         variant="outline"
                         size="sm"
                         type="button"
+                        disabled={busy}
                         onClick={() => selectPlanningVersion(version.id, { targetPage: "admin-initiatives" })}
                       >
                         配置项目
