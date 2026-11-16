@@ -1,3 +1,4 @@
+import { MoneyInput } from "./MoneyInput";
 import { Label } from "../../components/ui/label";
 import { Input } from "../../components/ui/input";
 import {
@@ -131,12 +132,9 @@ export function AdminBudgetFields({
       </Label>
       <Label className="form-field">
         预算金额
-        <Input
-          type="number"
-          min="0"
-          step="0.01"
+        <MoneyInput
           value={value.budget}
-          onChange={(event) => set("budget", event.target.value)}
+          onValueChange={(value) => set("budget", value)}
         />
       </Label>
     </fieldset>

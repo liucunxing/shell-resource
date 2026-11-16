@@ -1,3 +1,4 @@
+import { MoneyInput } from "./MoneyInput";
 import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
 import { MetricHelp } from "./MetricHelp";
 import { SdAnalysis } from "./SdAnalysis.jsx";
@@ -324,9 +325,7 @@ function AmountInput({ value, label, save, disabled = false, budgetLimit = null 
     raw === null ||
     (/^\d+(\.\d{0,2})?$/.test(raw) && E.validMoney(Number(raw)));
   return (
-    <Input
-      type="text"
-      inputMode="decimal"
+    <MoneyInput
       disabled={disabled}
       aria-label={label}
       aria-invalid={!valid || failed}
@@ -334,8 +333,7 @@ function AmountInput({ value, label, save, disabled = false, budgetLimit = null 
       data-invalid-message={!valid || failed ? amountInputError(raw, budgetLimit) || undefined : undefined}
       className={!valid || failed ? "inline-error" : ""}
       value={raw ?? value}
-      onChange={(e) => {
-        const next = e.target.value;
+      onValueChange={(next) => {
         setRaw(next);
         if (/^\d+(\.\d{0,2})?$/.test(next) && E.validMoney(Number(next)))
           setFailed(save(Number(next)) === false);
