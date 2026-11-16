@@ -161,7 +161,7 @@ describe("V19 selection and comparison", () => {
         history: {
           c32025: 10,
           vol2025: 80,
-          contract2025: 100,
+          contract2025: 100, phasing2025: 0.8,
           totalInvestment2025: 10,
         },
       },
@@ -172,7 +172,7 @@ describe("V19 selection and comparison", () => {
         history: {
           c32025: 90,
           vol2025: 300,
-          contract2025: 400,
+          contract2025: 400, phasing2025: 0.75,
           totalInvestment2025: 30,
         },
       },

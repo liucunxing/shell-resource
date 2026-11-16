@@ -24,8 +24,8 @@
 - 认证失败明确返回不可用，不使用个人 token/CLI 登录回退，不自行授权，不把查询改到 `raw`、`base`、`report`、开发 schema 等扩大范围。
 - 需新增源数据时由数据负责人提供 schema 内的授权视图/同步表，核对应用身份、列、业务粒度、刷新频率、年月、单位和币种，再集成与对账。
 - 不猜造未知截止月、经销商target、汇率或组织归属；缺失与真实零区分。PPP为旧实现误加项，取消API规则和缺项声明。Sellin按季度更新，Actual/费用/target的业务覆盖仍须由源同批提供。
-- Phasing分母按用户最新确认是同期间经销商target：9月YTD对应1–9月target；不自动取全年合同，也不使用销售SD/RSM目标。未提供或期间不明时保持不可用；演示全年合同不能冒充YTD真实目标。
-- 指标遵循 [供应商 V2.0 口径映射](../docs/METRIC_DEFINITIONS.md)：Phasing 在合同>0时为Vol/合同；Yield仅C3与完整历史投资均>0；YoY基期≤0返回无基期；试算负权归0、总权0拒绝。保留PG原值，派生重算与源值核对分开。
+- 2026-11-16用户最新确认：Phasing直接取同业务身份的phasing_2025/phasing_2026源比率，不再重算或被target/Actual期间确认失效屏蔽。零有效，NULL/非有限值保持空；不自动修改既有target/Actual确认。汇总使用同年源target加权源Phasing。
+- 指标遵循 [供应商 V2.0 口径映射](../docs/METRIC_DEFINITIONS.md)：Phasing以2026-11-16源值直读规则为准；Yield仅C3与完整历史投资均>0；YoY基期≤0返回无基期；试算负权归0、总权0拒绝。保留PG原值，派生重算与源值核对分开。
 - YTD 管理配置为1–12、默认10，配置更新仍检查revision并留审计；Actual/费用真实覆盖月份独立返回，未知仍为null。不能将管理员设置或原型10月写成PG的业务日期。
 - 用户已确认当前PG批次Actual/费用均累计到2026年9月。使用绑定全源指纹的historyCoverageConfirmation，数据换批即失效；sourcePeriodMetadataAvailable仍为false，源时间字段后续补。有效月份与configuredYtdCutoffMonth分开，不能自动延用到预计2027年1月的新数据。
 

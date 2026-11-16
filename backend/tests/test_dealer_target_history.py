@@ -63,15 +63,15 @@ async def project(row_changes=None, target_changes=None, *, actual=True, confirm
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("unit,multiplier", [("L", 1), ("KL", 1000)])
-async def test_target_projection_normalizes_units_and_recomputes_unrounded_ratio(unit, multiplier):
+async def test_target_projection_normalizes_units_but_keeps_source_phasing(unit, multiplier):
     service, records = await project(target_changes={"sourceUnit": unit})
     h = records[0]["history"]
     assert h["contract2025"] == 20 * multiplier
     assert h["contract2026Ytd"] == 30 * multiplier
     assert h["sourceTarget2026Ytd"] == 30
     assert h["sourcePhasing2026Ytd"] == 999
-    assert h["phasing2026Ytd"] == pytest.approx(5 / (30 * multiplier))
-    assert h["phasing2025"] == pytest.approx(3 / (20 * multiplier))
+    assert h["phasing2026Ytd"] == 999
+    assert h["phasing2025"] == 999
     assert h["target2026YtdUnavailableReason"] is None
     manifest = history_snapshot(
         2027, records, coverage=service.coverage,
@@ -82,20 +82,19 @@ async def test_target_projection_normalizes_units_and_recomputes_unrounded_ratio
     assert manifest["metricRules"]["phasing"]["availableRecordCounts"] == {
         "2025": 1, "2026Ytd": 1,
     }
-    assert manifest["metricRules"]["phasing"]["sourcePhasingUsed"] is False
+    assert manifest["metricRules"]["phasing"]["sourcePhasingUsed"] is True
     assert "contractVolume" not in manifest["missingFields"]
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("amount,reason", [(None, "missing_target"), (0, "non_positive_target"),
-                                         (-5, "non_positive_target")])
-async def test_missing_zero_and_negative_targets_do_not_create_phasing(amount, reason):
+@pytest.mark.parametrize("amount", [None, 0, -5])
+async def test_missing_zero_and_negative_targets_do_not_mask_source_phasing(amount):
     _, records = await project({"target_2026": amount})
     h = records[0]["history"]
     assert h["sourceTarget2026Ytd"] == amount
     assert h["contract2026Ytd"] == amount
-    assert h["phasing2026Ytd"] is None
-    assert h["phasing2026YtdUnavailableReason"] == reason
+    assert h["phasing2026Ytd"] == 999
+    assert h["phasing2026YtdUnavailableReason"] is None
 
 
 @pytest.mark.asyncio
@@ -109,10 +108,10 @@ async def test_signed_targets_remain_distinct_from_missing_after_normalization(u
     assert h["sourceTarget2026Ytd"] == -30
     assert h["contract2025"] == -20 * multiplier
     assert h["contract2026Ytd"] == -30 * multiplier
-    assert h["phasing2025"] is None
-    assert h["phasing2026Ytd"] is None
-    assert h["phasing2025UnavailableReason"] == "non_positive_target"
-    assert h["phasing2026YtdUnavailableReason"] == "non_positive_target"
+    assert h["phasing2025"] == 999
+    assert h["phasing2026Ytd"] == 999
+    assert h["phasing2025UnavailableReason"] is None
+    assert h["phasing2026YtdUnavailableReason"] is None
 
 
 @pytest.mark.asyncio
@@ -127,8 +126,8 @@ async def test_signed_source_target_cannot_bypass_confirmation_gates(confirmed, 
     assert h["sourceTarget2026Ytd"] == -30
     assert h["contract2025"] is None
     assert h["contract2026Ytd"] is None
-    assert h["phasing2025"] is None
-    assert h["phasing2026Ytd"] is None
+    assert h["phasing2025"] == 999
+    assert h["phasing2026Ytd"] == 999
 
 
 @pytest.mark.asyncio
@@ -146,7 +145,9 @@ async def test_new_source_or_missing_confirmation_blocks_target_but_exposes_sour
         manifest = history_snapshot(
             2027, records, target_confirmation_status=service.target_confirmation_status,
         )["manifest"]
-        assert manifest["metricRules"]["phasing"]["unavailableReason"] == reason
+        assert manifest["target"]["available"] is False
+        assert manifest["metricRules"]["phasing"]["available"] is True
+        assert manifest["metricRules"]["phasing"]["unavailableReason"] is None
         assert "targetUnit" in manifest["missingFields"]
 
 
@@ -166,12 +167,12 @@ async def test_ytd_target_requires_actual_period_and_exact_match_without_blockin
 
 
 @pytest.mark.asyncio
-async def test_missing_actual_blocks_ratio_and_zero_actual_is_valid():
+async def test_missing_or_zero_actual_does_not_override_source_phasing():
     for actual in (None, 0, -3):
         _, records = await project({"volume_2026": actual})
         h = records[0]["history"]
         assert h["contract2026Ytd"] == 30
-        assert h["phasing2026Ytd"] == (None if actual is None else actual / 30)
+        assert h["phasing2026Ytd"] == 999
 
 
 @pytest.mark.asyncio
@@ -198,3 +199,39 @@ async def test_optional_source_projection_does_not_require_physical_target_colum
     else:
         assert "NULL AS target_2025" in sql
         assert "row_to_json" not in sql
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source,expected,reason", [
+    (None, None, "missing_source_phasing"), (0, 0, None), (1, 1, None),
+    (1.17, 1.17, None), (-0.25, -0.25, None),
+    (float("nan"), None, "invalid_source_phasing"),
+    (float("inf"), None, "invalid_source_phasing"),
+    (float("-inf"), None, "invalid_source_phasing"),
+])
+async def test_source_phasing_is_authoritative_and_json_safe_without_confirmation(
+    source, expected, reason,
+):
+    import json
+
+    _, records = await project(
+        {"phasing_2025": source, "phasing_2026": source}, actual=False, confirmed=False,
+    )
+    h = records[0]["history"]
+    for suffix in ("2025", "2026Ytd"):
+        assert h[f"phasing{suffix}"] == expected
+        assert h[f"sourcePhasing{suffix}"] == expected
+        assert h[f"phasing{suffix}UnavailableReason"] == reason
+    json.dumps(records, allow_nan=False)
+    manifest = history_snapshot(2027, records)["manifest"]
+    assert manifest["metricRules"]["phasing"]["available"] is (expected is not None)
+    assert manifest["metricRules"]["phasing"]["sourcePhasingUsed"] is True
+
+
+@pytest.mark.asyncio
+async def test_source_phasing_preserves_same_code_distinct_sector_values():
+    _, crto = await project({"sector": "CRTO", "phasing_2025": 1.00})
+    _, pcmo = await project({"sector": "PCMO", "phasing_2025": 1.17})
+    assert crto[0]["id"] != pcmo[0]["id"]
+    assert crto[0]["history"]["phasing2025"] == 1.00
+    assert pcmo[0]["history"]["phasing2025"] == 1.17

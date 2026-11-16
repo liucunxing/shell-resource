@@ -39,7 +39,7 @@ const dealers = [
     history: {
       vol2025: 3000,
       c32025: 600,
-      contract2025: 6000,
+      contract2025: 6000, phasing2025: 0.5,
       totalInvestment2025: 300,
       resources2025: { MRD: 120, "SP&A": -20 },
       restrictedResources2025: ["Capex", "ICE Rebate"],
@@ -58,7 +58,7 @@ const dealers = [
     history: {
       vol2025: 1000,
       c32025: 400,
-      contract2025: 4000,
+      contract2025: 4000, phasing2025: 0.25,
       totalInvestment2025: 200,
       resources2025: { MRD: 100, "SP&A": 20 },
     },
@@ -354,6 +354,21 @@ describe("V20 details keep their invocation scope and sector identities", () => 
 });
 
 describe("V20 V17 allocation table contract", () => {
+  it("renders each source Phasing in dealer rows and a single-dealer drawer without target gates", () => {
+    const source = dealers.slice(0, 2).map((dealer, index) => ({
+      ...dealer, history: { ...dealer.history, phasing2025: index === 0 ? 1 : 1.17,
+        contract2025: null, sourceTarget2025: index === 0 ? 160000 : 700000 },
+    }));
+    const rows = dealerDetailRows(items.slice(0, 1), source, "c3", "2025");
+    expect(rows.map(row => row.phasing)).toEqual([100, 117]);
+    expect(historicalDetailTotals([rows[1]], "2025").phasing).toBe(1.17);
+    const html = renderToStaticMarkup(<V19DealerDetails items={items.slice(0, 1)} dealers={source} />);
+    expect(html).toContain("100%");
+    expect(html).toContain("117%");
+    expect(historicalDetailTotals(rows, "2025").phasing).toBeCloseTo((160000 + 1.17 * 700000) / 860000);
+  });
+
+
   it("renders the shared dealer footer using only positive-target pairs", () => {
     const source = dealers.slice(0, 2).map((dealer, index) => ({
       ...dealer,
@@ -375,6 +390,7 @@ describe("V20 V17 allocation table contract", () => {
         ...dealer.history,
         vol2026Ytd: index === 0 ? 1000 : 6000,
         contract2026Ytd: index === 0 ? 2000 : 8000,
+        phasing2026Ytd: index === 0 ? 0.5 : 0.75,
       },
     }));
     const rows = dealerDetailRows(items.slice(0, 1), source, "c3", "2026Ytd");
@@ -384,15 +400,15 @@ describe("V20 V17 allocation table contract", () => {
     expect(historicalDetailTotals(rows, "2026Ytd")).toMatchObject({
       contract: 10000, vol: 7000, phasing: 0.7,
     });
-    // The source ratio is not a substitute for an absent confirmed target.
+    // Source Phasing remains visible even when the target is unavailable.
     for (const target of [0, -1000, null, undefined]) {
       const incomplete = source.map((dealer, index) => index === 0 ? {
         ...dealer,
-        history: { ...dealer.history, contract2026Ytd: target, phasing_2026: 0.5 },
+        history: { ...dealer.history, contract2026Ytd: target, phasing2026Ytd: 0.5 },
       } : dealer);
       const detailRows = dealerDetailRows(items.slice(0, 1), incomplete, "c3", "2026Ytd");
       expect(detailRows[0].contract).toBe(target ?? null);
-      expect(detailRows[0].phasing).toBeNull();
+      expect(detailRows[0].phasing).toBe(50);
       const totals = historicalDetailTotals(detailRows, "2026Ytd");
       if (target != null) {
         // Raw totals keep the source target; only positive-target rows enter Phasing.
