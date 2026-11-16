@@ -2586,11 +2586,11 @@ function EditorContent({
             </Card>
           )}
           {activeStep === 3 &&
-            (errors.length ? (
-              <Alert className="note-box warn">
+            (submissionReasons.length ? (
+              <Alert className="note-box warn" role="status">
                 <AlertDescription>
-                  {errors.map((e) => (
-                    <div key={e}>{e.replace("标记完成", "提交当前方案")}</div>
+                  {submissionReasons.map((reason) => (
+                    <div key={reason}>{reason}</div>
                   ))}
                 </AlertDescription>
               </Alert>
@@ -2673,9 +2673,6 @@ function EditorContent({
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-                    <div className="submission-blocked-reason" role="status">
-                      {submissionReasons.map((reason) => <div key={reason}>{reason}</div>)}
-                    </div>
                   </div>
                 ) : (
                   <Button variant="default" className="button primary" disabled={!canSynchronize}
