@@ -948,7 +948,7 @@ function EditorContent({
       ),
     ),
   );
-  const allocationGroups = allocationColumnGroups(allocationExpenses, true);
+  const allocationGroups = allocationColumnGroups(allocationExpenses, true, true);
   const allocationColumns = allocationGroups.flatMap((group) => group.columns);
   const awardsByDealer = awardedInitiativesByDealer(i, view.initiatives);
   const detailItems = detail?.ownerOthers
@@ -979,6 +979,8 @@ function EditorContent({
       );
     return {
       name: dealer.name || dealerCode(row.dealerId),
+      code: dealerCode(row.dealerId),
+      status: dealer.status || "—",
       amount: row.amount,
       sd: dealer.sd,
       rsm: dealer.rsm,
@@ -2096,7 +2098,7 @@ function EditorContent({
                           sortKey={key}
                           data-column={key}
                           className={
-                            ["name", "sd", "rsm", "note"].includes(key)
+                            ["code", "name", "status", "sd", "rsm", "note"].includes(key)
                               ? ""
                               : "num"
                           }
@@ -2112,7 +2114,6 @@ function EditorContent({
                       const rowIndex = i.rows.findIndex(
                           (row) => row.dealerId === r.dealerId,
                         ),
-                        dealer = dealerMeta(r.dealerId),
                         awards = awardsByDealer.get(String(r.dealerId)) || [];
                       return (
                         <TableRow key={r.dealerId}>
@@ -2140,13 +2141,12 @@ function EditorContent({
                                     ? "num v19-money-cell"
                                     : key === "note"
                                       ? "allocation-note"
-                                      : ["sd", "rsm", "support"].includes(key)
+                                      : ["code", "status", "sd", "rsm", "support"].includes(key)
                                         ? ""
                                         : "num"
                               }
                             >
                               {key === "name" ? (
-                                <>
                                   <Button
                                     variant="link"
                                     onClick={() =>
@@ -2164,11 +2164,6 @@ function EditorContent({
                                   >
                                     {dealerName(r.dealerId)}
                                   </Button>
-                                  <small>
-                                    {dealerCode(r.dealerId)} ·{" "}
-                                    {dealer.status || "—"}
-                                  </small>
-                                </>
                               ) : key === "amount" ? (
                                 editable ? (
                                   <AmountInput
@@ -2290,7 +2285,7 @@ function EditorContent({
                   <TableFooter>
                     <TableRow>
                       {editable && <TableCell />}
-                      {allocationColumns.map(([key], index) => (
+                      {allocationColumns.map(([key]) => (
                         <TableCell
                           key={key}
                           data-column={key}
@@ -2298,9 +2293,9 @@ function EditorContent({
                             key === "amount" ? "num v19-money-cell" : "num"
                           }
                         >
-                          {index === 0
+                          {key === "name"
                             ? "范围合计 / 加权值"
-                            : ["sd", "rsm", "support", "note"].includes(key)
+                            : ["code", "status", "sd", "rsm", "support", "note"].includes(key)
                               ? ""
                               : allocationFormat(
                                   totalAllocationValue(key),

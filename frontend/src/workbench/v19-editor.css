@@ -696,7 +696,7 @@
 }
 .v19-editor .v19-allocation-table [data-column="name"] {
   position: sticky;
-  left: var(--selection-width);
+  left: calc(120px + var(--selection-width));
   width: 210px;
   min-width: 210px;
   max-width: 210px;
@@ -704,9 +704,27 @@
   z-index: 2;
   white-space: normal;
 }
+.v19-editor .v19-allocation-table [data-column="code"],
+.v19-editor .v19-allocation-table [data-column="status"] {
+  position: sticky;
+  background: #fff;
+  z-index: 2;
+}
+.v19-editor .v19-allocation-table [data-column="code"] {
+  left: var(--selection-width);
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+}
+.v19-editor .v19-allocation-table [data-column="status"] {
+  left: calc(330px + var(--selection-width));
+  width: 90px;
+  min-width: 90px;
+  max-width: 90px;
+}
 .v19-editor .v19-allocation-table [data-column="amount"] {
   position: sticky;
-  left: calc(210px + var(--selection-width));
+  left: calc(420px + var(--selection-width));
   width: 164px;
   min-width: 164px;
   max-width: 164px;
@@ -791,9 +809,14 @@
 }
 @media (max-width: 600px) {
   .v19-editor .v19-allocation-table [data-column="name"] {
+    left: var(--selection-width);
     width: 135px;
     min-width: 135px;
     max-width: 135px;
+  }
+  .v19-editor .v19-allocation-table [data-column="code"],
+  .v19-editor .v19-allocation-table [data-column="status"] {
+    position: static;
   }
   .v19-editor .v19-allocation-table [data-column="name"] button {
     max-width: 100%;
