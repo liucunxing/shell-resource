@@ -757,9 +757,9 @@ function EditorContent({
       ),
     });
   const close = () => setModal(null);
-  const download = async (directoryOnly = false, rosterOnly = false) => {
+  const download = async (rosterOnly = false) => {
     const previewEpoch = getPreviewEpoch();
-    if (!directoryOnly && !guard()) return;
+    if (!guard()) return;
     setBusy(true);
     try {
       const directory = apiMode
@@ -770,9 +770,7 @@ function EditorContent({
       const exportData = { ...data, distributorDirectory: directory };
       const bytes = rosterOnly
         ? await exportExcelInWorker("roster", selectedScopeRows, dealers)
-        : directoryOnly
-          ? await exportExcelInWorker("directory", exportData)
-          : await exportExcelInWorker(
+        : await exportExcelInWorker(
               "allocation",
               state,
               i.id,
@@ -791,9 +789,7 @@ function EditorContent({
       a.href = url;
       a.download = rosterOnly
         ? `${i.name}_已选经销商名单.xlsx`
-        : directoryOnly
-          ? "经销商列表.xlsx"
-          : `${i.department}_${i.name}_${i.id}_分配模板.xlsx`;
+        : `${i.department}_${i.name}_${i.id}_分配模板.xlsx`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
@@ -1611,7 +1607,7 @@ function EditorContent({
                     </p>
                   </div>
                   <div className="actions">
-                    <Button variant="outline" disabled={busy} onClick={() => download(false, true)}>下载名单 Excel</Button>
+                    <Button variant="outline" disabled={busy} onClick={() => download(true)}>下载名单 Excel</Button>
                     <Button variant="outline" disabled={busy || !editable} onClick={() => doGuard(() => rosterFileRef.current?.click())}>上传导入名单 Excel</Button>
                     <input ref={rosterFileRef} type="file" accept=".xlsx" hidden onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; void importFile(file, true); }} />
                   </div>
@@ -2366,18 +2362,6 @@ function EditorContent({
                       : "输入金额或比例 · 修改即时保存"
                     : "经销商分配明细 · 只读"}
                 </span>
-                {editable && (
-                  <div className="actions">
-                    <Button
-                      variant="link"
-                      className="button link"
-                      disabled={busy}
-                      onClick={() => download(true)}
-                    >
-                      下载经销商
-                    </Button>
-                  </div>
-                )}
               </div>
             </Card>
           )}
