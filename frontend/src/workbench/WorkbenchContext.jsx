@@ -415,7 +415,7 @@ export function WorkbenchProvider({ children }) {
     return !edited;
   };
 
-  const saveDraft = async (id, values, expectedRevision) => {
+  const saveDraft = async (id, values, expectedRevision, useLatestRevision = false) => {
     const current = stateRef.current.initiatives.find(
       (item) => item.id === String(id),
     );
@@ -442,10 +442,12 @@ export function WorkbenchProvider({ children }) {
         notify("草稿已保存。");
         return true;
       }
+      const latest = useLatestRevision ? await api.getDraft(id) : null;
+      if (epoch !== sessionEpoch.current) return false;
       const result = await api.saveDraft(
         id,
         draft,
-        expectedRevision ?? serverRevisions[id],
+        latest ? latest.revision : expectedRevision ?? serverRevisions[id],
       );
       if (epoch !== sessionEpoch.current) return false;
       const saved = result.initiative || result;

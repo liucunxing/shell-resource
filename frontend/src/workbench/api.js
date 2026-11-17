@@ -122,6 +122,7 @@ export const reviewDepartment = (versionId, action, value) => request(
   { method: "POST", body: JSON.stringify(value) },
 );
 export const distributors = () => request("/distributors");
+export const getDraft = (id) => request(`/initiatives/${encodeURIComponent(id)}/draft`);
 export const saveDraft = (id, item, expectedRevision = item.revision) =>
   request(`/initiatives/${encodeURIComponent(id)}/draft`, {
     method: "PUT",
