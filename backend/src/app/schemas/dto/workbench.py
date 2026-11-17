@@ -186,11 +186,17 @@ class OtherBudgetDTO(BaseModel):
     note: str | None = Field(default=None, max_length=500)
 
 
+class InitiativeEditorStateDTO(BaseModel):
+    step: int = Field(default=1, ge=1, le=3, strict=True)
+    reserveAcknowledgement: str = Field(default="", max_length=65536)
+
+
 class InitiativeDraftUpdateDTO(BaseModel):
     expected_revision: int = Field(ge=0)
     rows: list[DraftRowDTO] = Field(default_factory=list)
     otherBudgets: list[OtherBudgetDTO] = Field(default_factory=list)
     changeReason: str = Field(default="", max_length=160)
+    editorState: InitiativeEditorStateDTO | None = None
 
 
 class PublishDTO(BaseModel):

@@ -66,6 +66,8 @@ Databricks 仅允许应用 Service Principal 访问被分配且授权的 schema�
 
 该 SQL 是历史初始结构，不能代替 V19 Alembic 升级。现有库先核对实际 revision 与迁移路径，禁止删表重建。2026-11-14 远端 `resource_dev` 已升级至 `20261114_03`；后续使用必须重新核对当前环境，不能仅凭文档假定状态。
 
+2026-11-17 Owner 草稿进度新增迁移 `20261117_01`，为 `data.budgets` 增加可空 JSON 字段 `editor_state`；部署此版服务前须完成该迁移。`PUT /initiatives/{id}/draft` 可提交 `editorState: {step: 1 | 2 | 3, reserveAcknowledgement: string}`，与分配、预留和修订号在同一事务保存。省略该字段保留原进度，显式 `null` 清除。Owner 的草稿读取及工作区返回该状态；其他角色不接收草稿核对指纹，提交快照和新规划版本不继承编辑进度。核对指纹由前端按当前 Owner、版本、预算及预留内容判断，步骤和勾选不替代服务端权限、版本开放、部门锁或预算平衡校验。本次提交迁移文件，不代表已更新远端数据库。
+
 V19 远端演练命令（默认回滚，显式 `--apply` 才提交；先配置正确 `APP_SETTINGS_FILE` 和 `APP_ENV`）：
 
 ```powershell
@@ -74,6 +76,8 @@ V19 远端演练命令（默认回滚，显式 `--apply` 才提交；先配置�
 ```
 
 第一条复制受影响表做迁移演练；第二条使用隔离 schema / 回滚验收 PostgreSQL 行为。不要用正式业务行演示流转。执行条件和历史结果见 [V19 验收记录](../docs/V19_VALIDATION.md)。
+
+草稿进度迁移可单独使用 `scripts/verify_editor_state_pg.py --expected-database resource_dev --report .cache/editor-state-pg-rehearsal.json` 验证：仅复制预算表结构，在随机 schema 中写入合成草稿、运行迁移、核对旧值与 JSON 读写，随后回滚并验证清理；不升级业务 schema 或 Alembic revision，该脚本没有应用参数。
 
 脚本不注入真实用户或示例业务数据。首次使用前，维护 `data.user_permissions` 的 `email`（小写）、`display_name`、`role`、`department`、`sector`、`enabled`。角色为 `owner / lead / management / admin`；Owner 和负责人必须配置部门。Owner 的 `sector` 必须恰好一条，负责人可配置一至四条，管理层和管理员不配置业务线。管理员 API 只接受固定业务线 `PCMO / CRTO / B2B / OEM`。将既有预算的 `owner_email` 对应到真实启用 Owner。新预算可通过管理员 API 创建，Owner 必须与预算部门匹配。
 

@@ -301,7 +301,6 @@ export function DepartmentReviewPage() {
                     <TableRow key={item.id}>
                       <TableCell>
                         <strong>{item.name}</strong>
-                        <small>{item.initiativeKey || item.id}</small>
                       </TableCell>
                       {allScopes && <><TableCell>{item.sector}</TableCell><TableCell>{item.department}</TableCell></>}
                       <TableCell>{item.ownerLabel || item.ownerId}</TableCell>

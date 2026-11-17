@@ -129,6 +129,7 @@ export const saveDraft = (id, item, expectedRevision = item.revision) =>
     body: JSON.stringify({
       expected_revision: expectedRevision,
       ...(item.changeReason !== undefined ? { changeReason: item.changeReason } : {}),
+      ...(item.editorState !== undefined ? { editorState: item.editorState } : {}),
       rows: item.rows.map(({ dealerId, amount, note }) => ({ dealerId, amount, note: note || "" })),
       otherBudgets: item.otherBudgets.map(({ id: rowId, reasonId, amount, note }) => ({ id: rowId, reasonId, amount, note: note || "" })),
     }),

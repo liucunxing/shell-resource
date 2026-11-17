@@ -130,7 +130,7 @@ describe("V19 SD presentation", () => {
     for (const label of [
       "分配 / 全部",
       "投资金额（万元）",
-      "家均（万元）",
+      "客均（万元）",
       "Delivery Vol 占比",
       "C3 占比",
       "占比对照图",

@@ -4,15 +4,17 @@ export function reserveAcknowledgementKey(identity, version, initiativeId) {
 
 export function reserveAcknowledgementFingerprint(initiative) {
   return JSON.stringify({
+    initiativeId: String(initiative?.id || ""),
+    ownerId: initiative?.ownerId || "",
+    planningVersionId: initiative?.planningVersionId || "",
     budget: initiative?.budget ?? null,
     reserves: (initiative?.otherBudgets || [])
       .map((row) => ({
-        id: row.id || "",
-        amount: row.amount,
+        amount: Number(row.amount),
         reasonId: row.reasonId || "",
         note: row.note || "",
       }))
-      .sort((a, b) => a.id.localeCompare(b.id)),
+      .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
   });
 }
 
@@ -31,6 +33,8 @@ export function hasReserveAcknowledgement(
   storage = globalThis.sessionStorage,
 ) {
   if (hasCurrentVersionSubmission(initiative)) return true;
+  if (Object.prototype.hasOwnProperty.call(initiative || {}, "editorState"))
+    return initiative.editorState?.reserveAcknowledgement === reserveAcknowledgementFingerprint(initiative);
   try {
     return (
       storage?.getItem(
@@ -40,6 +44,14 @@ export function hasReserveAcknowledgement(
   } catch {
     return false;
   }
+}
+
+export function restoredEditorStep(identity, version, initiative, editable) {
+  const step = initiative?.editorState?.step;
+  const preferred = [1, 2, 3].includes(step)
+    ? step : hasCurrentVersionSubmission(initiative) ? 3 : 1;
+  return canEnterAllocationStep(preferred, editable, hasReserveAcknowledgement(identity, version, initiative))
+    ? preferred : 1;
 }
 
 export function canEnterAllocationStep(step, editable, acknowledged) {

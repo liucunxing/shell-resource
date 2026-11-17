@@ -152,6 +152,10 @@ class WorkspaceService:
         # detached API copies against this sector's current history identities;
         # the persisted allocations and immutable snapshots remain unchanged.
         initiatives = [self._project_dealer_identities(item, dealers) for item in initiatives]
+        if self.user.role != "owner":
+            for item in initiatives:
+                # A review fingerprint can contain draft reserve amounts and notes.
+                item["editorState"] = None
         publication_map = self._publication_map(publications)
         for versions in publication_map.values():
             for publication in versions:
@@ -274,6 +278,8 @@ class WorkspaceService:
                 editable=workflow["editable"],
                 changeReason=workflow["changeReason"],
             )
+        if (budget.owner_email or "").lower() != self.user.email.lower():
+            item["editorState"] = None
         return (await self._project_legacy_items([item]))[0]
 
     async def save_draft(self, budget_id: int, payload: InitiativeDraftUpdateDTO) -> dict:
@@ -297,6 +303,10 @@ class WorkspaceService:
             )
             budget.revision += 1
             budget.status = 0
+            if "editorState" in payload.model_fields_set:
+                budget.editor_state = (
+                    payload.editorState.model_dump() if payload.editorState is not None else None
+                )
             if budget.planning_version_id:
                 planning = PlanningService(self.session, self.user)
                 workflow = await planning.ensure_state(budget.id)
@@ -364,6 +374,8 @@ class WorkspaceService:
                 raise HTTPException(422, str(exc)) from exc
         publication_number = await self.repository.next_publication_number(budget_id)
         initiative = self._budget_projection(budget, rows, other)
+        # Editor progress belongs to the working draft, not the submitted snapshot.
+        initiative.pop("editorState", None)
         if budget.planning_version_id:
             initiative["changeReason"] = submission_reason
         config = await self.repository.config()
@@ -658,6 +670,7 @@ class WorkspaceService:
                 for row in other
             ],
             "revision": revision,
+            "editorState": budget.editor_state,
             "publishedRevision": publication.published_revision if publication else None,
             "publishedAt": iso_timestamp(publication.created_at) if publication else None,
             "reserve": float(

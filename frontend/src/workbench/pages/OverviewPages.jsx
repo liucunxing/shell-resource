@@ -261,7 +261,7 @@ export function SubmissionPage() {
           </Button>
         </div>
         {reviewError && <p role="alert">{reviewError}</p>}
-        <p className="muted">批量提交仅包含已保存配平、已核对本版预算与预留的项目；核对在当前浏览器会话有效。</p>
+        <p className="muted">批量提交仅包含已保存配平、已核对本版预算与预留的项目；核对状态随草稿保存。</p>
         <div className="table-scroll">
           <Table containerClassName="overflow-visible">
             <TableHeader>
@@ -282,9 +282,6 @@ export function SubmissionPage() {
                   <TableRow key={item.id}>
                     <TableCell>
                       <strong>{item.name}</strong>
-                      <small className="block muted">
-                        {item.initiativeKey || item.id}
-                      </small>
                     </TableCell>
                     <TableCell className="num" sortValue={item.budget / 10000}>
                       {num(item.budget / 10000, 1)}
