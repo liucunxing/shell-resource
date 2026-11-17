@@ -469,6 +469,9 @@ describe("V20 V17 allocation table contract", () => {
   });
   it("has the seven V17 groups and only authorized fee leaves, retaining public fields", () => {
     const groups = allocationColumnGroups(["MRD", "SP&A"]);
+    expect(allocationColumnGroups([], true, true)[0].columns).toEqual([
+      ["code", "经销商编码"], ["name", "经销商名称"], ["status", "状态"], ["amount", "分配金额（元）"],
+    ]);
     expect(groups.map((group) => group.title)).toEqual([
       "当前规划",
       "组织属性",
