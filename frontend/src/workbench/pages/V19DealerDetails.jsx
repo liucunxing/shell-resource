@@ -59,7 +59,7 @@ export function V19DealerDetails({
   const expenses = EXPENSE_COLUMN_ORDER.filter((type) =>
     rows.some((row) => Object.hasOwn(row.resources, type)),
   );
-  const groups = allocationColumnGroups(expenses),
+  const groups = allocationColumnGroups(expenses).map(group => ({ ...group, columns: group.columns.flatMap(column => column[0] === "name" ? [column, ["code", "经销商编码"]] : [column]) })),
     columns = groups.flatMap((group) => group.columns);
   const read = (row, key) =>
     key.startsWith("expense:")
@@ -132,7 +132,7 @@ export function V19DealerDetails({
           {row.name}
         </DealerDetailButton>
         <small>
-          {row.code} · {row.sector}
+          {row.sector}
         </small>
       </>
     ) : key === "support" ? (
@@ -290,7 +290,7 @@ export function V19DealerDetails({
                         key={key}
                         data-column={key}
                         className={
-                          ["name", "sd", "rsm", "note", "support"].includes(key)
+                          ["name", "code", "sd", "rsm", "note", "support"].includes(key)
                             ? ""
                             : "num"
                         }
@@ -318,7 +318,7 @@ export function V19DealerDetails({
                   >
                     {index === 0
                       ? "范围合计 / 加权值"
-                      : ["sd", "rsm", "support", "note"].includes(key)
+                      : ["code", "sd", "rsm", "support", "note"].includes(key)
                         ? ""
                         : format(totalFor(key), key)}
                   </TableCell>

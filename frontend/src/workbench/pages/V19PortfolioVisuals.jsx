@@ -961,7 +961,7 @@ export function V19Stack({
   const columns = allocationColumnGroups(expenses)
     .filter(group => group.key !== "support")
     .flatMap(group => group.columns)
-    .flatMap(column => column[0] === "amount" ? [column, ["mix", "资源大类构成"]] : [column])
+    .flatMap(column => column[0] === "name" ? [["name", "经销商名称"], ["code", "经销商编码"]] : column[0] === "amount" ? [column, ["mix", "资源大类构成"]] : [column])
     .map(([key, label]) => [key, key === "gapC3" ? "投资金额 − C3" : key === "gapVol" ? "投资金额 − Delivery Vol" : label]);
   const basisGap = basis === "c3" ? "gapC3" : "gapVol";
   const ranked = rows.filter(row => row[basisGap] != null)
@@ -1057,8 +1057,8 @@ export function V19Stack({
               <TableRow key={row.key} className={rankByKey.has(row.key) ? "v20-stack-top-row" : undefined}>
                 {columns.map(([field]) => {
                   const value = read(row, field);
-                  return <TableCell key={field} data-column={field} className={!["name", "sd", "rsm", "mix"].includes(field) ? "num" : undefined} sortValue={value}>
-                    {field === "name" ? <><DealerDetailButton variant="link" onClick={() => setSelected({type:"dealer", dealerKey:row.key, period, basis})}>{row.name}</DealerDetailButton>{rankByKey.has(row.key) && <span className="v20-stack-rank">Top {rankByKey.get(row.key)}</span>}<small>{row.code} · {row.sector}</small></>
+                  return <TableCell key={field} data-column={field} className={!["name", "code", "sd", "rsm", "mix"].includes(field) ? "num" : undefined} sortValue={value}>
+                    {field === "name" ? <><DealerDetailButton variant="link" onClick={() => setSelected({type:"dealer", dealerKey:row.key, period, basis})}>{row.name}</DealerDetailButton>{rankByKey.has(row.key) && <span className="v20-stack-rank">Top {rankByKey.get(row.key)}</span>}<small>{row.sector}</small></>
                     : field === "mix" ? <div className="v19-stack-bar">{types.map(type => <span key={type} title={`${type} ${wan(distribution([row], type))}`} style={{background:resourceColor(type),width:`${row.amount ? distribution([row], type) / row.amount * 100 : 0}%`}} />)}</div>
                     : field === "gapC3" || field === "gapVol" ? value == null ? "—" : <div className="v19-diverging"><i style={{left:`${value < 0 ? 50 + value / max * 45 : 50}%`,width:`${Math.abs(value) / max * 45}%`,background:value > 0 ? "#EB8705" : "#89CFDC"}} /><span>{pp(value)}</span></div>
                     : format(value, field)}

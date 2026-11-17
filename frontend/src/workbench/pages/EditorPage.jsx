@@ -2787,7 +2787,8 @@ function EditorContent({
                   <Table containerClassName="overflow-visible">
                     <TableHeader>
                       <TableRow>
-                        <TableHead>经销商</TableHead>
+                        <TableHead>经销商名称</TableHead>
+                        <TableHead>经销商编码</TableHead>
                         <TableHead className="num">当前金额</TableHead>
                         <TableHead className="num">配平后</TableHead>
                         <TableHead className="num">变化</TableHead>
@@ -2802,6 +2803,7 @@ function EditorContent({
                           );
                           return (
                             <TableRow key={row.dealerId}>
+                              <TableCell>{dealerName(row.dealerId)}</TableCell>
                               <TableCell>{dealerCode(row.dealerId)}</TableCell>
                               <TableCell className="num" sortValue={row.amount}>
                                 {fmt(row.amount)}
@@ -2855,7 +2857,8 @@ function EditorContent({
                   <Table containerClassName="overflow-visible">
                     <TableHeader>
                       <TableRow>
-                        <TableHead>经销商</TableHead>
+                        <TableHead>经销商名称</TableHead>
+                        <TableHead>经销商编码</TableHead>
                         <TableHead>导入前</TableHead>
                         <TableHead>导入后</TableHead>
                         <TableHead>变化</TableHead>
@@ -2866,7 +2869,8 @@ function EditorContent({
                         .filter((c) => !c.otherBudgets)
                         .map((c) => (
                           <TableRow key={c.dealerId}>
-                            <TableCell>{dealerLabel(c.dealerId)}</TableCell>
+                            <TableCell>{dealerName(c.dealerId)}</TableCell>
+                            <TableCell>{dealerCode(c.dealerId)}</TableCell>
                             <TableCell>
                               {c.before ? fmt(c.before.amount) : "—"}
                             </TableCell>
