@@ -1,6 +1,7 @@
 import { dealerDetailRows } from "../domain/dealer-detail-rows.js";
 import { allocationColumnGroups, EXPENSE_COLUMN_ORDER } from "../domain/allocation-detail";
 import { Input } from "../../components/ui/input";
+import { NativeSelect, NativeSelectOption } from "../../components/ui/native-select";
 import { DealerDetailButton } from "../DealerDetailAccess";
 import { useLegendColors, resolveInitiativeColor, resolveResourceColor } from "../LegendColors";
 export { InitiativeChip } from "../InitiativeChip";
@@ -947,7 +948,8 @@ export function V19Stack({
   const [period, setPeriod] = useState("2025"),
     [basis, setBasis] = useState("c3"),
     [direction, setDirection] = useState("over"),
-    [all, setAll] = useState(false),
+    [page, setPage] = useState(1),
+    [pageSize, setPageSize] = useState(20),
     [selected, setSelected] = useState(null),
     [sort, setSort] = useState(null),
     [search, setSearch] = useState("");
@@ -964,7 +966,8 @@ export function V19Stack({
   const basisGap = basis === "c3" ? "gapC3" : "gapVol";
   const ranked = rows.filter(row => row[basisGap] != null)
     .sort((a, b) => (direction === "over" ? b[basisGap] - a[basisGap] : a[basisGap] - b[basisGap]) || a.key.localeCompare(b.key));
-  const ordered = all ? [...ranked, ...rows.filter(row => row[basisGap] == null)] : ranked;
+  const rankByKey = new Map(ranked.slice(0, 10).map((row, index) => [row.key, index + 1]));
+  const ordered = [...ranked, ...rows.filter(row => row[basisGap] == null)];
   const read = (row, field) => field.startsWith("expense:") ? row.resources[field.slice(8)]
     : field === "mix" ? typesForSort(row) : row[field];
   function typesForSort(row) { return row.initiativeSources.map(source => items.find(item => String(item.id) === source.id)?.resourceType || "").sort().join("、"); }
@@ -974,7 +977,9 @@ export function V19Stack({
     return (typeof x === "number" && typeof y === "number" ? x-y : String(x).localeCompare(String(y), "zh-CN")) * (sort.asc ? 1 : -1) || String(a.key).localeCompare(String(b.key));
   }) : ordered;
   const matching = sorted.filter(row => `${row.name} ${row.code} ${row.sector} ${row.sd} ${row.rsm}`.toLowerCase().includes(search.trim().toLowerCase()));
-  const list = matching.slice(0, all ? undefined : 10),
+  const pages = Math.max(1, Math.ceil(matching.length / pageSize));
+  const currentPage = Math.min(page, pages);
+  const list = matching.slice((currentPage - 1) * pageSize, currentPage * pageSize),
     max = Math.max(3, ...rows.flatMap(row => [row.gapC3, row.gapVol]).filter(value => value != null).map(Math.abs));
   const format = (value, field) => {
     if (value == null || (field === "yield" && value <= 0)) return "—";
@@ -1011,7 +1016,9 @@ export function V19Stack({
       </Heading>}
       <div className={embedded ? "v20-stack-module-body" : "v19-board-body"}>
         <HistoryControls
-          {...{ period, setPeriod, basis, setBasis, ytdCutoffMonth }}
+          {...{ period, basis, ytdCutoffMonth }}
+          setPeriod={(value) => { setPeriod(value); setPage(1); }}
+          setBasis={(value) => { setBasis(value); setPage(1); }}
         />
         <div className="v20-stack-overview">
           <div className="v20-stack-conclusion">
@@ -1030,31 +1037,28 @@ export function V19Stack({
           </div>
         </div>
         <div className="v19-subpanel-heading">
-          <Tabs value={direction} onValueChange={(v) => { setDirection(v); setSort(null); }}>
+          <Tabs value={direction} onValueChange={(v) => { setDirection(v); setSort(null); setPage(1); }}>
             <TabsList>
               <TabsTrigger value="over">投资占比高于贡献 Top 10</TabsTrigger>
               <TabsTrigger value="under">投资占比低于贡献 Top 10</TabsTrigger>
             </TabsList>
           </Tabs>
-          <Button variant="outline" size="sm" onClick={() => setAll((x) => !x)}>
-            {all ? "收起" : `查看全部 ${rows.length} 家 →`}
-          </Button>
         </div>
         <div className="v20-stack-table-tools">
-          <Input aria-label="搜索叠加经销商" value={search} onChange={event => { setSearch(event.target.value); setAll(true); }} placeholder="经销商 / 编码 / Sector / SD / RSM" />
-          <small>表格投资占比按完整名单、历史占比按各指标有效名单计算，与上方仅含可比较名单的结论口径不同；搜索和排序不改变分母，无有效历史的差值显示 —。共 {rows.length} 家，当前显示 {list.length} 家。</small>
+          <Input aria-label="搜索叠加经销商" value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} placeholder="经销商 / 编码 / Sector / SD / RSM" />
+          <small>表格投资占比按完整名单、历史占比按各指标有效名单计算，与上方仅含可比较名单的结论口径不同；搜索和排序不改变分母，无有效历史的差值显示 —。高亮标注当前方向按差值排名前 10 的可比较经销商；搜索和排序不改变排名。</small>
         </div>
-        <Table sortingMode="manual" className="v20-stack-table" containerClassName={all ? "v20-stack-scroll v20-stack-scroll-all" : "v20-stack-scroll"}>
+        <Table sortingMode="manual" className="v20-stack-table" containerClassName="v20-stack-scroll v20-stack-scroll-all">
           <TableHeader><TableRow>
-            {columns.map(([field,label]) => <TableHead key={field} data-column={field} aria-sort={sort?.field === field ? (sort.asc ? "ascending" : "descending") : "none"}><Button variant="ghost" className="v20-stack-sort" onClick={() => setSort(prev => ({field,asc:prev?.field === field ? !prev.asc : true}))}>{label} <span aria-hidden="true">{sort?.field === field ? (sort.asc ? "↑" : "↓") : "↕"}</span></Button></TableHead>)}
+            {columns.map(([field,label]) => <TableHead key={field} data-column={field} aria-sort={sort?.field === field ? (sort.asc ? "ascending" : "descending") : "none"}><Button variant="ghost" className="v20-stack-sort" onClick={() => { setSort(prev => ({field,asc:prev?.field === field ? !prev.asc : true})); setPage(1); }}>{label} <span aria-hidden="true">{sort?.field === field ? (sort.asc ? "↑" : "↓") : "↕"}</span></Button></TableHead>)}
           </TableRow></TableHeader>
           <TableBody>
             {list.map(row => (
-              <TableRow key={row.key}>
+              <TableRow key={row.key} className={rankByKey.has(row.key) ? "v20-stack-top-row" : undefined}>
                 {columns.map(([field]) => {
                   const value = read(row, field);
                   return <TableCell key={field} data-column={field} className={!["name", "sd", "rsm", "mix"].includes(field) ? "num" : undefined} sortValue={value}>
-                    {field === "name" ? <><DealerDetailButton variant="link" onClick={() => setSelected({type:"dealer", dealerKey:row.key, period, basis})}>{row.name}</DealerDetailButton><small>{row.code} · {row.sector}</small></>
+                    {field === "name" ? <><DealerDetailButton variant="link" onClick={() => setSelected({type:"dealer", dealerKey:row.key, period, basis})}>{row.name}</DealerDetailButton>{rankByKey.has(row.key) && <span className="v20-stack-rank">Top {rankByKey.get(row.key)}</span>}<small>{row.code} · {row.sector}</small></>
                     : field === "mix" ? <div className="v19-stack-bar">{types.map(type => <span key={type} title={`${type} ${wan(distribution([row], type))}`} style={{background:resourceColor(type),width:`${row.amount ? distribution([row], type) / row.amount * 100 : 0}%`}} />)}</div>
                     : field === "gapC3" || field === "gapVol" ? value == null ? "—" : <div className="v19-diverging"><i style={{left:`${value < 0 ? 50 + value / max * 45 : 50}%`,width:`${Math.abs(value) / max * 45}%`,background:value > 0 ? "#EB8705" : "#89CFDC"}} /><span>{pp(value)}</span></div>
                     : format(value, field)}
@@ -1062,9 +1066,22 @@ export function V19Stack({
                 })}
               </TableRow>
             ))}
-            {!list.length && <TableRow><TableCell colSpan={columns.length} className="empty">{all ? "没有符合条件的经销商" : "当前期间没有可比较的经销商，可查看全部名单"}</TableCell></TableRow>}
+            {!list.length && <TableRow><TableCell colSpan={columns.length} className="empty">没有符合条件的经销商</TableCell></TableRow>}
           </TableBody>
         </Table>
+        <div className="v19-list-pagination v20-stack-pagination">
+          <span>筛选 {matching.length} / {rows.length} 家 · 本页 {list.length} 家</span>
+          <div>
+            <label className="v20-page-size">每页
+              <NativeSelect aria-label="叠加经销商每页显示记录数" value={String(pageSize)} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}>
+                {[10, 20, 50].map(size => <NativeSelectOption key={size} value={String(size)}>{size} 条</NativeSelectOption>)}
+              </NativeSelect>
+            </label>
+            <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>上一页</Button>
+            <span aria-live="polite">{currentPage} / {pages}</span>
+            <Button variant="outline" size="sm" disabled={currentPage >= pages} onClick={() => setPage(currentPage + 1)}>下一页</Button>
+          </div>
+        </div>
       </div>
       {selected && (
         <ResourceDetailDrawer
