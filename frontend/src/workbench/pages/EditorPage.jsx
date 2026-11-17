@@ -588,6 +588,13 @@ function EditorContent({
     if (apiMode) void loadDistributorDirectory();
   }, [apiMode, loadDistributorDirectory]);
   const i = view.initiatives.find((item) => item.id === initiativeId);
+  useEffect(() => {
+    const valid = new Set((i?.rows || []).map((row) => row.dealerId));
+    setBalanceIds((current) => {
+      const next = current.filter((id) => valid.has(id));
+      return next.length === current.length ? current : next;
+    });
+  }, [i?.rows]);
   const hasUnsavedChanges = i ? dirtyIds.has(i.id) : false;
   if (!i) return <div className="empty">当前角色无权查看该明细。</div>;
   const operation = editorOperations[i.id] || null;
@@ -1331,7 +1338,7 @@ function EditorContent({
                                 }
                               })}
                             />
-                            选择
+                            全选
                           </span>
                         </TableHead>
                         <TableHead rowSpan={2}>经销商</TableHead>
@@ -2066,8 +2073,25 @@ function EditorContent({
                     </TableRow>
                     <TableRow>
                       {editable && (
-                        <TableHead scope="col" aria-label="选择配平经销商">
-                          选择
+                        <TableHead scope="col">
+                          <span className="inline-flex items-center gap-2">
+                            <Checkbox
+                              className="scope-select-all"
+                              aria-label={`全选配平筛选结果（${allocationFiltered.length} 家，含所有页）`}
+                              disabled={!allocationFiltered.length}
+                              checked={(() => {
+                                const count = allocationFiltered.filter((row) => balanceIds.includes(row.dealerId)).length;
+                                return count === 0 ? false : count === allocationFiltered.length ? true : "indeterminate";
+                              })()}
+                              onCheckedChange={(checked) => doGuard(() => {
+                                const ids = new Set(allocationFiltered.map((row) => row.dealerId));
+                                setBalanceIds((current) => checked
+                                  ? [...new Set([...current, ...ids])]
+                                  : current.filter((id) => !ids.has(id)));
+                              })}
+                            />
+                            全选
+                          </span>
                         </TableHead>
                       )}
                       {allocationColumns.map(([key, title]) => (
