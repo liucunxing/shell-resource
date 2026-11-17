@@ -2,6 +2,7 @@ import { useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast as notify } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
+import "./toast-notice.css";
 
 export function toastHost(root) {
   return (
@@ -33,7 +34,7 @@ export function ToastNotice({ toast, onDismiss }) {
     };
   }, [toast.id, toast.message, toast.error]);
   return createPortal(
-    <Toaster position="bottom-right" closeButton richColors theme="light" />,
+    <Toaster className="resource-toaster" position="top-right" closeButton richColors theme="light" />,
     host,
   );
 }
