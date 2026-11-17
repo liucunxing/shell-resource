@@ -818,7 +818,12 @@ function EditorContent({
         identity,
         roster ? dealers : data,
       );
-      if (alive.current) setModal({ type: "import", preview, name: file.name, roster, identityKey: JSON.stringify(identity), versionId: state.planningVersion?.id, originalRows: JSON.stringify(i.rows), originalOther: JSON.stringify(i.otherBudgets) });
+      if (!alive.current) return;
+      if (!roster && !preview.errors.length) {
+        await saveDraft(i.id, { rows: preview.rows, otherBudgets: preview.otherBudgets }, undefined, true);
+      } else {
+        setModal({ type: "import", preview, name: file.name, roster, identityKey: JSON.stringify(identity), versionId: state.planningVersion?.id, originalRows: JSON.stringify(i.rows), originalOther: JSON.stringify(i.otherBudgets) });
+      }
     } catch (e) {
       notify(e.message, true);
     } finally {
@@ -2734,7 +2739,7 @@ function EditorContent({
                       rows: modal.preview.rows,
                       otherBudgets: modal.preview.otherBudgets,
                     };
-                    if (await saveDraft(i.id, values, modal.preview.revision))
+                    if (await saveDraft(i.id, values))
                       close();
                   }}
                 >

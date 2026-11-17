@@ -511,7 +511,7 @@ async function previewImport(buffer, state, id, identity, data) {
     const label = read(meta, ix + 2, 1),
       value = read(meta, ix + 2, 2);
     out.fileScope[metaLabels[ix]] = value;
-    if (label !== metaLabels[ix] || value !== v)
+    if (label !== metaLabels[ix] || (metaLabels[ix] !== "草稿修订号" && value !== v))
       out.errors.push(
         `模板信息「${metaLabels[ix]}」与当前方案不一致，请重新下载当前模板。`,
       );
