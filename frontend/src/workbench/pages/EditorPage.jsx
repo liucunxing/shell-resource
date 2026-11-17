@@ -675,7 +675,8 @@ function EditorContent({
       notify("请先核对本版预算与预留并勾选确认。", true);
       return;
     }
-    await publish(i.id, changeReason.trim());
+    const publication = await publish(i.id, changeReason.trim());
+    if (publication) navigate("home");
   };
   const directoryDealers = apiMode
     ? data.distributorDirectory || []
