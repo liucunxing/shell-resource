@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -253,7 +254,7 @@ export function historicalDetailTotals(
   const knownTargets = targets
     .map(finiteHistoryValue)
     .filter((value): value is number => value !== null);
-  const contract = completeSum(targets);
+  const contract = knownTargets.length ? sum(knownTargets) : null;
   const aligned =
     period === "2025" ||
     rows.every((row) => !row.history.ytdYieldUnavailableReason);
@@ -580,16 +581,19 @@ function ResourceDetailContent({
         ].map(([label, value]) => (
           <div className="resource-history-cell" key={label}>
             <span>{label}</span>
-            <strong>{value}</strong>
-            {label === "经销商 target（KL）" && historical.targetCoverage.missing > 0 && (
-              <span>
-                已提供 {historical.targetCoverage.known}/{historical.targetCoverage.total} 家，
-                {historical.targetCoverage.missing} 家缺失，完整合计暂不可用。
-                {historical.targetCoverage.knownSubtotal !== null && (
-                  <>已知值小计 {n(historical.targetCoverage.knownSubtotal, 1000)} KL（非完整合计）。</>
-                )}
-              </span>
-            )}
+            <strong>
+              {value}
+              {label === "经销商 target（KL）" && historical.targetCoverage.missing > 0 && (
+                <TooltipProvider><Tooltip>
+                  <TooltipTrigger asChild>
+                    <sup className="resource-target-incomplete" tabIndex={0} aria-label={`统计口径${historical.targetCoverage.known}/${historical.targetCoverage.total} 家，数据不完整`}>*</sup>
+                  </TooltipTrigger>
+                  <TooltipContent sideOffset={6} className="metric-help-content">
+                    统计口径{historical.targetCoverage.known}/{historical.targetCoverage.total} 家，数据不完整
+                  </TooltipContent>
+                </Tooltip></TooltipProvider>
+              )}
+            </strong>
           </div>
         ))}
       </div>

@@ -169,7 +169,7 @@ export function VersionComparison({ executive }) {
                 value={query}
                 type="search"
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="项目 / Owner / 维度名称"
+                placeholder="项目 / 维度名称"
               />
             </Label>
           </div>
@@ -179,7 +179,7 @@ export function VersionComparison({ executive }) {
                 <TableRow>
                   <TableHead>
                     {dimension === "initiative"
-                      ? "Initiative / Owner"
+                      ? "Initiative"
                       : "汇总维度"}
                   </TableHead>
                   <TableHead className="num">来源预算（万元）</TableHead>
@@ -194,7 +194,7 @@ export function VersionComparison({ executive }) {
               <TableBody>
                 {rows
                   .filter((row) =>
-                    `${row.name || row.key} ${row.owner || ""}`
+                    `${row.name || row.key}`
                       .toLowerCase()
                       .includes(query.toLowerCase()),
                   )
@@ -213,7 +213,6 @@ export function VersionComparison({ executive }) {
                         >
                           {row.name || row.key}
                         </Button>
-                        {row.owner && <small>{row.owner}</small>}
                       </TableCell>
                       <TableCell className="num" sortValue={row.previousBudget}>
                         {money(row.previousBudget)}
