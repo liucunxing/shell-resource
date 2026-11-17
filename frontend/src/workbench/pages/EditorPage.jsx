@@ -1304,7 +1304,7 @@ function EditorContent({
                     ))}
                   </NativeSelect>
                 </div>
-                <div className="table-scroll studio-wide-table">
+                <div className="table-scroll studio-wide-table" role="region" aria-label="经销商范围表，可上下和横向滚动" tabIndex={0}>
                   <Table
                     pageIndex={scopePage - 1}
                     pageSize={20}
@@ -1911,8 +1911,6 @@ function EditorContent({
                 ytdCutoffMonth={state.ytdCutoffMonth}
                 period={historyPeriod}
                 onPeriodChange={setHistoryPeriod}
-                metric={historyMetric}
-                onMetricChange={setHistoryMetric}
               />
               {editable && (
                 <p className="work-caption">
