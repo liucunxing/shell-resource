@@ -15,7 +15,7 @@ const dealers=[
 ];
 function nodes(node){ if(Array.isArray(node))return node.flatMap(nodes); if(!node?.props)return [];return [node,...nodes(node.props.children)]; }
 function text(node){ if(Array.isArray(node))return node.map(text).join("");if(node?.props)return text(node.props.children);return typeof node==="string"||typeof node==="number"?String(node):""; }
-function render(){harness.cursor=0;return V19Stack({items,dealers});}
+function render(props={items,dealers}){harness.cursor=0;return V19Stack(props);}
 const cells=(tree,key)=>nodes(tree).filter(n=>n.props["data-column"]===key&&Object.hasOwn(n.props,"sortValue"));
 const headers=tree=>nodes(tree).filter(n=>n.props["data-column"]&&Object.hasOwn(n.props,"aria-sort"));
 beforeEach(()=>{harness.slots=[];});
@@ -44,6 +44,21 @@ it("makes missing-history dealers searchable without changing shares",()=>{
 });
 it("sorts an added numeric column in both directions",()=>{
  let tree=render();const click=()=>nodes(headers(tree).find(n=>n.props["data-column"]==="c3")).find(n=>n.props.onClick).props.onClick();
- click();tree=render();expect(cells(tree,"c3").map(text)).toEqual(["2.00","8.00"]);
- click();tree=render();expect(cells(tree,"c3").map(text)).toEqual(["8.00","2.00"]);
+ click();tree=render();expect(cells(tree,"c3").map(text)).toEqual(["2.00","8.00","—"]);
+ click();tree=render();expect(cells(tree,"c3").map(text)).toEqual(["8.00","2.00","—"]);
+});
+
+it("paginates the full roster and keeps the top ten marked after sorting and filtering",()=>{
+ const manyDealers=Array.from({length:25},(_,i)=>({id:`d${i}`,name:`Dealer ${String(i).padStart(2,"0")}`,code:`${i}`,sector:"PCMO",history:{c32025:i+1}}));
+ const manyItems=[{id:"i",name:"Project",resourceType:"MRD",sector:"PCMO",budget:2500,rows:manyDealers.map(d=>({dealerId:d.id,amount:100})),otherBudgets:[]}];
+ const props={items:manyItems,dealers:manyDealers};
+ let tree=render(props);
+ expect(cells(tree,"name")).toHaveLength(20);
+ expect(text(tree)).toContain("筛选 25 / 25 家 · 本页 20 家");
+ expect(nodes(tree).filter(n=>n.props.className==="v20-stack-rank")).toHaveLength(10);
+ expect(text(tree)).not.toContain("查看全部");
+ nodes(tree).find(n=>text(n)==="下一页"&&n.props.onClick).props.onClick();
+ tree=render(props); expect(cells(tree,"name")).toHaveLength(5); expect(text(tree)).toContain("2 / 2");
+ nodes(tree).find(n=>n.props["aria-label"]==="搜索叠加经销商").props.onChange({target:{value:"Dealer 00"}});
+ tree=render(props); expect(cells(tree,"name")).toHaveLength(1); expect(text(cells(tree,"name")[0])).toContain("Top 1"); expect(text(tree)).toContain("1 / 1");
 });
