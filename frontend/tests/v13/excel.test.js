@@ -181,6 +181,10 @@ vitestTest(
         assert.throws(() => X.confirmImport(bad, s, identity, data));
         assert.equal(JSON.stringify(s), snapshot, name);
       }
+      const newerDraft = base();
+      newerDraft.initiatives[0].revision++;
+      const oldFile = await X.previewImport(bytes, newerDraft, "I001", identity, data);
+      assert.deepEqual(oldFile.errors, []);
       const stale = base(),
         stalePreview = await X.previewImport(
           bytes,
