@@ -186,9 +186,17 @@ class OtherBudgetDTO(BaseModel):
     note: str | None = Field(default=None, max_length=500)
 
 
+class InitiativeTrialStateDTO(BaseModel):
+    metric: Literal["vol", "c3", "investment"]
+    period: Literal["2025", "2026Ytd"]
+    baselineRows: list[DraftRowDTO]
+    allocationFingerprint: str = Field(max_length=1048576)
+
+
 class InitiativeEditorStateDTO(BaseModel):
     step: int = Field(default=1, ge=1, le=3, strict=True)
     reserveAcknowledgement: str = Field(default="", max_length=65536)
+    trial: InitiativeTrialStateDTO | None = None
 
 
 class InitiativeDraftUpdateDTO(BaseModel):
