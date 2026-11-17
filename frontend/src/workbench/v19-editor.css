@@ -680,12 +680,23 @@
   height: 30px;
   font-size: 12px;
 }
+.v19-editor .v19-allocation-table tfoot {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+}
+.v19-editor .allocation-balance-gap {
+  display: inline-block;
+  color: #a83424;
+  white-space: nowrap;
+}
 .v19-editor .v19-allocation-table tfoot td {
   background: #edf4f9;
   font-weight: 650;
   border-top: 1px solid #d5e0e8;
 }
 .v19-editor .v19-allocation-table tfoot .v19-money-cell {
+  white-space: normal;
   background: #fff1b6;
 }
 .v19-editor .v19-allocation-table {
