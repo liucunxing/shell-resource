@@ -136,6 +136,15 @@ export function HomePage() {
           .slice((currentPage - 1) * 9, currentPage * 9)
           .map((item, index) => {
             const totals = E.totals([item]);
+            const [statusLabel, statusColor] = item.workflow?.confirmed
+              ? ["已确认", "confirmed"]
+              : item.workflow?.submitted
+                ? ["已提交 · 待确认", "pending"]
+                : item.workflow?.requiresResubmission
+                  ? ["待重新提交", "resubmit"]
+                  : totals.allocated || totals.otherBudget
+                    ? ["草稿", "draft"]
+                    : ["未开始", "not-started"];
             return (
               <Card
                 key={item.id}
@@ -144,16 +153,8 @@ export function HomePage() {
               >
                 <div className="v19-initiative-heading">
                   <h2>{item.name}</h2>
-                  <Badge variant="secondary">
-                    {item.workflow?.confirmed
-                      ? "已确认"
-                      : item.workflow?.submitted
-                        ? "已提交 · 待确认"
-                        : item.workflow?.requiresResubmission
-                          ? "待重新提交"
-                          : totals.allocated || totals.otherBudget
-                            ? "草稿"
-                            : "未开始"}
+                  <Badge variant="secondary" className={`initiative-status-${statusColor}`}>
+                    {statusLabel}
                   </Badge>
                 </div>
                 <p>
