@@ -306,7 +306,7 @@ describe("V20 details keep their invocation scope and sector identities", () => 
     });
     expect(context.items[0].rows).toHaveLength(1);
   });
-  it("explains incomplete targets without treating missing values as zero or a subtotal as a total", () => {
+  it("sums known targets and tracks coverage without treating missing values as zero", () => {
     const rows = [
       { history: { contract2025: 12000, contract2026Ytd: 3000 } },
       { history: { contract2025: 0, contract2026Ytd: 0 } },
@@ -315,7 +315,7 @@ describe("V20 details keep their invocation scope and sector identities", () => 
       { history: { contract2025: Number.NaN, contract2026Ytd: 5000 } },
     ];
     expect(historicalDetailTotals(rows, "2025")).toMatchObject({
-      contract: null,
+      contract: 10000,
       targetCoverage: { total: 5, known: 3, missing: 2, knownSubtotal: 10000 },
     });
     expect(historicalDetailTotals(rows, "2026Ytd")).toMatchObject({
@@ -441,7 +441,8 @@ describe("V20 V17 allocation table contract", () => {
         // Raw totals keep the source target; only positive-target rows enter Phasing.
         expect(totals).toMatchObject({ contract: 8000 + target, vol: 7000, phasing: 0.75 });
       } else {
-        expect(totals.contract).toBeNull();
+        expect(totals.contract).toBe(8000);
+        expect(totals.targetCoverage).toMatchObject({ known: 1, total: 2, missing: 1 });
         expect(totals.phasing).toBe(0.75);
       }
     }

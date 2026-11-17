@@ -8,7 +8,7 @@ V20包含SD/RSM切换和四组组织对照、V17经销商分配明细表头、�
 
 全局表格已统一表头冻结、名称/标识列靠左、数值列居中与等宽数字、真实数值排序；经销商明细每页支持10/20/50/全部。验证范围与证据见[全局表格验收](docs/GLOBAL_TABLES_VALIDATION.md)。
 
-历史详情的 Target 完整合计在范围内存在缺失时仍为“—”，同时显示已提供/全部家数、缺失家数和已知值小计，明确小计不是完整合计。排查时分别核对源值、正在运行的 API 和页面聚合，见 [Target 空值排查](docs/DASHBOARD_TARGET_AVAILABILITY.md)。
+历史详情的 Target 按当前范围有效值求和；存在缺失时数字旁显示 `*`，悬浮或键盘聚焦提示“统计口径已提供/全部 家，数据不完整”。全部缺失仍为“—”，不补零。排查记录见 [Target 空值排查](docs/DASHBOARD_TARGET_AVAILABILITY.md)。
 
 全局切换统一使用紧凑中性灰 shadcn Tabs；2026 YTD 的截止月说明移至 ! 悬浮提示。变更与本地检查见[切换组件验证](docs/TABS_REFRESH_VALIDATION.md)。
 
