@@ -71,6 +71,10 @@ describe("background workbook export", () => {
     expect(sheet.getCell("A2").value).toBe("D1");
     expect(sheet.getCell("E2").value).toBe("One");
     expect(sheet.getCell("E3").value).toBe("Two");
+    expect(workbook.worksheets.map((s) => s.name)).toEqual(["经销商分配", "经销商列表"]);
+    expect(sheet.getRow(1).values.slice(1, 9)).toEqual(["经销商编码", "经销商名称", "状态", "SD", "RSM", "分配金额", "说明", "记录标识"]);
+    expect(sheet.properties.tabColor.argb).toBe("FFFFCC00");
+    expect(workbook.views[0].activeTab).toBe(0);
     await self.onmessage({
       data: {
         kind: "allocation",

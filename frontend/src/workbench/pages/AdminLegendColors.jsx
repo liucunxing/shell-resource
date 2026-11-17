@@ -14,25 +14,14 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import {
   VALID_LEGEND_COLOR,
-  initiativeLegendKey,
-  resolveInitiativeColor,
   resolveResourceColor,
   resolveDepartmentColor,
 } from "../LegendColors";
 import "./admin-legend-colors.css";
 
-const compareLabel = (left, right) =>
-  left && right
-    ? left.localeCompare(right, "zh-CN", { numeric: true, sensitivity: "base" })
-    : left
-      ? -1
-      : right
-        ? 1
-        : 0;
-
 export function legendColorPayload(draft) {
-  const result = { initiatives: {}, resources: {}, departments: {} };
-  for (const group of Object.keys(result)) {
+  const result = { ...(draft.initiatives ? { initiatives: draft.initiatives } : {}), resources: {}, departments: {} };
+  for (const group of ["resources", "departments"]) {
     for (const [key, value] of Object.entries(draft[group] || {})) {
       const color = String(value).trim();
       if (!color) continue;
@@ -55,7 +44,6 @@ export function AdminLegendColors() {
     setError("");
   }, [saved, identity?.email]);
   const items = view?.initiatives || state.initiatives || [];
-  const byKey = new Map(items.map((item) => [initiativeLegendKey(item), item]));
   const resources = [
     ...new Set([
       "ICE Rebate",
@@ -82,26 +70,6 @@ export function AdminLegendColors() {
     ]),
   ];
   const groups = [
-    {
-      key: "initiatives",
-      label: "Initiative",
-      rows: [...byKey]
-        .map(([key, item]) => ({
-          key,
-          label: item.name,
-          detail: `编号 ${key}`,
-          department: item.department?.trim() || "",
-          sector: item.sector?.trim() || "",
-          color: resolveInitiativeColor(item),
-        }))
-        .sort(
-          (a, b) =>
-            compareLabel(a.department, b.department) ||
-            compareLabel(a.sector, b.sector) ||
-            compareLabel(a.label, b.label) ||
-            compareLabel(a.key, b.key),
-        ),
-    },
     {
       key: "resources",
       label: "资源大类",
@@ -135,13 +103,11 @@ export function AdminLegendColors() {
         <div>
           <h2>颜色图例</h2>
           <p>
-            统一设置
-            Initiative、资源大类和部门的标签与图表颜色；清空颜色恢复默认。Initiative
-            使用稳定编号跨版本保持同色。
+            设置资源大类和部门的标签与图表颜色；清空颜色恢复默认。Initiative 使用默认颜色。
           </p>
         </div>
       </div>
-      <Tabs defaultValue="initiatives">
+      <Tabs defaultValue="resources">
         <TabsList aria-label="颜色图例类别">
           {groups.map((group) => (
             <TabsTrigger key={group.key} value={group.key}>
@@ -151,26 +117,10 @@ export function AdminLegendColors() {
         </TabsList>
         {groups.map((group) => (
           <TabsContent key={group.key} value={group.key}>
-            <Table
-              className={
-                group.key === "initiatives"
-                  ? "legend-initiative-table"
-                  : undefined
-              }
-            >
+            <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>{group.label}</TableHead>
-                  {group.key === "initiatives" && (
-                    <>
-                      <TableHead className="legend-organization-column">
-                        部门
-                      </TableHead>
-                      <TableHead className="legend-organization-column">
-                        业务线
-                      </TableHead>
-                    </>
-                  )}
                   <TableHead>图例颜色</TableHead>
                   <TableHead>操作</TableHead>
                 </TableRow>
@@ -188,22 +138,6 @@ export function AdminLegendColors() {
                         <strong>{row.label}</strong>
                         {row.detail && <small>{row.detail}</small>}
                       </TableCell>
-                      {group.key === "initiatives" && (
-                        <>
-                          <TableCell
-                            className="legend-organization-column"
-                            sortValue={row.department || undefined}
-                          >
-                            {row.department || "—"}
-                          </TableCell>
-                          <TableCell
-                            className="legend-organization-column"
-                            sortValue={row.sector || undefined}
-                          >
-                            {row.sector || "—"}
-                          </TableCell>
-                        </>
-                      )}
                       <TableCell>
                         <div className="legend-color-inputs">
                           <Input
@@ -252,7 +186,6 @@ export function AdminLegendColors() {
                 })}
               </TableBody>
             </Table>
-            {!group.rows.length && <p>当前版本暂无 Initiative。</p>}
           </TabsContent>
         ))}
       </Tabs>

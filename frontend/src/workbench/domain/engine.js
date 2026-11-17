@@ -251,7 +251,7 @@ function canEdit(state, id, identity) {
     return (
       ["owner", "lead"].includes(identity.role) &&
       hasDepartment(identity, i.department) &&
-      i.ownerId === identity.ownerId &&
+      Boolean(identity.ownerId) && String(i.ownerId || "").toLowerCase() === String(identity.ownerId).toLowerCase() &&
       unlocked(state, i.department)
     );
   } catch (_) {

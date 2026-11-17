@@ -1,35 +1,24 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { DepartmentReviewPage, departmentWindowOpen, releaseDeadline } from "../src/workbench/pages/DepartmentReviewPage.jsx";
+import { DepartmentReviewPage, departmentWindowOpen } from "../src/workbench/pages/DepartmentReviewPage.jsx";
 import { useWorkbench } from "../src/workbench/WorkbenchContext.jsx";
 import * as api from "../src/workbench/api.js";
 
 vi.mock("../src/workbench/WorkbenchContext.jsx", () => ({ useWorkbench: vi.fn() }));
 afterEach(() => { vi.unstubAllGlobals(); });
-const now = Date.parse("2026-11-16T07:00:00Z");
 const version = { id: "202701", name: "年度规划", published: true, open: true, revision: 4, deadline: "2026-11-17T07:00:00Z" };
 
 describe("department withdrawal and administrator release", () => {
-  it("requires an open published version whose deadline has not passed", () => {
-    expect(departmentWindowOpen(version, now)).toBe(true);
-    expect(departmentWindowOpen({ ...version, open: false }, now)).toBe(false);
-    expect(departmentWindowOpen({ ...version, published: false }, now)).toBe(false);
-    expect(departmentWindowOpen({ ...version, deadline: new Date(now).toISOString() }, now)).toBe(false);
-    expect(departmentWindowOpen({ ...version, deadline: null }, now)).toBe(true);
-    expect(departmentWindowOpen({ ...version, expired: true }, now)).toBe(false);
-  });
-  it("requires a newly supplied future Beijing deadline including validation again at confirmation", () => {
-    expect(() => releaseDeadline("", now)).toThrow("请填写新的");
-    expect(() => releaseDeadline("invalid", now)).toThrow("请填写新的");
-    expect(() => releaseDeadline("2026-11-16T15:00", now)).toThrow("晚于当前时间");
-    expect(() => releaseDeadline("2026-11-16T14:59", now)).toThrow("晚于当前时间");
-    expect(releaseDeadline("2026-11-16T15:01", now)).toBe("2026-11-16T07:01:00.000Z");
-    expect(() => releaseDeadline("2026-11-16T15:01", now + 60000)).toThrow("晚于当前时间");
+  it("requires an open version and ignores old deadline values", () => {
+    expect(departmentWindowOpen(version)).toBe(true);
+    expect(departmentWindowOpen({ ...version, open: false })).toBe(false);
+    expect(departmentWindowOpen({ ...version, published: false })).toBe(false);
+    expect(departmentWindowOpen({ ...version, deadline: "2000-01-01T00:00:00Z", expired: true })).toBe(true);
   });
   it("sends release at version scope with no department or Owner selection", async () => {
     const fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ code: 200, data: {} }) });
     vi.stubGlobal("fetch", fetch);
-    const command = { expected_revision: 4, deadline: "2026-11-17T07:00:00.000Z", reason: "重新核对" };
+    const command = { expected_revision: 4, reason: "重新核对" };
     await api.releasePlanningVersion("202701", command);
     expect(fetch.mock.calls[0][0]).toBe("/api/v1/workbench/planning-versions/202701/release");
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual(command);

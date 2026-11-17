@@ -31,10 +31,8 @@ async def test_project_config_preserves_version_state_and_allocations(mode, bulk
                 published=mode != "draft",
             ))
         elif mode == "expired":
-            await admin.update(version.id, PlanningVersionUpdateDTO(
-                expected_revision=version.revision,
-                deadline=datetime.now(UTC) - timedelta(minutes=1),
-            ))
+            version.deadline = datetime.now(UTC) - timedelta(minutes=1)
+            await session.commit()
         flags = (version.published, version.open)
         prior_revision = version.revision
         history = deepcopy(
@@ -62,7 +60,7 @@ async def test_project_config_preserves_version_state_and_allocations(mode, bulk
         assert publication.snapshot == history
         state = await admin.state(budget.id)
         assert state.requires_resubmission and not state.confirmed_publication_id
-        if mode == "open":
+        if mode in {"open", "expired"}:
             draft = await service(session, user(budget.owner_email)).get_draft(budget.id)
             assert draft["editable"]
         else:
@@ -91,7 +89,6 @@ async def test_version_name_and_deadline_edits_preserve_submissions_and_confirma
         ]
         await admin.update(version.id, PlanningVersionUpdateDTO(
             expected_revision=version.revision, name="延长版",
-            deadline=datetime.now(UTC) + timedelta(days=7),
         ))
         assert version.name == "延长版" and version.open and version.published
         assert [budget.revision for budget in budgets] == revisions

@@ -15,6 +15,10 @@ import { isPortalEntry, logoutPortalSession } from "../portal/session";
 import { getPreviewEpoch, getPreviewUserEmail, setPreviewUserEmail } from "./userPreview";
 
 export const STORAGE_KEY = "shell-resource-workbench-v13";
+export const ownInitiatives = (items, identity) => {
+  const owner = String(identity?.ownerId || identity?.email || "").toLowerCase();
+  return owner ? items.filter((item) => String(item.ownerId || "").toLowerCase() === owner) : [];
+};
 export function resolveEditorTarget(requestedId, previousId, initiatives, options = {}) {
   const find = (id) => initiatives.find((item) => String(item.id) === String(id));
   if (requestedId != null && requestedId !== "") return find(requestedId)?.id ?? null;
@@ -93,7 +97,7 @@ function loadDemo() {
   return E.createState(DATA, "unallocated");
 }
 
-function normalizeWorkspace(payload) {
+export function normalizeWorkspace(payload) {
   const incoming = payload.state || payload.data?.state || blankState();
   const state = {
     ...blankState(),
@@ -114,6 +118,14 @@ function normalizeWorkspace(payload) {
     revision: Number(item.revision || 0),
     status: item.status || "draft",
   }));
+  if (payload.identity?.role === "lead" && state.planningVersion) {
+    state.departmentInitiatives = state.initiatives;
+    const drafts = new Map((incoming.ownInitiatives || []).map((item) => [String(item.id), {
+      ...item, id: String(item.id), rows: item.rows || [], otherBudgets: item.otherBudgets || [],
+      revision: Number(item.revision || 0), status: item.status || "draft",
+    }]));
+    state.initiatives = state.initiatives.map((item) => drafts.get(item.id) || item);
+  }
   const identity = payload.identity && {
     ...payload.identity,
     apiMode: true,
@@ -130,6 +142,19 @@ function normalizeWorkspace(payload) {
       distributorDirectory: [],
     },
   };
+}
+
+export function selectWorkspaceView(state, identity, page) {
+  if (!identity) return { initiatives: [], departments: {}, summaries: {} };
+  const selected = E.selectView(state, identity);
+  let items = state.planningVersion
+    ? state.initiatives.filter((item) => identity.role === "admin" || item.enabled !== false)
+    : selected.initiatives;
+  if (identity.role === "lead") {
+    if (["home", "editor", "portfolio", "submissions"].includes(page)) items = ownInitiatives(items, identity);
+    else if (state.departmentInitiatives) items = state.departmentInitiatives.filter((item) => item.enabled !== false);
+  }
+  return { ...selected, initiatives: items };
 }
 
 export function mergeSavedDraft(state, id, saved, requested) {
@@ -199,13 +224,7 @@ export function WorkbenchProvider({ children }) {
   };
   const notify = (message, error = false) =>
     setToast({ message, error, id: Date.now() });
-  const view = useMemo(
-    () =>
-      identity
-        ? { ...E.selectView(state, identity), ...(state.planningVersion ? { initiatives: state.initiatives.filter((item) => identity.role === "admin" || item.enabled !== false) } : {}) }
-        : { initiatives: [], departments: {}, summaries: {} },
-    [identity, state],
-  );
+  const view = useMemo(() => selectWorkspaceView(state, identity, page), [identity, state, page]);
 
   const clearApiWorkspace = () => {
     sessionEpoch.current += 1;
@@ -404,6 +423,12 @@ export function WorkbenchProvider({ children }) {
       saved,
       requested,
     );
+    if (next.departmentInitiatives && saved.workflow) {
+      next.departmentInitiatives = next.departmentInitiatives.map((item) =>
+        item.id === String(id) ? { ...item, workflow: saved.workflow,
+          allocationVisible: Boolean(saved.workflow.submitted),
+          ...(!saved.workflow.submitted ? { rows: [], otherBudgets: [] } : {}) } : item);
+    }
     replaceState(next);
     setServerRevisions((old) => ({ ...old, [id]: saved.revision }));
     if (!edited)
@@ -543,6 +568,11 @@ export function WorkbenchProvider({ children }) {
       if (current?.workflow) {
         current.workflow = publication.initiative?.workflow || { ...current.workflow, submitted: true, editable: true, requiresResubmission: false, returnReason: null };
         current.status = "completed";
+        if (next.departmentInitiatives) {
+          next.departmentInitiatives = next.departmentInitiatives.map((item) =>
+            item.id === String(id) ? { ...item, ...publication.initiative,
+              id: String(id), workflow: current.workflow, allocationVisible: true } : item);
+        }
         replaceState({ ...next });
       }
       notify(current?.workflow ? "方案已提交，部门确认前仍可修改；修改后请再次提交。" : "已同步最新分配。");
@@ -710,7 +740,8 @@ export function WorkbenchProvider({ children }) {
   const navigate = (nextPage, id) => {
     if (!inputReady()) return false;
     if (nextPage === "editor") {
-      const targetId = resolveEditorTarget(id, initiativeId, view.initiatives, {
+      const candidates = identity.role === "lead" ? ownInitiatives(stateRef.current.initiatives, identity) : view.initiatives;
+      const targetId = resolveEditorTarget(id, initiativeId, candidates, {
         dirtyIds, canEdit: (item) => E.canEdit(stateRef.current, item.id, identity),
       });
       if (!targetId) {

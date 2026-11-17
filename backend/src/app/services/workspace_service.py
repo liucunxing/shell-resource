@@ -56,6 +56,7 @@ class WorkspaceService:
         version = await planning.resolve(planning_year, version_id)
         config = await self.repository.config()
         users = await self.repository.list_users() if self.user.role == "admin" else []
+        own_drafts = []
         if version:
             # Hold the same version lock as workflow mutations while projecting a coherent read.
             version = await planning.version(version.id, lock=True)
@@ -71,6 +72,26 @@ class WorkspaceService:
                 )
             )
             workflows = await planning.workflows(budgets, version, history_by_budget)
+            if self.user.role == "lead" and not synced_only:
+                owned = [
+                    b for b in budgets if (b.owner_email or "").lower() == self.user.email.lower()
+                ]
+                own_rows, own_other, _ = await self.repository.projection_rows(
+                    [b.id for b in owned]
+                )
+                for budget in owned:
+                    history = history_by_budget.get(budget.id, [])
+                    item = self._budget_projection(
+                        budget, own_rows.get(budget.id, []), own_other.get(budget.id, []),
+                        history[-1] if history else None,
+                    )
+                    workflow = workflows[budget.id].copy()
+                    item.update(
+                        planningVersionId=version.id, initiativeKey=budget.initiative_key,
+                        enabled=budget.enabled, workflow=workflow, editable=workflow["editable"],
+                        allocationVisible=True, changeReason=workflow["changeReason"],
+                    )
+                    own_drafts.append(item)
             initiatives, publications = [], []
             for budget in budgets:
                 workflow = workflows[budget.id]
@@ -152,6 +173,7 @@ class WorkspaceService:
         # detached API copies against this sector's current history identities;
         # the persisted allocations and immutable snapshots remain unchanged.
         initiatives = [self._project_dealer_identities(item, dealers) for item in initiatives]
+        own_drafts = [self._project_dealer_identities(item, dealers) for item in own_drafts]
         if self.user.role != "owner":
             for item in initiatives:
                 # A review fingerprint can contain draft reserve amounts and notes.
@@ -200,6 +222,7 @@ class WorkspaceService:
             "dataBasis": "synced" if self.user.role == "management" or synced_only else "draft",
             "scenario": "api",
             "initiatives": initiatives,
+            "ownInitiatives": own_drafts,
             "departments": {
                 name: {
                     "status": "collecting",

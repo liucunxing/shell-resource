@@ -136,6 +136,15 @@ export function HomePage() {
           .slice((currentPage - 1) * 9, currentPage * 9)
           .map((item, index) => {
             const totals = E.totals([item]);
+            const [statusLabel, statusColor] = item.workflow?.confirmed
+              ? ["已确认", "confirmed"]
+              : item.workflow?.submitted
+                ? ["已提交 · 待确认", "pending"]
+                : item.workflow?.requiresResubmission
+                  ? ["待重新提交", "resubmit"]
+                  : totals.allocated || totals.otherBudget
+                    ? ["草稿", "draft"]
+                    : ["未开始", "not-started"];
             return (
               <Card
                 key={item.id}
@@ -144,16 +153,8 @@ export function HomePage() {
               >
                 <div className="v19-initiative-heading">
                   <h2>{item.name}</h2>
-                  <Badge variant="secondary">
-                    {item.workflow?.confirmed
-                      ? "已确认"
-                      : item.workflow?.submitted
-                        ? "已提交 · 待确认"
-                        : item.workflow?.requiresResubmission
-                          ? "待重新提交"
-                          : totals.allocated || totals.otherBudget
-                            ? "草稿"
-                            : "未开始"}
+                  <Badge variant="secondary" className={`initiative-status-${statusColor}`}>
+                    {statusLabel}
                   </Badge>
                 </div>
                 <p>
@@ -413,7 +414,6 @@ function PortfolioDashboard({ mode }) {
         ["overview", "总览"],
         ["health", "集中度"],
         ["stack", "叠加到经销商"],
-        ["dealers", "经销商明细"],
         ["versions", "版本变化"],
       ]
     : [
@@ -421,7 +421,7 @@ function PortfolioDashboard({ mode }) {
         ["health", "健康检查"],
         ["destination", "投资去向"],
         ["sd", "按 SD/RSM 看"],
-        ["dealers", "经销商明细"],
+        ...(mode === "owner" ? [["dealers", "经销商明细"]] : [["stack", "叠加到经销商"]]),
         ...(mode === "department" ? [["versions", "版本变化"]] : []),
       ];
   const [tab, setTab] = useState("overview");
@@ -557,7 +557,7 @@ function PortfolioDashboard({ mode }) {
             comparisonIdentity={identity?.email}
           />
         </TabsContent>
-        <TabsContent value="dealers">
+        {mode === "owner" && <TabsContent value="dealers">
           <V19DealerDetails
             showColumnJumps={mode !== "department"}
             budgetReasons={state.budgetReasons}
@@ -566,7 +566,7 @@ function PortfolioDashboard({ mode }) {
             dealers={data.dealers}
             executive={executive}
           />
-        </TabsContent>
+        </TabsContent>}
         <TabsContent value="versions">
           <VersionComparison executive={executive} />
         </TabsContent>
@@ -576,10 +576,10 @@ function PortfolioDashboard({ mode }) {
 }
 
 export function DepartmentPage() {
-  const { identity } = useWorkbench();
+  const { identity, page } = useWorkbench();
   return (
     <PortfolioDashboard
-      mode={identity.role === "owner" ? "owner" : "department"}
+      mode={identity.role === "owner" || page === "portfolio" ? "owner" : "department"}
     />
   );
 }

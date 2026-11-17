@@ -47,9 +47,30 @@ vitestTest(
       edit(book);
       return book.xlsx.writeBuffer();
     }
+    async function legacyWorkbook(state) {
+      const book = new ExcelJS.Workbook(), item = state.initiatives[0];
+      const meta = book.addWorksheet("模板信息");
+      meta.addRow(["字段", "值（固定属性请勿修改）"]);
+      ["Initiative名称", "资源类型", "Sector", "部门", "Owner编号", "预算（只读）", "草稿修订号"].forEach((label, n) => meta.addRow([label, [item.name, item.resourceType, item.sector, item.department, item.ownerId, item.budget, item.revision][n]]));
+      meta.addRow(["填写说明", "旧模板"]);
+      const sheet = book.addWorksheet("经销商分配");
+      sheet.addRow(["经销商编码", "分配金额", "说明"]);
+      item.rows.forEach((r) => sheet.addRow([r.dealerId, r.amount, r.note]));
+      const other = book.addWorksheet("其他预算安排");
+      other.addRow(["原因类型", "分配金额", "说明"]);
+      item.otherBudgets.forEach((r) => other.addRow([state.budgetReasons.find((x) => x.id === r.reasonId).label, r.amount, r.note]));
+      other.getCell("A2").dataValidation = { type: "list", formulae: ['"新增经销商预留"'] };
+      const directory = book.addWorksheet("经销商列表");
+      directory.addRow(["业务线", "经销商编码", "经销商名称", "SD", "RSM", "状态"]);
+      data.dealers.forEach((d) => directory.addRow([d.sector || "", d.id, d.name || "", "", "", ""]));
+      const reasons = book.addWorksheet("原因类型参考");
+      reasons.addRow(["原因类型"]);
+      state.budgetReasons.forEach((r) => reasons.addRow([r.label]));
+      return book.xlsx.writeBuffer();
+    }
     async function main() {
       const state = base(),
-        bytes = await X.exportWorkbook(state, "I001", identity, data);
+        bytes = await legacyWorkbook(state);
       const book = new ExcelJS.Workbook();
       await book.xlsx.load(bytes);
       assert.deepEqual(
@@ -200,11 +221,7 @@ vitestTest(
       );
       const published = base();
       published.publications = { I001: [{ id: "PUB-1" }] };
-      const publishedBytes = await X.exportWorkbook(
-        published,
-        "I001",
-        identity,
-      );
+      const publishedBytes = await legacyWorkbook(published);
       assert.deepEqual(
         (
           await X.previewImport(

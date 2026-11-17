@@ -1,10 +1,13 @@
+import { dealerDetailRows } from "../domain/dealer-detail-rows.js";
+import { allocationColumnGroups, EXPENSE_COLUMN_ORDER } from "../domain/allocation-detail";
+import { Input } from "../../components/ui/input";
+import { DealerDetailButton } from "../DealerDetailAccess";
 import { useLegendColors, resolveInitiativeColor, resolveResourceColor } from "../LegendColors";
-import { InitiativeChip } from "../InitiativeChip";
 export { InitiativeChip } from "../InitiativeChip";
 import { BudgetDonut } from "./BudgetDonut";
 import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
 import { MetricHelp } from "./MetricHelp";
-import { Fragment as ReactFragment, useState } from "react";
+import { useState } from "react";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
@@ -940,44 +943,46 @@ export function V19Stack({
   embedded = false,
   budgetReasons = [],
 }) {
-  const { initiativeColor, resourceColor } = useLegendColors();
+  const { resourceColor } = useLegendColors();
   const [period, setPeriod] = useState("2025"),
     [basis, setBasis] = useState("c3"),
     [direction, setDirection] = useState("over"),
     [all, setAll] = useState(false),
     [selected, setSelected] = useState(null),
-    [sort, setSort] = useState(null);
-  const rows = portfolioRows(items, dealers, basis, period),
+    [sort, setSort] = useState(null),
+    [search, setSearch] = useState("");
+  const rows = dealerDetailRows(items, dealers, basis, period),
     deviations = dealerDeviations(rows),
-    c3Deviations = dealerDeviations(
-      portfolioRows(items, dealers, "c3", period),
-    ),
-    volDeviations = dealerDeviations(
-      portfolioRows(items, dealers, "vol", period),
-    ),
-    c3ByKey = new Map(c3Deviations.map((row) => [row.key, row])),
-    volByKey = new Map(volDeviations.map((row) => [row.key, row])),
     over = deviations.filter((r) => r.gap > (thresholds.dealerYellow ?? 3)),
     label = basis === "c3" ? "C3" : "Delivery Vol";
-  const ordered = direction === "over" ? deviations : [...deviations].reverse();
-  const sortValue = (row, field) => ({
-    name: row.name, sd: row.sd, initiative: row.initiativeSources.map(s => s.name).sort().join("、"),
-    amount: row.amount, mix: typesForSort(row), investment: row.amountShare,
-    c3: c3ByKey.get(row.key)?.metricShare, c3gap: c3ByKey.get(row.key)?.gap,
-    vol: volByKey.get(row.key)?.metricShare, volgap: volByKey.get(row.key)?.gap,
-    notes: row.notes.join(" "),
-  })[field];
+  const expenses = EXPENSE_COLUMN_ORDER.filter(type => rows.some(row => Object.hasOwn(row.resources, type)));
+  const columns = allocationColumnGroups(expenses)
+    .filter(group => group.key !== "support")
+    .flatMap(group => group.columns)
+    .flatMap(column => column[0] === "amount" ? [column, ["mix", "资源大类构成"]] : [column])
+    .map(([key, label]) => [key, key === "gapC3" ? "投资金额 − C3" : key === "gapVol" ? "投资金额 − Delivery Vol" : label]);
+  const basisGap = basis === "c3" ? "gapC3" : "gapVol";
+  const ranked = rows.filter(row => row[basisGap] != null)
+    .sort((a, b) => (direction === "over" ? b[basisGap] - a[basisGap] : a[basisGap] - b[basisGap]) || a.key.localeCompare(b.key));
+  const ordered = all ? [...ranked, ...rows.filter(row => row[basisGap] == null)] : ranked;
+  const read = (row, field) => field.startsWith("expense:") ? row.resources[field.slice(8)]
+    : field === "mix" ? typesForSort(row) : row[field];
   function typesForSort(row) { return row.initiativeSources.map(source => items.find(item => String(item.id) === source.id)?.resourceType || "").sort().join("、"); }
   const sorted = sort ? [...ordered].sort((a,b) => {
-    const x = sortValue(a, sort.field), y = sortValue(b, sort.field);
+    const x = read(a, sort.field), y = read(b, sort.field);
     if (x == null || y == null) return x == null ? (y == null ? 0 : 1) : -1;
     return (typeof x === "number" && typeof y === "number" ? x-y : String(x).localeCompare(String(y), "zh-CN")) * (sort.asc ? 1 : -1) || String(a.key).localeCompare(String(b.key));
   }) : ordered;
-  const list = sorted.slice(0, all ? undefined : 10),
-    max = Math.max(
-      3,
-      ...[...c3Deviations, ...volDeviations].map((r) => Math.abs(r.gap)),
-    );
+  const matching = sorted.filter(row => `${row.name} ${row.code} ${row.sector} ${row.sd} ${row.rsm}`.toLowerCase().includes(search.trim().toLowerCase()));
+  const list = matching.slice(0, all ? undefined : 10),
+    max = Math.max(3, ...rows.flatMap(row => [row.gapC3, row.gapVol]).filter(value => value != null).map(Math.abs));
+  const format = (value, field) => {
+    if (value == null || (field === "yield" && value <= 0)) return "—";
+    if (["amountShare", "volShare", "c3Share", "contractShare", "phasing", "investmentShare"].includes(field)) return pct(value);
+    if (field === "amount") return n(value / 10000, 2);
+    if (["contract", "vol", "c3", "investment"].includes(field) || field.startsWith("expense:")) return n(value / 1000, 2);
+    return typeof value === "number" ? n(value, 2) : value || "—";
+  };
   const types = orderedResourceTypes(items.map((i) => i.resourceType)),
     distribution = (set, type) =>
       set.reduce(
@@ -1010,7 +1015,7 @@ export function V19Stack({
         />
         <div className="v20-stack-overview">
           <div className="v20-stack-conclusion">
-            <h3>叠加分析结论 <MetricHelp>仅比较有当前期间历史产出的经销商；投资占比与产出占比按可比较名单分别计算，缺少历史的经销商不纳入差值判断。</MetricHelp></h3>
+            <h3>叠加分析结论（可比较名单） <MetricHelp>仅比较有当前期间历史产出的经销商；投资占比与产出占比按可比较名单分别计算，缺少历史的经销商不纳入差值判断。</MetricHelp></h3>
             <p>叠加后 <strong>{over.length} 家</strong>经销商的投资占比比其 {label} 占比高出 {thresholds.dealerYellow ?? 3}pp 以上；合计获得 <b>{pct(over.reduce((sum,r)=>sum+r.amountShare,0))}</b> 的可比较投资，贡献 <b>{pct(over.reduce((sum,r)=>sum+r.metricShare,0))}</b> 的 {label}。</p>
             <p>另有 {deviations.filter(r => r.gap < -(thresholds.dealerYellow ?? 3)).length} 家投资占比低于贡献 {thresholds.dealerYellow ?? 3}pp 以上。</p>
             <small>无有效历史：{rows.length - deviations.length} 家，不参与比较。资源构成图按对应名单的投资金额计算。</small>
@@ -1032,104 +1037,32 @@ export function V19Stack({
             </TabsList>
           </Tabs>
           <Button variant="outline" size="sm" onClick={() => setAll((x) => !x)}>
-            {all ? "收起" : `查看全部 ${deviations.length} 家 →`}
+            {all ? "收起" : `查看全部 ${rows.length} 家 →`}
           </Button>
+        </div>
+        <div className="v20-stack-table-tools">
+          <Input aria-label="搜索叠加经销商" value={search} onChange={event => { setSearch(event.target.value); setAll(true); }} placeholder="经销商 / 编码 / Sector / SD / RSM" />
+          <small>表格投资占比按完整名单、历史占比按各指标有效名单计算，与上方仅含可比较名单的结论口径不同；搜索和排序不改变分母，无有效历史的差值显示 —。共 {rows.length} 家，当前显示 {list.length} 家。</small>
         </div>
         <Table sortingMode="manual" className="v20-stack-table" containerClassName={all ? "v20-stack-scroll v20-stack-scroll-all" : "v20-stack-scroll"}>
           <TableHeader><TableRow>
-            {[["name","经销商"],["sd","SD"],["initiative","Initiative"],["amount","投资金额（万元）"],["mix","资源大类构成"],["investment","投资金额占比"],["c3","C3占比"],["c3gap","投资金额 − C3"],["vol","Delivery Vol占比"],["volgap","投资金额 − Delivery Vol"],["notes","Owner 说明"]].map(([field,label]) => <TableHead key={field} aria-sort={sort?.field === field ? (sort.asc ? "ascending" : "descending") : "none"}><Button variant="ghost" className="v20-stack-sort" onClick={() => setSort(prev => ({field,asc:prev?.field === field ? !prev.asc : true}))}>{label} <span aria-hidden="true">{sort?.field === field ? (sort.asc ? "↑" : "↓") : "↕"}</span></Button></TableHead>)}
+            {columns.map(([field,label]) => <TableHead key={field} data-column={field} aria-sort={sort?.field === field ? (sort.asc ? "ascending" : "descending") : "none"}><Button variant="ghost" className="v20-stack-sort" onClick={() => setSort(prev => ({field,asc:prev?.field === field ? !prev.asc : true}))}>{label} <span aria-hidden="true">{sort?.field === field ? (sort.asc ? "↑" : "↓") : "↕"}</span></Button></TableHead>)}
           </TableRow></TableHeader>
           <TableBody>
-            {list.map((row) => (
+            {list.map(row => (
               <TableRow key={row.key}>
-                <TableCell>
-                  <Button
-                    variant="link"
-                    onClick={() =>
-                      setSelected({
-                        type: "dealer",
-                        dealerKey: row.key,
-                        period,
-                        basis,
-                      })
-                    }
-                  >
-                    {row.name}
-                  </Button>
-                </TableCell>
-                <TableCell>{row.sd}</TableCell>
-                <TableCell>
-                  <div className="v20-initiative-chips">
-                  {row.initiativeSources.map((source) => (
-                    <InitiativeChip key={source.id} item={items.find((item) => String(item.id) === String(source.id)) || source} name={source.name}
-                      onClick={() => setSelected({ type: "initiative", initiativeId: source.id, scopeDealerKeys: [row.key], period, basis })} />
-                  ))}
-                  </div>
-                </TableCell>
-                <TableCell className="num" sortValue={row.amount / 10000}>{n(row.amount / 10000)}</TableCell>
-                <TableCell>
-                  <div className="v19-stack-bar">
-                    {types.map((type) => (
-                      <span
-                        key={type}
-                        title={`${type} ${wan(distribution([row], type))}`}
-                        style={{
-                          background: resourceColor(type),
-                          width: `${row.amount ? (distribution([row], type) / row.amount) * 100 : 0}%`,
-                        }}
-                      />
-                    ))}
-                  </div>
-                </TableCell>
-                <TableCell className="num" sortValue={row.amountShare}>{pct(row.amountShare)}</TableCell>
-                {[c3ByKey, volByKey].map((byKey, index) => {
-                  const comparison = byKey.get(row.key);
-                  return (
-                    <ReactFragment key={index}>
-                      <TableCell className="num" sortValue={comparison?.metricShare}>
-                        {pct(comparison?.metricShare)}
-                      </TableCell>
-                      <TableCell>
-                        {comparison ? (
-                          <div className="v19-diverging">
-                            <i
-                              style={{
-                                left: `${comparison.gap < 0 ? 50 + (comparison.gap / max) * 45 : 50}%`,
-                                width: `${(Math.abs(comparison.gap) / max) * 45}%`,
-                                background:
-                                  comparison.gap > 0 ? "#EB8705" : "#89CFDC",
-                              }}
-                            />
-                            <span>{pp(comparison.gap)}</span>
-                          </div>
-                        ) : (
-                          "—"
-                        )}
-                      </TableCell>
-                    </ReactFragment>
-                  );
+                {columns.map(([field]) => {
+                  const value = read(row, field);
+                  return <TableCell key={field} data-column={field} className={!["name", "sd", "rsm", "mix"].includes(field) ? "num" : undefined} sortValue={value}>
+                    {field === "name" ? <><DealerDetailButton variant="link" onClick={() => setSelected({type:"dealer", dealerKey:row.key, period, basis})}>{row.name}</DealerDetailButton><small>{row.code} · {row.sector}</small></>
+                    : field === "mix" ? <div className="v19-stack-bar">{types.map(type => <span key={type} title={`${type} ${wan(distribution([row], type))}`} style={{background:resourceColor(type),width:`${row.amount ? distribution([row], type) / row.amount * 100 : 0}%`}} />)}</div>
+                    : field === "gapC3" || field === "gapVol" ? value == null ? "—" : <div className="v19-diverging"><i style={{left:`${value < 0 ? 50 + value / max * 45 : 50}%`,width:`${Math.abs(value) / max * 45}%`,background:value > 0 ? "#EB8705" : "#89CFDC"}} /><span>{pp(value)}</span></div>
+                    : format(value, field)}
+                  </TableCell>;
                 })}
-                <TableCell>
-                  {row.notes.length ? (
-                    <Button
-                      variant="link"
-                      onClick={() =>
-                        setSelected({
-                          type: "dealer",
-                          dealerKey: row.key,
-                          period,
-                          basis,
-                        })
-                      }
-                    >
-                      查看说明
-                    </Button>
-                  ) : (
-                    "—"
-                  )}
-                </TableCell>
               </TableRow>
             ))}
+            {!list.length && <TableRow><TableCell colSpan={columns.length} className="empty">{all ? "没有符合条件的经销商" : "当前期间没有可比较的经销商，可查看全部名单"}</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>

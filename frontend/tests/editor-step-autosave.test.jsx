@@ -133,3 +133,18 @@ it("invalid input blocks next-step autosave and keeps focus on the error", async
   expect(steps(render()).props.value).toBe("1");
   expect(invalid.focus).toHaveBeenCalled();
 });
+
+
+it("shows the live project balance next to the dealer total, including reserve", () => {
+  item().editorState.step = 3;
+  item().budget = 1000;
+  item().rows = [{ dealerId: data.dealers[0].id, amount: 600 }];
+  item().otherBudgets = [{ id: "r1", reasonId: "reserve", amount: 250 }];
+  item().editorState.reserveAcknowledgement = reserveAcknowledgementFingerprint(item());
+  const gap = () => elements(render()).find(node => node.props.className === "allocation-balance-gap")?.props.children;
+  expect(gap()).toBe("（少分 150 元）");
+  item().rows[0].amount = 800;
+  expect(gap()).toBe("（多分 50 元）");
+  item().rows[0].amount = 750;
+  expect(gap()).toBeUndefined();
+});

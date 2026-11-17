@@ -1,3 +1,4 @@
+import { DealerDetailAccessProvider } from "./DealerDetailAccess";
 import { AlertDescription } from "@/components/ui/alert";
 import { getLocalPreviewConfig } from "./localPreview";
 import { LocalPreviewSelector } from "./LocalPreviewSelector";
@@ -24,7 +25,7 @@ import {
   UserList,
   X,
 } from "@phosphor-icons/react";
-import { useWorkbench } from "./WorkbenchContext.jsx";
+import { ownInitiatives, useWorkbench } from "./WorkbenchContext.jsx";
 import { ToastNotice } from "./ToastNotice.jsx";
 import { PortalAccessNotice } from "../portal/PortalEntry";
 import { UserPreviewBanner } from "./UserPreviewBanner";
@@ -86,9 +87,8 @@ const roleLabel = {
   admin: "系统管理员",
 };
 
-function navigationFor(identity, initiativeId) {
-  if (identity.role === "owner")
-    return [
+export function navigationFor(identity, hasOwnInitiatives) {
+  const ownerNavigation = [
       ["home", SquaresFour, "我的 Initiative", "负责项目与拆分进度"],
       [
         "editor",
@@ -99,10 +99,12 @@ function navigationFor(identity, initiativeId) {
       ["portfolio", ChartDonut, "我的投入组合", "本人全部 Initiative 叠加分析"],
       ["submissions", ClipboardText, "草稿与提交", "批量校验与提交"],
     ];
+  if (identity.role === "owner") return ownerNavigation;
   if (identity.role === "lead")
     return [
       ["department", Buildings, "部门投入组合", "本部门已提交方案"],
       ["department-review", ShieldCheck, "部门方案提交", "提交管理层与撤回修改"],
+      ...(hasOwnInitiatives ? ownerNavigation : []),
     ];
   if (identity.role === "management")
     return [["management", Stack, "全局投资看板", "部门已确认方案"]];
@@ -231,7 +233,8 @@ export default function WorkbenchApp() {
         </div>
       </main>
     );
-  const nav = navigationFor(identity, initiativeId);
+  const nav = navigationFor(identity, identity.role === "lead" &&
+    ownInitiatives(state.initiatives || [], identity).some((item) => item.enabled !== false));
   const Page = pages[page] || pages[nav[0]?.[0]] || HomePage;
   return (
     <>
@@ -326,7 +329,9 @@ export default function WorkbenchApp() {
                 </div>
               }
             >
-              <Page key={`${identity.key}:${page}:${scenarioEpoch}`} />
+              <DealerDetailAccessProvider role={identity.role}>
+                <Page key={`${identity.key}:${page}:${scenarioEpoch}`} />
+              </DealerDetailAccessProvider>
             </Suspense>
           </main>
         </div>
