@@ -513,12 +513,12 @@
 .v19-dealer-details .studio-table-toolbar {
   margin: 12px 0;
   display: flex;
-  gap: 14px;
-  justify-content: space-between;
+  gap: 8px;
+  justify-content: flex-start;
   flex-wrap: wrap;
 }
 .v19-dealer-details .studio-table-toolbar > input {
-  max-width: 250px;
+  max-width: 280px;
 }
 .v19-exec-conclusions {
   padding: 4px 0;
