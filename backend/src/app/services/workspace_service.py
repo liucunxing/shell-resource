@@ -349,11 +349,8 @@ class WorkspaceService:
         submission_reason = payload.note.strip()
         if budget.planning_version_id:
             planning = PlanningService(self.session, self.user)
-            version = await planning.version(budget.planning_version_id)
             workflow = await planning.ensure_state(budget.id)
             submission_reason = submission_reason or workflow.change_reason.strip()
-            if version.source_version_id and not submission_reason:
-                raise HTTPException(422, "请填写本版调整依据，继承方案需重新核对说明")
             if len(submission_reason) > 160:
                 raise HTTPException(422, "本版调整依据最多 160 字")
             config = await self.repository.config()
