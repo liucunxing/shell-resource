@@ -41,13 +41,16 @@ export function awardedInitiativesByDealer(
 export function allocationColumnGroups(
   expenses: string[],
   editable = false,
+  splitDealerIdentity = false,
 ): DetailColumnGroup[] {
   return [
     {
       key: "plan",
       title: "当前规划",
       columns: [
-        ["name", "经销商 / 编码"],
+        ...(splitDealerIdentity
+          ? [["code", "经销商编码"], ["name", "经销商名称"], ["status", "状态"]] as [string, string][]
+          : [["name", "经销商 / 编码"]] as [string, string][]),
         ["amount", editable ? "分配金额（元）" : "累计投资金额（万元）"],
       ],
     },

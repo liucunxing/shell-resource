@@ -1,3 +1,4 @@
+import { DealerDetailButton } from "../DealerDetailAccess";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MoneyInput } from "./MoneyInput";
 import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
@@ -76,6 +77,11 @@ export {
 } from "../domain/reserve-review.js";
 const fmt = (n) =>
   Number(n || 0).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
+export function allocationBalanceLabel(gap) {
+  const cents = Math.round(Number(gap) * 100);
+  if (!Number.isFinite(cents) || cents === 0) return "";
+  return `（${cents > 0 ? "少分" : "多分"} ${fmt(Math.abs(cents) / 100)} 元）`;
+}
 const histFmt = (value) =>
   historyDisplayValue(value) === null ? "—" : fmt(historyDisplayValue(value));
 const pct = (n, d) => (d ? ((n / d) * 100).toFixed(2) : "0.00");
@@ -948,7 +954,7 @@ function EditorContent({
       ),
     ),
   );
-  const allocationGroups = allocationColumnGroups(allocationExpenses, true);
+  const allocationGroups = allocationColumnGroups(allocationExpenses, true, true);
   const allocationColumns = allocationGroups.flatMap((group) => group.columns);
   const awardsByDealer = awardedInitiativesByDealer(i, view.initiatives);
   const detailItems = detail?.ownerOthers
@@ -979,6 +985,8 @@ function EditorContent({
       );
     return {
       name: dealer.name || dealerCode(row.dealerId),
+      code: dealerCode(row.dealerId),
+      status: dealer.status || "—",
       amount: row.amount,
       sd: dealer.sd,
       rsm: dealer.rsm,
@@ -1196,8 +1204,8 @@ function EditorContent({
           <Alert className="note-box">
             <AlertDescription>
               {i.workflow?.ownerEditLocked
-                ? "部门已提交；版本开放且未截止时，撤回部门提交后可修改。"
-                : "当前方案只读，请核对版本开放状态、截止时间和 Owner 归属。"}
+                ? "部门已提交；版本开放时，撤回部门提交后可修改。"
+                : "当前方案只读，请核对版本开放状态和 Owner 归属。"}
             </AlertDescription>
           </Alert>
         )}
@@ -1416,7 +1424,7 @@ function EditorContent({
                               />
                             </TableCell>
                             <TableCell>
-                              <Button
+                              <DealerDetailButton
                                 variant="link"
                                 onClick={() =>
                                   setDetail({
@@ -1430,16 +1438,14 @@ function EditorContent({
                                 }
                               >
                                 {dealer.name || "—"}
-                              </Button>
+                              </DealerDetailButton>
                               <small>{dealerCode(dealer.id)}</small>
                             </TableCell>
                             <TableCell>
                               {dealer.sd || "—"} / {dealer.rsm || "—"}
                             </TableCell>
                             <TableCell>
-                              <Badge variant="secondary">
-                                {dealer.status || "—"}
-                              </Badge>
+                              {dealer.status || "—"}
                             </TableCell>
                             {["2025", "2026Ytd"].map((period) => (
                               <Fragment key={period}>
@@ -1522,7 +1528,7 @@ function EditorContent({
                               </Fragment>
                             ))}
                             <TableCell>
-                              <Button
+                              <DealerDetailButton
                                 variant="link"
                                 disabled={!otherInitiatives(dealer.id).length}
                                 onClick={() =>
@@ -1541,7 +1547,7 @@ function EditorContent({
                                 {otherInitiatives(dealer.id).length
                                   ? `${otherInitiatives(dealer.id).length} 项 · ${fmt(otherInitiatives(dealer.id).reduce((sum, entry) => sum + entry.row.amount, 0) / 10000)} 万`
                                   : "—"}
-                              </Button>
+                              </DealerDetailButton>
                             </TableCell>
                           </TableRow>
                         );
@@ -1626,7 +1632,7 @@ function EditorContent({
                             <TableRow key={row.dealerId}>
                               <TableCell>{dealerCode(row.dealerId)}</TableCell>
                               <TableCell>
-                                <Button
+                                <DealerDetailButton
                                   variant="link"
                                   onClick={() =>
                                     setDetail({
@@ -1639,19 +1645,20 @@ function EditorContent({
                                   }
                                 >
                                   {dealerName(row.dealerId)}
-                                </Button>
+                                </DealerDetailButton>
                               </TableCell>
                               <TableCell>{dealer.sd || "—"}</TableCell>
                               <TableCell>{dealer.rsm || "—"}</TableCell>
                               <TableCell>
-                                <Badge variant="secondary">Active</Badge>
+                                Active
                               </TableCell>
                               <TableCell className="num">
                                 {fmt(row.amount)}
                               </TableCell>
                               <TableCell>
                                 <Button
-                                  variant="ghost"
+                                  variant="outline"
+                                  className="selected-roster-remove"
                                   disabled={!editable}
                                   aria-label={`移除 ${dealerLabel(row.dealerId)}`}
                                   onClick={() =>
@@ -1728,6 +1735,11 @@ function EditorContent({
                 metric={historyMetric}
                 onMetricChange={setHistoryMetric}
               />
+              <Alert className="v19-quick-allocation-hint" role="note">
+                <AlertDescription>
+                  <strong>快速分配：</strong>点击下方任一快捷方案，即可按所选历史指标快速分配金额；采用后会覆盖当前金额。
+                </AlertDescription>
+              </Alert>
               <div className="v19-trial-tools">
                 <strong>快捷方案选择</strong>
                 {[
@@ -1908,7 +1920,7 @@ function EditorContent({
               />
               {editable && (
                 <p className="work-caption">
-                  经销商列表已包含在下载模板的「经销商列表」工作表中，业务线为第一列。
+                  完整金额 Excel 包含「经销商分配」和「经销商列表」；上传新版模板会替换经销商分配，其他预算安排保持不变。
                 </p>
               )}
               <div className="v19-allocation-filters">
@@ -2092,7 +2104,7 @@ function EditorContent({
                           sortKey={key}
                           data-column={key}
                           className={
-                            ["name", "sd", "rsm", "note"].includes(key)
+                            ["code", "name", "status", "sd", "rsm", "note"].includes(key)
                               ? ""
                               : "num"
                           }
@@ -2108,7 +2120,6 @@ function EditorContent({
                       const rowIndex = i.rows.findIndex(
                           (row) => row.dealerId === r.dealerId,
                         ),
-                        dealer = dealerMeta(r.dealerId),
                         awards = awardsByDealer.get(String(r.dealerId)) || [];
                       return (
                         <TableRow key={r.dealerId}>
@@ -2136,14 +2147,13 @@ function EditorContent({
                                     ? "num v19-money-cell"
                                     : key === "note"
                                       ? "allocation-note"
-                                      : ["sd", "rsm", "support"].includes(key)
+                                      : ["code", "status", "sd", "rsm", "support"].includes(key)
                                         ? ""
                                         : "num"
                               }
                             >
                               {key === "name" ? (
-                                <>
-                                  <Button
+                                  <DealerDetailButton
                                     variant="link"
                                     onClick={() =>
                                       setDetail({
@@ -2159,12 +2169,7 @@ function EditorContent({
                                     }
                                   >
                                     {dealerName(r.dealerId)}
-                                  </Button>
-                                  <small>
-                                    {dealerCode(r.dealerId)} ·{" "}
-                                    {dealer.status || "—"}
-                                  </small>
-                                </>
+                                  </DealerDetailButton>
                               ) : key === "amount" ? (
                                 editable ? (
                                   <AmountInput
@@ -2286,7 +2291,7 @@ function EditorContent({
                   <TableFooter>
                     <TableRow>
                       {editable && <TableCell />}
-                      {allocationColumns.map(([key], index) => (
+                      {allocationColumns.map(([key]) => (
                         <TableCell
                           key={key}
                           data-column={key}
@@ -2294,9 +2299,17 @@ function EditorContent({
                             key === "amount" ? "num v19-money-cell" : "num"
                           }
                         >
-                          {index === 0
+                          {key === "name"
                             ? "范围合计 / 加权值"
-                            : ["sd", "rsm", "support", "note"].includes(key)
+                            : key === "amount" ? (
+                              <>
+                                {fmt(totals.allocated)}
+                                {allocationBalanceLabel(totals.gap) && (
+                                  <span className="allocation-balance-gap">{allocationBalanceLabel(totals.gap)}</span>
+                                )}
+                              </>
+                            )
+                            : ["code", "status", "sd", "rsm", "support", "note"].includes(key)
                               ? ""
                               : allocationFormat(
                                   totalAllocationValue(key),
@@ -2543,7 +2556,7 @@ function EditorContent({
                 activeStep === 1
                   ? doGuard(() =>
                       navigate(
-                        identity.role === "owner" ? "home" : "department",
+                        ["owner", "lead"].includes(identity.role) ? "home" : "department",
                       ),
                     )
                   : void chooseStep(activeStep - 1)

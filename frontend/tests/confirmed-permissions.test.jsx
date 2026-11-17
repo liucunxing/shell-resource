@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import E from "../src/workbench/domain/engine.js";
 import X from "../src/workbench/domain/explore.js";
 import D from "../src/workbench/domain/demo-data.json";
-import { ManagementPage } from "../src/workbench/pages/OverviewPages.jsx";
+import { ManagementPage, DepartmentPage } from "../src/workbench/pages/OverviewPages.jsx";
 import { EditorPage } from "../src/workbench/pages/EditorPage.jsx";
 import { HistoricalResourceSettings } from "../src/workbench/pages/HistoricalResourceSettings.jsx";
 
@@ -24,13 +24,26 @@ it("management overview follows the customer V19 readonly board", () => {
   expect(html).toContain("只读，基于部门已确认方案");
   expect(html).toContain("总盘 · 资源大类");
   expect(html).toContain("集中度");
-  expect(html).toContain("经销商明细");
+  expect(html).toContain("叠加到经销商");
+  expect(html).not.toContain("经销商明细");
   expect(html).not.toContain("当前工作稿（含未同步调整）");
   expect(html).not.toContain("查看 / 调整");
   const editor = renderToStaticMarkup(<EditorPage />);
   expect(editor).not.toContain(">保存草稿<");
   expect(editor).not.toContain(">提交当前方案<");
   expect(editor).not.toContain("可继续修改");
+});
+
+it.each(["owner", "lead"])("keeps dealer details only in the Owner portfolio (%s)", role => {
+  const { state } = shared.context;
+  const first = state.initiatives[0];
+  const identity = { role, key: role, email: "user@example.test", ownerId: first.ownerId, department: [first.department] };
+  shared.context.identity = identity;
+  shared.context.view = E.selectView(state, identity);
+  shared.context.page = role === "owner" ? "portfolio" : "department";
+  const html = renderToStaticMarkup(<DepartmentPage />);
+  expect(html.includes("经销商明细")).toBe(role === "owner");
+  expect(html.includes("叠加到经销商")).toBe(role === "lead");
 });
 
 it("the resource settings support shared resource types and explain the historical aggregate", () => {

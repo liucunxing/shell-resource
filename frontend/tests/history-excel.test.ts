@@ -23,7 +23,7 @@ it("roundtrips the same dealer code under two RSM records independently", async 
     budget: 100,
     revision: 1,
     rows: dealers.map((d) => ({ dealerId: d.id, amount: 50, note: "" })),
-    otherBudgets: [],
+    otherBudgets: [{ id: "reserve-1", reasonId: "reserve", amount: 10, note: "保留" }],
   };
   const state = {
     departments: { MKT: { status: "collecting", versions: [] } },
@@ -39,7 +39,7 @@ it("roundtrips the same dealer code under two RSM records independently", async 
   expect(sheet.getCell("A2").value).toBe("D1");
   expect(sheet.getCell("E2").value).toBe("One");
   expect(sheet.getCell("E3").value).toBe("Two");
-  sheet.getCell("F3").value = ""; // Manual rows can be resolved by code + SD/RSM.
+  sheet.getCell("H3").value = ""; // Manual rows can be resolved by code + SD/RSM.
   const preview = await X.previewImport(
     await workbook.xlsx.writeBuffer(),
     state,
@@ -48,7 +48,16 @@ it("roundtrips the same dealer code under two RSM records independently", async 
     data,
   );
   expect(preview.errors).toEqual([]);
+  expect(preview.otherBudgets).toEqual(item.otherBudgets);
+  expect(preview.summary.after).toBe(110);
   expect(preview.rows.map((r: { dealerId: string }) => r.dealerId)).toEqual(
     dealers.map((d) => d.id),
   );
+  sheet.spliceRows(3, 1);
+  const removed = await X.previewImport(await workbook.xlsx.writeBuffer(), state, "I", identity, data);
+  expect(removed.errors).toEqual([]);
+  expect(removed.rows).toHaveLength(1);
+  expect(removed.otherBudgets).toEqual(item.otherBudgets);
+  const wrongVersion = await X.previewImport(bytes, { ...state, planningVersion: { id: "another" } }, "I", identity, data);
+  expect(wrongVersion.errors.join(" ")).toContain("模板所属方案或版本");
 });

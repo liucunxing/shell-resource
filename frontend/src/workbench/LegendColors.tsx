@@ -39,16 +39,14 @@ const configured = (value?: string) =>
   value && VALID_LEGEND_COLOR.test(value) ? value : undefined;
 export function resolveInitiativeColor(
   item: ColorInitiative,
-  colors: LegendColors = {},
+  _colors: LegendColors = {},
 ) {
   const key = initiativeLegendKey(item);
   const numeric = Number(key.replace(/\D/g, ""));
   const hash = numeric
     ? numeric - 1
     : [...key].reduce((sum, char) => (sum * 31 + char.charCodeAt(0)) >>> 0, 0);
-  return (
-    configured(colors.initiatives?.[key]) || palette[hash % palette.length]
-  );
+  return palette[hash % palette.length];
 }
 export function resolveResourceColor(type: string, colors: LegendColors = {}) {
   const key = type === "CAPEX" ? "Capex" : type === "BTL" ? "SP&A" : type;

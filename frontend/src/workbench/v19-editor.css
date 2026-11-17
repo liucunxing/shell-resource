@@ -133,6 +133,14 @@
   max-height: 330px;
   overflow: auto;
 }
+.v19-editor .selected-roster-remove {
+  background: #fff1f0;
+  border-color: #efb4ae;
+  color: #9b2c24;
+}
+.v19-editor .selected-roster-remove:not(:disabled):hover {
+  background: #ffe0dc;
+}
 .v19-editor .studio-selected-roster .panel-header {
   flex-wrap: wrap;
   gap: 12px;
@@ -249,6 +257,13 @@
   position: sticky;
   top: 0;
   z-index: 3;
+}
+.v19-editor .v19-quick-allocation-hint {
+  margin-top: 14px;
+  border: 1px solid #e1bd32;
+  border-left: 4px solid #d4a900;
+  background: #fff8d9;
+  color: #514000;
 }
 .v19-editor .v19-trial-tools {
   display: flex;
@@ -665,12 +680,23 @@
   height: 30px;
   font-size: 12px;
 }
+.v19-editor .v19-allocation-table tfoot {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+}
+.v19-editor .allocation-balance-gap {
+  display: inline-block;
+  color: #a83424;
+  white-space: nowrap;
+}
 .v19-editor .v19-allocation-table tfoot td {
   background: #edf4f9;
   font-weight: 650;
   border-top: 1px solid #d5e0e8;
 }
 .v19-editor .v19-allocation-table tfoot .v19-money-cell {
+  white-space: normal;
   background: #fff1b6;
 }
 .v19-editor .v19-allocation-table {
@@ -681,7 +707,7 @@
 }
 .v19-editor .v19-allocation-table [data-column="name"] {
   position: sticky;
-  left: var(--selection-width);
+  left: calc(120px + var(--selection-width));
   width: 210px;
   min-width: 210px;
   max-width: 210px;
@@ -689,9 +715,27 @@
   z-index: 2;
   white-space: normal;
 }
+.v19-editor .v19-allocation-table [data-column="code"],
+.v19-editor .v19-allocation-table [data-column="status"] {
+  position: sticky;
+  background: #fff;
+  z-index: 2;
+}
+.v19-editor .v19-allocation-table [data-column="code"] {
+  left: var(--selection-width);
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+}
+.v19-editor .v19-allocation-table [data-column="status"] {
+  left: calc(330px + var(--selection-width));
+  width: 90px;
+  min-width: 90px;
+  max-width: 90px;
+}
 .v19-editor .v19-allocation-table [data-column="amount"] {
   position: sticky;
-  left: calc(210px + var(--selection-width));
+  left: calc(420px + var(--selection-width));
   width: 164px;
   min-width: 164px;
   max-width: 164px;
@@ -776,9 +820,14 @@
 }
 @media (max-width: 600px) {
   .v19-editor .v19-allocation-table [data-column="name"] {
+    left: var(--selection-width);
     width: 135px;
     min-width: 135px;
     max-width: 135px;
+  }
+  .v19-editor .v19-allocation-table [data-column="code"],
+  .v19-editor .v19-allocation-table [data-column="status"] {
+    position: static;
   }
   .v19-editor .v19-allocation-table [data-column="name"] button {
     max-width: 100%;

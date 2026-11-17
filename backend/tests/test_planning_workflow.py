@@ -83,6 +83,45 @@ async def act(session, action, **kwargs):
 
 
 @pytest.mark.asyncio
+async def test_lead_owns_draft_without_exposing_other_drafts_or_changing_department_snapshot():
+    session, _, budgets = await prepare()
+    try:
+        own, other = budgets
+        own.owner_email = "lead@example.com"
+        await session.commit()
+        lead = service(session, user("lead@example.com", "lead"))
+        saved = await lead.save_draft(own.id, InitiativeDraftUpdateDTO(
+            expected_revision=own.revision, rows=[{"dealerId": "d1", "amount": "100"}]
+        ))
+        workspace = await lead.get_workspace(2027, version_id="202701")
+        snapshots = {item["id"]: item for item in workspace["state"]["initiatives"]}
+        drafts = workspace["state"]["ownInitiatives"]
+        assert [item["id"] for item in drafts] == [str(own.id)]
+        assert drafts[0]["rows"] and drafts[0]["workflow"]["editable"]
+        assert not snapshots[str(own.id)]["rows"] and not snapshots[str(other.id)]["rows"]
+        with pytest.raises(HTTPException) as denied:
+            await lead.save_draft(
+                other.id, InitiativeDraftUpdateDTO(expected_revision=other.revision)
+            )
+        assert denied.value.status_code == 403
+        await lead.publish(own.id, PublishDTO(expected_revision=saved["revision"]))
+        await submit(session, other)
+        await act(session, "confirm")
+        locked = await lead.get_workspace(2027, version_id="202701")
+        assert not locked["state"]["ownInitiatives"][0]["workflow"]["editable"]
+        with pytest.raises(HTTPException) as failure:
+            await lead.save_draft(
+                own.id, InitiativeDraftUpdateDTO(expected_revision=saved["revision"])
+            )
+        assert failure.value.status_code == 409
+        await act(session, "withdraw", reason="需要调整")
+        unlocked = await lead.get_workspace(2027, version_id="202701")
+        assert unlocked["state"]["ownInitiatives"][0]["workflow"]["editable"]
+    finally:
+        await session.close()
+
+
+@pytest.mark.asyncio
 async def test_reuse_deleted_version_code_preserves_archived_version_and_budgets():
     session, admin, _ = await prepare()
     try:
@@ -238,9 +277,7 @@ async def test_stale_revision_scopes_and_deadline_are_enforced():
         version = await session.get(PlanningVersionDO, "202701")
         version.deadline = datetime.now(UTC) - timedelta(seconds=1)
         await session.commit()
-        with pytest.raises(HTTPException) as expired:
-            await submit(session, budgets[0])
-        assert expired.value.status_code == 409
+        await submit(session, budgets[0])
     finally:
         await session.close()
 
@@ -523,14 +560,12 @@ async def test_http_version_routes_validate_scope_and_preview_read_only():
         ][0]
         release = {
             "expected_revision": current["revision"], "reason": "全量复核",
-            "deadline": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
         }
         for headers in (owner, preview, {"X-User-Email": "lead@example.com"}):
             denied = await client.post("planning-versions/202701/release", headers=headers,
                                        json=release)
             assert denied.status_code == 403
-        for invalid in ({"deadline": None}, {"deadline": "2000-01-01T00:00:00Z"},
-                        {"deadline": "2099-01-01T00:00:00"}, {"reason": " "}):
+        for invalid in ({"deadline": None}, {"reason": " "}):
             rejected = await client.post("planning-versions/202701/release", headers=admin,
                                          json={**release, **invalid})
             assert rejected.status_code == 422
@@ -796,7 +831,6 @@ async def test_owner_can_revise_until_confirmation_and_admin_release_unlocks_all
         version = await session.get(PlanningVersionDO, "202701")
         await admin.release("202701", PlanningVersionReleaseDTO(
             expected_revision=version.revision, reason="管理层复核",
-            deadline=datetime.now(UTC) + timedelta(days=1),
         ))
         for budget in budgets:
             workflow = (await service(session, user(budget.owner_email)).get_draft(

@@ -15,6 +15,7 @@ const META = [
 ];
 const LEGACY_META = ["模板版本", "Initiative编号", ...META];
 const HEAD = ["经销商编码", "分配金额", "说明"],
+  ALLOCATION_HEAD = ["经销商编码", "经销商名称", "状态", "SD", "RSM", "分配金额", "说明", "记录标识"],
   LEGACY_HEAD = ["行业务键", "经销商编码", "分配金额", "说明"],
   OTHER_HEAD = ["原因类型", "分配金额", "说明"],
   LEGACY_OTHER_HEAD = [
@@ -83,7 +84,7 @@ function editable(state, id, identity) {
   if (!i) throw new Error("当前 Initiative 不存在");
   if (
     !["owner", "lead"].includes(identity.role) ||
-    identity.ownerId !== i.ownerId ||
+    !identity.ownerId || String(identity.ownerId).toLowerCase() !== String(i.ownerId || "").toLowerCase() ||
     !engine.hasDepartment(identity, i.department) ||
     !engine.canEdit(state, id, identity)
   )
@@ -172,68 +173,21 @@ async function exportWorkbook(state, id, identity, data = {}) {
   const i = editable(state, id, identity),
     book = new (await excelLibrary()).Workbook();
   book.creator = "资源投资工作台（本地演示）";
-  const meta = book.addWorksheet("模板信息");
-  meta.addRow(["字段", "值（固定属性请勿修改）"]);
-  fields(i).forEach((v, ix) => meta.addRow([META[ix], v]));
-  meta.addRow([
-    "填写说明",
-    "仅编辑经销商分配与其他预算安排；删除明细行将删除当前分配。金额最多2位小数，不得填写公式。经销商分配：经销商编码请参考「经销商列表」Sheet 中的编码填写。其他预算分配：原因类型请参考「原因类型参考」Sheet 中的选项填写。导入前预览，确认后写入。",
-  ]);
-  style(meta, [26, 110]);
-  meta.getRow(9).getCell(2).alignment = { wrapText: true };
-  meta.getRow(9).height = 56;
-  const rows = book.addWorksheet("经销商分配");
-  const historical = [...(data.dealers || []), ...dealerDirectory(data)];
-  const byId = new Map(historical.map((dealer) => [String(dealer.id), dealer]));
-  const detailed = historical.some((dealer) => dealer.code);
-  rows.addRow(detailed ? [...HEAD, "SD", "RSM", "记录标识"] : HEAD);
+  const rows = book.addWorksheet("经销商分配", { properties: { tabColor: { argb: "FFFFCC00" } } });
+  book.views = [{ activeTab: 0, firstSheet: 0 }];
+  const historical = [...dealerDirectory(data), ...(data.dealers || [])];
+  const byId = new Map(historical.filter((dealer) => !dealer.sector || dealer.sector === i.sector).map((dealer) => [String(dealer.id), dealer]));
+  rows.addRow(ALLOCATION_HEAD);
   (i.rows || []).forEach((r) => {
     const dealer = byId.get(String(r.dealerId)) || {};
-    rows.addRow(
-      detailed
-        ? [
-            dealer.code || r.dealerCode || r.dealerId,
-            r.amount,
-            r.note || "",
-            dealer.sd || r.sd || "",
-            dealer.rsm || r.rsm || "",
-            r.dealerId,
-          ]
-        : [r.dealerId, r.amount, r.note || ""],
-    );
+    rows.addRow([String(dealer.code || r.dealerCode || r.dealerId), dealer.name || "", dealer.status || "", dealer.sd || r.sd || "", dealer.rsm || r.rsm || "", r.amount, r.note || "", String(r.dealerId)]);
   });
-  if (detailed) rows.getColumn(6).hidden = true;
-  style(rows, [24, 20, 65]);
-  rows.getColumn(2).numFmt = "#,##0.00";
-  const other = book.addWorksheet("其他预算安排");
-  other.addRow(OTHER_HEAD);
-  currentOther(i).forEach((r) => {
-    const reason = configuredReasons(state).find((x) => x.id === r.reasonId);
-    other.addRow([reason ? reason.label : r.reasonId, r.amount, r.note || ""]);
-  });
-  style(other, [26, 20, 70]);
-  other.getColumn(2).numFmt = "#,##0.00";
-  // Validation is intentionally applied only to populated rows. Some older ExcelJS
-  // builds expand a worksheet indefinitely when data validation is set on blank rows.
-  for (let row = 2; row <= other.rowCount; row++)
-    other.getRow(row).getCell(1).dataValidation = {
-      type: "list",
-      allowBlank: false,
-      formulae: [
-        '"' +
-          reasons(state)
-            .map((r) => r.label.replace(/"/g, ""))
-            .join(",") +
-          '"',
-      ],
-      showErrorMessage: true,
-      error: "请选择管理员配置的预算安排原因。",
-    };
+  style(rows, [24, 48, 18, 24, 24, 20, 65, 24, 20]);
+  rows.getColumn(6).numFmt = "#,##0.00";
+  rows.getColumn(8).hidden = true;
+  rows.getColumn(9).hidden = true;
+  rows.getCell("I1").value = json({ format: "allocation-v2", id: i.id, fields: fields(i).slice(0, -1), versionId: state.planningVersion?.id ?? null });
   addDealerDirectory(book, data);
-  const reasonReference = book.addWorksheet("原因类型参考");
-  reasonReference.addRow(["原因类型"]);
-  reasons(state).forEach((reason) => reasonReference.addRow([reason.label]));
-  style(reasonReference, [32]);
   return book.xlsx.writeBuffer();
 }
 function addDealerDirectory(book, data) {
@@ -450,6 +404,37 @@ async function previewImport(buffer, state, id, identity, data) {
     out.errors.push("文件不是可读取的 Excel 工作簿，请使用下载的 .xlsx 模板。");
     return out;
   }
+  if (book.worksheets.length === 2 && book.getWorksheet("经销商分配") && book.getWorksheet("经销商列表")) {
+    const sheet = book.getWorksheet("经销商分配"), read = readFactory(out);
+    let metadata;
+    try { metadata = JSON.parse(read(sheet, 1, 9)); } catch { /* Invalid metadata is rejected below. */ }
+    if (!metadata || metadata.format !== "allocation-v2" || metadata.id !== i.id ||
+        json(metadata.fields) !== json(fields(i).slice(0, -1)) ||
+        metadata.versionId !== (state.planningVersion?.id ?? null))
+      out.errors.push("模板所属方案或版本与当前方案不一致，请重新下载模板。");
+    checkHeaders(read, out, sheet, ALLOCATION_HEAD);
+    checkWidth(out, sheet, 9);
+    const source = [...(data.dealers || []), ...dealerDirectory(data)];
+    const allowed = new Set([...dealerDirectory(data).filter((d) => !d.sector || d.sector === i.sector).map((d) => String(d.id)), ...i.rows.map((row) => String(row.dealerId))]);
+    const ids = new Set();
+    for (let n = 2; n <= sheet.rowCount; n++) {
+      const row = ALLOCATION_HEAD.map((_, column) => read(sheet, n, column + 1));
+      if (row.every((value) => value === "")) continue;
+      const [code, , , sd, rsm, amount, note, recordId] = row;
+      const matches = [...new Map(source.filter((record) => (!record.sector || record.sector === i.sector) && String(record.code || record.id) === String(code).trim() && String(record.sd || "") === String(sd).trim() && String(record.rsm || "") === String(rsm).trim()).map((record) => [String(record.id), record])).values()];
+      const dealer = matches.length === 1 ? String(matches[0].id) : String(recordId || "");
+      if (matches.length !== 1 && !i.rows.some((old) => String(old.dealerId) === dealer && String(old.dealerCode || old.dealerId) === String(code)))
+        out.errors.push(`经销商分配 第${n}行编码、SD、RSM 无法唯一匹配历史记录。`);
+      if (!allowed.has(dealer)) out.errors.push(`经销商分配 第${n}行经销商编码不存在或格式不正确。`);
+      if (ids.has(dealer)) out.errors.push(`经销商分配 第${n}行经销商重复。`);
+      if (typeof note !== "string") out.errors.push(`经销商分配 第${n}行说明必须为文本。`);
+      ids.add(dealer);
+      out.rows.push({ dealerId: dealer, amount: money(amount, out, `经销商分配 第${n}行金额`), note: safeText(note) });
+    }
+    out.otherBudgets = clone(currentOther(i));
+    out.dealerOnly = true;
+    return finishPreview(out, i, identity, scope);
+  }
   const read = readFactory(out),
     meta = book.getWorksheet("模板信息"),
     ds = book.getWorksheet("经销商分配"),
@@ -596,6 +581,9 @@ async function previewImport(buffer, state, id, identity, data) {
         : row;
     });
   }
+  return finishPreview(out, i, identity, scope);
+}
+function finishPreview(out, i, identity, scope) {
   if (
     !out.rows.length &&
     !out.otherBudgets.some((r) => r.amount > 0 && r.note.trim())
