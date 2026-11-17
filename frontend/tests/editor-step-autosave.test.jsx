@@ -148,3 +148,63 @@ it("shows the live project balance next to the dealer total, including reserve",
   item().rows[0].amount = 750;
   expect(gap()).toBeUndefined();
 });
+
+function prepareTrial() {
+  item().rows = data.dealers.slice(0, 2).map((dealer, index) => ({ dealerId: dealer.id, amount: index + 10, note: "原分配", dealerCode: `code-${index}`, sd: "SD", rsm: "RSM" }));
+  item().editorState.step = 3;
+  return structuredClone(item().rows);
+}
+
+it("restores each initiative's selected scheme after remount and cancels to its original allocations", () => {
+  const baseline = prepareTrial();
+  button(render(), "按历史投资总额采用").props.onClick();
+  expect(button(render(), "按历史投资总额采用").props["aria-pressed"]).toBe(true);
+  const allocated = structuredClone(item().rows);
+  const second = structuredClone(item());
+  second.id = "another-initiative";
+  second.editorState = { step: 3, reserveAcknowledgement: reserveAcknowledgementFingerprint(second) };
+  harness.context.state.initiatives.push(second);
+  harness.context.initiativeId = second.id;
+  harness.slots = [];
+  button(render(), "按Actual C3采用").props.onClick();
+  expect(button(render(), "按Actual C3采用").props["aria-pressed"]).toBe(true);
+  harness.context.initiativeId = item().id;
+  harness.slots = [];
+  expect(item().rows).toEqual(allocated);
+  expect(button(render(), "按历史投资总额采用").props["aria-pressed"]).toBe(true);
+  button(render(), "按Actual Delivery Vol采用").props.onClick();
+  harness.slots = [];
+  button(render(), "按Actual Delivery Vol采用").props.onClick();
+  expect(item().rows).toEqual(baseline);
+  expect(button(render(), "按Actual Delivery Vol采用").props["aria-pressed"]).toBe(false);
+  harness.context.initiativeId = second.id;
+  harness.slots = [];
+  expect(button(render(), "按Actual C3采用").props["aria-pressed"]).toBe(true);
+});
+
+it("retains trial metadata when autosaving forward after visiting earlier steps", async () => {
+  prepareTrial();
+  button(render(), "按Actual C3采用").props.onClick();
+  const trial = structuredClone(item().editorState.trial);
+  await steps(render()).props.onValueChange("2");
+  await steps(render()).props.onValueChange("3");
+  expect(harness.context.saveDraft).toHaveBeenCalledWith(item().id, expect.objectContaining({
+    editorState: expect.objectContaining({ step: 3, trial }),
+  }));
+});
+
+it("restores the applied history period and clears the choice only after confirming clear amounts", () => {
+  prepareTrial();
+  const controls = () => elements(render()).find(node => node.props.onPeriodChange);
+  controls().props.onPeriodChange("2026Ytd");
+  button(render(), "按Actual C3采用").props.onClick();
+  harness.slots = [];
+  expect(controls().props.period).toBe("2026Ytd");
+  expect(button(render(), "按Actual C3采用").props["aria-pressed"]).toBe(true);
+  elements(render()).find(node => node.props["aria-label"] === "清空经销商分配").props.onClick();
+  const modal = elements(render()).find(node => node.props.action?.props.children === "确认清空");
+  expect(item().editorState.trial).not.toBeNull();
+  modal.props.action.props.onClick();
+  expect(item().editorState.trial).toBeNull();
+  expect(item().rows.every(row => row.amount === 0)).toBe(true);
+});
