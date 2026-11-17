@@ -361,7 +361,7 @@ function AmountInput({ value, label, save, disabled = false, budgetLimit = null 
     />
   );
 }
-function EditorDialog({ title, children, action, close, compact = false }) {
+function EditorDialog({ title, children, action, close, compact = false, wide = false }) {
   const previous = useRef(
     typeof document === "undefined" ? null : document.activeElement,
   );
@@ -373,7 +373,8 @@ function EditorDialog({ title, children, action, close, compact = false }) {
       }}
     >
       <DialogContent
-        className={`${compact ? "sm:max-w-[1120px] studio-trial-dialog" : "sm:max-w-[1480px]"} max-h-[90dvh]`}
+        size={compact || wide ? "wide" : "default"}
+        className={compact ? "studio-trial-dialog" : undefined}
         showCloseButton={false}
         aria-describedby={undefined}
         onCloseAutoFocus={(event) => {
@@ -2633,6 +2634,7 @@ function EditorContent({
         )}
         {modal && (
           <EditorDialog
+            wide={["balance", "import", "other"].includes(modal.type)}
             title={
               modal.title ||
               {

@@ -1,0 +1,53 @@
+/* Shared modal geometry and Shell treatment, including portalled content. */
+[data-slot="dialog-content"][data-dialog-size],
+[data-slot="alert-dialog-content"][data-size] {
+  --dialog-width: 560px;
+  width: min(var(--dialog-width), calc(100vw - 48px));
+  max-width: calc(100vw - 48px);
+  max-height: min(80dvh, 820px);
+  height: auto;
+  min-height: 0;
+  border: 1px solid #d5dde2;
+  border-top: 5px solid #fbce07;
+  border-radius: 12px;
+  padding: 24px;
+  gap: 20px;
+  background: #fff;
+  color: #303c45;
+  box-shadow: 0 20px 64px rgb(24 39 50 / 24%);
+}
+[data-slot="dialog-content"][data-dialog-size="form"] { --dialog-width: 720px; }
+[data-slot="dialog-content"][data-dialog-size="wide"] { --dialog-width: 960px; }
+[data-slot="alert-dialog-content"][data-size] { overflow-y: auto; }
+[data-slot="dialog-overlay"], [data-slot="alert-dialog-overlay"] { background: rgb(30 42 51 / 40%); }
+[data-slot="dialog-content"] [data-slot="dialog-title"],
+[data-slot="alert-dialog-content"] [data-slot="alert-dialog-title"] {
+  font-size: 20px;
+  line-height: 1.4;
+  color: #303c45;
+}
+[data-slot="dialog-content"] [data-slot="dialog-body"] { line-height: 1.65; }
+[data-slot="dialog-content"] [data-slot="dialog-footer"],
+[data-slot="alert-dialog-content"] [data-slot="alert-dialog-footer"] {
+  padding-top: 16px;
+  border-top: 1px solid #e7ecef;
+}
+[data-slot="dialog-content"] [data-slot="button"][data-variant="default"],
+[data-slot="alert-dialog-content"] [data-slot="alert-dialog-action"] {
+  background: #fbce07;
+  border-color: #e0b800;
+  color: #303c45;
+  font-weight: 700;
+}
+[data-slot="dialog-content"] [data-slot="button"][data-variant="default"]:hover,
+[data-slot="alert-dialog-content"] [data-slot="alert-dialog-action"]:hover { background: #edc100; }
+@media (max-width: 600px), (max-height: 600px) {
+  [data-slot="dialog-content"][data-dialog-size],
+  [data-slot="alert-dialog-content"][data-size] {
+    width: min(var(--dialog-width), calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+    max-height: calc(100dvh - 48px);
+    padding: 18px;
+    gap: 14px;
+  }
+}
