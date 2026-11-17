@@ -1912,7 +1912,7 @@ function EditorContent({
               />
               {editable && (
                 <p className="work-caption">
-                  经销商列表已包含在下载模板的「经销商列表」工作表中，业务线为第一列。
+                  完整金额 Excel 包含「经销商分配」和「经销商列表」；上传新版模板会替换经销商分配，其他预算安排保持不变。
                 </p>
               )}
               <div className="v19-allocation-filters">
