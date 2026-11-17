@@ -258,13 +258,6 @@
   top: 0;
   z-index: 3;
 }
-.v19-editor .v19-quick-allocation-hint {
-  margin-top: 14px;
-  border: 1px solid #e1bd32;
-  border-left: 4px solid #d4a900;
-  background: #fff8d9;
-  color: #514000;
-}
 .v19-editor .v19-trial-tools {
   display: flex;
   align-items: center;
@@ -272,17 +265,28 @@
   flex-wrap: wrap;
   margin: 14px 0 18px;
 }
-.v19-trial-tools > strong {
+.v19-editor .v19-trial-quick-options {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #e1bd32;
+  border-radius: 6px;
+  background: #fff8d9;
+}
+.v19-trial-quick-options > strong {
   font-size: 12px;
   margin-right: 2px;
 }
-.v19-trial-tools > button {
+.v19-trial-tools > button, .v19-trial-quick-options > button {
   height: 43px;
   border-color: #ead58b;
   background: #fffef9;
   font-size: 13px;
 }
-.v19-editor .v19-trial-tools > button.v19-trial-selected {
+.v19-editor .v19-trial-quick-options > button.v19-trial-selected {
   background: #fbce07;
   border-color: #d4aa00;
   color: #3f390e;
