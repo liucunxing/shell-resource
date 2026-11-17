@@ -812,3 +812,31 @@
 .v19-editor .balance-action-group .balance-action { border: 0; border-radius: 5px 0 0 5px; box-shadow: none; }
 .v19-editor .scope-select-all { width: 19px; height: 19px; border: 2px solid #55758b; background: #fff; box-shadow: 0 1px 4px rgb(25 50 70 / 25%); }
 .v19-editor .scope-select-all[data-state="checked"], .v19-editor .scope-select-all[data-state="indeterminate"] { border-color: #b58b00; background: #ffce00; color: #243c4d; }
+
+/* Keep the selection and dealer columns together during horizontal scrolling. */
+@media (min-width: 641px) {
+  .v19-editor .v19-scope-review { table-layout: fixed; width: max(100%, 1920px); }
+  .v19-editor .v19-scope-review :is(thead tr:first-child, tbody tr) > :first-child {
+    position: sticky;
+    left: 0;
+    width: 80px;
+    min-width: 80px;
+    max-width: 80px;
+    z-index: 2;
+    background: #fff;
+  }
+  .v19-editor .v19-scope-review :is(thead tr:first-child, tbody tr) > :nth-child(2) {
+    position: sticky;
+    left: 80px;
+    width: 280px;
+    min-width: 280px;
+    max-width: 280px;
+    z-index: 2;
+    background: #fff;
+    box-shadow: 1px 0 0 #c7d6e4;
+  }
+  .v19-editor .v19-scope-review thead tr:first-child > :is(:first-child, :nth-child(2)) {
+    z-index: 4;
+    background: #e8eef2;
+  }
+}

@@ -54,7 +54,6 @@ export function profileFields(identity: ProfileIdentity) {
   });
   return [
     ["姓名", identity.label || identity.name || "未配置"],
-    ["用户 ID", identity.userId == null ? "未配置" : String(identity.userId)],
     ["登录账号", identity.email || "未配置"],
     ["当前身份", roleNames[identity.role] || identity.role],
     ["拥有角色", assigned.map((role) => roleNames[role] || role).join("、")],

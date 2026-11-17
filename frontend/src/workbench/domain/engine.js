@@ -281,6 +281,7 @@ function updateInitiative(state, id, patch, identity, data) {
     "nonDealer",
     "nonDealerNote",
     "changeReason",
+    "editorState",
   ];
   if (Object.keys(patch).some((k) => !allowed.includes(k)))
     fail("Owner 只能调整分配及用途说明，预算和归属由管理员维护。");
@@ -324,8 +325,10 @@ function updateInitiative(state, id, patch, identity, data) {
   if (errors.length) fail(errors.join("\n"));
   Object.assign(i, clone(normalized));
   syncBudgetCompatibility(i);
-  changed(i);
-  audit(state, identity, "save_initiative", id, "草稿保存，完成标记已取消。");
+  const allocationChanged = Object.keys(patch).some((key) => key !== "editorState");
+  if (allocationChanged) changed(i);
+  audit(state, identity, "save_initiative", id,
+    allocationChanged ? "草稿保存，完成标记已取消。" : "更新草稿步骤与预算预留核对状态。");
   return i;
 }
 function complete(state, id, identity, data) {

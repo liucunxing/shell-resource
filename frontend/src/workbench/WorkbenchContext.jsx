@@ -423,7 +423,7 @@ export function WorkbenchProvider({ children }) {
     if (!draft || pendingDrafts.current.has(String(id))) return false;
     const epoch = sessionEpoch.current;
     const requested = structuredClone(current);
-    const showEditorOperation = values === undefined || Object.keys(values).every((key) => key === "changeReason");
+    const showEditorOperation = values === undefined || Object.keys(values).every((key) => ["changeReason", "editorState"].includes(key));
     pendingDrafts.current.add(String(id));
     if (showEditorOperation)
       setEditorOperations((old) => ({ ...old, [id]: "save" }));
@@ -432,7 +432,8 @@ export function WorkbenchProvider({ children }) {
         E.updateInitiative(
           stateRef.current,
           id,
-          { rows: draft.rows, otherBudgets: draft.otherBudgets },
+          { rows: draft.rows, otherBudgets: draft.otherBudgets,
+            ...(draft.editorState !== undefined ? { editorState: draft.editorState } : {}) },
           identity,
           data,
         );

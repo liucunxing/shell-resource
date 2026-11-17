@@ -144,7 +144,8 @@ async def test_version_import_atomic_preview_and_revision():
     )
     assert result["version"]["revision"] == 2
     assert (await session.get(BudgetDO, budget_id)).initiative_name == "Imported"
-    assert result["version"]["published"] is False
+    assert result["version"]["published"] is True
+    assert result["version"]["open"] is True
     await session.close()
 
 

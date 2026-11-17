@@ -66,6 +66,8 @@ import {
   reserveAcknowledgementFingerprint,
   canEnterAllocationStep,
   hasCurrentVersionSubmission,
+  hasReserveAcknowledgement,
+  restoredEditorStep,
 } from "../domain/reserve-review.js";
 export {
   reserveAcknowledgementKey,
@@ -432,8 +434,10 @@ function EditorContent({
   loadDistributorDirectory,
   notify,
 }) {
+  const i = view.initiatives.find((item) => item.id === initiativeId);
+  const editable = Boolean(i && !previewMode && E.canEdit(state, i.id, identity));
   const previouslySubmitted = hasCurrentVersionSubmission(
-    view.initiatives.find((item) => item.id === initiativeId),
+    i,
   );
   const acknowledgementKey = reserveAcknowledgementKey(
     identity,
@@ -441,26 +445,16 @@ function EditorContent({
     initiativeId,
   );
   const acknowledgementFingerprint = reserveAcknowledgementFingerprint(
-    view.initiatives.find((item) => item.id === initiativeId),
+    i,
   );
-  const [reserveAcknowledgement, setReserveAcknowledgement] = useState(() => {
-    try {
-      return sessionStorage.getItem(acknowledgementKey) || "";
-    } catch {
-      return "";
-    }
-  });
-  const previousAcknowledgement = useRef({
-    key: acknowledgementKey,
-    fingerprint: acknowledgementFingerprint,
-  });
+  const previousAcknowledgement = useRef(acknowledgementFingerprint);
   const [detail, setDetail] = useState(null);
   const [modal, setModal] = useState(null),
     [historyMetric, setHistoryMetric] = useState("c3"),
     [historyPeriod, setHistoryPeriod] = useState("2025"),
     [trialPeriod, setTrialPeriod] = useState("2025"),
     [appliedTrial, setAppliedTrial] = useState(null),
-    [activeStep, setActiveStep] = useState(previouslySubmitted ? 3 : 1),
+    [activeStep, setActiveStep] = useState(() => restoredEditorStep(identity, state.planningVersion?.id, i, editable)),
     [balanceIds, setBalanceIds] = useState([]),
     [scopeSearch, setScopeSearch] = useState(""),
     [scopeSd, setScopeSd] = useState("all"),
@@ -486,26 +480,11 @@ function EditorContent({
   useEffect(() => { trialBaseline.current = null; }, [initiativeId]);
   useEffect(() => { setFillNotice(null); setAppliedTrial(null); }, [initiativeId, trialPeriod]);
   useEffect(() => {
-    const previous = previousAcknowledgement.current;
-    if (previous.key !== acknowledgementKey) {
-      let stored = "";
-      try {
-        stored = sessionStorage.getItem(acknowledgementKey) || "";
-      } catch {}
-      setReserveAcknowledgement(stored);
-      setActiveStep(previouslySubmitted ? 3 : 1);
-    } else if (previous.fingerprint !== acknowledgementFingerprint) {
-      setReserveAcknowledgement("");
+    if (previousAcknowledgement.current !== acknowledgementFingerprint) {
       if (!previouslySubmitted) setActiveStep(1);
-      try {
-        sessionStorage.removeItem(acknowledgementKey);
-      } catch {}
     }
-    previousAcknowledgement.current = {
-      key: acknowledgementKey,
-      fingerprint: acknowledgementFingerprint,
-    };
-  }, [acknowledgementKey, acknowledgementFingerprint, previouslySubmitted]);
+    previousAcknowledgement.current = acknowledgementFingerprint;
+  }, [acknowledgementFingerprint, previouslySubmitted]);
   const allocationScroll = useRef(null);
   useLayoutEffect(() => {
     const viewport = allocationScroll.current;
@@ -588,7 +567,6 @@ function EditorContent({
   useEffect(() => {
     if (apiMode) void loadDistributorDirectory();
   }, [apiMode, loadDistributorDirectory]);
-  const i = view.initiatives.find((item) => item.id === initiativeId);
   useEffect(() => {
     const valid = new Set((i?.rows || []).map((row) => row.dealerId));
     setBalanceIds((current) => {
@@ -600,26 +578,42 @@ function EditorContent({
   if (!i) return <div className="empty">当前角色无权查看该明细。</div>;
   const operation = editorOperations[i.id] || null;
   const savedForSync = savedForSyncIds.has(i.id);
-  const editable = !previewMode && E.canEdit(state, i.id, identity),
-    totals = E.totals([i]),
+  const totals = E.totals([i]),
     errors = E.completionErrors(i, data, state.budgetReasons);
-  const reserveConfirmed = previouslySubmitted || (
-    previousAcknowledgement.current.key === acknowledgementKey &&
-    reserveAcknowledgement === acknowledgementFingerprint);
+  const reserveConfirmed = hasReserveAcknowledgement(identity, state.planningVersion?.id, i);
+  const rememberEditorState = (patch) => mutate((s) => {
+    const current = s.initiatives.find((item) => item.id === i.id);
+    E.updateInitiative(s, i.id, { editorState: {
+      step: activeStep,
+      reserveAcknowledgement: reserveConfirmed ? acknowledgementFingerprint : "",
+      ...current.editorState,
+      ...patch,
+    } }, identity, data);
+  });
   const acknowledgeReserve = (checked) => {
     const value = checked ? acknowledgementFingerprint : "";
-    setReserveAcknowledgement(value);
+    if (!rememberEditorState({ step: activeStep, reserveAcknowledgement: value })) return;
     try {
-      if (value) sessionStorage.setItem(acknowledgementKey, value);
-      else sessionStorage.removeItem(acknowledgementKey);
+      sessionStorage.removeItem(acknowledgementKey);
     } catch {}
   };
-  const chooseStep = (step) => {
+  const chooseStep = async (step) => {
+    if (operation !== null || !guard()) return;
     if (!canEnterAllocationStep(step, editable, reserveConfirmed)) {
       setActiveStep(1);
       notify("请先核对本版预算与预留并勾选确认。", true);
       return;
     }
+    if (editable && step > activeStep) {
+      const saved = await saveDraft(i.id, {
+        changeReason: changeReason.trim(),
+        editorState: {
+          step,
+          reserveAcknowledgement: reserveConfirmed ? acknowledgementFingerprint : "",
+        },
+      });
+      if (!saved || !alive.current) return;
+    } else if (editable && !rememberEditorState({ step })) return;
     setActiveStep(step);
   };
   const synchronizedRevision =
@@ -662,7 +656,7 @@ function EditorContent({
     return changed;
   };
   const doGuard = (fn) => {
-    if (guard()) fn();
+    if (guard()) return fn();
   };
   const handleSaveDraft = async () => {
     if (operation !== null || !guard()) return;
@@ -675,7 +669,8 @@ function EditorContent({
       notify("请先核对本版预算与预留并勾选确认。", true);
       return;
     }
-    await publish(i.id, changeReason.trim());
+    const publication = await publish(i.id, changeReason.trim());
+    if (publication) navigate("home");
   };
   const directoryDealers = apiMode
     ? data.distributorDirectory || []
@@ -793,7 +788,7 @@ function EditorContent({
       a.href = url;
       a.download = rosterOnly
         ? `${i.name}_已选经销商名单.xlsx`
-        : `${i.department}_${i.name}_${i.id}_分配模板.xlsx`;
+        : `${i.department}_${i.name}_分配模板.xlsx`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
@@ -1122,7 +1117,7 @@ function EditorContent({
             <span className="resource-eyebrow">ALLOCATION WORKSPACE</span>
             <h1>{i.name}</h1>
             <p>
-              {i.id} · {i.sector} / {i.department} · {i.resourceType} · Owner{" "}
+              {i.sector} / {i.department} · {i.resourceType} · Owner{" "}
               {i.ownerId}
             </p>
           </div>
@@ -1303,7 +1298,7 @@ function EditorContent({
                     ))}
                   </NativeSelect>
                 </div>
-                <div className="table-scroll studio-wide-table">
+                <div className="table-scroll studio-wide-table" role="region" aria-label="经销商范围表，可上下和横向滚动" tabIndex={0}>
                   <Table
                     pageIndex={scopePage - 1}
                     pageSize={20}
@@ -1910,8 +1905,6 @@ function EditorContent({
                 ytdCutoffMonth={state.ytdCutoffMonth}
                 period={historyPeriod}
                 onPeriodChange={setHistoryPeriod}
-                metric={historyMetric}
-                onMetricChange={setHistoryMetric}
               />
               {editable && (
                 <p className="work-caption">
@@ -2553,7 +2546,7 @@ function EditorContent({
                         identity.role === "owner" ? "home" : "department",
                       ),
                     )
-                  : setActiveStep(activeStep - 1)
+                  : void chooseStep(activeStep - 1)
               }
             >
               {activeStep === 1 ? "← 返回项目" : "← 上一步"}
@@ -2567,25 +2560,25 @@ function EditorContent({
                       ? "草稿已保存，可以提交"
                       : synchronizedRevision
                         ? "当前修订已提交"
-                        : "提交时自动保存草稿"
+                        : activeStep < 3 ? "下一步自动保存草稿" : "提交时自动保存草稿"
                   : "有效修改自动保存到本机"}
               </strong>{" "}
               · {time(i.savedAt)}
             </div>
             {editable && (
               <div className="actions">
-                <Button
+                {activeStep === 3 && <Button
                   variant="outline"
                   className="button"
                   disabled={operation !== null}
                   onClick={handleSaveDraft}
                 >
                   {operation === "save" ? "正在保存…" : "保存草稿"}
-                </Button>
+                </Button>}
                 {activeStep < 3 ? (
                   <Button
                     disabled={
-                      !canEnterAllocationStep(
+                      operation !== null || !canEnterAllocationStep(
                         activeStep + 1,
                         editable,
                         reserveConfirmed,
@@ -2593,7 +2586,7 @@ function EditorContent({
                     }
                     onClick={() => doGuard(() => chooseStep(activeStep + 1))}
                   >
-                    下一步 →
+                    {operation === "save" ? "正在保存…" : "下一步 →"}
                   </Button>
                 ) : !canSynchronize && submissionReasons.length ? (
                   <div className="submission-blocked">
