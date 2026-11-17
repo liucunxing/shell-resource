@@ -306,6 +306,33 @@ describe("V20 details keep their invocation scope and sector identities", () => 
     });
     expect(context.items[0].rows).toHaveLength(1);
   });
+  it("explains incomplete targets without treating missing values as zero or a subtotal as a total", () => {
+    const rows = [
+      { history: { contract2025: 12000, contract2026Ytd: 3000 } },
+      { history: { contract2025: 0, contract2026Ytd: 0 } },
+      { history: { contract2025: -2000, contract2026Ytd: 1000 } },
+      { history: { contract2025: null, contract2026Ytd: 2000 } },
+      { history: { contract2025: Number.NaN, contract2026Ytd: 5000 } },
+    ];
+    expect(historicalDetailTotals(rows, "2025")).toMatchObject({
+      contract: null,
+      targetCoverage: { total: 5, known: 3, missing: 2, knownSubtotal: 10000 },
+    });
+    expect(historicalDetailTotals(rows, "2026Ytd")).toMatchObject({
+      contract: 11000,
+      targetCoverage: { total: 5, known: 5, missing: 0, knownSubtotal: 11000 },
+    });
+    expect(historicalDetailTotals([{ history: {} }], "2025")).toMatchObject({
+      contract: null,
+      targetCoverage: { total: 1, known: 0, missing: 1, knownSubtotal: null },
+    });
+    expect(historicalDetailTotals([], "2025")).toMatchObject({
+      contract: null,
+      targetCoverage: { total: 0, known: 0, missing: 0, knownSubtotal: null },
+    });
+    expect(historicalDetailTotals([{ history: { contract2025: 0 } }], "2025"))
+      .toMatchObject({ contract: 0, targetCoverage: { known: 1, missing: 0, knownSubtotal: 0 } });
+  });
   it("sums signed public history before dividing and does not sum the authorized subset as a total", () => {
     const rows = detailScope(
       { type: "resource", resourceType: "MRD" },

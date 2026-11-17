@@ -249,9 +249,11 @@ export function historicalDetailTotals(
   const investment = completeSum(
     rows.map((row) => historyInvestment(row.history, period)),
   );
-  const contract = completeSum(
-    rows.map((row) => row.history[`contract${suffix}`]),
-  );
+  const targets = rows.map((row) => row.history[`contract${suffix}`]);
+  const knownTargets = targets
+    .map(finiteHistoryValue)
+    .filter((value): value is number => value !== null);
+  const contract = completeSum(targets);
   const aligned =
     period === "2025" ||
     rows.every((row) => !row.history.ytdYieldUnavailableReason);
@@ -260,6 +262,12 @@ export function historicalDetailTotals(
     c3,
     investment,
     contract,
+    targetCoverage: {
+      total: rows.length,
+      known: knownTargets.length,
+      missing: rows.length - knownTargets.length,
+      knownSubtotal: knownTargets.length ? sum(knownTargets) : null,
+    },
     phasing: aggregateHistoryPhasing(
       rows.map((row) => row.history),
       period,
@@ -573,6 +581,15 @@ function ResourceDetailContent({
           <div className="resource-history-cell" key={label}>
             <span>{label}</span>
             <strong>{value}</strong>
+            {label === "经销商 target（KL）" && historical.targetCoverage.missing > 0 && (
+              <span>
+                已提供 {historical.targetCoverage.known}/{historical.targetCoverage.total} 家，
+                {historical.targetCoverage.missing} 家缺失，完整合计暂不可用。
+                {historical.targetCoverage.knownSubtotal !== null && (
+                  <>已知值小计 {n(historical.targetCoverage.knownSubtotal, 1000)} KL（非完整合计）。</>
+                )}
+              </span>
+            )}
           </div>
         ))}
       </div>
