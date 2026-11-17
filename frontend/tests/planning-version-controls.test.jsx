@@ -47,9 +47,9 @@ describe("V19 version table and deadlines", () => {
     ).toEqual({ count: 1, budget: null });
   });
   it("uses open state regardless of historical deadline", () => {
-    expect(versionStatus({ ...current, published: false })).toBe("未开始");
-    expect(versionStatus({ ...current, open: false })).toBe("已关闭");
-    expect(versionStatus({ ...current, deadline: "2000-01-01T00:00:00Z" })).toBe("开放提交");
+    expect(versionStatus({ ...current, published: false })).toBe("未启用");
+    expect(versionStatus({ ...current, open: false })).toBe("已停用");
+    expect(versionStatus({ ...current, deadline: "2000-01-01T00:00:00Z" })).toBe("已启用");
   });
   it("renders creators and deadlines in the version table with read-only preview controls", () => {
     useWorkbench.mockReturnValue({
@@ -77,13 +77,13 @@ describe("V19 version table and deadlines", () => {
     expect(html).not.toContain("<h2>提交截止时间</h2>");
     expect(html).not.toContain("2026-12-01 17:30");
     expect(html).not.toContain("撤回发布");
-    expect(html).toContain(">关闭</button>");
-    expect(html).toContain(">开始</button>");
+    expect(html).toContain(">停用</button>");
+    expect(html).toContain(">启用</button>");
     expect(html).toContain("同时仅一个版本开放提交");
     expect(html).not.toContain("所有部门提交齐全后才能关闭");
     expect(html).not.toContain('type="datetime-local"');
     expect(html).not.toContain(">保存</button>");
-    expect(html).toMatch(/data-variant="destructive"[^>]*disabled=""[^>]*>删除/);
+    expect(html).toMatch(/data-variant="destructive"[^>]*disabled=""[^>]*>移除/);
   });
 
   it("does not show submission deadlines in the version bar", () => {

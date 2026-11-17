@@ -80,11 +80,59 @@ it("does not save a draft again after a successful explicit save", async () => {
 });
 
 it("keeps a clean draft and the conflict visible if its server revision changed", async () => {
-  harness.publish.mockRejectedValueOnce(Object.assign(new Error("conflict"), { status: 409 }));
+  harness.publish.mockRejectedValueOnce(Object.assign(new Error("草稿已被其他人更新"), { status: 409 }));
   await expect(harness.context.publish("1")).resolves.toBe(false);
   expect(harness.save).not.toHaveBeenCalled();
   expect(render().state.initiatives[0].revision).toBe(7);
   expect(harness.context.toast.message).toContain("已被其他人更新");
+});
+
+it.each(["版本已停用，不能修改或提交", "部门已确认，本项目已锁定"])("preserves unsaved edits and the server reason when saving fails: %s", async reason => {
+  harness.context.navigate("editor", "1"); render();
+  harness.context.mutate(state => {
+    state.initiatives[0].revision++;
+    state.initiatives[0].rows[0].amount = 31;
+  });
+  render();
+  const draft = structuredClone(harness.context.state.initiatives[0]);
+  harness.save.mockRejectedValueOnce(Object.assign(Error(reason), { status: 409 }));
+  await expect(harness.context.saveDraft("1")).resolves.toBe(false);
+  const context = render();
+  expect(context.state.initiatives[0]).toEqual(draft);
+  expect(context.dirtyIds.has("1")).toBe(true);
+  expect(context.page).toBe("editor");
+  expect(context.editorOperations["1"]).toBeUndefined();
+  expect(context.toast.message).toContain(reason);
+  expect(context.toast.message).toContain("当前编辑仍保留");
+  expect(context.toast.message).not.toContain("已被其他人更新");
+  expect(harness.workspace).not.toHaveBeenCalled();
+});
+
+it("does not submit or leave the editor when saving pending edits is blocked by deactivation", async () => {
+  harness.context.navigate("editor", "1"); render();
+  harness.context.mutate(state => { state.initiatives[0].rows[0].amount = 31; }); render();
+  harness.save.mockRejectedValueOnce(Object.assign(Error("版本已停用，不能修改或提交"), { status: 409 }));
+  await expect(harness.context.publish("1")).resolves.toBe(false);
+  const context = render();
+  expect(harness.publish).not.toHaveBeenCalled();
+  expect(context.state.initiatives[0].rows[0].amount).toBe(31);
+  expect(context.page).toBe("editor");
+  expect(context.dirtyIds.has("1")).toBe(true);
+  expect(context.toast.message).toContain("版本已停用");
+  expect(harness.workspace).not.toHaveBeenCalled();
+});
+
+it("keeps a saved draft visible when deactivation blocks submission", async () => {
+  harness.context.navigate("editor", "1"); render();
+  const draft = structuredClone(harness.context.state.initiatives[0]);
+  harness.publish.mockRejectedValueOnce(Object.assign(Error("版本已停用，不能修改或提交"), { status: 409 }));
+  await expect(harness.context.publish("1")).resolves.toBe(false);
+  const context = render();
+  expect(context.state.initiatives[0]).toEqual(draft);
+  expect(context.page).toBe("editor");
+  expect(context.toast.message).toContain("版本已停用");
+  expect(context.toast.message).toContain("当前编辑仍保留");
+  expect(harness.workspace).not.toHaveBeenCalled();
 });
 
 it("refreshes only version metadata when the loaded version has not changed", async () => {
