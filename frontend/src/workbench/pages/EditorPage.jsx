@@ -793,7 +793,7 @@ function EditorContent({
       a.href = url;
       a.download = rosterOnly
         ? `${i.name}_已选经销商名单.xlsx`
-        : `${i.department}_${i.name}_${i.id}_分配模板.xlsx`;
+        : `${i.department}_${i.name}_分配模板.xlsx`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
@@ -1122,7 +1122,7 @@ function EditorContent({
             <span className="resource-eyebrow">ALLOCATION WORKSPACE</span>
             <h1>{i.name}</h1>
             <p>
-              {i.id} · {i.sector} / {i.department} · {i.resourceType} · Owner{" "}
+              {i.sector} / {i.department} · {i.resourceType} · Owner{" "}
               {i.ownerId}
             </p>
           </div>

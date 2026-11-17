@@ -252,7 +252,6 @@ export function AdminImportPanel({ kind }) {
                 {(kind === "users"
                   ? ["登录邮箱", "姓名", "角色", "授权范围", "所属组织", "状态"]
                   : [
-                      "项目ID",
                       "Initiative",
                       "归属",
                       "Owner",
@@ -277,7 +276,6 @@ export function AdminImportPanel({ kind }) {
                         item.enabled ? "启用" : "停用",
                       ]
                     : [
-                        item.id || "新增",
                         item.name,
                         `${item.sector} / ${item.department} / ${item.resourceType}`,
                         item.ownerId,

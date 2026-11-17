@@ -221,7 +221,7 @@ export function V20OrganizationSummary({
               {[
                 ["count", isSelectedScope ? "分配 / 名单" : "分配 / 全部"],
                 ["amount", "投资金额（万元）"],
-                ["average", "家均（万元）"],
+                ["average", "客均（万元）"],
                 ["investment-share", "投资金额占比"],
               ].map(([field, title]) => head(field, title, "num"))}
               {head("vol-share", "Delivery Vol 占比", "num v20-actual")}

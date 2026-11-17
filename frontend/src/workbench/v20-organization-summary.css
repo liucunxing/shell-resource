@@ -165,3 +165,13 @@
 .v20-fact-content { display:flex; flex-wrap:wrap; align-items:center; gap:5px 8px; min-width:0; }
 .v20-fact-initiative { display:inline-block; max-width:100%; padding:3px 7px; border:1px solid #cbdde7; border-radius:4px; background:#e9f3f9; color:#294e67; font-weight:700; white-space:nowrap; }
 .v20-fact-phrase { display:inline-block; white-space:nowrap; }
+
+/* Keep the organization name visible while the comparison scrolls horizontally. */
+.v19-fidelity-shell .v20-organization-summary :is(thead tr:first-child th:first-child, tbody tr > th:first-child, tfoot tr > th:first-child) {
+  position: sticky !important;
+  left: 0;
+  z-index: 3;
+  background: #e7eef2;
+  box-shadow: 1px 0 0 #c7d6e4;
+}
+.v19-fidelity-shell .v20-organization-summary thead tr:first-child th:first-child { z-index: 4; background: #dce5eb; }

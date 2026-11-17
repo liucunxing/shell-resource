@@ -240,7 +240,7 @@ export async function exportWorkbook(kind, context = {}) {
       "匹配规则",
       kind === "users"
         ? "按登录邮箱匹配更新；不存在则新增。不支持改邮箱/删除。"
-        : "项目ID为本版本数据库ID，已有项目请保留；新增留空。请删除无需更新的行，修改行填写变化原因。",
+        : "已有项目请保留模板中的项目标识；新增留空。请删除无需更新的行，修改行填写变化原因。",
     ],
     ["部门", departments.join("、")],
     ["Sector", sectors.join("、")],

@@ -282,9 +282,6 @@ export function SubmissionPage() {
                   <TableRow key={item.id}>
                     <TableCell>
                       <strong>{item.name}</strong>
-                      <small className="block muted">
-                        {item.initiativeKey || item.id}
-                      </small>
                     </TableCell>
                     <TableCell className="num" sortValue={item.budget / 10000}>
                       {num(item.budget / 10000, 1)}

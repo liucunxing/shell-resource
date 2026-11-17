@@ -4,11 +4,6 @@
 .v19-user-table td {
   vertical-align: top;
 }
-.v19-user-table .v19-user-id {
-  max-width: 104px;
-  overflow-wrap: anywhere;
-  color: #595959;
-}
 .v19-user-initiative-grid {
   display: grid;
   grid-template-columns: repeat(2, max-content);
