@@ -2,6 +2,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { MoneyInput } from "./MoneyInput";
 import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
 import { MetricHelp } from "./MetricHelp";
+import { InitiativeSwitcher } from "./InitiativeSwitcher";
 import { SdAnalysis } from "./SdAnalysis.jsx";
 import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
 import {
@@ -1139,17 +1140,11 @@ function EditorContent({
               {i.ownerId}
             </p>
           </div>
-          <Button
-            variant="outline"
-            className="button"
-            onClick={() =>
-              doGuard(() =>
-                navigate(identity.role === "owner" ? "home" : "department"),
-              )
-            }
-          >
-            返回列表
-          </Button>
+          <InitiativeSwitcher
+            initiatives={view.initiatives}
+            currentId={i.id}
+            onSelect={(id) => doGuard(() => navigate("editor", id))}
+          />
         </div>
         <div className="v19-work-version">
           <span>
@@ -2571,6 +2566,9 @@ function EditorContent({
                 disabled={!editable}
                 value={changeReason}
                 onChange={(event) => setChangeReason(event.target.value)}
+                onBlur={() => {
+                  if (changeReason !== (i.changeReason || "")) update({ changeReason });
+                }}
                 placeholder="说明本版名单、金额或预留变化原因"
               />
             </Card>
@@ -2709,6 +2707,7 @@ function EditorContent({
                       update({
                         rows: modal.rows,
                         otherBudgets: modal.otherBudgets,
+                        changeReason: "",
                       })
                     ) {
                       setChangeReason("");

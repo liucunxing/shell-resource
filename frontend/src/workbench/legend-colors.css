@@ -1,2 +1,26 @@
 .legend-department-label { display: inline-flex; align-items: center; gap: 5px; }
 .legend-department-label i { width: 8px; height: 8px; display: inline-block; border-radius: 2px; flex: 0 0 auto; }
+.v20-initiative-chip,
+.v19-fidelity-shell [data-slot="button"][data-variant="outline"].v20-initiative-chip {
+  height: auto;
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 1px solid color-mix(in srgb, var(--initiative-color) 45%, white);
+  border-left: 3px solid var(--initiative-color);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--initiative-color) 15%, white);
+  color: #263b4b;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  justify-content: flex-start;
+}
+.v20-initiative-chip:hover,
+.v19-fidelity-shell [data-slot="button"][data-variant="outline"].v20-initiative-chip:hover { background: color-mix(in srgb, var(--initiative-color) 24%, white); }
+.v20-initiative-chip[aria-pressed="true"],
+.v19-fidelity-shell [data-slot="button"][data-variant="outline"].v20-initiative-chip[aria-pressed="true"] {
+  box-shadow: 0 0 0 1px var(--initiative-color);
+  background: color-mix(in srgb, var(--initiative-color) 24%, white);
+}
+.v20-initiative-chip[aria-pressed="true"]::after { content: "✓"; margin-left: 4px; }

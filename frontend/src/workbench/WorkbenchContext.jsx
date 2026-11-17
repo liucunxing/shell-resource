@@ -15,9 +15,20 @@ import { isPortalEntry, logoutPortalSession } from "../portal/session";
 import { getPreviewEpoch, getPreviewUserEmail, setPreviewUserEmail } from "./userPreview";
 
 export const STORAGE_KEY = "shell-resource-workbench-v13";
-export function resolveEditorTarget(requestedId, previousId, initiatives) {
-  const target = requestedId || previousId;
-  return initiatives.some((item) => item.id === target) ? target : null;
+export function resolveEditorTarget(requestedId, previousId, initiatives, options = {}) {
+  const find = (id) => initiatives.find((item) => String(item.id) === String(id));
+  if (requestedId != null && requestedId !== "") return find(requestedId)?.id ?? null;
+  const stamp = (item) => Date.parse(item.savedAt) || 0;
+  const latest = (items) => items.reduce((chosen, item) =>
+    !chosen || stamp(item) > stamp(chosen) ||
+    (stamp(item) === stamp(chosen) && item.id === previousId) ? item : chosen, null);
+  const drafts = initiatives.filter((item) => {
+    if (options.canEdit && !options.canEdit(item)) return false;
+    if (item.workflow?.editable === false) return false;
+    if (options.dirtyIds?.has(item.id)) return true;
+    return item.workflow ? !item.workflow.submitted : item.status !== "completed";
+  });
+  return (latest(drafts) || find(previousId) || latest(initiatives))?.id ?? null;
 }
 const portalMode = isPortalEntry();
 const demoMode = !portalMode && import.meta.env.VITE_DATA_MODE === "demo";
@@ -696,18 +707,21 @@ export function WorkbenchProvider({ children }) {
   const navigate = (nextPage, id) => {
     if (!inputReady()) return false;
     if (nextPage === "editor") {
-      const targetId = resolveEditorTarget(id, initiativeId, view.initiatives);
+      const targetId = resolveEditorTarget(id, initiativeId, view.initiatives, {
+        dirtyIds, canEdit: (item) => E.canEdit(stateRef.current, item.id, identity),
+      });
       if (!targetId) {
         if (id) return false;
         setInitiativeId("");
         setPage("home");
+        notify("当前版本没有可查看的 Initiative。");
         setMobileNav(false);
         return true;
       }
       setInitiativeId(targetId);
     }
     setPage(nextPage);
-    if (id) setInitiativeId(id);
+    if (id && nextPage !== "editor") setInitiativeId(id);
     setMobileNav(false);
     return true;
   };

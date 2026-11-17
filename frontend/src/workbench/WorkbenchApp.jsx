@@ -94,7 +94,7 @@ function navigationFor(identity, initiativeId) {
         "editor",
         PencilLine,
         "拆分工作台",
-        initiativeId ? "继续当前 Initiative" : "请先选择 Initiative",
+        "进入最近更新的草稿",
       ],
       ["portfolio", ChartDonut, "我的投入组合", "本人全部 Initiative 叠加分析"],
       ["submissions", ClipboardText, "草稿与提交", "批量校验与提交"],
