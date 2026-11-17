@@ -597,14 +597,23 @@ function EditorContent({
       sessionStorage.removeItem(acknowledgementKey);
     } catch {}
   };
-  const chooseStep = (step) => {
-    if (!guard()) return;
+  const chooseStep = async (step) => {
+    if (operation !== null || !guard()) return;
     if (!canEnterAllocationStep(step, editable, reserveConfirmed)) {
       setActiveStep(1);
       notify("请先核对本版预算与预留并勾选确认。", true);
       return;
     }
-    if (editable && !rememberEditorState({ step })) return;
+    if (editable && step > activeStep) {
+      const saved = await saveDraft(i.id, {
+        changeReason: changeReason.trim(),
+        editorState: {
+          step,
+          reserveAcknowledgement: reserveConfirmed ? acknowledgementFingerprint : "",
+        },
+      });
+      if (!saved || !alive.current) return;
+    } else if (editable && !rememberEditorState({ step })) return;
     setActiveStep(step);
   };
   const synchronizedRevision =
@@ -647,7 +656,7 @@ function EditorContent({
     return changed;
   };
   const doGuard = (fn) => {
-    if (guard()) fn();
+    if (guard()) return fn();
   };
   const handleSaveDraft = async () => {
     if (operation !== null || !guard()) return;
@@ -2537,7 +2546,7 @@ function EditorContent({
                         identity.role === "owner" ? "home" : "department",
                       ),
                     )
-                  : chooseStep(activeStep - 1)
+                  : void chooseStep(activeStep - 1)
               }
             >
               {activeStep === 1 ? "← 返回项目" : "← 上一步"}
@@ -2551,25 +2560,25 @@ function EditorContent({
                       ? "草稿已保存，可以提交"
                       : synchronizedRevision
                         ? "当前修订已提交"
-                        : "提交时自动保存草稿"
+                        : activeStep < 3 ? "下一步自动保存草稿" : "提交时自动保存草稿"
                   : "有效修改自动保存到本机"}
               </strong>{" "}
               · {time(i.savedAt)}
             </div>
             {editable && (
               <div className="actions">
-                <Button
+                {activeStep === 3 && <Button
                   variant="outline"
                   className="button"
                   disabled={operation !== null}
                   onClick={handleSaveDraft}
                 >
                   {operation === "save" ? "正在保存…" : "保存草稿"}
-                </Button>
+                </Button>}
                 {activeStep < 3 ? (
                   <Button
                     disabled={
-                      !canEnterAllocationStep(
+                      operation !== null || !canEnterAllocationStep(
                         activeStep + 1,
                         editable,
                         reserveConfirmed,
@@ -2577,7 +2586,7 @@ function EditorContent({
                     }
                     onClick={() => doGuard(() => chooseStep(activeStep + 1))}
                   >
-                    下一步 →
+                    {operation === "save" ? "正在保存…" : "下一步 →"}
                   </Button>
                 ) : !canSynchronize && submissionReasons.length ? (
                   <div className="submission-blocked">

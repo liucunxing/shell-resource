@@ -248,3 +248,28 @@ it("preserves a newer step and unchecked review when an earlier save finishes", 
   expect(context.dirtyIds.has("1")).toBe(true);
   expect(context.savedForSyncIds.has("1")).toBe(false);
 });
+
+it("exposes next-step autosave as pending and overwrites the same draft on each advance", async () => {
+  let finishSave;
+  harness.save.mockImplementationOnce((_id, draft) => new Promise(resolve => {
+    finishSave = () => resolve({ ...draft, revision: 8 });
+  }));
+  const pending = harness.context.saveDraft("1", {
+    changeReason: "", editorState: { step: 2, reserveAcknowledgement: "reviewed" },
+  });
+  expect(render().editorOperations["1"]).toBe("save");
+  expect(harness.context.state.initiatives[0].editorState).toBeUndefined();
+  finishSave();
+  await expect(pending).resolves.toBe(true);
+  expect(render().editorOperations["1"]).toBeUndefined();
+  expect(harness.context.state.initiatives[0].editorState.step).toBe(2);
+  harness.save.mockImplementationOnce(async (_id, draft) => ({ ...draft, revision: 9 }));
+  await harness.context.saveDraft("1", {
+    changeReason: "", editorState: { step: 3, reserveAcknowledgement: "reviewed" },
+  });
+  const context = render();
+  expect(context.state.initiatives).toHaveLength(1);
+  expect(context.state.initiatives[0]).toMatchObject({ id: "1", revision: 9, editorState: { step: 3 } });
+  expect(harness.save.mock.calls.map(([id, , expectedRevision]) => [id, expectedRevision])).toEqual([["1", 7], ["1", 8]]);
+  expect(harness.publish).not.toHaveBeenCalled();
+});
