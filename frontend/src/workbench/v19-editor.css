@@ -886,9 +886,18 @@
     max-width: 280px;
     z-index: 2;
     background: #fff;
+  }
+  .v19-editor .v19-scope-review :is(thead tr:first-child, tbody tr) > :nth-child(3) {
+    position: sticky;
+    left: 360px;
+    width: 130px;
+    min-width: 130px;
+    max-width: 130px;
+    z-index: 2;
+    background: #fff;
     box-shadow: 1px 0 0 #c7d6e4;
   }
-  .v19-editor .v19-scope-review thead tr:first-child > :is(:first-child, :nth-child(2)) {
+  .v19-editor .v19-scope-review thead tr:first-child > :is(:first-child, :nth-child(2), :nth-child(3)) {
     z-index: 4;
     background: #e8eef2;
   }
