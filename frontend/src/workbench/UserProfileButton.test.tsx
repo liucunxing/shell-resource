@@ -20,7 +20,7 @@ describe("V20 user profile", () => {
         affiliation_department: "MKT",
       }),
     );
-    expect(fields["用户 ID"]).toBe("17");
+    expect(fields).not.toHaveProperty("用户 ID");
     expect(fields["授权范围"]).toBe(
       "PCMO / MKT、PCMO / ICE、CVL / MKT、CVL / ICE",
     );
@@ -36,7 +36,7 @@ describe("V20 user profile", () => {
     const fields = Object.fromEntries(profileFields({ role }));
     expect(fields["授权范围"]).toBe(scope);
     expect(fields["所属部门"]).toBe("未配置 · 历史费用明细不可见");
-    expect(fields["用户 ID"]).toBe("未配置");
+    expect(fields).not.toHaveProperty("用户 ID");
   });
   it("shows configured contacts, escapes account text and preserves missing states", () => {
     const missing = renderToStaticMarkup(

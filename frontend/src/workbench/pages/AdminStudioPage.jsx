@@ -89,7 +89,7 @@ export function initiativePayload(row) {
   const issue = issues.find(([, invalid]) => invalid);
   if (issue) {
     const error = new Error(
-      `${row.name?.trim() || row.initiativeKey || row.id || "新增 Initiative"}：${issue[2]}。`,
+      `${row.name?.trim() || "新增 Initiative"}：${issue[2]}。`,
     );
     error.field = issue[0];
     throw error;
@@ -266,7 +266,7 @@ function InitiativesPage({
               <TableHeader>
                 <TableRow>
                   {[
-                    "编码 / Initiative",
+                    "Initiative",
                     "Sector",
                     "Department",
                     "Resource Type",
@@ -283,9 +283,6 @@ function InitiativesPage({
                   <TableRow key={item.id}>
                     <TableCell>
                       <span>{item.name}</span>
-                      <small className="block muted">
-                        {item.initiativeKey || item.id}
-                      </small>
                     </TableCell>
                     <TableCell>{item.sector}</TableCell>
                     <TableCell>{item.department}</TableCell>
@@ -366,7 +363,7 @@ function InitiativesPage({
         <div className="studio-table-toolbar">
           <Input
             type="search"
-            placeholder="搜索编码 / Initiative / Owner"
+            placeholder="搜索 Initiative / Owner"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
@@ -384,7 +381,7 @@ function InitiativesPage({
             <TableHeader>
               <TableRow>
                 {[
-                  "编码 / Initiative",
+                  "Initiative",
                   "Sector",
                   "部门",
                   "资源大类",
@@ -392,7 +389,6 @@ function InitiativesPage({
                   "预算（元）",
                   "状态",
                   "变化原因（必填）",
-                  "承接编码",
                 ].map((label) => (
                   <TableHead key={label}>{label}</TableHead>
                 ))}
@@ -402,9 +398,8 @@ function InitiativesPage({
               {filtered.map((row) => (
                 <TableRow key={row._key} data-dirty={!!drafts[row._key]}>
                   <TableCell>
-                    <small>{row.initiativeKey || row.id || "保存后生成"}</small>
                     <Input
-                      aria-label={`${row.id || "新增项目"} Initiative 名称`}
+                      aria-label={`${row.name || "新增项目"} Initiative 名称`}
                       ref={(node) => {
                         const key = `${row._key}:name`;
                         if (node) fieldRefs.current.set(key, node);
@@ -517,14 +512,13 @@ function InitiativesPage({
                       }
                     />
                   </TableCell>
-                  <TableCell>{row.initiativeKey || "—"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
         <p className="footerhint">
-          项目配置变化保留原名单和金额，不会停用版本；取消项目保留编码和历史。承接编码使用已有版本关联，不能手工猜配。
+          项目配置变化保留原名单和金额，不会停用版本；取消项目保留历史。
         </p>
       </Card>
     </>

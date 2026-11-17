@@ -336,7 +336,7 @@ function OrganizationReferencePanels({ metadata, items, dealers }) {
         <div className="panel-header">
           <h2>历史数据源覆盖</h2>
         </div>
-        <p>{metadata.source || "来源信息未提供"}</p>
+        <p>历史数据覆盖情况</p>
         <Table containerClassName="overflow-visible">
           <TableHeader>
             <TableRow>

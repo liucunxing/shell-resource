@@ -499,7 +499,6 @@ export function AdminUsersPanel() {
           >
             <TableHeader>
               <TableRow>
-                <TableHead>ID</TableHead>
                 <TableHead>姓名</TableHead>
                 <TableHead>登录账号</TableHead>
                 <TableHead>角色</TableHead>
@@ -518,9 +517,6 @@ export function AdminUsersPanel() {
             <TableBody>
               {result.items.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell className="v19-user-id" title={String(user.id)}>
-                    {user.id}
-                  </TableCell>
                   <TableCell>{user.display_name}</TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>{ROLE_LABELS[user.role] || user.role}</TableCell>
@@ -618,7 +614,7 @@ export function AdminUsersPanel() {
               ))}
               {!loading && !result.items.length && (
                 <TableRow>
-                  <TableCell colSpan={9}>暂无匹配人员。</TableCell>
+                  <TableCell colSpan={8}>暂无匹配人员。</TableCell>
                 </TableRow>
               )}
             </TableBody>
