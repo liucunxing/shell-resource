@@ -2018,7 +2018,7 @@ function EditorContent({
                           );
                         if (!rows)
                           return notify(
-                            "请选择经销商，且配平后任何一家金额不能为负。",
+                            "无法配平：所选经销商中有分配金额不足以承担均摊扣减的情况。请调整勾选范围或分配金额后重试。",
                             true,
                           );
                         setModal({
