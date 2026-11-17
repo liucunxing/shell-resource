@@ -280,9 +280,13 @@ function updateInitiative(state, id, patch, identity, data) {
     "reserveNote",
     "nonDealer",
     "nonDealerNote",
+    "changeReason",
   ];
   if (Object.keys(patch).some((k) => !allowed.includes(k)))
     fail("Owner 只能调整分配及用途说明，预算和归属由管理员维护。");
+  if (Object.prototype.hasOwnProperty.call(patch, "changeReason") &&
+      (typeof patch.changeReason !== "string" || patch.changeReason.length > 160))
+    fail("调整依据说明须为不超过160字的文本。");
   // Legacy callers can still provide the two old pools; normalize them into
   // the canonical row model before validating or storing the change.
   const normalized = clone(patch);

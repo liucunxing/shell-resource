@@ -112,3 +112,36 @@ it("discards metadata returned after another workspace refresh", async () => {
   await expect(pending).resolves.toBe(false);
   expect(render().state.planningVersions).toEqual([version]);
 });
+
+
+it("opens the newest draft from the primary menu on first entry and after changing versions", async () => {
+  const items = [
+    { ...initiative, id: "older", ownerId: "owner@example.test", savedAt: "2026-11-16T00:00:00Z", workflow: { editable: true, submitted: false } },
+    { ...initiative, id: "newer", ownerId: "owner@example.test", savedAt: "2026-11-17T00:00:00Z", workflow: { editable: true, submitted: false } },
+  ];
+  harness.workspace.mockResolvedValue({ ...payload(), state: { ...payload().state, initiatives: items } });
+  await harness.context.refresh(); render();
+  expect(harness.context.navigate("editor")).toBe(true);
+  expect(render()).toMatchObject({ page: "editor", initiativeId: "newer" });
+  harness.context.navigate("editor", "older"); render();
+  expect(harness.context.initiativeId).toBe("older");
+  harness.context.navigate("home"); render();
+  harness.context.navigate("editor");
+  expect(render().initiativeId).toBe("newer");
+  harness.workspace.mockResolvedValue({ ...payload(), state: { ...payload().state, currentVersionId: "202702", planningVersion: { ...version, id: "202702" }, initiatives: [{ ...items[0], id: "new-version" }] } });
+  await harness.context.refresh(); render();
+  harness.context.navigate("editor");
+  expect(render().initiativeId).toBe("new-version");
+});
+
+it("keeps unsaved allocation state when navigating between initiatives", async () => {
+  harness.workspace.mockResolvedValue({ ...payload(), state: { ...payload().state, initiatives: [initiative, { ...initiative, id: "2" }] } });
+  await harness.context.refresh(); render();
+  harness.context.navigate("editor", "1"); render();
+  harness.context.mutate(state => { state.initiatives[0].rows[0].amount = 31; }); render();
+  harness.context.navigate("editor", "2"); render();
+  harness.context.navigate("editor", "1"); render();
+  expect(harness.context.state.initiatives[0].rows[0].amount).toBe(31);
+  expect(harness.context.dirtyIds.has("1")).toBe(true);
+  expect(harness.save).not.toHaveBeenCalled();
+});
