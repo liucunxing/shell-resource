@@ -1036,8 +1036,8 @@
 .v19-fidelity-shell .v19-board-section .v20-over-badge { font-size:13px; font-weight:700; padding:6px 10px; }
 
 .v19-fidelity-shell .v19-dealer-details .v20-dealer-detail-scroll { max-height:clamp(340px, 70dvh, 900px); overflow:auto; overscroll-behavior:contain; }
-.v19-dealer-details .v20-page-size { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
-.v19-dealer-details .v19-list-pagination > div { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.v19-list-pagination .v20-page-size { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+.v19-list-pagination, .v19-list-pagination > div { flex-wrap:wrap; gap:8px; }
 
 .v20-section-number { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; margin-right:5px; border-radius:5px; background:#fbce07; color:#302b15; font-size:12px; font-weight:700; vertical-align:middle; }
 .v20-stack-module { margin-top:18px; }
