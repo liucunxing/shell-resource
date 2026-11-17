@@ -1,3 +1,4 @@
+import { DealerDetailButton } from "../DealerDetailAccess";
 import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -375,11 +376,11 @@ export function VersionDifferenceDrawer({
                   {visible.map((row) => (
                     <TableRow key={row.key}>
                       <TableCell>
-                        <Button variant="link" onClick={() => setDealerDetail({
+                        <DealerDetailButton variant="link" onClick={() => setDealerDetail({
                           detail: { type: "dealer", dealerKey: row.key, dealerId: (row.current || row.previous).id, sector: row.sector },
                           items: row.current ? data.right.items : data.left.items,
                           dealers: row.current ? result.currentDealers || result.dealers || [] : result.previousDealers || result.dealers || [],
-                        })}>{row.name}</Button>
+                        })}>{row.name}</DealerDetailButton>
                         <small>{row.code}</small>
                       </TableCell>
                       <TableCell>{row.sector}</TableCell>

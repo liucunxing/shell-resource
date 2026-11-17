@@ -1,3 +1,4 @@
+import { DealerDetailAccessProvider } from "./DealerDetailAccess";
 import { AlertDescription } from "@/components/ui/alert";
 import { getLocalPreviewConfig } from "./localPreview";
 import { LocalPreviewSelector } from "./LocalPreviewSelector";
@@ -328,7 +329,9 @@ export default function WorkbenchApp() {
                 </div>
               }
             >
-              <Page key={`${identity.key}:${page}:${scenarioEpoch}`} />
+              <DealerDetailAccessProvider role={identity.role}>
+                <Page key={`${identity.key}:${page}:${scenarioEpoch}`} />
+              </DealerDetailAccessProvider>
             </Suspense>
           </main>
         </div>
