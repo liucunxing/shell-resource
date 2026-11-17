@@ -1437,9 +1437,7 @@ function EditorContent({
                               {dealer.sd || "—"} / {dealer.rsm || "—"}
                             </TableCell>
                             <TableCell>
-                              <Badge variant="secondary">
-                                {dealer.status || "—"}
-                              </Badge>
+                              {dealer.status || "—"}
                             </TableCell>
                             {["2025", "2026Ytd"].map((period) => (
                               <Fragment key={period}>
@@ -1644,14 +1642,15 @@ function EditorContent({
                               <TableCell>{dealer.sd || "—"}</TableCell>
                               <TableCell>{dealer.rsm || "—"}</TableCell>
                               <TableCell>
-                                <Badge variant="secondary">Active</Badge>
+                                Active
                               </TableCell>
                               <TableCell className="num">
                                 {fmt(row.amount)}
                               </TableCell>
                               <TableCell>
                                 <Button
-                                  variant="ghost"
+                                  variant="outline"
+                                  className="selected-roster-remove"
                                   disabled={!editable}
                                   aria-label={`移除 ${dealerLabel(row.dealerId)}`}
                                   onClick={() =>
