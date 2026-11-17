@@ -1,3 +1,4 @@
+import { DealerDetailButton } from "../DealerDetailAccess";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MoneyInput } from "./MoneyInput";
 import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
@@ -1423,7 +1424,7 @@ function EditorContent({
                               />
                             </TableCell>
                             <TableCell>
-                              <Button
+                              <DealerDetailButton
                                 variant="link"
                                 onClick={() =>
                                   setDetail({
@@ -1437,7 +1438,7 @@ function EditorContent({
                                 }
                               >
                                 {dealer.name || "—"}
-                              </Button>
+                              </DealerDetailButton>
                               <small>{dealerCode(dealer.id)}</small>
                             </TableCell>
                             <TableCell>
@@ -1527,7 +1528,7 @@ function EditorContent({
                               </Fragment>
                             ))}
                             <TableCell>
-                              <Button
+                              <DealerDetailButton
                                 variant="link"
                                 disabled={!otherInitiatives(dealer.id).length}
                                 onClick={() =>
@@ -1546,7 +1547,7 @@ function EditorContent({
                                 {otherInitiatives(dealer.id).length
                                   ? `${otherInitiatives(dealer.id).length} 项 · ${fmt(otherInitiatives(dealer.id).reduce((sum, entry) => sum + entry.row.amount, 0) / 10000)} 万`
                                   : "—"}
-                              </Button>
+                              </DealerDetailButton>
                             </TableCell>
                           </TableRow>
                         );
@@ -1631,7 +1632,7 @@ function EditorContent({
                             <TableRow key={row.dealerId}>
                               <TableCell>{dealerCode(row.dealerId)}</TableCell>
                               <TableCell>
-                                <Button
+                                <DealerDetailButton
                                   variant="link"
                                   onClick={() =>
                                     setDetail({
@@ -1644,7 +1645,7 @@ function EditorContent({
                                   }
                                 >
                                   {dealerName(row.dealerId)}
-                                </Button>
+                                </DealerDetailButton>
                               </TableCell>
                               <TableCell>{dealer.sd || "—"}</TableCell>
                               <TableCell>{dealer.rsm || "—"}</TableCell>
@@ -2152,7 +2153,7 @@ function EditorContent({
                               }
                             >
                               {key === "name" ? (
-                                  <Button
+                                  <DealerDetailButton
                                     variant="link"
                                     onClick={() =>
                                       setDetail({
@@ -2168,7 +2169,7 @@ function EditorContent({
                                     }
                                   >
                                     {dealerName(r.dealerId)}
-                                  </Button>
+                                  </DealerDetailButton>
                               ) : key === "amount" ? (
                                 editable ? (
                                   <AmountInput

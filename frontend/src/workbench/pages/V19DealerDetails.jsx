@@ -1,3 +1,4 @@
+import { DealerDetailButton } from "../DealerDetailAccess";
 import { MetricHelp } from "./MetricHelp";
 import { useRef, useState } from "react";
 import { Card } from "../../components/ui/card";
@@ -168,17 +169,17 @@ export function V19DealerDetails({
   const cell = (row, key) =>
     key === "name" ? (
       <>
-        <Button variant="link" onClick={() => open(row)}>
+        <DealerDetailButton variant="link" onClick={() => open(row)}>
           {row.name}
-        </Button>
+        </DealerDetailButton>
         <small>
           {row.code} · {row.sector}
         </small>
       </>
     ) : key === "support" ? (
-      <Button variant="link" onClick={() => open(row)}>
+      <DealerDetailButton variant="link" onClick={() => open(row)}>
         {read(row, key)} 个 Initiative
-      </Button>
+      </DealerDetailButton>
     ) : (
       format(read(row, key), key)
     );

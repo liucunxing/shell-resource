@@ -1,5 +1,5 @@
+import { DealerDetailButton } from "../DealerDetailAccess";
 import { useLegendColors, resolveInitiativeColor, resolveResourceColor } from "../LegendColors";
-import { InitiativeChip } from "../InitiativeChip";
 export { InitiativeChip } from "../InitiativeChip";
 import { BudgetDonut } from "./BudgetDonut";
 import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
@@ -961,7 +961,7 @@ export function V19Stack({
     label = basis === "c3" ? "C3" : "Delivery Vol";
   const ordered = direction === "over" ? deviations : [...deviations].reverse();
   const sortValue = (row, field) => ({
-    name: row.name, sd: row.sd, initiative: row.initiativeSources.map(s => s.name).sort().join("、"),
+    name: row.name, sd: row.sd,
     amount: row.amount, mix: typesForSort(row), investment: row.amountShare,
     c3: c3ByKey.get(row.key)?.metricShare, c3gap: c3ByKey.get(row.key)?.gap,
     vol: volByKey.get(row.key)?.metricShare, volgap: volByKey.get(row.key)?.gap,
@@ -1037,13 +1037,13 @@ export function V19Stack({
         </div>
         <Table sortingMode="manual" className="v20-stack-table" containerClassName={all ? "v20-stack-scroll v20-stack-scroll-all" : "v20-stack-scroll"}>
           <TableHeader><TableRow>
-            {[["name","经销商"],["sd","SD"],["initiative","Initiative"],["amount","投资金额（万元）"],["mix","资源大类构成"],["investment","投资金额占比"],["c3","C3占比"],["c3gap","投资金额 − C3"],["vol","Delivery Vol占比"],["volgap","投资金额 − Delivery Vol"],["notes","Owner 说明"]].map(([field,label]) => <TableHead key={field} aria-sort={sort?.field === field ? (sort.asc ? "ascending" : "descending") : "none"}><Button variant="ghost" className="v20-stack-sort" onClick={() => setSort(prev => ({field,asc:prev?.field === field ? !prev.asc : true}))}>{label} <span aria-hidden="true">{sort?.field === field ? (sort.asc ? "↑" : "↓") : "↕"}</span></Button></TableHead>)}
+            {[["name","经销商"],["sd","SD"],["amount","投资金额（万元）"],["mix","资源大类构成"],["investment","投资金额占比"],["c3","C3占比"],["c3gap","投资金额 − C3"],["vol","Delivery Vol占比"],["volgap","投资金额 − Delivery Vol"],["notes","Owner 说明"]].map(([field,label]) => <TableHead key={field} aria-sort={sort?.field === field ? (sort.asc ? "ascending" : "descending") : "none"}><Button variant="ghost" className="v20-stack-sort" onClick={() => setSort(prev => ({field,asc:prev?.field === field ? !prev.asc : true}))}>{label} <span aria-hidden="true">{sort?.field === field ? (sort.asc ? "↑" : "↓") : "↕"}</span></Button></TableHead>)}
           </TableRow></TableHeader>
           <TableBody>
             {list.map((row) => (
               <TableRow key={row.key}>
                 <TableCell>
-                  <Button
+                  <DealerDetailButton
                     variant="link"
                     onClick={() =>
                       setSelected({
@@ -1055,17 +1055,9 @@ export function V19Stack({
                     }
                   >
                     {row.name}
-                  </Button>
+                  </DealerDetailButton>
                 </TableCell>
                 <TableCell>{row.sd}</TableCell>
-                <TableCell>
-                  <div className="v20-initiative-chips">
-                  {row.initiativeSources.map((source) => (
-                    <InitiativeChip key={source.id} item={items.find((item) => String(item.id) === String(source.id)) || source} name={source.name}
-                      onClick={() => setSelected({ type: "initiative", initiativeId: source.id, scopeDealerKeys: [row.key], period, basis })} />
-                  ))}
-                  </div>
-                </TableCell>
                 <TableCell className="num" sortValue={row.amount / 10000}>{n(row.amount / 10000)}</TableCell>
                 <TableCell>
                   <div className="v19-stack-bar">
@@ -1111,7 +1103,7 @@ export function V19Stack({
                 })}
                 <TableCell>
                   {row.notes.length ? (
-                    <Button
+                    <DealerDetailButton
                       variant="link"
                       onClick={() =>
                         setSelected({
@@ -1123,7 +1115,7 @@ export function V19Stack({
                       }
                     >
                       查看说明
-                    </Button>
+                    </DealerDetailButton>
                   ) : (
                     "—"
                   )}

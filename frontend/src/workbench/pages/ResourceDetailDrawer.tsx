@@ -1,3 +1,4 @@
+import { DealerDetailButton, useDealerDetailAccess } from "../DealerDetailAccess";
 import { InitiativeLabel, useLegendColors } from "../LegendColors";
 import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
 import { AnalysisConclusion, AnalysisValue } from "./AnalysisConclusion";
@@ -281,7 +282,13 @@ export function reserveReasonLabel(
   );
 }
 
-export function ResourceDetailDrawer({
+export function ResourceDetailDrawer(props: Props) {
+  const allowed = useDealerDetailAccess();
+  if (props.detail.type === "dealer" && !allowed) return null;
+  return <ResourceDetailContent {...props} />;
+}
+
+function ResourceDetailContent({
   detail,
   items,
   dealers,
@@ -347,7 +354,9 @@ export function ResourceDetailDrawer({
             ? `${current.resourceType} · 资源构成`
             : `${(current.groupBy || "sd").toUpperCase()} · ${current.groupKey}`) ||
     "详情不可用";
+  const canOpenDealer = useDealerDetailAccess();
   const open = (next: ResourceDetail) => {
+    if (next.type === "dealer" && !canOpenDealer) return;
     setTrail((old) => [
       ...old,
       nestedDetailRequest(current, next, scope, period, basis),
@@ -814,12 +823,12 @@ export function ResourceDetailDrawer({
                   </TableCell>
                 )}
                 <TableCell>
-                  <Button
+                  <DealerDetailButton
                     variant="link"
                     onClick={() => open({ type: "dealer", dealerKey: row.key })}
                   >
                     {row.name}
-                  </Button>
+                  </DealerDetailButton>
                   <small>{row.code}</small>
                   {showCohortDimensions && (
                     <small>
