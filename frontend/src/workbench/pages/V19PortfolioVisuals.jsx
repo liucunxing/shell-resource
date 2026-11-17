@@ -1,4 +1,6 @@
 import { useLegendColors, resolveInitiativeColor, resolveResourceColor } from "../LegendColors";
+import { InitiativeChip } from "../InitiativeChip";
+export { InitiativeChip } from "../InitiativeChip";
 import { BudgetDonut } from "./BudgetDonut";
 import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
 import { MetricHelp } from "./MetricHelp";
@@ -38,10 +40,6 @@ const wan = (value) => `${n(value / 10000)} 万元`,
     value == null ? "—" : `${value > 0 ? "+" : ""}${n(value)}pp`;
 export const initiativeColor = resolveInitiativeColor;
 export const resourceColor = resolveResourceColor;
-export function InitiativeChip({ item, name, onClick }) {
-  const { initiativeColor } = useLegendColors();
-  return <Button variant="outline" className="v20-initiative-chip" style={{ "--initiative-color": initiativeColor(item) }} onClick={onClick} title={name}>{name}</Button>;
-}
 export const orderedResourceTypes = (values) => {
   const order = ["ICE Rebate", "MRD", "SP&A", "Capex"];
   const rank = (value) => {
