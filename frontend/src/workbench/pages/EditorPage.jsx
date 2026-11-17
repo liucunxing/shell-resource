@@ -2542,7 +2542,7 @@ function EditorContent({
                 activeStep === 1
                   ? doGuard(() =>
                       navigate(
-                        identity.role === "owner" ? "home" : "department",
+                        ["owner", "lead"].includes(identity.role) ? "home" : "department",
                       ),
                     )
                   : void chooseStep(activeStep - 1)

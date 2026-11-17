@@ -577,10 +577,10 @@ function PortfolioDashboard({ mode }) {
 }
 
 export function DepartmentPage() {
-  const { identity } = useWorkbench();
+  const { identity, page } = useWorkbench();
   return (
     <PortfolioDashboard
-      mode={identity.role === "owner" ? "owner" : "department"}
+      mode={identity.role === "owner" || page === "portfolio" ? "owner" : "department"}
     />
   );
 }

@@ -84,7 +84,7 @@ function editable(state, id, identity) {
   if (!i) throw new Error("当前 Initiative 不存在");
   if (
     !["owner", "lead"].includes(identity.role) ||
-    identity.ownerId !== i.ownerId ||
+    !identity.ownerId || String(identity.ownerId).toLowerCase() !== String(i.ownerId || "").toLowerCase() ||
     !engine.hasDepartment(identity, i.department) ||
     !engine.canEdit(state, id, identity)
   )
