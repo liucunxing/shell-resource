@@ -531,6 +531,43 @@ async def check_api(connection: AsyncConnection, checks: list[dict[str, str]]) -
             expired["state"]["planningVersion"]["expired"]
             and all(not item["editable"] for item in expired["state"]["initiatives"]),
         )
+        before_extension = await api.call(
+            "GET", f"initiatives/{inherited['id']}/draft", "owner-a",
+        )
+        extended = await api.call("PATCH", f"planning-versions/{SECOND}", body={
+            "expected_revision": expired["state"]["planningVersion"]["revision"],
+            "name": "Synthetic extended version",
+            "deadline": (datetime.now(UTC) + timedelta(days=2)).isoformat(),
+        })
+        after_extension = await api.call(
+            "GET", f"initiatives/{inherited['id']}/draft", "owner-a",
+        )
+        record(checks, "deadline_extension_restores_permissions_and_preserves_work",
+               extended["open"] and extended["published"] and not extended["expired"]
+               and after_extension["editable"]
+               and after_extension["rows"] == before_extension["rows"]
+               and after_extension["revision"] == before_extension["revision"]
+               and after_extension["workflow"]["publicationId"]
+               == before_extension["workflow"]["publicationId"])
+        configured = await api.call(
+            "PUT", f"planning-versions/{SECOND}/initiatives/{inherited['id']}", body={
+                "expected_revision": extended["revision"],
+                **{key: after_extension[key] for key in (
+                    "name", "resourceType", "sector", "department", "ownerId", "budget",
+                )},
+                "reason": "Synthetic configuration correction",
+            },
+        )
+        after_configuration = await api.call(
+            "GET", f"initiatives/{inherited['id']}/draft", "owner-a",
+        )
+        record(checks, "project_configuration_keeps_version_open_and_allocations",
+               configured["version"]["open"] and configured["version"]["published"]
+               and after_configuration["editable"]
+               and after_configuration["rows"] == after_extension["rows"]
+               and after_configuration["workflow"]["requiresResubmission"])
+        await api.submit("owner-a", inherited["id"], dealer)
+        record(checks, "owner_can_submit_after_deadline_extension_and_configuration")
         record(
             checks, "service_commits_remain_inside_outer_transaction", connection.in_transaction()
         )

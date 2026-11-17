@@ -21,6 +21,7 @@ vi.mock("../src/workbench/api.js", () => ({
   saveDraft: harness.save, publish: harness.publish, getDraft: harness.getDraft,
 }));
 import { WorkbenchProvider, useWorkbench } from "../src/workbench/WorkbenchContext.jsx";
+import E from "../src/workbench/domain/engine.js";
 
 const version = { id: "202701", revision: 4, published: true, open: true };
 const initiative = { id: "1", department: "MKT", sector: "B2B", revision: 7,
@@ -102,6 +103,29 @@ it.each([
   harness.versions.mockResolvedValueOnce(versions);
   await harness.context.refreshPlanningVersions();
   expect(harness.workspace).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+  { name: "deadline extended on an open version", open: true, confirmed: false, editable: true },
+  { name: "deadline extended on an explicitly stopped version", open: false, confirmed: false, editable: false },
+  { name: "deadline extended after department confirmation", open: true, confirmed: true, editable: false },
+])("reloads deadline and server permissions together: $name", async ({ open, confirmed, editable }) => {
+  const expired = { ...version, deadline: "2026-11-16T00:00:00Z", expired: true, open };
+  const item = { ...initiative, ownerId: "owner@example.test", workflow: { editable: false, ownerEditLocked: confirmed } };
+  harness.workspace.mockResolvedValueOnce({ ...payload(expired), state: { ...payload(expired).state, initiatives: [item] } });
+  await harness.context.refresh();
+  expect(E.canEdit(render().state, "1", harness.context.identity)).toBe(false);
+
+  const extended = { ...expired, revision: expired.revision + 1, deadline: "2027-01-01T00:00:00Z", expired: false };
+  harness.versions.mockResolvedValueOnce([extended]);
+  harness.workspace.mockResolvedValueOnce({ ...payload(extended), state: {
+    ...payload(extended).state, initiatives: [{ ...item, workflow: { ...item.workflow, editable } }],
+  } });
+  await harness.context.refreshPlanningVersions();
+  const current = render();
+  expect(current.state.planningVersion.deadline).toBe(extended.deadline);
+  expect(current.state.initiatives[0].workflow.editable).toBe(editable);
+  expect(E.canEdit(current.state, "1", current.identity)).toBe(editable);
 });
 
 it("discards metadata returned after another workspace refresh", async () => {

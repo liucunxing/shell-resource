@@ -777,7 +777,8 @@ class PlanningService:
         state.confirmed_publication_id = None
         state.confirmed_by = None
         state.confirmed_at = None
-        version.published, version.open = False, False
+        # Project configuration changes invalidate only the affected workflow scopes.
+        # Publishing/stopping a version remains an explicit administrator operation.
         version.revision += 1
         self.repository.add_log(
             budget.id,

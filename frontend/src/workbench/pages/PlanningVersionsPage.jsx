@@ -383,7 +383,10 @@ export function PlanningVersionsPage() {
           ) : dialog.kind === "delete-confirm" ? (
             <p>确认删除版本 {dialog.version.id} · {dialog.version.name}？删除后版本将从业务列表移除，历史数据保留供审计。</p>
           ) : dialog.kind === "edit-confirm" ? (
-            <p>确认将版本 {dialog.version.id} 修改为 {form.id} · {form.name}，截止时间为 {form.deadline ? form.deadline.replace("T", " ") + "（北京时间）" : "不设截止时间"}？</p>
+            <>
+              <p>确认将版本 {dialog.version.id} 修改为 {form.id} · {form.name}，截止时间为 {form.deadline ? form.deadline.replace("T", " ") + "（北京时间）" : "不设截止时间"}？</p>
+              <p>修改版本名称或截止时间保留原发布、开放及部门确认状态，不改变已有分配。已开放版本延后截止时间后可继续提交；已停用版本仍需重新发布。</p>
+            </>
           ) : (
             <p>
               {dialog.kind === "close"
