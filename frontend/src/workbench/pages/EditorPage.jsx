@@ -1978,6 +1978,7 @@ function EditorContent({
                   只看已获配
                 </Label>
               </div>
+              <div className="v19-allocation-toolbar">
               <div className="v19-ratio-legend">
                 <span title="Phasing 仅对同年源 target 大于 0 且源 Phasing 有值的经销商加权；缺失或非正权重不参与，结果仅代表有效数据范围。无有效数据时显示 —；单家直接展示源值。">
                   加权平均 Phasing{" "}
@@ -2061,10 +2062,15 @@ function EditorContent({
                     >
                       指定经销商配平
                     </Button>
-                    <Button type="button" variant="ghost" className="balance-action-help" aria-label="指定经销商配平使用说明" onClick={() => setModal({ type: "balance-help" })}><span aria-hidden="true">!</span></Button>
+                    <MetricHelp label="指定经销商配平使用说明">
+                      <div><strong>使用条件：</strong>勾选经销商，且待分配金额不为零。</div>
+                      <div><strong>配平规则：</strong>差额按整数元均摊；配平后金额不能为负。确认前可预览。</div>
+                      <div><strong>预留：</strong>主动预留不参与配平。</div>
+                    </MetricHelp>
                     </span>
                   </div>
                 )}
+              </div>
               <div
                 ref={allocationScroll}
                 className="table-scroll allocation-scroll"
@@ -2660,7 +2666,6 @@ function EditorContent({
               {
                 remove: "移除经销商分配",
                 "remove-filtered": "取消选择筛选结果",
-                "balance-help": "指定经销商配平使用说明",
                 balance: "指定经销商配平",
                 import: "Excel 导入预览",
                 history: "单项同步历史",
@@ -2825,13 +2830,6 @@ function EditorContent({
             )}
             {modal.type === "remove-filtered" && (
               <p>筛选结果中将移除 {modal.count} 家已选经销商，其中已有分配金额的部分将成为未解释差额，不会自动移到其他行。</p>
-            )}
-            {modal.type === "balance-help" && (
-              <>
-                <p>同时满足以下条件时，可以点击指定经销商配平：</p>
-                <ol><li>在下方经销商分配表中，勾选至少一家参与配平的经销商。</li><li>项目的待分配金额不为 0。</li></ol>
-                <p>待分配金额须为整数元，配平后各家金额不能为负。差额将在勾选的经销商之间均摊，确认前可预览。</p>
-              </>
             )}
             {modal.type === "balance" && (
               <>
