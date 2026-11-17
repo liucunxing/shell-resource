@@ -118,7 +118,7 @@ function UserDialog({
       }}
     >
       <DialogContent
-        className="sm:max-w-2xl max-h-[90dvh]"
+        size="form"
         showCloseButton={false}
         aria-describedby={undefined}
         onEscapeKeyDown={(event) => {

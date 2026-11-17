@@ -30,7 +30,7 @@ export function WorkflowDialog({
       }}
     >
       <DialogContent
-        className={`max-h-[90dvh] ${wide ? "sm:max-w-5xl" : ""}`}
+        size={wide ? "wide" : "default"}
         showCloseButton={false}
         aria-describedby={undefined}
         onEscapeKeyDown={(event) => {
