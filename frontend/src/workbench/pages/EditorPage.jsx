@@ -1102,12 +1102,6 @@ function EditorContent({
     }));
     setAllocationPage(1);
   };
-  const jumpAllocation = (group) => {
-    const container = allocationScroll.current,
-      target = container?.querySelector(`[data-v19-column-group="${group}"]`);
-    if (container && target)
-      container.scrollTo({ left: target.offsetLeft, behavior: "smooth" });
-  };
   return (
     <>
       {operation && (
@@ -1189,7 +1183,7 @@ function EditorContent({
             [
               "当前已分配",
               totals.allocated,
-              "草稿中已分给经销商的钱，提交后上级才会看到",
+              "草稿中已分给经销商的钱，部门提交后管理层可见",
             ],
             ["待分配", totals.gap, "还没安排的钱，可继续分配或填写原因后预留"],
           ].map(([label, value, note], index) => (
@@ -1214,8 +1208,8 @@ function EditorContent({
         {!editable && (
           <Alert className="note-box">
             <AlertDescription>
-              {i.workflow?.submitted
-                ? "方案已提交管理层。开放且未截止时，部门负责人撤回部门提交即可恢复编辑；管理员也可驳回并开放全部部门。"
+              {i.workflow?.ownerEditLocked
+                ? "部门已提交；版本开放且未截止时，撤回部门提交后可修改。"
                 : "当前方案只读，请核对版本开放状态、截止时间和 Owner 归属。"}
             </AlertDescription>
           </Alert>
@@ -1948,8 +1942,66 @@ function EditorContent({
             <Card className="panel">
               <div className="panel-header">
                 <h2>经销商分配明细</h2>
+              </div>
+              <HistoryControls
+                ytdCutoffMonth={state.ytdCutoffMonth}
+                period={historyPeriod}
+                onPeriodChange={setHistoryPeriod}
+                metric={historyMetric}
+                onMetricChange={setHistoryMetric}
+              />
+              {editable && (
+                <p className="work-caption">
+                  经销商列表已包含在下载模板的「经销商列表」工作表中，业务线为第一列。
+                </p>
+              )}
+              <div className="v19-allocation-filters">
+                <Input
+                  type="search"
+                  value={allocationQuery}
+                  onChange={(event) => {
+                    setAllocationQuery(event.target.value);
+                    setAllocationPage(1);
+                  }}
+                  placeholder="搜索经销商 / 编码 / SD / RSM"
+                  aria-label="查找经销商分配"
+                />
+                <Label>
+                  <Checkbox
+                    checked={allocatedOnly}
+                    onCheckedChange={(checked) => {
+                      setAllocatedOnly(checked === true);
+                      setAllocationPage(1);
+                    }}
+                  />
+                  只看已获配
+                </Label>
+              </div>
+              <div className="v19-ratio-legend">
+                <span title="Phasing 仅对同年源 target 大于 0 且源 Phasing 有值的经销商加权；缺失或非正权重不参与，结果仅代表有效数据范围。无有效数据时显示 —；单家直接展示源值。">
+                  加权平均 Phasing{" "}
+                  <b>
+                    {weightedPhasing == null
+                      ? "—"
+                      : `${fmt(weightedPhasing * 100)}%`}{" "}
+                    ↑
+                  </b>
+                </span>
+                <span title="Yield = 名单 C3（美元）合计 ÷ 同期间历史投资（美元）合计，历史投资已按配置汇率统一为美元；不平均各家比率，数据不完整或 YTD 覆盖未知时显示 —。">
+                  加权平均 Yield{" "}
+                  <b>
+                    {weightedYield == null
+                      ? "—"
+                      : `${weightedYield.toFixed(2)}`}{" "}
+                    ↑
+                  </b>
+                </span>
+                <span className="good">优于平均</span>
+                <span className="mid">±10%近均</span>
+                <span className="bad">需关注</span>
+              </div>
                 {editable && (
-                  <div className="actions">
+                  <div className="actions v19-allocation-actions">
                     <Button
                       variant="outline"
                       className="button small"
@@ -2012,88 +2064,6 @@ function EditorContent({
                     </span>
                   </div>
                 )}
-              </div>
-              <HistoryControls
-                ytdCutoffMonth={state.ytdCutoffMonth}
-                period={historyPeriod}
-                onPeriodChange={setHistoryPeriod}
-                metric={historyMetric}
-                onMetricChange={setHistoryMetric}
-              />
-              {editable && (
-                <p className="work-caption">
-                  经销商列表已包含在下载模板的「经销商列表」工作表中，业务线为第一列。
-                </p>
-              )}
-              <div className="v19-allocation-filters">
-                <Input
-                  type="search"
-                  value={allocationQuery}
-                  onChange={(event) => {
-                    setAllocationQuery(event.target.value);
-                    setAllocationPage(1);
-                  }}
-                  placeholder="搜索经销商 / 编码 / SD / RSM"
-                  aria-label="查找经销商分配"
-                />
-                <Label>
-                  <Checkbox
-                    checked={allocatedOnly}
-                    onCheckedChange={(checked) => {
-                      setAllocatedOnly(checked === true);
-                      setAllocationPage(1);
-                    }}
-                  />
-                  只看已获配
-                </Label>
-              </div>
-              <div className="v19-ratio-legend">
-                <span title="Phasing 仅对同年源 target 大于 0 且源 Phasing 有值的经销商加权；缺失或非正权重不参与，结果仅代表有效数据范围。无有效数据时显示 —；单家直接展示源值。">
-                  加权平均 Phasing{" "}
-                  <b>
-                    {weightedPhasing == null
-                      ? "—"
-                      : `${fmt(weightedPhasing * 100)}%`}{" "}
-                    ↑
-                  </b>
-                </span>
-                <span title="Yield = 名单 C3（美元）合计 ÷ 同期间历史投资（美元）合计，历史投资已按配置汇率统一为美元；不平均各家比率，数据不完整或 YTD 覆盖未知时显示 —。">
-                  加权平均 Yield{" "}
-                  <b>
-                    {weightedYield == null
-                      ? "—"
-                      : `${weightedYield.toFixed(2)}`}{" "}
-                    ↑
-                  </b>
-                </span>
-                <span className="good">优于平均</span>
-                <span className="mid">±10%近均</span>
-                <span className="bad">需关注</span>
-              </div>
-              <div className="v19-table-jumps">
-                <span>快速定位列组</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => jumpAllocation("investment")}
-                >
-                  历史投资 / Yield
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => jumpAllocation("share")}
-                >
-                  占比与差值
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => jumpAllocation("contract")}
-                >
-                  target / Actual
-                </Button>
-              </div>
               <div
                 ref={allocationScroll}
                 className="table-scroll allocation-scroll"
@@ -2585,11 +2555,11 @@ function EditorContent({
             ) : (
               <Alert className="note-box success">
                 <AlertDescription>
-                  {i.workflow
-                    ? i.workflow.submitted
-                      ? "当前方案已提交，部门确认前仍可修改。"
-                      : "分配与预算平衡；提交会自动保存草稿，部门确认前仍可修改。"
-                    : "分配与预算平衡，可以提交。"}
+                  {!editable
+                    ? "当前方案只读。"
+                    : i.workflow?.submitted
+                      ? "当前方案已提交，部门提交前仍可修改并重新提交。"
+                      : "分配与预算平衡；提交会自动保存草稿。"}
                 </AlertDescription>
               </Alert>
             ))}
