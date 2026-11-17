@@ -30,7 +30,8 @@
 }
 .v19-fidelity-shell .studio-table-toolbar input,
 .v19-fidelity-shell .v19-allocation-filters > input {
-  flex: 0 1 280px;
+  /* Auto basis uses width in a row and height inside a column label. */
+  flex: 0 1 auto;
   width: 280px;
   min-width: 0;
   max-width: 100%;
