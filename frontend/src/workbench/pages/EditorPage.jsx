@@ -839,7 +839,8 @@ function EditorContent({
     doGuard(() => {
       try {
         if (trial?.metric === metric && trial.period === period) {
-          if (update({ rows: structuredClone(trial.baselineRows) })) {
+          const baseline = new Map(trial.baselineRows.map(row => [row.dealerId, row]));
+          if (update({ rows: i.rows.map(row => ({ ...row, ...baseline.get(String(row.dealerId)) })) })) {
             notify("已撤销快捷方案，恢复试算前的分配。");
           }
           return;

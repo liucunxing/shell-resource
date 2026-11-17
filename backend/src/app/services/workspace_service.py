@@ -328,7 +328,14 @@ class WorkspaceService:
             budget.status = 0
             if "editorState" in payload.model_fields_set:
                 budget.editor_state = (
-                    payload.editorState.model_dump() if payload.editorState is not None else None
+                    payload.editorState.model_dump(
+                        mode="json",
+                        exclude=(
+                            {"trial"}
+                            if "trial" not in payload.editorState.model_fields_set else set()
+                        ),
+                    )
+                    if payload.editorState is not None else None
                 )
             if budget.planning_version_id:
                 planning = PlanningService(self.session, self.user)
