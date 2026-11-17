@@ -480,6 +480,7 @@ function EditorContent({
           ?.changeReason || "",
     ),
     [busy, setBusy] = useState(false);
+  const allocationEditOrder = useRef(null);
   const trialBaseline = useRef(null);
   useEffect(() => { trialBaseline.current = null; }, [initiativeId]);
   useEffect(() => { setFillNotice(null); setAppliedTrial(null); }, [initiativeId, trialPeriod]);
@@ -1052,17 +1053,24 @@ function EditorContent({
   };
   const allocationFiltered = i.rows.filter(
     (row) =>
-      (!allocatedOnly || row.amount > 0) &&
+      (!allocatedOnly || row.amount > 0 || allocationEditOrder.current?.has(String(row.dealerId))) &&
       (!allocationQuery.trim() ||
         dealerLabel(row.dealerId)
           .toLocaleLowerCase()
           .includes(allocationQuery.trim().toLocaleLowerCase())),
   );
-  const allocationSorted = sortedAllocationRows(
+  let allocationSorted = sortedAllocationRows(
     allocationFiltered,
     (row) => allocationValue(row, allocationSort.key),
     allocationSort.direction,
   );
+  if (allocationEditOrder.current) {
+    const order = allocationEditOrder.current;
+    allocationSorted = allocationSorted.map((row, index) => ({ row, index }))
+      .sort((a, b) => (order.get(String(a.row.dealerId)) ?? order.size + a.index) -
+        (order.get(String(b.row.dealerId)) ?? order.size + b.index))
+      .map(({ row }) => row);
+  }
   const allocationPages = Math.max(1, Math.ceil(allocationSorted.length / 20));
   const currentAllocationPage = Math.min(allocationPage, allocationPages);
   const displayedAllocationRows = allocationSorted.slice(
@@ -1070,6 +1078,7 @@ function EditorContent({
     currentAllocationPage * 20,
   );
   const sortAllocation = (key) => {
+    allocationEditOrder.current = null;
     setAllocationSort((value) => ({
       key,
       direction:
@@ -1911,6 +1920,7 @@ function EditorContent({
                   type="search"
                   value={allocationQuery}
                   onChange={(event) => {
+                    allocationEditOrder.current = null;
                     setAllocationQuery(event.target.value);
                     setAllocationPage(1);
                   }}
@@ -1921,6 +1931,7 @@ function EditorContent({
                   <Checkbox
                     checked={allocatedOnly}
                     onCheckedChange={(checked) => {
+                      allocationEditOrder.current = null;
                       setAllocatedOnly(checked === true);
                       setAllocationPage(1);
                     }}
@@ -2148,7 +2159,11 @@ function EditorContent({
                                     label={
                                       dealerLabel(r.dealerId) + " 分配金额"
                                     }
-                                    save={(value) => changeRow(rowIndex, value)}
+                                    save={(value) => {
+                                      if (!allocationEditOrder.current)
+                                        allocationEditOrder.current = new Map(allocationSorted.map((row, index) => [String(row.dealerId), index]));
+                                      return changeRow(rowIndex, value);
+                                    }}
                                   />
                                 ) : (
                                   fmt(r.amount)
@@ -2451,6 +2466,22 @@ function EditorContent({
             </Card>
           )}
           {activeStep === 1 && (
+            <Card className="panel v19-adjustment-reason">
+              <h2>调整依据说明（选填）</h2>
+              <Input
+                aria-label="调整依据说明"
+                maxLength="160"
+                disabled={!editable}
+                value={changeReason}
+                onChange={(event) => setChangeReason(event.target.value)}
+                onBlur={() => {
+                  if (changeReason !== (i.changeReason || "")) update({ changeReason });
+                }}
+                placeholder="选填，可补充本版名单、金额或预留变化说明"
+              />
+            </Card>
+          )}
+          {activeStep === 1 && (
             <Card className="panel v20-reserve-review">
               <Label>
                 <Checkbox
@@ -2470,22 +2501,6 @@ function EditorContent({
                   ? "勾选后可进入经销商名单和试算。预算、预留金额或原因改变后，需要重新核对。"
                   : "已提交或只读方案可浏览，不要求重新确认。"}
               </p>
-            </Card>
-          )}
-          {activeStep === 1 && (
-            <Card className="panel v19-adjustment-reason">
-              <h2>调整依据说明（选填）</h2>
-              <Input
-                aria-label="调整依据说明"
-                maxLength="160"
-                disabled={!editable}
-                value={changeReason}
-                onChange={(event) => setChangeReason(event.target.value)}
-                onBlur={() => {
-                  if (changeReason !== (i.changeReason || "")) update({ changeReason });
-                }}
-                placeholder="选填，可补充本版名单、金额或预留变化说明"
-              />
             </Card>
           )}
           {activeStep === 3 &&
