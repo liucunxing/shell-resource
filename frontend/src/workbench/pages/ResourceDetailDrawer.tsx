@@ -789,6 +789,7 @@ function ResourceDetailContent({
                 <TableHead className="num">排名</TableHead>
               )}
               <TableHead>经销商</TableHead>
+              <TableHead>经销商编码</TableHead>
               {!showCohortDimensions && (
                 <TableHead>Sector / SD / RSM</TableHead>
               )}
@@ -829,13 +830,13 @@ function ResourceDetailContent({
                   >
                     {row.name}
                   </DealerDetailButton>
-                  <small>{row.code}</small>
                   {showCohortDimensions && (
                     <small>
                       {row.sector} · {row.sd} · {row.rsm}
                     </small>
                   )}
                 </TableCell>
+                <TableCell>{row.code || "—"}</TableCell>
                 {!showCohortDimensions && (
                   <TableCell>
                     {row.sector} / {row.sd} / {row.rsm}
@@ -885,7 +886,7 @@ function ResourceDetailContent({
             {!visible.length && (
               <TableRow>
                 <TableCell
-                  colSpan={showCohortDimensions ? (basis === "vol" ? 5 : 4) : 7}
+                  colSpan={showCohortDimensions ? (basis === "vol" ? 6 : 5) : 8}
                 >
                   当前范围没有匹配经销商。
                 </TableCell>

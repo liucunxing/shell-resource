@@ -21,7 +21,7 @@ const headers=tree=>nodes(tree).filter(n=>n.props["data-column"]&&Object.hasOwn(
 beforeEach(()=>{harness.slots=[];});
 it("uses detail columns without support/note, plus resource mix and authorized expenses",()=>{
  const keys=headers(render()).map(n=>n.props["data-column"]);
- expect(keys.filter(k=>k!=="mix")).toEqual(allocationColumnGroups(["MRD","SP&A"]).filter(g=>g.key!=="support").flatMap(g=>g.columns.map(c=>c[0])));
+ expect(keys.filter(k=>k!=="mix" && k!=="code")).toEqual(allocationColumnGroups(["MRD","SP&A"]).filter(g=>g.key!=="support").flatMap(g=>g.columns.map(c=>c[0])));
  for(const key of ["initiative","support","note","expense:Capex","expense:ICE Rebate"])expect(keys).not.toContain(key);
 });
 it("keeps pp bars, full-roster denominators, units, signed expenses and zero versus null",()=>{
@@ -61,4 +61,17 @@ it("paginates the full roster and keeps the top ten marked after sorting and fil
  tree=render(props); expect(cells(tree,"name")).toHaveLength(5); expect(text(tree)).toContain("2 / 2");
  nodes(tree).find(n=>n.props["aria-label"]==="搜索叠加经销商").props.onChange({target:{value:"Dealer 00"}});
  tree=render(props); expect(cells(tree,"name")).toHaveLength(1); expect(text(cells(tree,"name")[0])).toContain("Top 1"); expect(text(tree)).toContain("1 / 1");
+});
+
+it("renders and sorts dealer codes separately without changing top rankings",()=>{
+ let tree=render();
+ expect(text(cells(tree,"name")[0])).not.toContain("001");
+ expect(cells(tree,"code").map(text)).toEqual(["001","002","003"]);
+ const button=nodes(headers(tree).find(n=>n.props["data-column"]==="code")).find(n=>n.props.onClick);
+ button.props.onClick(); tree=render();
+ expect(cells(tree,"code").map(text)).toEqual(["001","002","003"]);
+ expect(text(cells(tree,"name")[0])).toContain("Top 1");
+ button.props.onClick(); tree=render();
+ expect(cells(tree,"code").map(text)).toEqual(["003","002","001"]);
+ expect(text(cells(tree,"name")[2])).toContain("Top 1");
 });
