@@ -8,7 +8,7 @@ import { useWorkbench } from "../WorkbenchContext.jsx";
 export function versionStatus(version) {
   if (!version) return "历史工作区";
   if (!version.published) return "未发布";
-  if (!version.open) return "已关闭提交";
+  if (!version.open) return "已停用";
   if (version.deadline && new Date(version.deadline).getTime() <= Date.now())
     return "已截止";
   return "开放提交";

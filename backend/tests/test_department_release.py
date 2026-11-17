@@ -59,25 +59,30 @@ async def test_department_submission_and_withdrawal_blocked_after_barrier(barrie
 
 
 @pytest.mark.asyncio
-async def test_close_requires_every_enabled_department_submitted():
+@pytest.mark.parametrize("submitted", [False, True])
+async def test_admin_can_stop_anytime_preserving_existing_work(submitted):
     session, admin, budgets = await prepare()
     try:
+        if submitted:
+            for budget in budgets:
+                await submit(session, budget)
+        history = [(p.id, deepcopy(p.snapshot)) for p in
+                   await WorkspaceRepository(session).publications_for(budgets[0].id)]
         version = await admin.version("202701")
-        # Owner submissions alone do not constitute department submissions.
-        for budget in budgets:
-            await submit(session, budget)
-        revision = version.revision
-        with pytest.raises(HTTPException) as missing:
-            await admin.update(version.id, PlanningVersionUpdateDTO(
-                expected_revision=revision, open=False,
-            ))
-        assert missing.value.status_code == 409 and version.open
-        assert version.revision == revision
-        await act(session, "confirm")
         result = await admin.update(version.id, PlanningVersionUpdateDTO(
             expected_revision=version.revision, open=False,
         ))
-        assert not result["open"]
+        assert result["published"] and not result["open"]
+        assert [(p.id, p.snapshot) for p in
+                await WorkspaceRepository(session).publications_for(budgets[0].id)] == history
+        with pytest.raises(HTTPException) as stopped:
+            await submit(session, budgets[0])
+        assert stopped.value.status_code == 409
+        await admin.update(version.id, PlanningVersionUpdateDTO(
+            expected_revision=version.revision, open=True,
+        ))
+        assert version.open
+        await submit(session, budgets[0])
     finally:
         await session.close()
 
@@ -245,7 +250,7 @@ async def test_admin_cannot_impersonate_department_submission_and_legacy_return_
 
 
 @pytest.mark.asyncio
-async def test_release_keeps_other_open_version_unchanged():
+async def test_release_stops_other_open_version():
     session, admin, _ = await prepare()
     try:
         await admin.create(PlanningVersionCreateDTO(
@@ -260,23 +265,107 @@ async def test_release_keeps_other_open_version_unchanged():
             deadline=datetime.now(UTC) + timedelta(days=1),
         ))
         assert version.open
-        assert (await session.get(PlanningVersionDO, "202701")).open
+        assert not (await session.get(PlanningVersionDO, "202701")).open
     finally:
         await session.close()
 
 
 @pytest.mark.asyncio
-async def test_publish_as_closed_cannot_skip_all_department_submission_guard():
+async def test_published_stopped_version_does_not_require_department_submissions():
     session, admin, _ = await prepare()
     try:
         version = await admin.version("202701")
         await admin.update(version.id, PlanningVersionUpdateDTO(
             expected_revision=version.revision, published=False, open=False,
         ))
-        with pytest.raises(HTTPException) as bypass:
-            await admin.update(version.id, PlanningVersionUpdateDTO(
-                expected_revision=version.revision, published=True, open=False,
+        result = await admin.update(version.id, PlanningVersionUpdateDTO(
+            expected_revision=version.revision, published=True, open=False,
+        ))
+        assert result["published"] and not result["open"]
+    finally:
+        await session.close()
+
+
+@pytest.mark.asyncio
+async def test_switch_is_global_preserves_confirmations_and_rejects_stale_or_invalid_open():
+    session, admin, budgets = await prepare()
+    try:
+        for budget in budgets:
+            await submit(session, budget)
+        await act(session, "confirm")
+        first = await admin.version("202701")
+        first_revision = first.revision
+        history = [(p.id, deepcopy(p.snapshot)) for p in
+                   await WorkspaceRepository(session).publications_for(budgets[0].id)]
+        await admin.create(PlanningVersionCreateDTO(
+            id="202801", name="next year", planning_year=2028,
+        ))
+        await admin.update("202801", PlanningVersionUpdateDTO(
+            expected_revision=0, published=True, open=True,
+        ))
+        assert first.published and not first.open and first.revision == first_revision + 1
+        assert (await admin.workflow(budgets[0]))["confirmed"]
+        assert [(p.id, p.snapshot) for p in
+                await WorkspaceRepository(session).publications_for(budgets[0].id)] == history
+        switched = await admin.version("202801")
+        with pytest.raises(HTTPException) as stale:
+            await admin.update(first.id, PlanningVersionUpdateDTO(
+                expected_revision=first_revision, open=True,
             ))
-        assert bypass.value.status_code == 409
+        assert stale.value.status_code == 409 and switched.open
+        # Validation fails before another version is deactivated.
+        with pytest.raises(HTTPException) as expired:
+            await admin.update(first.id, PlanningVersionUpdateDTO(
+                expected_revision=first.revision, open=True,
+                deadline=datetime.now(UTC) - timedelta(minutes=1),
+            ))
+        assert expired.value.status_code == 422
+        await session.rollback()
+        first = await admin.version("202701")
+        switched = await admin.version("202801")
+        assert not first.open and switched.open
+        await admin.update(first.id, PlanningVersionUpdateDTO(
+            expected_revision=first.revision, open=True,
+        ))
+        assert first.open and not switched.open
+        audits = list((await session.scalars(select(BudgetChangeLogDO).where(
+            BudgetChangeLogDO.operation_type == "VERSION_DEACTIVATE"
+        ))).all())
+        assert len(audits) == 2
+        assert all(a.before_data["open"] and not a.after_data["open"] for a in audits)
+    finally:
+        await session.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("activation", [{"published": True}, {"open": True}])
+async def test_expired_legacy_open_version_cannot_deactivate_current_version(activation):
+    session, admin, _ = await prepare()
+    try:
+        await admin.create(PlanningVersionCreateDTO(
+            id="202702", name="current", planning_year=2027, source_version_id="202701",
+        ))
+        await admin.update("202702", PlanningVersionUpdateDTO(
+            expected_revision=0, published=True, open=True,
+        ))
+        legacy = await admin.version("202701")
+        current = await admin.version("202702")
+        # Preserve a pre-upgrade multi-open state with an expired historical window.
+        legacy.open = True
+        legacy.deadline = datetime.now(UTC) - timedelta(minutes=1)
+        await session.commit()
+        revisions = (legacy.revision, current.revision)
+        previous_audits = list((await session.scalars(select(BudgetChangeLogDO.id).where(
+            BudgetChangeLogDO.operation_type == "VERSION_DEACTIVATE"
+        ))).all())
+        with pytest.raises(HTTPException) as expired:
+            await admin.update(legacy.id, PlanningVersionUpdateDTO(
+                expected_revision=legacy.revision, **activation,
+            ))
+        assert expired.value.status_code == 422
+        assert current.open and (legacy.revision, current.revision) == revisions
+        assert list((await session.scalars(select(BudgetChangeLogDO.id).where(
+            BudgetChangeLogDO.operation_type == "VERSION_DEACTIVATE"
+        ))).all()) == previous_audits
     finally:
         await session.close()

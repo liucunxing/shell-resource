@@ -94,7 +94,7 @@ export function PlanningVersionsPage() {
     setBusy(true);
     setError("");
     try {
-      const changesCurrent = dialog.kind === "create" ||
+      const changesCurrent = ["create", "publish", "open"].includes(dialog.kind) ||
         dialog.version?.id === (state.currentVersionId || state.planningVersion?.id);
       if (dialog.kind === "create") {
         await api.createPlanningVersion({
@@ -158,7 +158,7 @@ export function PlanningVersionsPage() {
     setDeadlineError("");
     try {
       const info = await api.planningVersionDeletionInfo(version.id);
-      if (!info.canDelete) throw Error("请先关闭提交，再删除规划版本。");
+      if (!info.canDelete) throw Error("请先停用版本，再删除规划版本。");
       setDeleteAcknowledged(false);
       open({ kind: info.submittedCount ? "delete-warning" : "delete-confirm", version, info });
     } catch (failure) {
@@ -238,7 +238,7 @@ export function PlanningVersionsPage() {
                         }}>编辑</Button>
                       <Button variant="destructive" size="sm" type="button"
                         disabled={previewMode || !apiMode || busy || (version.published && version.open)}
-                        title={version.published && version.open ? "请先关闭提交" : "删除版本"}
+                        title={version.published && version.open ? "请先停用版本" : "删除版本"}
                         onClick={() => startDelete(version)}>删除</Button>
                       <Button
                         variant="outline"
@@ -257,7 +257,7 @@ export function PlanningVersionsPage() {
                           disabled={previewMode || !apiMode || busy}
                           onClick={() => open({ kind: "publish", version })}
                         >
-                          发布并开放
+                          发布
                         </Button>
                       ) : (
                         <Button
@@ -276,7 +276,7 @@ export function PlanningVersionsPage() {
                             });
                           }}
                         >
-                          {version.open ? "关闭提交" : "重新开放"}
+                          {version.open ? "停用" : "重新发布"}
                         </Button>
                       )}
                     </div>
@@ -299,7 +299,7 @@ export function PlanningVersionsPage() {
           启用项目数与预算合计只统计已加载版本；其他版本未加载时显示“—”，点击“配置项目”读取该版。
         </p>
       </Card>
-      <p className="tiny">截止时间可留空；到期后停止修改、提交和部门撤回。到期不等于管理员关闭；所有部门提交齐全后才能关闭提交。</p>
+      <p className="tiny">同时仅一个版本开放提交。发布或重新发布时，其他版本自动停用；管理员可随时停用版本，已有方案和提交记录保留。截止时间可留空，到期后停止修改、提交和部门撤回。</p>
       {deadlineError && (
         <Alert variant="destructive" role="alert">
           <AlertDescription>{deadlineError}</AlertDescription>
@@ -313,7 +313,7 @@ export function PlanningVersionsPage() {
             dialog.kind === "edit-confirm" ? "确认修改规划版本" :
             dialog.kind === "delete-warning" ? "删除前请确认" :
             dialog.kind === "delete-confirm" ? "确认删除规划版本" :
-            `${dialog.kind === "publish" ? "发布并开放" : dialog.kind === "close" ? "关闭提交" : "重新开放"} · ${dialog.version.name}`
+            `${dialog.kind === "publish" ? "发布版本" : dialog.kind === "close" ? "停用版本" : "重新发布版本"} · ${dialog.version.name}`
           }
           busy={busy}
           onClose={() => setDialog(null)}
@@ -387,10 +387,10 @@ export function PlanningVersionsPage() {
           ) : (
             <p>
               {dialog.kind === "close"
-                ? "所有部门提交齐全后才能关闭。关闭后 Owner 不能修改或提交，各部门不能再提交或撤回，已有方案保留为最终结果。"
+                ? "停用后 Owner 不能修改或提交，各部门不能再提交或撤回。已有分配方案和提交记录保留；可随时重新发布此版本。"
               : dialog.kind === "publish"
-                ? "发布并开放后，Owner 可在本版本填写和提交方案；其他版本保持原状态。"
-                : "开放当前版本后，Owner 提交状态保持不变；已提交管理层的部门仍锁定，可由部门撤回提交后修改，或由管理员驳回并开放全部部门。"}
+                ? "发布后，本版本成为唯一开放提交的版本，其他版本自动停用，其已有方案和提交记录保留。Owner 可在本版本填写和提交方案。"
+                : "重新发布后，本版本成为唯一开放提交的版本，其他版本自动停用。已有方案和提交状态保持不变；已提交管理层的部门仍锁定，可由部门撤回后修改，或由管理员驳回并开放全部部门。"}
             </p>
           )}
           {["create", "open"].includes(dialog.kind) && (

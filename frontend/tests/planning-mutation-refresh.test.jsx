@@ -72,11 +72,32 @@ it("preserves creating and selecting the new version before its workspace loads"
   expect(harness.context.refresh).toHaveBeenCalledWith({ preservePage: true });
 });
 
-it("reports metadata refresh failure after a successful mutation", async () => {
-  harness.context.refreshPlanningVersions.mockResolvedValue(false);
+it("reloads the current workspace when publishing another version may deactivate it", async () => {
+  harness.context.state.planningVersion = { ...current, open: true };
   const row = find(render(), node => node.key === other.id);
-  find(row, node => node.props?.children === "发布并开放").props.onClick();
-  await find(render(), node => node.props?.title === "发布并开放 · Other").props.onConfirm();
+  find(row, node => node.props?.children === "发布").props.onClick();
+  await find(render(), node => node.props?.title === "发布版本 · Other").props.onConfirm();
+  expect(harness.update).toHaveBeenCalledWith(other.id, { expected_revision: 1, published: true, open: true });
+  expect(harness.context.refresh).toHaveBeenCalledWith({ preservePage: true });
+  expect(harness.context.refreshPlanningVersions).not.toHaveBeenCalled();
+  expect(harness.select).not.toHaveBeenCalled();
+});
+
+it("also reloads the current workspace after republishing another inactive version", async () => {
+  harness.context.state.planningVersions = [current, { ...other, published: true }];
+  const row = find(render(), node => node.key === other.id);
+  find(row, node => node.props?.children === "重新发布").props.onClick();
+  await find(render(), node => node.props?.title === "重新发布版本 · Other").props.onConfirm();
+  expect(harness.update).toHaveBeenCalledWith(other.id, { expected_revision: 1, open: true, deadline: null });
+  expect(harness.context.refresh).toHaveBeenCalledWith({ preservePage: true });
+  expect(harness.context.refreshPlanningVersions).not.toHaveBeenCalled();
+});
+
+it("reports workspace refresh failure after publishing another version", async () => {
+  harness.context.refresh.mockResolvedValue(false);
+  const row = find(render(), node => node.key === other.id);
+  find(row, node => node.props?.children === "发布").props.onClick();
+  await find(render(), node => node.props?.title === "发布版本 · Other").props.onConfirm();
   expect(harness.context.notify).toHaveBeenCalledWith(expect.stringContaining("刷新失败"), true);
   expect(harness.context.notify).not.toHaveBeenCalledWith("规划版本已保存。");
 });

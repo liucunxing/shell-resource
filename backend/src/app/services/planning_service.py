@@ -425,12 +425,6 @@ class PlanningService:
         version = await self.version(version_id, lock=True)
         self.check_revision(version, payload.expected_revision)
         before = version_view(version)
-        effective_published = (version.published if payload.published is None
-                               else payload.published)
-        effective_open = version.open if payload.open is None else payload.open
-        if (effective_published and not effective_open
-                and (payload.open is False or payload.published is True)):
-            await self.require_departments_submitted(version.id)
         if "name" in payload.model_fields_set:
             if payload.name is None:
                 raise HTTPException(422, "版本名称不能为空")
@@ -467,50 +461,38 @@ class PlanningService:
                 if name != "deadline" and getattr(payload, name) is None:
                     raise HTTPException(422, "发布与开放状态不能为 null")
                 setattr(version, name, getattr(payload, name))
-        # Expiry stops work without silently treating it as administrator finalization.
-        # Only an explicit reopening must have a future (or unset) deadline.
-        if version.open and (not version.published or (
-            payload.open is True and deadline_passed(version)
-        )):
+        # Both publishing and reopening can activate the submission window.
+        # Use one predicate so neither path bypasses expiry before closing others.
+        activating = version.published and version.open and (
+            payload.open is True or payload.published is True
+        )
+        if version.open and (not version.published or (activating and deadline_passed(version))):
             raise HTTPException(422, "仅已发布且未截止的版本可以开放")
+        if activating:
+            await self.close_other_versions(version)
         version.revision += 1
         self.repository.add_log(0, "VERSION_UPDATE", self.user.email, before, version_view(version))
         await self.session.commit()
         return version_view(version)
 
-    async def require_departments_submitted(self, version_id: str) -> None:
-        rows = (await self.session.execute(
-            select(BudgetDO.sector, BudgetDO.department, BudgetDO.revision,
-                   InitiativeWorkflowDO.publication_id,
-                   InitiativeWorkflowDO.confirmed_publication_id,
-                   InitiativeWorkflowDO.requires_resubmission,
-                   WorkspacePublicationDO.published_revision)
-            .outerjoin(InitiativeWorkflowDO, InitiativeWorkflowDO.budget_id == BudgetDO.id)
-            .outerjoin(WorkspacePublicationDO,
-                       WorkspacePublicationDO.id == InitiativeWorkflowDO.publication_id)
-            .where(BudgetDO.planning_version_id == version_id, BudgetDO.enabled.is_(True))
-        )).all()
-        missing = sorted({f"{r.sector}/{r.department}" for r in rows if not (
-            r.publication_id and r.confirmed_publication_id == r.publication_id
-            and not r.requires_resubmission and r.published_revision == r.revision
-        )})
-        if not rows or missing:
-            raise HTTPException(409, "所有部门提交齐全后才能关闭提交；尚未齐交："
-                                + ("、".join(missing) if missing else "没有启用项目"))
-
     async def close_other_versions(self, version: PlanningVersionDO) -> None:
         others = list((await self.session.scalars(
             select(PlanningVersionDO).where(
-                PlanningVersionDO.planning_year == version.planning_year,
                 PlanningVersionDO.id != version.id,
                 PlanningVersionDO.deleted_at.is_(None), PlanningVersionDO.open.is_(True),
-            ).with_for_update()
+            ).order_by(PlanningVersionDO.id).with_for_update()
+            .execution_options(populate_existing=True)
         )).all())
+        # The caller holds the global configuration lock before locking versions.
+        # Switching the submission window never changes allocations or confirmations.
         for other in others:
-            await self.require_departments_submitted(other.id)
-        for other in others:
+            before = version_view(other)
             other.open = False
             other.revision += 1
+            self.repository.add_log(
+                0, "VERSION_DEACTIVATE", self.user.email, before, version_view(other),
+                f"开放版本 {version.id}，自动停用其他版本",
+            )
 
     async def release(self, version_id: str, payload: PlanningVersionReleaseDTO) -> dict:
         self.admin()
@@ -539,6 +521,7 @@ class PlanningService:
             # Keep submissions, dirty drafts and existing resubmission requirements intact.
         version.deadline = payload.deadline
         version.open = True
+        await self.close_other_versions(version)
         version.revision += 1
         self.repository.add_log(0, "VERSION_RELEASE", self.user.email, before,
                                 version_view(version), payload.reason)

@@ -451,7 +451,15 @@ async def check_api(connection: AsyncConnection, checks: list[dict[str, str]]) -
             body={"expected_revision": 0, "published": True, "open": True},
         )
         source_open = (await api.workspace("admin", FIRST))["state"]["planningVersion"]["open"]
-        record(checks, "new_version_preserves_unconfirmed_source", source_open)
+        record(checks, "new_version_stops_unconfirmed_source", not source_open)
+        first_version = (await api.workspace("admin", FIRST))["state"]["planningVersion"]
+        await api.call("PATCH", f"planning-versions/{FIRST}", status=422, body={
+            "expected_revision": first_version["revision"], "open": True,
+            "deadline": (datetime.now(UTC) - timedelta(minutes=1)).isoformat(),
+        })
+        record(checks, "failed_reopen_preserves_current_open_version",
+               (await api.workspace("admin", SECOND))["state"]["planningVersion"]["open"]
+               and not (await api.workspace("admin", FIRST))["state"]["planningVersion"]["open"])
         inherited = copied[source_keys["mkt-a1"]]
         submitted = await api.call(
             "POST", f"initiatives/{inherited['id']}/publish", "owner-a",
@@ -465,6 +473,10 @@ async def check_api(connection: AsyncConnection, checks: list[dict[str, str]]) -
         record(checks, "inherited_version_can_edit_and_resubmit_without_change_reason",
                resubmitted["workflow"]["submitted"] and resubmitted["workflow"]["editable"]
                and not resubmitted["changeReason"] and resubmitted["rows"][0]["amount"] == 75)
+        first_version = (await api.workspace("admin", FIRST))["state"]["planningVersion"]
+        await api.call("PATCH", f"planning-versions/{FIRST}", body={
+            "expected_revision": first_version["revision"], "open": True,
+        })
         await api.submit("owner-a", ids["mkt-a1"], dealer)
         await api.action("confirm")
         for sector, department, actor in [("PCMO", "ICE", "lead"), ("CRTO", "MKT", "lead-crto")]:
@@ -485,7 +497,11 @@ async def check_api(connection: AsyncConnection, checks: list[dict[str, str]]) -
             status=409,
             body={"expected_revision": 0, "open": False},
         )
-        record(checks, "opening_new_version_preserves_source_and_rejects_stale_commands")
+        record(checks, "switching_open_version_preserves_source_and_rejects_stale_commands")
+        second_version = (await api.workspace("admin", SECOND))["state"]["planningVersion"]
+        await api.call("PATCH", f"planning-versions/{SECOND}", body={
+            "expected_revision": second_version["revision"], "open": True,
+        })
         await check_user_permissions(api, checks)
         await api.call("POST", "planning-versions", body={
             "id": "202703", "name": "Synthetic deleted", "planning_year": YEAR,

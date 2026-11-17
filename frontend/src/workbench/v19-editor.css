@@ -223,20 +223,20 @@
 }
 .v19-editor .studio-table-toolbar {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
-  margin: 0 0 14px;
+  margin: 0 0 10px;
 }
 .v19-editor .studio-table-toolbar > input {
-  flex: 1;
-  min-width: 220px;
-  height: 44px;
+  flex: 0 1 280px;
+  min-width: 0;
+  height: 32px;
 }
 .v19-editor .studio-table-toolbar [data-slot="native-select-wrapper"] {
-  flex: 0 1 240px;
+  flex: 0 1 160px;
 }
 .v19-editor .studio-table-toolbar select {
-  height: 42px;
+  height: 32px;
 }
 .v19-editor .studio-wide-table {
   max-height: 560px;
@@ -402,7 +402,7 @@
     height: 38px;
   }
   .v19-editor .studio-table-toolbar [data-slot="native-select-wrapper"] {
-    flex: 1 1 120px;
+    flex: 0 1 160px;
   }
 }
 .v19-editor .v19-allocation-table {
@@ -417,7 +417,7 @@
   min-width: 112px;
   max-width: none;
   width: auto;
-  height: 47px;
+  height: 40px;
   border-right: 1px solid #e7edf1;
 }
 .v19-editor .v19-allocation-table .v19-dealer-name {
@@ -474,8 +474,8 @@
 }
 .v19-editor .v19-allocation-table thead tr:first-child th {
   text-align: center;
-  height: 35px;
-  padding: 7px 12px;
+  height: 30px;
+  padding: 5px 12px;
   background: #e9eef1;
   color: #344a59;
 }
@@ -519,9 +519,9 @@
   flex-wrap: wrap;
 }
 .v19-allocation-filters > input {
-  max-width: 360px;
-  min-width: 200px;
-  height: 38px;
+  max-width: 280px;
+  min-width: 0;
+  height: 32px;
 }
 .v19-editor .v19-allocation-filters > label {
   display: flex;
@@ -677,7 +677,7 @@
   --selection-width: 0px;
 }
 .v19-editor .v19-allocation-table[data-editable="true"] {
-  --selection-width: 48px;
+  --selection-width: 80px;
 }
 .v19-editor .v19-allocation-table [data-column="name"] {
   position: sticky;
@@ -715,9 +715,9 @@
   > td:first-child {
   position: sticky;
   left: 0;
-  width: 48px;
-  min-width: 48px;
-  max-width: 48px;
+  width: var(--selection-width);
+  min-width: var(--selection-width);
+  max-width: var(--selection-width);
   background: #fff;
   z-index: 2;
 }

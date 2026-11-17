@@ -282,7 +282,7 @@ export function DepartmentReviewPage() {
             </div>
             <p className="studio-table-note">
               部门提交前 Owner 可直接修改；撤回部门提交后，当前部门全部 Owner 恢复编辑，已有提交保留。
-              保存修改后须重新提交，未修改的项目无需重复提交。截止或管理员关闭后，部门不能再提交或撤回。
+              保存修改后须重新提交，未修改的项目无需重复提交。截止或管理员停用版本后，部门不能再提交或撤回。
               {identity.role === "admin" && " 管理员驳回会开放当前版本全部部门，不受查看范围限制，并重新设置截止时间。"}
             </p>
             <div className="table-scroll v20-review-scroll">
@@ -360,7 +360,7 @@ export function DepartmentReviewPage() {
               ? `将当前部门范围的 ${result.total} 个项目提交管理层，并锁定 Owner 编辑。`
               : dialog.action === "withdraw"
                 ? "撤回当前部门提交后，管理层不再看到该部门分配；本部门全部 Owner 立即恢复编辑，已有提交保留。"
-                : `将驳回版本 ${current.id} · ${current.name} 的全部部门方案，并一键恢复所有 Owner 编辑。已有提交保留，管理层在各部门重新提交前不展示相应分配。此操作不受当前查看范围限制。`}
+                : `将驳回版本 ${current.id} · ${current.name} 的全部部门方案，并一键恢复所有 Owner 编辑。本版本将成为唯一开放版本，其他版本自动停用，已有方案和提交记录保留。管理层在各部门重新提交前不展示本版本相应分配。此操作不受当前查看范围限制。`}
           </p>
           {dialog.action === "release" && (
             <Label className="grid gap-2">
