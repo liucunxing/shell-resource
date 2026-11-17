@@ -15,12 +15,6 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
-import {
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from "@/components/ui/accordion";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -66,7 +60,7 @@ import {
 } from "../domain/dealer-history";
 import { exportExcelInWorker, previewExcelInWorker } from "../file-import.js";
 import { concentration, portfolioRows } from "../domain/portfolio-analytics.js";
-import * as api from "../api.js";
+import { RotateCcw } from "lucide-react";
 import {
   reserveAcknowledgementKey,
   reserveAcknowledgementFingerprint,
@@ -485,8 +479,9 @@ function EditorContent({
         view.initiatives.find((item) => item.id === initiativeId)
           ?.changeReason || "",
     ),
-    [undo, setUndo] = useState(null),
     [busy, setBusy] = useState(false);
+  const trialBaseline = useRef(null);
+  useEffect(() => { trialBaseline.current = null; }, [initiativeId]);
   useEffect(() => { setFillNotice(null); setAppliedTrial(null); }, [initiativeId, trialPeriod]);
   useEffect(() => {
     const previous = previousAcknowledgement.current;
@@ -646,15 +641,15 @@ function EditorContent({
     }
     return true;
   };
-  const update = (patch) => {
-    const previous = {
-      rows: structuredClone(i.rows),
-      otherBudgets: structuredClone(i.otherBudgets),
-    };
+  const update = (patch, preserveTrial = false) => {
     const changed = mutate((s) =>
       E.updateInitiative(s, i.id, patch, identity, data),
     );
-    if (changed) { setUndo(previous); setAppliedTrial(null); }
+    if (changed && !preserveTrial && (patch.rows || patch.otherBudgets)) {
+      trialBaseline.current = null;
+      setAppliedTrial(null);
+      setFillNotice(null);
+    }
     return changed;
   };
   const doGuard = (fn) => {
@@ -816,7 +811,11 @@ function EditorContent({
       );
       if (!alive.current) return;
       if (!roster && !preview.errors.length) {
-        await saveDraft(i.id, { rows: preview.rows, otherBudgets: preview.otherBudgets }, undefined, true);
+        if (await saveDraft(i.id, { rows: preview.rows, otherBudgets: preview.otherBudgets }, undefined, true)) {
+          trialBaseline.current = null;
+          setAppliedTrial(null);
+          setFillNotice(null);
+        }
       } else {
         setModal({ type: "import", preview, name: file.name, roster, identityKey: JSON.stringify(identity), versionId: state.planningVersion?.id, originalRows: JSON.stringify(i.rows), originalOther: JSON.stringify(i.otherBudgets) });
       }
@@ -829,6 +828,12 @@ function EditorContent({
   const historyFill = (metric, period = historyPeriod) =>
     doGuard(() => {
       try {
+        if (appliedTrial === metric && trialBaseline.current) {
+          if (update({ rows: structuredClone(trialBaseline.current) })) {
+            notify("已撤销快捷方案，恢复试算前的分配。");
+          }
+          return;
+        }
         const available = E.cents(i.budget - totals.otherBudget);
         if (available < 0)
           throw Error("其他预算安排超过总预算，无法辅助填充。");
@@ -846,7 +851,9 @@ function EditorContent({
           setFillNotice(null);
           throw Error("历史权重合计为 0，不能应用试算。");
         }
-        if (update({ rows: allocation.rows })) {
+        const originalRows = trialBaseline.current || structuredClone(i.rows);
+        if (update({ rows: allocation.rows }, true)) {
+          trialBaseline.current = originalRows;
           setAppliedTrial(metric);
           setFillNotice({
             metricLabel: label,
@@ -864,35 +871,6 @@ function EditorContent({
         notify(e.message, true);
       }
     });
-  const history = state.publications?.[i.id] || [];
-  const restoreSource = async () => {
-    if (!editable || !state.planningVersion?.sourceVersionId) return;
-    setBusy(true);
-    try {
-      const source = await api.workspace(state.planningVersion.sourceVersionId);
-      const prior = source.state.initiatives.find(
-        (item) =>
-          String(item.initiativeKey || item.id) ===
-          String(i.initiativeKey || i.id),
-      );
-      const submitted =
-        prior && source.state.publications?.[prior.id]?.at(-1)?.initiative;
-      if (!submitted) throw Error("来源版本没有本项目的已提交快照。");
-      setModal({
-        type: "restore",
-        title: "复制来源版本最后已提交方案",
-        rows: submitted.rows || [],
-        otherBudgets: (submitted.otherBudgets || []).map((row) => ({
-          ...row,
-          id: "OB-" + crypto.randomUUID(),
-        })),
-      });
-    } catch (failure) {
-      notify(failure.message, true);
-    } finally {
-      setBusy(false);
-    }
-  };
   const otherInitiatives = (dealerId) =>
     view.initiatives
       .filter(
@@ -1761,6 +1739,11 @@ function EditorContent({
                     {label}
                   </Button>
                 ))}
+                <Button variant="ghost" size="icon" aria-label="清空经销商分配" title="清空经销商分配"
+                  disabled={!editable || !i.rows.some((row) => row.amount !== 0)}
+                  onClick={() => doGuard(() => setModal({ type: "clear-allocations" }))}>
+                  <RotateCcw size={16} aria-hidden="true" />
+                </Button>
                 <Button
                   variant="outline"
                   onClick={() =>
@@ -1891,35 +1874,6 @@ function EditorContent({
                   </div>
                 </EditorDialog>
               )}
-              <div className="actions">
-                <Button
-                  variant="outline"
-                  className="button small"
-                  disabled={
-                    !editable || busy || !state.planningVersion?.sourceVersionId
-                  }
-                  onClick={restoreSource}
-                >
-                  复制来源版已提交方案
-                </Button>
-                <Button
-                  variant="outline"
-                  className="button small"
-                  disabled={!editable || !undo}
-                  onClick={() =>
-                    setModal({ type: "restore", title: "撤销上一步", ...undo })
-                  }
-                >
-                  撤销上一步
-                </Button>
-                <Button
-                  variant="outline"
-                  className="button small"
-                  onClick={() => setModal({ type: "history" })}
-                >
-                  查看本项目提交历史
-                </Button>
-              </div>
             </Card>
           )}
           {activeStep === 3 && (
@@ -2652,31 +2606,17 @@ function EditorContent({
                 "remove-filtered": "取消选择筛选结果",
                 balance: "指定经销商配平",
                 import: "Excel 导入预览",
-                history: "单项同步历史",
+                "clear-allocations": "清空经销商分配",
                 other: "本人其他 Initiative",
               }[modal.type]
             }
             close={close}
             action={
-              modal.type === "restore" ? (
-                <Button
-                  variant="default"
-                  className="button primary"
-                  onClick={() => {
-                    if (
-                      update({
-                        rows: modal.rows,
-                        otherBudgets: modal.otherBudgets,
-                        changeReason: "",
-                      })
-                    ) {
-                      setChangeReason("");
-                      setFillNotice(null);
-                      close();
-                    }
-                  }}
-                >
-                  确认采用
+              modal.type === "clear-allocations" ? (
+                <Button variant="destructive" onClick={() => doGuard(() => {
+                  if (update({ rows: i.rows.map((row) => ({ ...row, amount: 0 })) })) close();
+                })}>
+                  确认清空
                 </Button>
               ) : modal.type === "remove" ? (
                 <Button
@@ -2728,8 +2668,12 @@ function EditorContent({
                       rows: modal.preview.rows,
                       otherBudgets: modal.preview.otherBudgets,
                     };
-                    if (await saveDraft(i.id, values))
+                    if (await saveDraft(i.id, values)) {
+                      trialBaseline.current = null;
+                      setAppliedTrial(null);
+                      setFillNotice(null);
                       close();
+                    }
                   }}
                 >
                   确认写入
@@ -2786,25 +2730,8 @@ function EditorContent({
                 </div>
               </>
             )}
-            {modal.type === "restore" && (
-              <>
-                <p>
-                  将恢复 {modal.rows.length}{" "}
-                  家经销商及对应金额、预留和逐家说明，金额不会按本版预算自动缩放；本次调整原因需重新填写。
-                </p>
-                <p>
-                  经销商分配合计{" "}
-                  {fmt(modal.rows.reduce((sum, row) => sum + row.amount, 0))} 元
-                  · 预留{" "}
-                  {fmt(
-                    modal.otherBudgets.reduce(
-                      (sum, row) => sum + row.amount,
-                      0,
-                    ),
-                  )}{" "}
-                  元
-                </p>
-              </>
+            {modal.type === "clear-allocations" && (
+              <p>将当前项目全部经销商的分配金额清零，保留经销商名单、调整说明和预留。清空后请重新分配并保存；是否继续？</p>
             )}
             {modal.type === "remove" && (
               <p>
@@ -2953,63 +2880,6 @@ function EditorContent({
                     确认时再次校验身份、修订号与原因配置；未同步前不影响管理层数据。
                   </AlertDescription>
                 </Alert>
-              </>
-            )}
-            {modal.type === "history" && (
-              <>
-                {history.length ? (
-                  [...history].reverse().map((record) => (
-                    <Accordion key={record.id} type="single" collapsible>
-                      <AccordionItem value={String(record.id)}>
-                        <AccordionTrigger>
-                          第 {record.number} 次同步 · {time(record.publishedAt)}{" "}
-                          · 修订 {record.publishedRevision}
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <p>
-                            预算 {fmt(record.initiative.budget)} · 经销商分配{" "}
-                            {fmt(E.totals([record.initiative]).allocated)} ·
-                            参考批次 {record.reference.batchId}
-                          </p>
-                          <div className="table-scroll">
-                            <Table containerClassName="overflow-visible">
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>经销商</TableHead>
-                                  <TableHead>同步金额</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {record.initiative.rows.map((r) => (
-                                  <TableRow key={r.dealerId}>
-                                    <TableCell>
-                                      {dealerCode(r.dealerId)}
-                                    </TableCell>
-                                    <TableCell sortValue={r.amount}>
-                                      {fmt(r.amount)}
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                          {record.initiative.otherBudgets?.map((r) => (
-                            <p key={r.id}>
-                              {state.budgetReasons.find(
-                                (reason) => reason.id === r.reasonId,
-                              )?.label || r.reasonId}{" "}
-                              · {fmt(r.amount)} · {r.note}
-                            </p>
-                          ))}
-                        </AccordionContent>
-                      </AccordionItem>
-                    </Accordion>
-                  ))
-                ) : (
-                  <div className="empty">
-                    尚未提交。Owner 提交后进入部门确认，统一确认后管理层才可见。
-                  </div>
-                )}
               </>
             )}
           </EditorDialog>
