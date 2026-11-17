@@ -29,7 +29,7 @@ def test_release_requires_nonempty_future_timezone_aware_deadline(deadline):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("barrier", ["closed", "expired"])
+@pytest.mark.parametrize("barrier", ["closed"])
 async def test_department_submission_and_withdrawal_blocked_after_barrier(barrier):
     session, admin, budgets = await prepare()
     try:
@@ -118,14 +118,13 @@ async def test_release_all_departments_preserves_submissions_drafts_and_audit(ot
         version = await admin.version("202701")
         version.deadline = datetime.now(UTC) - timedelta(seconds=1)
         await session.commit()
-        deadline = datetime.now(UTC) + timedelta(days=2)
         old_revision = version.revision
         result = await admin.release(version.id, PlanningVersionReleaseDTO(
-            expected_revision=version.revision, reason="全版本重新复核", deadline=deadline,
+            expected_revision=version.revision, reason="全版本重新复核",
         ))
         assert result["releasedInitiatives"] == 2
-        assert result["version"]["open"] and not result["version"]["expired"]
-        assert version.revision == old_revision + 1 and version.deadline == deadline
+        assert result["version"]["open"] and "deadline" not in result["version"]
+        assert version.revision == old_revision + 1 and version.deadline is not None
         for index, budget in enumerate(budgets):
             workflow = await PlanningService(
                 session, user(budget.owner_email, department=budget.department)
@@ -143,7 +142,7 @@ async def test_release_all_departments_preserves_submissions_drafts_and_audit(ot
         ))
         assert audit.operator_id == "admin@example.com"
         assert audit.operation_note == "全版本重新复核"
-        assert audit.before_data["deadline"] != audit.after_data["deadline"]
+        assert "deadline" not in audit.after_data
         # Editing a released submission invalidates only that owner's current submission.
         saved = await service(session, user()).save_draft(
             budgets[0].id, InitiativeDraftUpdateDTO(expected_revision=budgets[0].revision,
@@ -155,7 +154,7 @@ async def test_release_all_departments_preserves_submissions_drafts_and_audit(ot
 
 
 @pytest.mark.asyncio
-async def test_release_reopens_closed_version_and_respects_permissions_and_revision(monkeypatch):
+async def test_release_reopens_closed_version_and_respects_permissions_and_revision():
     session, admin, budgets = await prepare()
     try:
         for budget in budgets:
@@ -165,9 +164,8 @@ async def test_release_reopens_closed_version_and_respects_permissions_and_revis
         await admin.update(version.id, PlanningVersionUpdateDTO(
             expected_revision=version.revision, open=False,
         ))
-        deadline = datetime.now(UTC) + timedelta(hours=1)
         command = PlanningVersionReleaseDTO(
-            expected_revision=version.revision, reason="review", deadline=deadline,
+            expected_revision=version.revision, reason="review",
         )
         for identity in [user(), user("lead@example.com", "lead"),
                          replace(user("admin@example.com", "admin"),
@@ -175,56 +173,12 @@ async def test_release_reopens_closed_version_and_respects_permissions_and_revis
             with pytest.raises(HTTPException) as denied:
                 await PlanningService(session, identity).release(version.id, command)
             assert denied.value.status_code == 403
-        # Request can wait on a row lock: server must recheck time after parsing.
-        with monkeypatch.context() as patch:
-            patch.setattr("app.services.planning_service.utc_now", lambda: deadline)
-            with pytest.raises(HTTPException) as elapsed:
-                await admin.release(version.id, command)
-            assert elapsed.value.status_code == 422
         assert not version.open
         await admin.release(version.id, command)
         assert version.open
         with pytest.raises(HTTPException) as stale:
             await admin.release(version.id, command)
         assert stale.value.status_code == 409
-    finally:
-        await session.close()
-
-
-@pytest.mark.asyncio
-async def test_release_rechecks_deadline_after_loading_all_workflows(monkeypatch):
-    session, admin, budgets = await prepare()
-    try:
-        for budget in budgets:
-            await submit(session, budget)
-        await act(session, "confirm")
-        version = await admin.version("202701")
-        revision = version.revision
-        deadline = datetime.now(UTC) + timedelta(minutes=1)
-        command = PlanningVersionReleaseDTO(
-            expected_revision=revision, reason="review", deadline=deadline,
-        )
-        clock = [deadline - timedelta(seconds=1)]
-        loaded = []
-        states_for = admin.states_for
-
-        async def delayed_workflows(loaded_budgets, *, create_missing=False):
-            states = await states_for(loaded_budgets, create_missing=create_missing)
-            loaded.extend(states.values())
-            clock[0] = deadline
-            return states
-
-        monkeypatch.setattr("app.services.planning_service.utc_now", lambda: clock[0])
-        monkeypatch.setattr(admin, "states_for", delayed_workflows)
-        with pytest.raises(HTTPException) as elapsed:
-            await admin.release(version.id, command)
-        assert elapsed.value.status_code == 422
-        assert len(loaded) == len(budgets)
-        assert version.revision == revision and version.deadline is None
-        assert all(state.confirmed_publication_id and state.owner_edit_locked for state in loaded)
-        assert await session.scalar(select(BudgetChangeLogDO).where(
-            BudgetChangeLogDO.operation_type == "VERSION_RELEASE"
-        )) is None
     finally:
         await session.close()
 
@@ -262,7 +216,6 @@ async def test_release_stops_other_open_version():
         await session.commit()
         await admin.release(version.id, PlanningVersionReleaseDTO(
             expected_revision=version.revision, reason="review",
-            deadline=datetime.now(UTC) + timedelta(days=1),
         ))
         assert version.open
         assert not (await session.get(PlanningVersionDO, "202701")).open
@@ -313,17 +266,6 @@ async def test_switch_is_global_preserves_confirmations_and_rejects_stale_or_inv
                 expected_revision=first_revision, open=True,
             ))
         assert stale.value.status_code == 409 and switched.open
-        # Validation fails before another version is deactivated.
-        with pytest.raises(HTTPException) as expired:
-            await admin.update(first.id, PlanningVersionUpdateDTO(
-                expected_revision=first.revision, open=True,
-                deadline=datetime.now(UTC) - timedelta(minutes=1),
-            ))
-        assert expired.value.status_code == 422
-        await session.rollback()
-        first = await admin.version("202701")
-        switched = await admin.version("202801")
-        assert not first.open and switched.open
         await admin.update(first.id, PlanningVersionUpdateDTO(
             expected_revision=first.revision, open=True,
         ))
@@ -339,7 +281,7 @@ async def test_switch_is_global_preserves_confirmations_and_rejects_stale_or_inv
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("activation", [{"published": True}, {"open": True}])
-async def test_expired_legacy_open_version_cannot_deactivate_current_version(activation):
+async def test_legacy_deadline_does_not_prevent_activation(activation):
     session, admin, _ = await prepare()
     try:
         await admin.create(PlanningVersionCreateDTO(
@@ -354,18 +296,9 @@ async def test_expired_legacy_open_version_cannot_deactivate_current_version(act
         legacy.open = True
         legacy.deadline = datetime.now(UTC) - timedelta(minutes=1)
         await session.commit()
-        revisions = (legacy.revision, current.revision)
-        previous_audits = list((await session.scalars(select(BudgetChangeLogDO.id).where(
-            BudgetChangeLogDO.operation_type == "VERSION_DEACTIVATE"
-        ))).all())
-        with pytest.raises(HTTPException) as expired:
-            await admin.update(legacy.id, PlanningVersionUpdateDTO(
-                expected_revision=legacy.revision, **activation,
-            ))
-        assert expired.value.status_code == 422
-        assert current.open and (legacy.revision, current.revision) == revisions
-        assert list((await session.scalars(select(BudgetChangeLogDO.id).where(
-            BudgetChangeLogDO.operation_type == "VERSION_DEACTIVATE"
-        ))).all()) == previous_audits
+        await admin.update(legacy.id, PlanningVersionUpdateDTO(
+            expected_revision=legacy.revision, **activation,
+        ))
+        assert legacy.open and not current.open
     finally:
         await session.close()

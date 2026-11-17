@@ -20,8 +20,7 @@ import {
 import { useState } from "react";
 import * as api from "../api.js";
 import { useWorkbench } from "../WorkbenchContext.jsx";
-import { beijingDeadlineInput, versionStatus } from "./PlanningVersionBar.jsx";
-export { beijingDeadlineInput } from "./PlanningVersionBar.jsx";
+import { versionStatus } from "./PlanningVersionBar.jsx";
 import { WorkflowDialog } from "./WorkflowDialog.jsx";
 
 export function versionSummary(version, state) {
@@ -46,16 +45,6 @@ export function versionSummary(version, state) {
   };
 }
 
-export function deadlineUpdate(version, input) {
-  const date = input ? new Date(`${input}:00+08:00`) : null;
-  if (date && !Number.isFinite(date.getTime()))
-    throw new Error("请填写有效的北京时间");
-  return {
-    expected_revision: version.revision,
-    deadline: date ? date.toISOString() : null,
-  };
-}
-
 export function displayVersionOrder(versions) {
   return [...versions].sort((a, b) =>
     String(a.id).localeCompare(String(b.id), "en", { numeric: true }),
@@ -67,7 +56,6 @@ export function PlanningVersionsPage() {
     state,
     refresh,
     refreshPlanningVersions,
-    selectPlanningVersion,
     notify,
     previewMode,
     apiMode,
@@ -77,17 +65,16 @@ export function PlanningVersionsPage() {
   const [dialog, setDialog] = useState(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
-  const [deadlineError, setDeadlineError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [deleteAcknowledged, setDeleteAcknowledged] = useState(false);
   const [form, setForm] = useState({
     id: "",
     name: "",
     source_version_id: state.currentVersionId || "",
-    deadline: "",
   });
   const open = (value) => {
     setError("");
-    setDeadlineError("");
+    setActionError("");
     setDialog(value);
   };
   const persist = async () => {
@@ -103,14 +90,11 @@ export function PlanningVersionsPage() {
           ...(form.source_version_id
             ? { source_version_id: form.source_version_id }
             : {}),
-          ...(form.deadline
-            ? { deadline: deadlineUpdate({}, form.deadline).deadline }
-            : {}),
         });
         api.setPlanningVersion(form.id.trim());
       } else if (dialog.kind === "edit-confirm") {
         await api.updatePlanningVersion(dialog.version.id, {
-          ...deadlineUpdate(dialog.version, form.deadline),
+          expected_revision: dialog.version.revision,
           id: form.id.trim(), name: form.name.trim(),
         });
         if ((state.currentVersionId || state.planningVersion?.id) === dialog.version.id)
@@ -128,13 +112,6 @@ export function PlanningVersionsPage() {
           ...(dialog.kind === "publish"
             ? { published: true, open: true }
             : { open: dialog.kind === "open" }),
-          ...(dialog.kind === "open"
-            ? {
-                deadline: form.deadline
-                  ? deadlineUpdate({}, form.deadline).deadline
-                  : null,
-              }
-            : {}),
         });
       }
       setDialog(null);
@@ -148,21 +125,21 @@ export function PlanningVersionsPage() {
       notify("规划版本已保存。");
     } catch (failure) {
       setError(failure.message);
-      setDeadlineError(failure.message);
+      setActionError(failure.message);
     } finally {
       setBusy(false);
     }
   };
   const startDelete = async (version) => {
     setBusy(true);
-    setDeadlineError("");
+    setActionError("");
     try {
       const info = await api.planningVersionDeletionInfo(version.id);
-      if (!info.canDelete) throw Error("请先停用版本，再删除规划版本。");
+      if (!info.canDelete) throw Error("请先关闭版本，再删除规划版本。");
       setDeleteAcknowledged(false);
       open({ kind: info.submittedCount ? "delete-warning" : "delete-confirm", version, info });
     } catch (failure) {
-      setDeadlineError(failure.message || "无法检查版本，请刷新后重试。");
+      setActionError(failure.message || "无法检查版本，请刷新后重试。");
     } finally { setBusy(false); }
   };
   return (
@@ -191,10 +168,9 @@ export function PlanningVersionsPage() {
                 <TableHead>版本 / 来源</TableHead>
                 <TableHead>名称</TableHead>
                 <TableHead>创建人</TableHead>
-                <TableHead>提交截止时间（北京时间）</TableHead>
                 <TableHead className="num">启用 Initiative</TableHead>
                 <TableHead className="num">预算合计（万）</TableHead>
-                <TableHead>发布 / 开放状态</TableHead>
+                <TableHead>状态</TableHead>
                 <TableHead>操作</TableHead>
               </TableRow>
             </TableHeader>
@@ -207,9 +183,6 @@ export function PlanningVersionsPage() {
                   </TableCell>
                   <TableCell>{version.name}</TableCell>
                   <TableCell>{version.createdBy || "—"}</TableCell>
-                  <TableCell>
-                    {beijingDeadlineInput(version.deadline)?.replace("T", " ") || "未设置"}
-                  </TableCell>
                   <TableCell className="num">
                     {versionSummary(version, state)?.count ?? "—"}
                   </TableCell>
@@ -233,59 +206,25 @@ export function PlanningVersionsPage() {
                       <Button variant="outline" size="sm" type="button"
                         disabled={previewMode || !apiMode || busy}
                         onClick={() => {
-                          setForm({ id: version.id, name: version.name, deadline: beijingDeadlineInput(version.deadline) });
+                          setForm({ id: version.id, name: version.name });
                           open({ kind: "edit", version });
                         }}>编辑</Button>
                       <Button variant="destructive" size="sm" type="button"
                         disabled={previewMode || !apiMode || busy || (version.published && version.open)}
-                        title={version.published && version.open ? "请先停用版本" : "删除版本"}
+                        title={version.published && version.open ? "请先关闭版本" : "删除版本"}
                         onClick={() => startDelete(version)}>删除</Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        type="button"
-                        disabled={busy}
-                        onClick={() => selectPlanningVersion(version.id, { targetPage: "admin-initiatives" })}
-                      >
-                        配置项目
+                      <Button variant="outline" size="sm" type="button"
+                        disabled={previewMode || !apiMode || busy}
+                        onClick={() => open({ kind: version.published && version.open ? "close" : version.published ? "open" : "publish", version })}>
+                        {version.published && version.open ? "关闭" : "开始"}
                       </Button>
-                      {!version.published ? (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          type="button"
-                          disabled={previewMode || !apiMode || busy}
-                          onClick={() => open({ kind: "publish", version })}
-                        >
-                          发布
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          type="button"
-                          disabled={previewMode || !apiMode || busy}
-                          onClick={() => {
-                            setForm((old) => ({
-                              ...old,
-                              deadline: beijingDeadlineInput(version.deadline),
-                            }));
-                            open({
-                              kind: version.open ? "close" : "open",
-                              version,
-                            });
-                          }}
-                        >
-                          {version.open ? "停用" : "重新发布"}
-                        </Button>
-                      )}
                     </div>
                   </TableCell>
                 </TableRow>
               ))}
               {!versions.length && (
                 <TableRow>
-                  <TableCell colSpan="8">
+                  <TableCell colSpan="7">
                     <div className="empty">
                       尚未创建规划版本。首次创建将从历史年度预算与最后提交快照建立独立版本。
                     </div>
@@ -296,13 +235,13 @@ export function PlanningVersionsPage() {
           </Table>
         </div>
         <p className="tiny">
-          启用项目数与预算合计只统计已加载版本；其他版本未加载时显示“—”，点击“配置项目”读取该版。
+          启用项目数与预算合计只统计已加载版本；其他版本未加载时显示“—”，可在项目配置页面切换版本查看。
         </p>
       </Card>
-      <p className="tiny">同时仅一个版本开放提交。发布或重新发布时，其他版本自动停用；管理员可随时停用版本，已有方案和提交记录保留。截止时间可留空，到期后停止修改、提交和部门撤回。</p>
-      {deadlineError && (
+      <p className="tiny">同时仅一个版本开放提交。开始一个版本时，其他版本自动关闭；关闭后已有方案和提交记录保留。</p>
+      {actionError && (
         <Alert variant="destructive" role="alert">
-          <AlertDescription>{deadlineError}</AlertDescription>
+          <AlertDescription>{actionError}</AlertDescription>
         </Alert>
       )}
       {dialog && (
@@ -313,7 +252,7 @@ export function PlanningVersionsPage() {
             dialog.kind === "edit-confirm" ? "确认修改规划版本" :
             dialog.kind === "delete-warning" ? "删除前请确认" :
             dialog.kind === "delete-confirm" ? "确认删除规划版本" :
-            `${dialog.kind === "publish" ? "发布版本" : dialog.kind === "close" ? "停用版本" : "重新发布版本"} · ${dialog.version.name}`
+            `${dialog.kind === "close" ? "关闭版本" : "开始版本"} · ${dialog.version.name}`
           }
           busy={busy}
           onClose={() => setDialog(null)}
@@ -373,7 +312,6 @@ export function PlanningVersionsPage() {
             <div className="grid gap-4">
               <Label>版本编码（YYYYMM）<Input value={form.id} maxLength="6" onChange={(event) => setForm({ ...form, id: event.target.value.replace(/\D/g, "") })} /></Label>
               <Label>版本名称<Input value={form.name} maxLength="100" onChange={(event) => setForm({ ...form, name: event.target.value })} /></Label>
-              <Label>提交截止时间（北京时间，可留空）<Input type="datetime-local" value={form.deadline} onChange={(event) => setForm({ ...form, deadline: event.target.value })} /></Label>
             </div>
           ) : dialog.kind === "delete-warning" ? (
             <div className="grid gap-4">
@@ -384,29 +322,15 @@ export function PlanningVersionsPage() {
             <p>确认删除版本 {dialog.version.id} · {dialog.version.name}？删除后版本将从业务列表移除，历史数据保留供审计。</p>
           ) : dialog.kind === "edit-confirm" ? (
             <>
-              <p>确认将版本 {dialog.version.id} 修改为 {form.id} · {form.name}，截止时间为 {form.deadline ? form.deadline.replace("T", " ") + "（北京时间）" : "不设截止时间"}？</p>
-              <p>修改版本名称或截止时间保留原发布、开放及部门确认状态，不改变已有分配。已开放版本延后截止时间后可继续提交；已停用版本仍需重新发布。</p>
+              <p>确认将版本 {dialog.version.id} 修改为 {form.id} · {form.name}？</p>
+              <p>修改版本保留原开放和部门确认状态，不改变已有分配。</p>
             </>
           ) : (
             <p>
               {dialog.kind === "close"
-                ? "停用后 Owner 不能修改或提交，各部门不能再提交或撤回。已有分配方案和提交记录保留；可随时重新发布此版本。"
-              : dialog.kind === "publish"
-                ? "发布后，本版本成为唯一开放提交的版本，其他版本自动停用，其已有方案和提交记录保留。Owner 可在本版本填写和提交方案。"
-                : "重新发布后，本版本成为唯一开放提交的版本，其他版本自动停用。已有方案和提交状态保持不变；已提交管理层的部门仍锁定，可由部门撤回后修改，或由管理员驳回并开放全部部门。"}
+                ? "关闭后 Owner 不能修改或提交，各部门不能再提交或撤回。已有分配方案和提交记录保留。"
+                : "开始后，本版本成为唯一开放提交的版本，其他版本自动关闭。已有方案和提交状态保持不变；已提交管理层的部门仍锁定。"}
             </p>
-          )}
-          {["create", "open"].includes(dialog.kind) && (
-            <Label className="flex flex-col items-stretch gap-2 text-left">
-              提交截止时间（北京时间，可选）
-              <Input
-                type="datetime-local"
-                value={form.deadline}
-                onChange={(event) =>
-                  setForm({ ...form, deadline: event.target.value })
-                }
-              />
-            </Label>
           )}
           {error && (
             <Alert variant="destructive" className="note-box warn" role="alert">

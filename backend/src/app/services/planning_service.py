@@ -32,13 +32,6 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-def deadline_passed(version: PlanningVersionDO) -> bool:
-    deadline = version.deadline
-    if deadline is not None and deadline.tzinfo is None:
-        deadline = deadline.replace(tzinfo=UTC)
-    return deadline is not None and deadline <= utc_now()
-
-
 def version_view(version: PlanningVersionDO) -> dict:
     return {
         "id": version.id,
@@ -48,9 +41,7 @@ def version_view(version: PlanningVersionDO) -> dict:
         "sourceVersionId": version.source_version_id,
         "published": version.published,
         "open": version.open,
-        "deadline": iso_timestamp(version.deadline),
         "revision": version.revision,
-        "expired": deadline_passed(version),
     }
 
 
@@ -169,10 +160,9 @@ class PlanningService:
         if (
             not version.published
             or not version.open
-            or deadline_passed(version)
             or not budget.enabled
         ):
-            raise HTTPException(409, "当前版本未开放、已截止或项目已取消，请联系管理员")
+            raise HTTPException(409, "当前版本未开放或项目已取消，请联系管理员")
         state = await self.state(budget.id)
         if state and state.confirmed_publication_id:
             raise HTTPException(
@@ -234,7 +224,6 @@ class PlanningService:
                 version
                 and version.published
                 and version.open
-                and not deadline_passed(version)
                 and budget.enabled
                 and not (state and state.confirmed_publication_id)
                 and self.user.role in {"owner", "lead"}
@@ -323,7 +312,6 @@ class PlanningService:
             name=payload.name,
             planning_year=payload.planning_year,
             source_version_id=payload.source_version_id,
-            deadline=payload.deadline,
             published=False,
             open=False,
             revision=0,
@@ -456,18 +444,16 @@ class PlanningService:
                 raise HTTPException(
                     422, "当前版本包含非整数预算，请在本版项目配置修正为非负整数元后再发布或开放"
                 )
-        for name in ("published", "open", "deadline"):
+        for name in ("published", "open"):
             if name in payload.model_fields_set:
-                if name != "deadline" and getattr(payload, name) is None:
+                if getattr(payload, name) is None:
                     raise HTTPException(422, "发布与开放状态不能为 null")
                 setattr(version, name, getattr(payload, name))
-        # Both publishing and reopening can activate the submission window.
-        # Use one predicate so neither path bypasses expiry before closing others.
         activating = version.published and version.open and (
             payload.open is True or payload.published is True
         )
-        if version.open and (not version.published or (activating and deadline_passed(version))):
-            raise HTTPException(422, "仅已发布且未截止的版本可以开放")
+        if version.open and not version.published:
+            raise HTTPException(422, "仅已发布的版本可以开放")
         if activating:
             await self.close_other_versions(version)
         version.revision += 1
@@ -501,9 +487,6 @@ class PlanningService:
         await AdminService(self.session, self.user)._locked_config()
         version = await self.version(version_id, lock=True)
         self.check_revision(version, payload.expected_revision)
-        # Recheck after waiting for the lock, not just during request parsing.
-        if payload.deadline <= utc_now():
-            raise HTTPException(422, "新的关闭时间必须晚于当前时间")
         if not version.published:
             raise HTTPException(409, "仅已发布版本可以驳回全部部门")
         before = version_view(version)
@@ -511,15 +494,12 @@ class PlanningService:
             select(BudgetDO).where(BudgetDO.planning_version_id == version_id)
         )).all())
         states = (await self.states_for(budgets, create_missing=True)).values()
-        if payload.deadline <= utc_now():
-            raise HTTPException(422, "新的关闭时间必须晚于当前时间")
         for state in states:
             state.owner_edit_locked = False
             state.confirmed_publication_id = None
             state.confirmed_by = None
             state.confirmed_at = None
             # Keep submissions, dirty drafts and existing resubmission requirements intact.
-        version.deadline = payload.deadline
         version.open = True
         await self.close_other_versions(version)
         version.revision += 1
@@ -632,11 +612,11 @@ class PlanningService:
             "confirmed": confirmed,
             "canConfirm": bool(
                 items and submitted == len(items) and confirmed < len(items)
-                and version.published and version.open and not deadline_passed(version)
+                and version.published and version.open
                 and self.user.role == "lead" and not self.user.preview_actor_email
             ),
             "canWithdraw": bool(confirmed and version.published and version.open
-                                and not deadline_passed(version) and self.user.role == "lead"
+                                and self.user.role == "lead"
                                 and not self.user.preview_actor_email),
         }
 
@@ -650,8 +630,8 @@ class PlanningService:
             raise HTTPException(422, "已取消退回 Owner 流程，请撤回部门提交")
         version = await self.version(version_id, lock=True)
         self.check_revision(version, payload.expected_revision)
-        if not version.published or not version.open or deadline_passed(version):
-            raise HTTPException(409, "版本已关闭提交、已截止或未发布，不能提交或撤回部门方案")
+        if not version.published or not version.open:
+            raise HTTPException(409, "版本已关闭或未开始，不能提交或撤回部门方案")
         budgets = await self.department_budgets(version_id, payload.sector, payload.department)
         by_budget = await self.states_for(budgets, create_missing=True)
         states = [(b, by_budget[b.id]) for b in budgets]

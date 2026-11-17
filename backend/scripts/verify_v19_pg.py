@@ -16,7 +16,6 @@ import json
 import os
 import sys
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from time import perf_counter
 from typing import Any
@@ -452,14 +451,6 @@ async def check_api(connection: AsyncConnection, checks: list[dict[str, str]]) -
         )
         source_open = (await api.workspace("admin", FIRST))["state"]["planningVersion"]["open"]
         record(checks, "new_version_stops_unconfirmed_source", not source_open)
-        first_version = (await api.workspace("admin", FIRST))["state"]["planningVersion"]
-        await api.call("PATCH", f"planning-versions/{FIRST}", status=422, body={
-            "expected_revision": first_version["revision"], "open": True,
-            "deadline": (datetime.now(UTC) - timedelta(minutes=1)).isoformat(),
-        })
-        record(checks, "failed_reopen_preserves_current_open_version",
-               (await api.workspace("admin", SECOND))["state"]["planningVersion"]["open"]
-               and not (await api.workspace("admin", FIRST))["state"]["planningVersion"]["open"])
         inherited = copied[source_keys["mkt-a1"]]
         submitted = await api.call(
             "POST", f"initiatives/{inherited['id']}/publish", "owner-a",
@@ -516,34 +507,18 @@ async def check_api(connection: AsyncConnection, checks: list[dict[str, str]]) -
         })
         record(checks, "deleted_version_code_reused", recreated["name"] == "Synthetic recreated")
         current_version = (await api.workspace("admin", SECOND))["state"]["planningVersion"]
-        await api.call(
-            "PATCH",
-            f"planning-versions/{SECOND}",
-            body={
-                "expected_revision": current_version["revision"],
-                "deadline": (datetime.now(UTC) - timedelta(minutes=1)).isoformat(),
-            },
-        )
-        expired = await api.workspace("owner-a", SECOND)
-        record(
-            checks,
-            "expired_version_disables_owner_editing",
-            expired["state"]["planningVersion"]["expired"]
-            and all(not item["editable"] for item in expired["state"]["initiatives"]),
-        )
         before_extension = await api.call(
             "GET", f"initiatives/{inherited['id']}/draft", "owner-a",
         )
         extended = await api.call("PATCH", f"planning-versions/{SECOND}", body={
-            "expected_revision": expired["state"]["planningVersion"]["revision"],
+            "expected_revision": current_version["revision"],
             "name": "Synthetic extended version",
-            "deadline": (datetime.now(UTC) + timedelta(days=2)).isoformat(),
         })
         after_extension = await api.call(
             "GET", f"initiatives/{inherited['id']}/draft", "owner-a",
         )
-        record(checks, "deadline_extension_restores_permissions_and_preserves_work",
-               extended["open"] and extended["published"] and not extended["expired"]
+        record(checks, "version_metadata_edit_preserves_permissions_and_work",
+               extended["open"] and extended["published"]
                and after_extension["editable"]
                and after_extension["rows"] == before_extension["rows"]
                and after_extension["revision"] == before_extension["revision"]
@@ -567,7 +542,7 @@ async def check_api(connection: AsyncConnection, checks: list[dict[str, str]]) -
                and after_configuration["rows"] == after_extension["rows"]
                and after_configuration["workflow"]["requiresResubmission"])
         await api.submit("owner-a", inherited["id"], dealer)
-        record(checks, "owner_can_submit_after_deadline_extension_and_configuration")
+        record(checks, "owner_can_submit_after_version_edit_and_configuration")
         record(
             checks, "service_commits_remain_inside_outer_transaction", connection.in_transaction()
         )

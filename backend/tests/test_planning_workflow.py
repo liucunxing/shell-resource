@@ -277,9 +277,7 @@ async def test_stale_revision_scopes_and_deadline_are_enforced():
         version = await session.get(PlanningVersionDO, "202701")
         version.deadline = datetime.now(UTC) - timedelta(seconds=1)
         await session.commit()
-        with pytest.raises(HTTPException) as expired:
-            await submit(session, budgets[0])
-        assert expired.value.status_code == 409
+        await submit(session, budgets[0])
     finally:
         await session.close()
 
@@ -562,14 +560,12 @@ async def test_http_version_routes_validate_scope_and_preview_read_only():
         ][0]
         release = {
             "expected_revision": current["revision"], "reason": "全量复核",
-            "deadline": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
         }
         for headers in (owner, preview, {"X-User-Email": "lead@example.com"}):
             denied = await client.post("planning-versions/202701/release", headers=headers,
                                        json=release)
             assert denied.status_code == 403
-        for invalid in ({"deadline": None}, {"deadline": "2000-01-01T00:00:00Z"},
-                        {"deadline": "2099-01-01T00:00:00"}, {"reason": " "}):
+        for invalid in ({"deadline": None}, {"reason": " "}):
             rejected = await client.post("planning-versions/202701/release", headers=admin,
                                          json={**release, **invalid})
             assert rejected.status_code == 422
@@ -835,7 +831,6 @@ async def test_owner_can_revise_until_confirmation_and_admin_release_unlocks_all
         version = await session.get(PlanningVersionDO, "202701")
         await admin.release("202701", PlanningVersionReleaseDTO(
             expected_revision=version.revision, reason="管理层复核",
-            deadline=datetime.now(UTC) + timedelta(days=1),
         ))
         for budget in budgets:
             workflow = (await service(session, user(budget.owner_email)).get_draft(

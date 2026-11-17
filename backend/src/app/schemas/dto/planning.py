@@ -1,6 +1,5 @@
 """Planning version commands use explicit optimistic revisions."""
 
-from datetime import UTC, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -14,14 +13,6 @@ class PlanningVersionCreateDTO(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     planning_year: int = Field(ge=2020, le=2100)
     source_version_id: str | None = Field(default=None, max_length=32)
-    deadline: datetime | None = None
-
-    @field_validator("deadline")
-    @classmethod
-    def timezone_required(cls, value: datetime | None) -> datetime | None:
-        if value is not None and value.tzinfo is None:
-            raise ValueError("截止时间必须包含时区")
-        return value
 
 
 class PlanningVersionUpdateDTO(BaseModel):
@@ -31,27 +22,13 @@ class PlanningVersionUpdateDTO(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     published: bool | None = None
     open: bool | None = None
-    deadline: datetime | None = None
-
-    @field_validator("deadline")
-    @classmethod
-    def timezone_required(cls, value: datetime | None) -> datetime | None:
-        return PlanningVersionCreateDTO.timezone_required(value)
 
 
 class PlanningVersionReleaseDTO(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     expected_revision: int = Field(ge=0)
-    deadline: datetime
     reason: str = Field(min_length=1, max_length=160)
 
-    @field_validator("deadline")
-    @classmethod
-    def future_deadline(cls, value: datetime) -> datetime:
-        PlanningVersionCreateDTO.timezone_required(value)
-        if value <= datetime.now(UTC):
-            raise ValueError("新的关闭时间必须晚于当前时间")
-        return value
 
 
 class PlanningVersionDeleteDTO(BaseModel):

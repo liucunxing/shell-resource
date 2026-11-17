@@ -1,8 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
-  beijingDeadlineInput,
-  deadlineUpdate,
   displayVersionOrder,
   PlanningVersionsPage,
   versionSummary,
@@ -48,34 +46,10 @@ describe("V19 version table and deadlines", () => {
       versionSummary(current, { ...state, initiatives: [{ budget: null }] }),
     ).toEqual({ count: 1, budget: null });
   });
-  it("uses Beijing time independent of browser timezone and clears without reopening", () => {
-    expect(beijingDeadlineInput(current.deadline)).toBe("2026-12-01T17:30");
-    expect(deadlineUpdate(current, "2026-12-01T17:30", 0)).toEqual({
-      expected_revision: 5,
-      deadline: current.deadline.replace("Z", ".000Z"),
-    });
-    expect(deadlineUpdate({ ...current, open: false }, "")).toEqual({
-      expected_revision: 5,
-      deadline: null,
-    });
-  });
-  it("keeps expiry separate from the administrator deactivating a version", () => {
-    expect(
-      deadlineUpdate(
-        current,
-        "2026-11-01T08:00",
-        Date.parse("2026-11-14T00:00:00Z"),
-      ),
-    ).toEqual({
-      expected_revision: 5,
-      deadline: "2026-11-01T00:00:00.000Z",
-    });
-  });
-  it("distinguishes unpublished, inactive and expired versions without losing publication state", () => {
-    expect(versionStatus({ ...current, published: false })).toBe("未发布");
-    expect(versionStatus({ ...current, open: false })).toBe("已停用");
-    expect(versionStatus({ ...current, deadline: "2000-01-01T00:00:00Z" })).toBe("已截止");
-    expect(versionStatus({ ...current, deadline: null })).toBe("开放提交");
+  it("uses open state regardless of historical deadline", () => {
+    expect(versionStatus({ ...current, published: false })).toBe("未开始");
+    expect(versionStatus({ ...current, open: false })).toBe("已关闭");
+    expect(versionStatus({ ...current, deadline: "2000-01-01T00:00:00Z" })).toBe("开放提交");
   });
   it("renders creators and deadlines in the version table with read-only preview controls", () => {
     useWorkbench.mockReturnValue({
@@ -98,13 +72,13 @@ describe("V19 version table and deadlines", () => {
     const html = renderToStaticMarkup(<PlanningVersionsPage />);
     expect(html).toContain("启用 Initiative");
     expect(html).toContain("预算合计（万）");
-    expect(html).toContain("提交截止时间");
+    expect(html).not.toContain("提交截止时间");
     expect(html).toContain("admin@example.com");
     expect(html).not.toContain("<h2>提交截止时间</h2>");
-    expect(html).toContain("2026-12-01 17:30");
+    expect(html).not.toContain("2026-12-01 17:30");
     expect(html).not.toContain("撤回发布");
-    expect(html).toContain(">停用</button>");
-    expect(html).toContain(">重新发布</button>");
+    expect(html).toContain(">关闭</button>");
+    expect(html).toContain(">开始</button>");
     expect(html).toContain("同时仅一个版本开放提交");
     expect(html).not.toContain("所有部门提交齐全后才能关闭");
     expect(html).not.toContain('type="datetime-local"');
@@ -112,12 +86,10 @@ describe("V19 version table and deadlines", () => {
     expect(html).toMatch(/data-variant="destructive"[^>]*disabled=""[^>]*>删除/);
   });
 
-  it("shows the selected version's Beijing deadline to owner and lead", () => {
+  it("does not show submission deadlines in the version bar", () => {
     for (const role of ["owner", "lead"]) {
       useWorkbench.mockReturnValue({ state: { planningVersion: current, planningVersions: [current] }, identity: { role }, apiMode: true });
-      expect(renderToStaticMarkup(<PlanningVersionBar />)).toContain("提交截止时间：2026-12-01 17:30（北京时间）");
-      useWorkbench.mockReturnValue({ state: { planningVersion: { ...current, deadline: null }, planningVersions: [] }, identity: { role }, apiMode: true });
-      expect(renderToStaticMarkup(<PlanningVersionBar />)).toContain("提交截止时间：未设置（北京时间）");
+      expect(renderToStaticMarkup(<PlanningVersionBar />)).not.toContain("截止时间");
     }
   });
 });

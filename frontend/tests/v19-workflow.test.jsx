@@ -56,7 +56,7 @@ describe("V19 persisted workflow client", () => {
     expect(reviewStatus({ workflow: { submitted: false, requiresResubmission: true } })).toBe("待重新提交");
   });
   it("shows expired deadlines without claiming the version remains open", () => {
-    expect(versionStatus({ published: true, open: true, deadline: "2000-01-01T00:00:00Z" })).toBe("已截止");
-    expect(versionStatus({ published: false, open: false })).toBe("未发布");
+    expect(versionStatus({ published: true, open: true, deadline: "2000-01-01T00:00:00Z" })).toBe("开放提交");
+    expect(versionStatus({ published: false, open: false })).toBe("未开始");
   });
 });

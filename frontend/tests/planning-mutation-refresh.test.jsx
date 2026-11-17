@@ -75,8 +75,8 @@ it("preserves creating and selecting the new version before its workspace loads"
 it("reloads the current workspace when publishing another version may deactivate it", async () => {
   harness.context.state.planningVersion = { ...current, open: true };
   const row = find(render(), node => node.key === other.id);
-  find(row, node => node.props?.children === "发布").props.onClick();
-  await find(render(), node => node.props?.title === "发布版本 · Other").props.onConfirm();
+  find(row, node => node.props?.children === "开始").props.onClick();
+  await find(render(), node => node.props?.title === "开始版本 · Other").props.onConfirm();
   expect(harness.update).toHaveBeenCalledWith(other.id, { expected_revision: 1, published: true, open: true });
   expect(harness.context.refresh).toHaveBeenCalledWith({ preservePage: true });
   expect(harness.context.refreshPlanningVersions).not.toHaveBeenCalled();
@@ -86,9 +86,9 @@ it("reloads the current workspace when publishing another version may deactivate
 it("also reloads the current workspace after republishing another inactive version", async () => {
   harness.context.state.planningVersions = [current, { ...other, published: true }];
   const row = find(render(), node => node.key === other.id);
-  find(row, node => node.props?.children === "重新发布").props.onClick();
-  await find(render(), node => node.props?.title === "重新发布版本 · Other").props.onConfirm();
-  expect(harness.update).toHaveBeenCalledWith(other.id, { expected_revision: 1, open: true, deadline: null });
+  find(row, node => node.props?.children === "开始").props.onClick();
+  await find(render(), node => node.props?.title === "开始版本 · Other").props.onConfirm();
+  expect(harness.update).toHaveBeenCalledWith(other.id, { expected_revision: 1, open: true });
   expect(harness.context.refresh).toHaveBeenCalledWith({ preservePage: true });
   expect(harness.context.refreshPlanningVersions).not.toHaveBeenCalled();
 });
@@ -96,8 +96,8 @@ it("also reloads the current workspace after republishing another inactive versi
 it("reports workspace refresh failure after publishing another version", async () => {
   harness.context.refresh.mockResolvedValue(false);
   const row = find(render(), node => node.key === other.id);
-  find(row, node => node.props?.children === "发布").props.onClick();
-  await find(render(), node => node.props?.title === "发布版本 · Other").props.onConfirm();
+  find(row, node => node.props?.children === "开始").props.onClick();
+  await find(render(), node => node.props?.title === "开始版本 · Other").props.onConfirm();
   expect(harness.context.notify).toHaveBeenCalledWith(expect.stringContaining("刷新失败"), true);
   expect(harness.context.notify).not.toHaveBeenCalledWith("规划版本已保存。");
 });
@@ -109,11 +109,10 @@ it.each([true, false])("edits version metadata without changing open/published f
   const row = find(render(), node => node.key === current.id);
   find(row, node => node.props?.children === "编辑").props.onClick();
   find(render(), node => node.props?.maxLength === "100").props.onChange({ target: { value: "Updated" } });
-  find(render(), node => node.props?.type === "datetime-local").props.onChange({ target: { value: "2026-12-31T18:00" } });
   find(render(), node => node.props?.title === `编辑规划版本 · ${current.id}`).props.onConfirm();
   await find(render(), node => node.props?.title === "确认修改规划版本").props.onConfirm();
   expect(harness.update).toHaveBeenCalledWith(current.id, {
-    expected_revision: current.revision, id: current.id, name: "Updated", deadline: "2026-12-31T10:00:00.000Z",
+    expected_revision: current.revision, id: current.id, name: "Updated",
   });
   expect(harness.context.refresh).toHaveBeenCalledWith({ preservePage: true });
 });
