@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { InitiativeSwitcher } from "../src/workbench/pages/InitiativeSwitcher";
-import { LegendColorProvider } from "../src/workbench/LegendColors";
 import E from "../src/workbench/domain/engine.js";
 import D from "../src/workbench/domain/demo-data.json";
 
@@ -11,26 +10,19 @@ const initiatives = [
   { id: "3", initiativeKey: "C", name: "Branding LV+PVC", sector: "PCMO" },
 ];
 
-describe("editor initiative buttons", () => {
-  it("shows all authorized choices as buttons with configured colors and a pressed current choice", () => {
-    const html = renderToStaticMarkup(<LegendColorProvider colors={{ initiatives: { A: "#123456" } }}>
-      <InitiativeSwitcher initiatives={initiatives} currentId="1" onSelect={() => {}} />
-    </LegendColorProvider>);
-    expect(html.match(/<button /g)).toHaveLength(3);
-    expect(html.match(/aria-pressed="true"/g)).toHaveLength(1);
-    expect(html).toContain("--initiative-color:#123456");
-    expect(html).toContain("grid-template-columns:repeat(2, max-content)");
-    expect(html).not.toContain("<select");
-    expect(html).not.toContain('role="combobox"');
+describe("editor initiative selector", () => {
+  it("renders authorized initiatives in a labelled select with the current choice", () => {
+    const html = renderToStaticMarkup(<InitiativeSwitcher initiatives={initiatives} currentId="1" onSelect={() => {}} />);
+    expect(html).toContain('for="editor-initiative-select"');
+    expect(html).toContain('<select');
+    expect(html.match(/<option /g)).toHaveLength(3);
+    expect(html).toContain('value="1" selected');
   });
 
-  it("selects an explicit project without reselecting the current project", () => {
+  it("passes the selected project to the existing navigation guard", () => {
     const select = vi.fn();
     const element = InitiativeSwitcher({ initiatives, currentId: "1", onSelect: select });
-    const buttons = element.props.children[1].props.children.props.children;
-    buttons[0].props.onClick();
-    expect(select).not.toHaveBeenCalled();
-    buttons[2].props.onClick();
+    element.props.children[1].props.onChange({ target: { value: "3" } });
     expect(select).toHaveBeenCalledWith("3");
   });
 
