@@ -250,6 +250,13 @@
   top: 0;
   z-index: 3;
 }
+.v19-editor .v19-quick-allocation-hint {
+  margin-top: 14px;
+  border: 1px solid #e1bd32;
+  border-left: 4px solid #d4a900;
+  background: #fff8d9;
+  color: #514000;
+}
 .v19-editor .v19-trial-tools {
   display: flex;
   align-items: center;
