@@ -45,6 +45,7 @@ import { Fragment, useEffect, useRef, useLayoutEffect, useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
 import { allocateByHistory } from "../domain/history-allocation";
+import { restoredTrial, trialDraftState } from "../domain/trial-draft.js";
 import {
   allocationHistoryField,
   historyDisplayValue,
@@ -454,12 +455,12 @@ function EditorContent({
     i,
   );
   const previousAcknowledgement = useRef(acknowledgementFingerprint);
+  const trial = restoredTrial(i);
   const [detail, setDetail] = useState(null);
   const [modal, setModal] = useState(null),
     [historyMetric, setHistoryMetric] = useState("c3"),
     [historyPeriod, setHistoryPeriod] = useState("2025"),
-    [trialPeriod, setTrialPeriod] = useState("2025"),
-    [appliedTrial, setAppliedTrial] = useState(null),
+    [trialPeriod, setTrialPeriod] = useState(() => trial?.period || "2025"),
     [activeStep, setActiveStep] = useState(() => restoredEditorStep(identity, state.planningVersion?.id, i, editable)),
     [balanceIds, setBalanceIds] = useState([]),
     [scopeSearch, setScopeSearch] = useState(""),
@@ -482,9 +483,8 @@ function EditorContent({
     ),
     [busy, setBusy] = useState(false);
   const allocationEditOrder = useRef(null);
-  const trialBaseline = useRef(null);
-  useEffect(() => { trialBaseline.current = null; }, [initiativeId]);
-  useEffect(() => { setFillNotice(null); setAppliedTrial(null); }, [initiativeId, trialPeriod]);
+  const appliedTrial = trial?.period === trialPeriod ? trial.metric : null;
+  useEffect(() => { setFillNotice(null); }, [initiativeId, trialPeriod]);
   useEffect(() => {
     if (previousAcknowledgement.current !== acknowledgementFingerprint) {
       if (!previouslySubmitted) setActiveStep(1);
@@ -614,6 +614,7 @@ function EditorContent({
       const saved = await saveDraft(i.id, {
         changeReason: changeReason.trim(),
         editorState: {
+          ...i.editorState,
           step,
           reserveAcknowledgement: reserveConfirmed ? acknowledgementFingerprint : "",
         },
@@ -651,12 +652,13 @@ function EditorContent({
     return true;
   };
   const update = (patch, preserveTrial = false) => {
+    const resetTrial = !preserveTrial && (patch.rows || patch.otherBudgets);
     const changed = mutate((s) =>
-      E.updateInitiative(s, i.id, patch, identity, data),
+      E.updateInitiative(s, i.id, resetTrial
+        ? { ...patch, editorState: { ...i.editorState, trial: null } }
+        : patch, identity, data),
     );
-    if (changed && !preserveTrial && (patch.rows || patch.otherBudgets)) {
-      trialBaseline.current = null;
-      setAppliedTrial(null);
+    if (changed && resetTrial) {
       setFillNotice(null);
     }
     return changed;
@@ -821,9 +823,7 @@ function EditorContent({
       );
       if (!alive.current) return;
       if (!roster && !preview.errors.length) {
-        if (await saveDraft(i.id, { rows: preview.rows, otherBudgets: preview.otherBudgets }, undefined, true)) {
-          trialBaseline.current = null;
-          setAppliedTrial(null);
+        if (await saveDraft(i.id, { rows: preview.rows, otherBudgets: preview.otherBudgets, editorState: { ...i.editorState, trial: null } }, undefined, true)) {
           setFillNotice(null);
         }
       } else {
@@ -838,8 +838,8 @@ function EditorContent({
   const historyFill = (metric, period = historyPeriod) =>
     doGuard(() => {
       try {
-        if (appliedTrial === metric && trialBaseline.current) {
-          if (update({ rows: structuredClone(trialBaseline.current) })) {
+        if (trial?.metric === metric && trial.period === period) {
+          if (update({ rows: structuredClone(trial.baselineRows) })) {
             notify("已撤销快捷方案，恢复试算前的分配。");
           }
           return;
@@ -861,10 +861,14 @@ function EditorContent({
           setFillNotice(null);
           throw Error("历史权重合计为 0，不能应用试算。");
         }
-        const originalRows = trialBaseline.current || structuredClone(i.rows);
-        if (update({ rows: allocation.rows }, true)) {
-          trialBaseline.current = originalRows;
-          setAppliedTrial(metric);
+        const originalRows = trial?.baselineRows || i.rows;
+        if (update({
+          rows: allocation.rows,
+          editorState: {
+            ...i.editorState,
+            trial: trialDraftState(i, allocation.rows, metric, period, originalRows),
+          },
+        }, true)) {
           setFillNotice({
             metricLabel: label,
             hasHistory: true,
@@ -1341,6 +1345,7 @@ function EditorContent({
                           </span>
                         </TableHead>
                         <TableHead rowSpan={2}>经销商</TableHead>
+                        <TableHead rowSpan={2}>经销商编码</TableHead>
                         <TableHead rowSpan={2}>SD / RSM</TableHead>
                         <TableHead rowSpan={2}>状态</TableHead>
                         <TableHead
@@ -1439,8 +1444,8 @@ function EditorContent({
                               >
                                 {dealer.name || "—"}
                               </DealerDetailButton>
-                              <small>{dealerCode(dealer.id)}</small>
                             </TableCell>
+                            <TableCell sortValue={dealerCode(dealer.id)}>{dealerCode(dealer.id) || "—"}</TableCell>
                             <TableCell>
                               {dealer.sd || "—"} / {dealer.rsm || "—"}
                             </TableCell>
@@ -2700,10 +2705,9 @@ function EditorContent({
                     const values = {
                       rows: modal.preview.rows,
                       otherBudgets: modal.preview.otherBudgets,
+                      editorState: { ...i.editorState, trial: null },
                     };
                     if (await saveDraft(i.id, values)) {
-                      trialBaseline.current = null;
-                      setAppliedTrial(null);
                       setFillNotice(null);
                       close();
                     }
