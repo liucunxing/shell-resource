@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const harness = vi.hoisted(() => ({ slots: [], cursor: 0, context: null,
-  workspace: vi.fn(), versions: vi.fn(), save: vi.fn(), publish: vi.fn() }));
+  workspace: vi.fn(), versions: vi.fn(), save: vi.fn(), publish: vi.fn(), getDraft: vi.fn() }));
 vi.mock("react", async (original) => ({
   ...(await original()),
   useState(initial) {
@@ -18,7 +18,7 @@ vi.mock("react", async (original) => ({
 vi.mock("../src/workbench/api.js", () => ({
   acceptPortalEmail: vi.fn(), getDevelopmentEmail: () => "owner@example.test", setPlanningVersion: vi.fn(),
   workspace: harness.workspace, planningVersions: harness.versions,
-  saveDraft: harness.save, publish: harness.publish,
+  saveDraft: harness.save, publish: harness.publish, getDraft: harness.getDraft,
 }));
 import { WorkbenchProvider, useWorkbench } from "../src/workbench/WorkbenchContext.jsx";
 
@@ -40,6 +40,7 @@ beforeEach(async () => {
   harness.workspace.mockReset().mockResolvedValue(payload());
   harness.versions.mockReset().mockResolvedValue([version, { id: "202702", revision: 1 }]);
   harness.save.mockReset().mockResolvedValue({ ...initiative, revision: 8 });
+  harness.getDraft.mockReset().mockResolvedValue({ ...initiative, revision: 12 });
   harness.publish.mockReset().mockImplementation(async (_id, draft) => ({ id: "P-1", publishedRevision: draft.revision }));
   vi.stubGlobal("document", { querySelector: () => null });
   render(); await harness.context.refresh(); render();
@@ -144,4 +145,15 @@ it("keeps unsaved allocation state when navigating between initiatives", async (
   expect(harness.context.state.initiatives[0].rows[0].amount).toBe(31);
   expect(harness.context.dirtyIds.has("1")).toBe(true);
   expect(harness.save).not.toHaveBeenCalled();
+});
+
+it("imports replacement rows using the current server revision instead of the local revision", async () => {
+  const rows = [{ dealerId: "D1", amount: 30 }];
+  harness.context.mutate((state) => { state.initiatives[0].revision = 10; });
+  render();
+  harness.save.mockResolvedValueOnce({ ...initiative, rows, revision: 13 });
+  await expect(harness.context.saveDraft("1", { rows, otherBudgets: [] }, undefined, true)).resolves.toBe(true);
+  expect(harness.getDraft).toHaveBeenCalledWith("1");
+  expect(harness.save).toHaveBeenCalledWith("1", expect.objectContaining({ rows }), 12);
+  expect(render().state.initiatives[0]).toMatchObject({ revision: 13, rows });
 });
