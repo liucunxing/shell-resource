@@ -363,6 +363,7 @@ export function VersionDifferenceDrawer({
                 <TableHeader>
                   <TableRow>
                     <TableHead>经销商</TableHead>
+                    <TableHead>经销商编码</TableHead>
                     <TableHead>Sector</TableHead>
                     <TableHead>{previousVersion} SD / RSM</TableHead>
                     <TableHead>{currentVersion} SD / RSM</TableHead>
@@ -381,8 +382,8 @@ export function VersionDifferenceDrawer({
                           items: row.current ? data.right.items : data.left.items,
                           dealers: row.current ? result.currentDealers || result.dealers || [] : result.previousDealers || result.dealers || [],
                         })}>{row.name}</DealerDetailButton>
-                        <small>{row.code}</small>
                       </TableCell>
+                      <TableCell>{row.code || "—"}</TableCell>
                       <TableCell>{row.sector}</TableCell>
                       <TableCell>
                         {row.previous
@@ -405,7 +406,7 @@ export function VersionDifferenceDrawer({
                   ))}
                   {!visible.length && (
                     <TableRow>
-                      <TableCell colSpan={8}>
+                      <TableCell colSpan={9}>
                         当前范围没有可见的经销商分配。
                       </TableCell>
                     </TableRow>

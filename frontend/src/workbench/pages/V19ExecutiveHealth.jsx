@@ -471,7 +471,8 @@ export function V19ExecutiveHealth({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>经销商</TableHead>
+                  <TableHead>经销商名称</TableHead>
+                  <TableHead>经销商编码</TableHead>
                   <TableHead>SD</TableHead>
                   <TableHead>投资金额（万元）</TableHead>
                   <TableHead>{label}</TableHead>
@@ -482,6 +483,7 @@ export function V19ExecutiveHealth({
                 {detail.result?.top.map((row) => (
                   <TableRow key={row.key}>
                     <TableCell>{row.name}</TableCell>
+                    <TableCell>{row.code || "—"}</TableCell>
                     <TableCell>{row.sd}</TableCell>
                     <TableCell sortValue={row.amount / 10000}>
                       {number(row.amount / 10000)}
