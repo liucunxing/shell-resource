@@ -1330,12 +1330,7 @@ function EditorContent({
                                   return;
                                 }
                                 const ids = new Set(scopeDealers.map((dealer) => String(dealer.id)));
-                                const removed = i.rows.filter((row) => ids.has(String(row.dealerId)));
-                                if (removed.some((row) => Number(row.amount) !== 0)) {
-                                  setModal({ type: "remove-filtered", ids: [...ids], count: removed.length });
-                                } else {
-                                  update({ rows: i.rows.filter((row) => !ids.has(String(row.dealerId))) });
-                                }
+                                update({ rows: i.rows.filter((row) => !ids.has(String(row.dealerId))) });
                               })}
                             />
                             全选
@@ -2642,7 +2637,6 @@ function EditorContent({
               modal.title ||
               {
                 remove: "移除经销商分配",
-                "remove-filtered": "取消选择筛选结果",
                 balance: "指定经销商配平",
                 import: "Excel 导入预览",
                 "clear-allocations": "清空经销商分配",
@@ -2674,11 +2668,6 @@ function EditorContent({
                 >
                   确认移除
                 </Button>
-              ) : modal.type === "remove-filtered" ? (
-                <Button variant="destructive" className="button danger" onClick={() => {
-                  const ids = new Set(modal.ids);
-                  if (update({ rows: i.rows.filter((row) => !ids.has(String(row.dealerId))) })) close();
-                }}>确认移除</Button>
               ) : modal.type === "balance" ? (
                 <Button
                   variant="default"
@@ -2777,9 +2766,6 @@ function EditorContent({
                 移除 {dealerLabel(modal.dealerId)} 的 {fmt(modal.amount)}{" "}
                 分配后，金额将成为未解释差额，不会自动移到其他行。
               </p>
-            )}
-            {modal.type === "remove-filtered" && (
-              <p>筛选结果中将移除 {modal.count} 家已选经销商，其中已有分配金额的部分将成为未解释差额，不会自动移到其他行。</p>
             )}
             {modal.type === "balance" && (
               <>
