@@ -227,8 +227,7 @@ export function SubmissionPage() {
     (item) =>
       savedForSyncIds.has(item.id) &&
       item.workflow?.editable !== false &&
-      hasReserveAcknowledgement(identity, state.planningVersion?.id, item) &&
-      (!state.planningVersion?.sourceVersionId || item.changeReason?.trim()),
+      hasReserveAcknowledgement(identity, state.planningVersion?.id, item),
   );
   return (
     <>

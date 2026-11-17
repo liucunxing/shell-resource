@@ -547,7 +547,8 @@ async def test_http_version_routes_validate_scope_and_preview_read_only():
 
 
 @pytest.mark.asyncio
-async def test_new_version_requires_fresh_change_reason_and_serializes_utc():
+@pytest.mark.parametrize("note", ["", "   "])
+async def test_new_version_submits_without_reason_preserves_optional_note_and_serializes_utc(note):
     session, admin, budgets = await prepare()
     try:
         original = await submit(session, budgets[0])
@@ -569,9 +570,11 @@ async def test_new_version_requires_fresh_change_reason_and_serializes_utc():
             )
         )
         owner = service(session, user())
-        with pytest.raises(HTTPException) as missing:
-            await owner.publish(budget.id, PublishDTO(expected_revision=0))
-        assert missing.value.status_code == 422
+        inherited = await owner.publish(budget.id, PublishDTO(expected_revision=0, note=note))
+        assert inherited["initiative"]["changeReason"] == ""
+        assert inherited["initiative"]["workflow"]["submitted"]
+        assert inherited["initiative"]["workflow"]["editable"]
+        assert inherited["note"] is None
         saved = await owner.save_draft(
             budget.id,
             InitiativeDraftUpdateDTO(
@@ -584,6 +587,26 @@ async def test_new_version_requires_fresh_change_reason_and_serializes_utc():
         result = await owner.publish(budget.id, PublishDTO(expected_revision=1))
         assert result["initiative"]["changeReason"] == "重新核对上版名单"
         assert result["initiative"]["workflow"]["submittedAt"].endswith("+00:00")
+        saved = await owner.save_draft(
+            budget.id,
+            InitiativeDraftUpdateDTO(
+                expected_revision=1,
+                rows=[{"dealerId": "d1", "amount": 60}, {"dealerId": "d2", "amount": 40}],
+                changeReason=note,
+            ),
+        )
+        assert not saved["workflow"]["submitted"] and saved["workflow"]["editable"]
+        resubmitted = await owner.publish(
+            budget.id, PublishDTO(expected_revision=saved["revision"], note=note)
+        )
+        assert resubmitted["initiative"]["changeReason"] == ""
+        assert resubmitted["initiative"]["workflow"]["submitted"]
+        assert resubmitted["note"] is None
+        history = await owner.publications(budget.id)
+        assert len(history) == 3
+        assert {item["id"]: item["initiative"]["changeReason"] for item in history} == {
+            inherited["id"]: "", result["id"]: "重新核对上版名单", resubmitted["id"]: "",
+        }
     finally:
         await session.close()
 

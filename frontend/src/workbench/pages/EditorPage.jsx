@@ -194,10 +194,9 @@ export function MissingHistoryNotice({ metricLabel, unavailable, hasHistory }) {
   );
 }
 
-export function submissionBlockReasons({ errors, needsReason, operation }) {
+export function submissionBlockReasons({ errors, operation }) {
   return [
     ...errors.map((error) => error.replace("标记完成", "提交当前方案")),
-    ...(needsReason ? ["请填写本版变更原因。"] : []),
     ...(operation ? [operation === "publish" ? "正在提交，请稍候。" : "正在保存，请稍候。"] : []),
   ];
 }
@@ -625,8 +624,6 @@ function EditorContent({
     (!i.workflow || i.workflow.submitted);
   const canSynchronize =
     editable &&
-    (!state.planningVersion?.sourceVersionId ||
-      changeReason.trim().length > 0) &&
     canSynchronizeLatest({
       savedForSync,
       hasUnsavedChanges,
@@ -635,7 +632,6 @@ function EditorContent({
     });
   const submissionReasons = submissionBlockReasons({
     errors,
-    needsReason: Boolean(state.planningVersion?.sourceVersionId && !changeReason.trim()),
     operation,
   });
   const guard = () => {
@@ -2529,7 +2525,7 @@ function EditorContent({
           )}
           {activeStep === 1 && (
             <Card className="panel v19-adjustment-reason">
-              <h2>调整依据说明</h2>
+              <h2>调整依据说明（选填）</h2>
               <Input
                 aria-label="调整依据说明"
                 maxLength="160"
@@ -2539,7 +2535,7 @@ function EditorContent({
                 onBlur={() => {
                   if (changeReason !== (i.changeReason || "")) update({ changeReason });
                 }}
-                placeholder="说明本版名单、金额或预留变化原因"
+                placeholder="选填，可补充本版名单、金额或预留变化说明"
               />
             </Card>
           )}

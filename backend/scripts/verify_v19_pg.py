@@ -239,7 +239,6 @@ class AcceptanceAPI:
                     }
                 ],
                 "otherBudgets": [{"reasonId": "fixed", "amount": reserve}] if reserve else [],
-                "changeReason": "Synthetic review of the current version",
             },
         )
         await self.call(
@@ -453,6 +452,19 @@ async def check_api(connection: AsyncConnection, checks: list[dict[str, str]]) -
         )
         source_open = (await api.workspace("admin", FIRST))["state"]["planningVersion"]["open"]
         record(checks, "new_version_preserves_unconfirmed_source", source_open)
+        inherited = copied[source_keys["mkt-a1"]]
+        submitted = await api.call(
+            "POST", f"initiatives/{inherited['id']}/publish", "owner-a",
+            body={"expected_revision": inherited["revision"]},
+        )
+        record(checks, "inherited_version_submits_without_change_reason",
+               submitted["initiative"]["workflow"]["submitted"]
+               and not submitted["initiative"]["changeReason"] and submitted["note"] is None)
+        await api.submit("owner-a", inherited["id"], dealer, reserve=25)
+        resubmitted = await api.call("GET", f"initiatives/{inherited['id']}/draft", "owner-a")
+        record(checks, "inherited_version_can_edit_and_resubmit_without_change_reason",
+               resubmitted["workflow"]["submitted"] and resubmitted["workflow"]["editable"]
+               and not resubmitted["changeReason"] and resubmitted["rows"][0]["amount"] == 75)
         await api.submit("owner-a", ids["mkt-a1"], dealer)
         await api.action("confirm")
         for sector, department, actor in [("PCMO", "ICE", "lead"), ("CRTO", "MKT", "lead-crto")]:
