@@ -83,6 +83,45 @@ async def act(session, action, **kwargs):
 
 
 @pytest.mark.asyncio
+async def test_lead_owns_draft_without_exposing_other_drafts_or_changing_department_snapshot():
+    session, _, budgets = await prepare()
+    try:
+        own, other = budgets
+        own.owner_email = "lead@example.com"
+        await session.commit()
+        lead = service(session, user("lead@example.com", "lead"))
+        saved = await lead.save_draft(own.id, InitiativeDraftUpdateDTO(
+            expected_revision=own.revision, rows=[{"dealerId": "d1", "amount": "100"}]
+        ))
+        workspace = await lead.get_workspace(2027, version_id="202701")
+        snapshots = {item["id"]: item for item in workspace["state"]["initiatives"]}
+        drafts = workspace["state"]["ownInitiatives"]
+        assert [item["id"] for item in drafts] == [str(own.id)]
+        assert drafts[0]["rows"] and drafts[0]["workflow"]["editable"]
+        assert not snapshots[str(own.id)]["rows"] and not snapshots[str(other.id)]["rows"]
+        with pytest.raises(HTTPException) as denied:
+            await lead.save_draft(
+                other.id, InitiativeDraftUpdateDTO(expected_revision=other.revision)
+            )
+        assert denied.value.status_code == 403
+        await lead.publish(own.id, PublishDTO(expected_revision=saved["revision"]))
+        await submit(session, other)
+        await act(session, "confirm")
+        locked = await lead.get_workspace(2027, version_id="202701")
+        assert not locked["state"]["ownInitiatives"][0]["workflow"]["editable"]
+        with pytest.raises(HTTPException) as failure:
+            await lead.save_draft(
+                own.id, InitiativeDraftUpdateDTO(expected_revision=saved["revision"])
+            )
+        assert failure.value.status_code == 409
+        await act(session, "withdraw", reason="需要调整")
+        unlocked = await lead.get_workspace(2027, version_id="202701")
+        assert unlocked["state"]["ownInitiatives"][0]["workflow"]["editable"]
+    finally:
+        await session.close()
+
+
+@pytest.mark.asyncio
 async def test_reuse_deleted_version_code_preserves_archived_version_and_budgets():
     session, admin, _ = await prepare()
     try:
