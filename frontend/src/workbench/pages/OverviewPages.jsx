@@ -562,6 +562,7 @@ function PortfolioDashboard({ mode }) {
         </TabsContent>
         <TabsContent value="dealers">
           <V19DealerDetails
+            showColumnJumps={mode !== "department"}
             budgetReasons={state.budgetReasons}
             ytdCutoffMonth={state.ytdCutoffMonth}
             items={analysisItems}
