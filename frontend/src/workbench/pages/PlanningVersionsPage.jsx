@@ -17,7 +17,7 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from "../../components/ui/native-select";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import * as api from "../api.js";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import { versionStatus } from "./PlanningVersionBar.jsx";
@@ -67,6 +67,7 @@ export function PlanningVersionsPage() {
     [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
   const [deleteAcknowledged, setDeleteAcknowledged] = useState(false);
+  const pending = useRef(false);
   const [form, setForm] = useState({
     id: "",
     name: "",
@@ -78,10 +79,13 @@ export function PlanningVersionsPage() {
     setDialog(value);
   };
   const persist = async () => {
+    if (previewMode || !apiMode || busy || pending.current || !dialog) return;
+    if (dialog.kind === "delete-confirm" && dialog.info.submittedCount > 0 && !deleteAcknowledged) return;
+    pending.current = true;
     setBusy(true);
     setError("");
     try {
-      const changesCurrent = ["create", "publish", "open"].includes(dialog.kind) ||
+      const changesCurrent = ["create", "activate"].includes(dialog.kind) ||
         dialog.version?.id === (state.currentVersionId || state.planningVersion?.id);
       if (dialog.kind === "create") {
         await api.createPlanningVersion({
@@ -109,9 +113,9 @@ export function PlanningVersionsPage() {
       } else {
         await api.updatePlanningVersion(dialog.version.id, {
           expected_revision: dialog.version.revision,
-          ...(dialog.kind === "publish"
+          ...(dialog.kind === "activate"
             ? { published: true, open: true }
-            : { open: dialog.kind === "open" }),
+            : { open: false }),
         });
       }
       setDialog(null);
@@ -127,20 +131,23 @@ export function PlanningVersionsPage() {
       setError(failure.message);
       setActionError(failure.message);
     } finally {
+      pending.current = false;
       setBusy(false);
     }
   };
   const startDelete = async (version) => {
+    if (previewMode || !apiMode || busy || pending.current) return;
+    pending.current = true;
     setBusy(true);
     setActionError("");
     try {
       const info = await api.planningVersionDeletionInfo(version.id);
-      if (!info.canDelete) throw Error("请先关闭版本，再删除规划版本。");
+      if (!info.canDelete) throw Error("请先停用版本，再移除规划版本。");
       setDeleteAcknowledged(false);
       open({ kind: info.submittedCount ? "delete-warning" : "delete-confirm", version, info });
     } catch (failure) {
       setActionError(failure.message || "无法检查版本，请刷新后重试。");
-    } finally { setBusy(false); }
+    } finally { pending.current = false; setBusy(false); }
   };
   return (
     <>
@@ -196,7 +203,7 @@ export function PlanningVersionsPage() {
                   <TableCell>
                     <Badge
                       variant="secondary"
-                      className={`resource-status ${versionStatus(version) === "开放提交" ? "done" : "editing"}`}
+                      className={`resource-status ${version.published && version.open ? "done" : "editing"}`}
                     >
                       {versionStatus(version)}
                     </Badge>
@@ -211,13 +218,14 @@ export function PlanningVersionsPage() {
                         }}>编辑</Button>
                       <Button variant="destructive" size="sm" type="button"
                         disabled={previewMode || !apiMode || busy || (version.published && version.open)}
-                        title={version.published && version.open ? "请先关闭版本" : "删除版本"}
-                        onClick={() => startDelete(version)}>删除</Button>
+                        title={version.published && version.open ? "请先停用版本" : "移除版本"}
+                        onClick={() => startDelete(version)}>移除</Button>
                       <Button variant="outline" size="sm" type="button"
-                        disabled={previewMode || !apiMode || busy}
-                        onClick={() => open({ kind: version.published && version.open ? "close" : version.published ? "open" : "publish", version })}>
-                        {version.published && version.open ? "关闭" : "开始"}
-                      </Button>
+                        disabled={previewMode || !apiMode || busy || (version.published && version.open)}
+                        onClick={() => open({ kind: "activate", version })}>启用</Button>
+                      <Button variant="outline" size="sm" type="button"
+                        disabled={previewMode || !apiMode || busy || !(version.published && version.open)}
+                        onClick={() => open({ kind: "deactivate", version })}>停用</Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -238,7 +246,7 @@ export function PlanningVersionsPage() {
           启用项目数与预算合计只统计已加载版本；其他版本未加载时显示“—”，可在项目配置页面切换版本查看。
         </p>
       </Card>
-      <p className="tiny">同时仅一个版本开放提交。开始一个版本时，其他版本自动关闭；关闭后已有方案和提交记录保留。</p>
+      <p className="tiny">同时仅一个版本开放提交。启用一个版本时，其他版本自动停用；停用后分配不能再修改或提交，已有数据仍可按原权限查看，管理员仍可维护项目配置。移除后版本不再显示在业务列表，历史数据保留供审计。</p>
       {actionError && (
         <Alert variant="destructive" role="alert">
           <AlertDescription>{actionError}</AlertDescription>
@@ -250,16 +258,17 @@ export function PlanningVersionsPage() {
             dialog.kind === "create" ? "创建规划版本" :
             dialog.kind === "edit" ? `编辑规划版本 · ${dialog.version.id}` :
             dialog.kind === "edit-confirm" ? "确认修改规划版本" :
-            dialog.kind === "delete-warning" ? "删除前请确认" :
-            dialog.kind === "delete-confirm" ? "确认删除规划版本" :
-            `${dialog.kind === "close" ? "关闭版本" : "开始版本"} · ${dialog.version.name}`
+            dialog.kind === "delete-warning" ? "移除前请确认" :
+            dialog.kind === "delete-confirm" ? "确认移除规划版本" :
+            `${dialog.kind === "deactivate" ? "停用版本" : "启用版本"} · ${dialog.version.name}`
           }
           busy={busy}
           onClose={() => setDialog(null)}
           onConfirm={dialog.kind === "edit" ? () => open({ ...dialog, kind: "edit-confirm" }) :
             dialog.kind === "delete-warning" ? () => open({ ...dialog, kind: "delete-confirm" }) : persist}
-          confirmLabel={dialog.kind === "edit" || dialog.kind === "delete-warning" ? "继续" : dialog.kind === "delete-confirm" ? "确认删除" : "确认"}
+          confirmLabel={dialog.kind === "edit" || dialog.kind === "delete-warning" ? "继续" : dialog.kind === "delete-confirm" ? "确认移除" : "确认"}
           disabled={
+            previewMode || !apiMode ||
             (["create", "edit"].includes(dialog.kind) &&
               (!/^20\d{2}(0[1-9]|1[0-2])$/.test(form.id) || !form.name.trim())) ||
             (dialog.kind === "delete-warning" && !deleteAcknowledged)
@@ -315,21 +324,21 @@ export function PlanningVersionsPage() {
             </div>
           ) : dialog.kind === "delete-warning" ? (
             <div className="grid gap-4">
-              <p>该版本有 {dialog.info.submittedCount} 条提交记录。删除后业务用户将无法访问该版本，项目和提交记录保留供审计。</p>
-              <Label className="flex items-center gap-2"><Checkbox checked={deleteAcknowledged} onCheckedChange={(checked) => setDeleteAcknowledged(checked === true)} />我已了解并确认删除该版本</Label>
+              <p>该版本有 {dialog.info.submittedCount} 条提交记录。移除后业务用户将无法访问该版本，项目和提交记录保留供审计。</p>
+              <Label className="flex items-center gap-2"><Checkbox checked={deleteAcknowledged} onCheckedChange={(checked) => setDeleteAcknowledged(checked === true)} />我已了解并确认移除该版本</Label>
             </div>
           ) : dialog.kind === "delete-confirm" ? (
-            <p>确认删除版本 {dialog.version.id} · {dialog.version.name}？删除后版本将从业务列表移除，历史数据保留供审计。</p>
+            <p>确认移除版本 {dialog.version.id} · {dialog.version.name}？移除后版本将不再显示在业务列表，历史数据保留供审计。</p>
           ) : dialog.kind === "edit-confirm" ? (
             <>
               <p>确认将版本 {dialog.version.id} 修改为 {form.id} · {form.name}？</p>
-              <p>修改版本保留原开放和部门确认状态，不改变已有分配。</p>
+              <p>修改版本保留原启用和部门确认状态，不改变已有分配。</p>
             </>
           ) : (
             <p>
-              {dialog.kind === "close"
-                ? "关闭后 Owner 不能修改或提交，各部门不能再提交或撤回。已有分配方案和提交记录保留。"
-                : "开始后，本版本成为唯一开放提交的版本，其他版本自动关闭。已有方案和提交状态保持不变；已提交管理层的部门仍锁定。"}
+              {dialog.kind === "deactivate"
+                ? "停用后所有人不能再修改分配或提交，各部门不能再提交或撤回。已有分配方案、提交记录和部门确认保留，仍可按原权限查看；管理员仍可维护项目配置。"
+                : "启用后，本版本成为唯一开放提交的版本，其他版本自动停用。已有方案和提交状态保持不变；已提交管理层的部门仍锁定。"}
             </p>
           )}
           {error && (

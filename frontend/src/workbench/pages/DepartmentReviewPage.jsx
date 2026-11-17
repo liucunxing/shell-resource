@@ -155,7 +155,7 @@ export function DepartmentReviewPage() {
         });
       } else {
         if (!departmentWindowOpen(result?.version || current))
-          throw Error("当前版本已关闭，不能提交或撤回部门方案。");
+          throw Error("当前版本已停用，不能提交或撤回部门方案。");
         await api.reviewDepartment(current.id, dialog.action, {
           ...selectedScope,
           expected_revision: result.version.revision,
@@ -268,7 +268,7 @@ export function DepartmentReviewPage() {
             </div>
             <p className="studio-table-note">
               部门提交前 Owner 可直接修改；撤回部门提交后，当前部门全部 Owner 恢复编辑，已有提交保留。
-              保存修改后须重新提交，未修改的项目无需重复提交。管理员关闭版本后，部门不能再提交或撤回。
+              保存修改后须重新提交，未修改的项目无需重复提交。管理员停用版本后，部门不能再提交或撤回。
               {identity.role === "admin" && " 管理员驳回会开放当前版本全部部门，不受查看范围限制，。"}
             </p>
             <div className="table-scroll v20-review-scroll">
