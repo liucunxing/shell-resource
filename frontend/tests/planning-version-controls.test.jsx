@@ -8,7 +8,7 @@ import {
   versionSummary,
 } from "../src/workbench/pages/PlanningVersionsPage.jsx";
 import { useWorkbench } from "../src/workbench/WorkbenchContext.jsx";
-import { PlanningVersionBar } from "../src/workbench/pages/PlanningVersionBar.jsx";
+import { PlanningVersionBar, versionStatus } from "../src/workbench/pages/PlanningVersionBar.jsx";
 
 vi.mock("../src/workbench/WorkbenchContext.jsx", () => ({
   useWorkbench: vi.fn(),
@@ -59,7 +59,7 @@ describe("V19 version table and deadlines", () => {
       deadline: null,
     });
   });
-  it("keeps expiry separate from the administrator closing a fully submitted version", () => {
+  it("keeps expiry separate from the administrator deactivating a version", () => {
     expect(
       deadlineUpdate(
         current,
@@ -70,6 +70,12 @@ describe("V19 version table and deadlines", () => {
       expected_revision: 5,
       deadline: "2026-11-01T00:00:00.000Z",
     });
+  });
+  it("distinguishes unpublished, inactive and expired versions without losing publication state", () => {
+    expect(versionStatus({ ...current, published: false })).toBe("未发布");
+    expect(versionStatus({ ...current, open: false })).toBe("已停用");
+    expect(versionStatus({ ...current, deadline: "2000-01-01T00:00:00Z" })).toBe("已截止");
+    expect(versionStatus({ ...current, deadline: null })).toBe("开放提交");
   });
   it("renders creators and deadlines in the version table with read-only preview controls", () => {
     useWorkbench.mockReturnValue({
@@ -97,6 +103,10 @@ describe("V19 version table and deadlines", () => {
     expect(html).not.toContain("<h2>提交截止时间</h2>");
     expect(html).toContain("2026-12-01 17:30");
     expect(html).not.toContain("撤回发布");
+    expect(html).toContain(">停用</button>");
+    expect(html).toContain(">重新发布</button>");
+    expect(html).toContain("同时仅一个版本开放提交");
+    expect(html).not.toContain("所有部门提交齐全后才能关闭");
     expect(html).not.toContain('type="datetime-local"');
     expect(html).not.toContain(">保存</button>");
     expect(html).toMatch(/data-variant="destructive"[^>]*disabled=""[^>]*>删除/);

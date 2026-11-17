@@ -209,7 +209,7 @@ async def test_source_copy_only_last_submission_and_version_isolation():
             "202702", PlanningVersionUpdateDTO(expected_revision=0, published=True, open=True)
         )
         first = await session.get(PlanningVersionDO, "202701")
-        assert first.open
+        assert not first.open
         workspace = await service(session, user()).get_workspace(2027)
         assert workspace["state"]["currentVersionId"] == "202702"
         assert all(i["planningVersionId"] == "202702" for i in workspace["state"]["initiatives"])

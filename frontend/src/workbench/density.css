@@ -1,0 +1,54 @@
+/* Compact workbench density: retain readable type and existing column geometry. */
+:is(.v19-fidelity-shell, [data-slot="dialog-content"], [data-slot="sheet-content"]) [data-slot="table"] [data-slot="table-head"] {
+  height: 34px;
+  padding-block: 6px;
+}
+:is(.v19-fidelity-shell, [data-slot="dialog-content"], [data-slot="sheet-content"]) [data-slot="table"] [data-slot="table-cell"] {
+  padding-block: 5px;
+}
+:is(.v19-fidelity-shell, [data-slot="dialog-content"], [data-slot="sheet-content"]) [data-slot="table"] [data-slot="button"] {
+  height: 32px;
+  padding-block: 4px;
+}
+:is(.v19-fidelity-shell, [data-slot="dialog-content"], [data-slot="sheet-content"]) [data-slot="table"] [data-slot="button"][data-variant="link"] {
+  height: auto;
+  min-height: 0;
+  padding-block: 0;
+}
+:is(.v19-fidelity-shell, [data-slot="dialog-content"], [data-slot="sheet-content"]) :is([data-slot="input"], [data-slot="native-select"]) {
+  height: 32px;
+  padding-block: 4px;
+}
+:is(.v19-fidelity-shell, [data-slot="dialog-content"], [data-slot="sheet-content"]) .form-field {
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.v19-fidelity-shell .studio-table-toolbar {
+  justify-content: flex-start;
+  align-items: center;
+  gap: 8px;
+}
+.v19-fidelity-shell .studio-table-toolbar input,
+.v19-fidelity-shell .v19-allocation-filters > input {
+  flex: 0 1 280px;
+  width: 280px;
+  min-width: 0;
+  max-width: 100%;
+  height: 32px;
+  margin-left: 0;
+}
+.v19-fidelity-shell .studio-table-toolbar [data-slot="native-select-wrapper"] {
+  flex: 0 1 160px;
+  max-width: 100%;
+}
+.v19-fidelity-shell .studio-table-toolbar select { height: 32px; }
+.v19-fidelity-shell .v19-allocation-table tbody [data-slot="table-cell"] { padding-block: 4px; }
+.v19-fidelity-shell .raw-panel > .toolbar { justify-content: flex-start; flex-wrap: wrap; gap: 8px; }
+.v19-fidelity-shell .raw-panel > .toolbar label,
+.v19-fidelity-shell .raw-history-search,
+.v19-fidelity-shell .raw-budget-search { margin-left: 0; }
+.v19-fidelity-shell :is(.raw-history-search, .raw-budget-search) input {
+  width: 280px;
+  min-width: 0;
+  max-width: 100%;
+}

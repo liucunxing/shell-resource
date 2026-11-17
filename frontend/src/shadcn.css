@@ -5,6 +5,7 @@
 @import "./styles.css" layer(legacy);
 @import "./workbench/v19-fidelity.css";
 @import "./workbench/login-compat.css";
+@import "./workbench/density.css";
 
 @custom-variant dark (&:is(.dark *));
 
