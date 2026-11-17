@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sortedAllocationRows, weightedAllocationYield } from "../src/workbench/pages/EditorPage.jsx";
+import { allocationBalanceLabel, sortedAllocationRows, weightedAllocationYield } from "../src/workbench/pages/EditorPage.jsx";
 
 const rows = [{ dealerId: "a", amount: 2 }, { dealerId: "b", amount: 9 }, { dealerId: "c", amount: 9 }];
 const history = (c3, investment, extra = {}) => ({ c32025: c3, c32026Ytd: c3, totalInvestment2025: investment, totalInvestment2026Ytd: investment, ...extra });
@@ -30,5 +30,14 @@ describe("V19 allocation table reference and ordering", () => {
     const value = (row) => row.dealerId === "b" ? null : row.amount;
     expect(sortedAllocationRows(rows, value, "desc").map((row) => row.dealerId)).toEqual(["c", "a", "b"]);
     expect(sortedAllocationRows(rows, value, "asc").map((row) => row.dealerId)).toEqual(["a", "c", "b"]);
+  });
+});
+
+
+describe("allocation balance indicator", () => {
+  it("shows shortages and excesses in yuan and hides a balanced amount", () => {
+    expect(allocationBalanceLabel(1234.56)).toBe("（少分 1,234.56 元）");
+    expect(allocationBalanceLabel(-0.01)).toBe("（多分 0.01 元）");
+    expect(allocationBalanceLabel(0)).toBe("");
   });
 });

@@ -76,6 +76,11 @@ export {
 } from "../domain/reserve-review.js";
 const fmt = (n) =>
   Number(n || 0).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
+export function allocationBalanceLabel(gap) {
+  const cents = Math.round(Number(gap) * 100);
+  if (!Number.isFinite(cents) || cents === 0) return "";
+  return `（${cents > 0 ? "少分" : "多分"} ${fmt(Math.abs(cents) / 100)} 元）`;
+}
 const histFmt = (value) =>
   historyDisplayValue(value) === null ? "—" : fmt(historyDisplayValue(value));
 const pct = (n, d) => (d ? ((n / d) * 100).toFixed(2) : "0.00");
@@ -2295,6 +2300,14 @@ function EditorContent({
                         >
                           {key === "name"
                             ? "范围合计 / 加权值"
+                            : key === "amount" ? (
+                              <>
+                                {fmt(totals.allocated)}
+                                {allocationBalanceLabel(totals.gap) && (
+                                  <span className="allocation-balance-gap">{allocationBalanceLabel(totals.gap)}</span>
+                                )}
+                              </>
+                            )
                             : ["code", "status", "sd", "rsm", "support", "note"].includes(key)
                               ? ""
                               : allocationFormat(
