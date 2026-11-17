@@ -60,7 +60,7 @@ it("paginates the full roster and keeps the top ten marked after sorting and fil
  nodes(tree).find(n=>text(n)==="下一页"&&n.props.onClick).props.onClick();
  tree=render(props); expect(cells(tree,"name")).toHaveLength(5); expect(text(tree)).toContain("2 / 2");
  nodes(tree).find(n=>n.props["aria-label"]==="搜索叠加经销商").props.onChange({target:{value:"Dealer 00"}});
- tree=render(props); expect(cells(tree,"name")).toHaveLength(1); expect(text(cells(tree,"name")[0])).toContain("Top 1"); expect(text(tree)).toContain("1 / 1");
+ tree=render(props); expect(cells(tree,"name")).toHaveLength(1); expect(text(cells(tree,"rank")[0])).toContain("Top 1"); expect(text(tree)).toContain("1 / 1");
 });
 
 it("renders and sorts dealer codes separately without changing top rankings",()=>{
@@ -70,8 +70,8 @@ it("renders and sorts dealer codes separately without changing top rankings",()=
  const button=nodes(headers(tree).find(n=>n.props["data-column"]==="code")).find(n=>n.props.onClick);
  button.props.onClick(); tree=render();
  expect(cells(tree,"code").map(text)).toEqual(["001","002","003"]);
- expect(text(cells(tree,"name")[0])).toContain("Top 1");
+ expect(text(cells(tree,"rank")[0])).toContain("Top 1");
  button.props.onClick(); tree=render();
  expect(cells(tree,"code").map(text)).toEqual(["003","002","001"]);
- expect(text(cells(tree,"name")[2])).toContain("Top 1");
+ expect(text(cells(tree,"rank")[2])).toContain("Top 1");
 });
