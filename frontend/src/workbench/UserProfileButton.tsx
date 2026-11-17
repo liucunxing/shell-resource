@@ -123,6 +123,7 @@ export function UserProfileButton({ identity }: { identity: ProfileIdentity }) {
         </Button>
       </DialogTrigger>
       <DialogContent
+        size="form"
         className="user-profile-dialog"
         aria-describedby={undefined}
       >
