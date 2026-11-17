@@ -215,7 +215,7 @@ export function AdminImportPanel({ kind }) {
           {kind === "initiatives" && (
             <p>
               目标版本：{version.id} · {version.name}
-              。每行须填写变化原因；变更项目撤回本版提交，版本需重新发布。经销商分配和历史提交快照保留。
+              。每行须填写变化原因；变更项目需重新提交，相关部门需重新确认。版本的发布与开放状态、经销商分配和历史提交快照保留。
             </p>
           )}
           {error && (

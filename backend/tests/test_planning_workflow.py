@@ -318,7 +318,7 @@ async def test_withdraw_reason_and_stale_decisions():
 
 
 @pytest.mark.asyncio
-async def test_admin_configuration_preserves_amounts_and_requires_republication():
+async def test_admin_configuration_preserves_open_version_and_requires_project_resubmission():
     from app.schemas.dto.planning import VersionInitiativeDTO
 
     session, admin, budgets = await prepare()
@@ -341,8 +341,8 @@ async def test_admin_configuration_preserves_amounts_and_requires_republication(
                 reason="预算增加",
             ),
         )
-        assert result["version"]["published"] is False
-        assert result["version"]["open"] is False
+        assert result["version"]["published"] is True
+        assert result["version"]["open"] is True
         assert (await WorkspaceRepository(session).rows_for(budgets[0].id))[
             0
         ].distributor_budget_amount == 100
@@ -350,6 +350,8 @@ async def test_admin_configuration_preserves_amounts_and_requires_republication(
         assert statuses[0]["requiresResubmission"]
         assert not any(s["confirmed"] for s in statuses)
         assert statuses[1]["submitted"]
+        owner_draft = await service(session, user()).get_draft(budgets[0].id)
+        assert owner_draft["editable"]
     finally:
         await session.close()
 
