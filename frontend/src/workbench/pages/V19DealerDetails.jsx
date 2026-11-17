@@ -84,6 +84,7 @@ export function V19DealerDetails({
   ytdCutoffMonth = 10,
   sourceItems = null,
   budgetReasons = [],
+  showColumnJumps = true,
 }) {
   const [period, setPeriod] = useState("2025"),
     [basis, setBasis] = useState("c3"),
@@ -223,7 +224,7 @@ export function V19DealerDetails({
           {...{ period, setPeriod, basis, setBasis, ytdCutoffMonth }}
         />
         <div className="studio-table-toolbar">
-          <div className="v19-dealer-jumps">
+          {showColumnJumps && <div className="v19-dealer-jumps">
             <span>快速定位列组</span>
             {[
               ["amountShare", "占比与差值"],
@@ -240,7 +241,7 @@ export function V19DealerDetails({
                 {title}
               </Button>
             ))}
-          </div>
+          </div>}
           <Input
             aria-label="搜索经销商或编码"
             placeholder="搜索经销商 / 编码 / SD / RSM"
