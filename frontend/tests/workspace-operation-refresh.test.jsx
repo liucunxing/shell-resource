@@ -22,6 +22,7 @@ vi.mock("../src/workbench/api.js", () => ({
 }));
 import { WorkbenchProvider, useWorkbench } from "../src/workbench/WorkbenchContext.jsx";
 import E from "../src/workbench/domain/engine.js";
+import { hasReserveAcknowledgement, reserveAcknowledgementFingerprint, restoredEditorStep } from "../src/workbench/domain/reserve-review.js";
 
 const version = { id: "202701", revision: 4, published: true, open: true };
 const initiative = { id: "1", department: "MKT", sector: "B2B", revision: 7,
@@ -180,4 +181,70 @@ it("imports replacement rows using the current server revision instead of the lo
   expect(harness.getDraft).toHaveBeenCalledWith("1");
   expect(harness.save).toHaveBeenCalledWith("1", expect.objectContaining({ rows }), 12);
   expect(render().state.initiatives[0]).toMatchObject({ revision: 13, rows });
+});
+
+it("keeps each initiative's step, checkbox and allocation while switching and after saving/reloading", async () => {
+  const first = { ...initiative, ownerId: "owner@example.test", planningVersionId: version.id,
+    budget: 100, otherBudgets: [{ id: "temporary", reasonId: "reserve", amount: 10, note: "待定" }] };
+  const second = { ...first, id: "2", rows: [{ dealerId: "D1", amount: 0 }], otherBudgets: [] };
+  const workspace = { ...payload(), state: { ...payload().state, initiatives: [first, second] } };
+  harness.workspace.mockResolvedValue(workspace);
+  harness.save.mockImplementation(async (_id, draft) => ({ ...draft, revision: draft.revision + 1,
+    otherBudgets: draft.otherBudgets.map((row, index) => ({ ...row, id: String(100 + index) })) }));
+  await harness.context.refresh(); render();
+  harness.context.navigate("editor", "1"); render();
+  harness.context.mutate((state) => {
+    const item = state.initiatives[0];
+    item.rows = [{ dealerId: "D1", amount: 90 }];
+    item.editorState = { step: 3, reserveAcknowledgement: reserveAcknowledgementFingerprint(item) };
+  });
+  render();
+  await expect(harness.context.saveDraft("1")).resolves.toBe(true); render();
+  harness.context.navigate("editor", "2"); render();
+  harness.context.mutate((state) => {
+    const item = state.initiatives[1];
+    item.otherBudgets = [{ id: "second-reserve", reasonId: "reserve", amount: 25, note: "预留" }];
+    item.editorState = { step: 1, reserveAcknowledgement: reserveAcknowledgementFingerprint(item) };
+  });
+  render();
+  for (const [id, step] of [["1", 3], ["2", 1]]) {
+    harness.context.navigate("editor", id); render();
+    const item = harness.context.state.initiatives.find(row => row.id === id);
+    expect(restoredEditorStep(harness.context.identity, version.id, item, true)).toBe(step);
+    expect(hasReserveAcknowledgement(harness.context.identity, version.id, item)).toBe(true);
+  }
+  expect(harness.context.state.initiatives[0].rows).toEqual([{ dealerId: "D1", amount: 90 }]);
+  await harness.context.saveDraft("2"); render();
+  const persisted = structuredClone(harness.context.state.initiatives);
+  harness.workspace.mockResolvedValue({ ...workspace, state: { ...workspace.state, initiatives: persisted } });
+  harness.slots = [];
+  vi.stubGlobal("sessionStorage", undefined);
+  render(); await harness.context.refresh(); render();
+  for (const [id, step] of [["1", 3], ["2", 1]]) {
+    const item = harness.context.state.initiatives.find(row => row.id === id);
+    expect(restoredEditorStep(harness.context.identity, version.id, item, true)).toBe(step);
+    expect(hasReserveAcknowledgement(harness.context.identity, version.id, item)).toBe(true);
+  }
+  expect(harness.save.mock.calls[0][1].editorState.step).toBe(3);
+});
+
+it("preserves a newer step and unchecked review when an earlier save finishes", async () => {
+  const initialEditorState = { step: 3, reserveAcknowledgement: "reviewed-before-save" };
+  harness.context.mutate(state => { state.initiatives[0].editorState = initialEditorState; });
+  render();
+  let finishSave;
+  harness.save.mockImplementationOnce((_id, draft) => new Promise(resolve => {
+    finishSave = () => resolve({ ...draft, revision: 8 });
+  }));
+  const pending = harness.context.saveDraft("1");
+  harness.context.mutate(state => {
+    state.initiatives[0].editorState = { step: 1, reserveAcknowledgement: "" };
+  });
+  render();
+  finishSave();
+  await pending;
+  const context = render();
+  expect(context.state.initiatives[0].editorState).toEqual({ step: 1, reserveAcknowledgement: "" });
+  expect(context.dirtyIds.has("1")).toBe(true);
+  expect(context.savedForSyncIds.has("1")).toBe(false);
 });

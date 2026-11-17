@@ -66,6 +66,8 @@ import {
   reserveAcknowledgementFingerprint,
   canEnterAllocationStep,
   hasCurrentVersionSubmission,
+  hasReserveAcknowledgement,
+  restoredEditorStep,
 } from "../domain/reserve-review.js";
 export {
   reserveAcknowledgementKey,
@@ -432,8 +434,10 @@ function EditorContent({
   loadDistributorDirectory,
   notify,
 }) {
+  const i = view.initiatives.find((item) => item.id === initiativeId);
+  const editable = Boolean(i && !previewMode && E.canEdit(state, i.id, identity));
   const previouslySubmitted = hasCurrentVersionSubmission(
-    view.initiatives.find((item) => item.id === initiativeId),
+    i,
   );
   const acknowledgementKey = reserveAcknowledgementKey(
     identity,
@@ -441,26 +445,16 @@ function EditorContent({
     initiativeId,
   );
   const acknowledgementFingerprint = reserveAcknowledgementFingerprint(
-    view.initiatives.find((item) => item.id === initiativeId),
+    i,
   );
-  const [reserveAcknowledgement, setReserveAcknowledgement] = useState(() => {
-    try {
-      return sessionStorage.getItem(acknowledgementKey) || "";
-    } catch {
-      return "";
-    }
-  });
-  const previousAcknowledgement = useRef({
-    key: acknowledgementKey,
-    fingerprint: acknowledgementFingerprint,
-  });
+  const previousAcknowledgement = useRef(acknowledgementFingerprint);
   const [detail, setDetail] = useState(null);
   const [modal, setModal] = useState(null),
     [historyMetric, setHistoryMetric] = useState("c3"),
     [historyPeriod, setHistoryPeriod] = useState("2025"),
     [trialPeriod, setTrialPeriod] = useState("2025"),
     [appliedTrial, setAppliedTrial] = useState(null),
-    [activeStep, setActiveStep] = useState(previouslySubmitted ? 3 : 1),
+    [activeStep, setActiveStep] = useState(() => restoredEditorStep(identity, state.planningVersion?.id, i, editable)),
     [balanceIds, setBalanceIds] = useState([]),
     [scopeSearch, setScopeSearch] = useState(""),
     [scopeSd, setScopeSd] = useState("all"),
@@ -486,26 +480,11 @@ function EditorContent({
   useEffect(() => { trialBaseline.current = null; }, [initiativeId]);
   useEffect(() => { setFillNotice(null); setAppliedTrial(null); }, [initiativeId, trialPeriod]);
   useEffect(() => {
-    const previous = previousAcknowledgement.current;
-    if (previous.key !== acknowledgementKey) {
-      let stored = "";
-      try {
-        stored = sessionStorage.getItem(acknowledgementKey) || "";
-      } catch {}
-      setReserveAcknowledgement(stored);
-      setActiveStep(previouslySubmitted ? 3 : 1);
-    } else if (previous.fingerprint !== acknowledgementFingerprint) {
-      setReserveAcknowledgement("");
+    if (previousAcknowledgement.current !== acknowledgementFingerprint) {
       if (!previouslySubmitted) setActiveStep(1);
-      try {
-        sessionStorage.removeItem(acknowledgementKey);
-      } catch {}
     }
-    previousAcknowledgement.current = {
-      key: acknowledgementKey,
-      fingerprint: acknowledgementFingerprint,
-    };
-  }, [acknowledgementKey, acknowledgementFingerprint, previouslySubmitted]);
+    previousAcknowledgement.current = acknowledgementFingerprint;
+  }, [acknowledgementFingerprint, previouslySubmitted]);
   const allocationScroll = useRef(null);
   useLayoutEffect(() => {
     const viewport = allocationScroll.current;
@@ -588,7 +567,6 @@ function EditorContent({
   useEffect(() => {
     if (apiMode) void loadDistributorDirectory();
   }, [apiMode, loadDistributorDirectory]);
-  const i = view.initiatives.find((item) => item.id === initiativeId);
   useEffect(() => {
     const valid = new Set((i?.rows || []).map((row) => row.dealerId));
     setBalanceIds((current) => {
@@ -600,26 +578,33 @@ function EditorContent({
   if (!i) return <div className="empty">当前角色无权查看该明细。</div>;
   const operation = editorOperations[i.id] || null;
   const savedForSync = savedForSyncIds.has(i.id);
-  const editable = !previewMode && E.canEdit(state, i.id, identity),
-    totals = E.totals([i]),
+  const totals = E.totals([i]),
     errors = E.completionErrors(i, data, state.budgetReasons);
-  const reserveConfirmed = previouslySubmitted || (
-    previousAcknowledgement.current.key === acknowledgementKey &&
-    reserveAcknowledgement === acknowledgementFingerprint);
+  const reserveConfirmed = hasReserveAcknowledgement(identity, state.planningVersion?.id, i);
+  const rememberEditorState = (patch) => mutate((s) => {
+    const current = s.initiatives.find((item) => item.id === i.id);
+    E.updateInitiative(s, i.id, { editorState: {
+      step: activeStep,
+      reserveAcknowledgement: reserveConfirmed ? acknowledgementFingerprint : "",
+      ...current.editorState,
+      ...patch,
+    } }, identity, data);
+  });
   const acknowledgeReserve = (checked) => {
     const value = checked ? acknowledgementFingerprint : "";
-    setReserveAcknowledgement(value);
+    if (!rememberEditorState({ step: activeStep, reserveAcknowledgement: value })) return;
     try {
-      if (value) sessionStorage.setItem(acknowledgementKey, value);
-      else sessionStorage.removeItem(acknowledgementKey);
+      sessionStorage.removeItem(acknowledgementKey);
     } catch {}
   };
   const chooseStep = (step) => {
+    if (!guard()) return;
     if (!canEnterAllocationStep(step, editable, reserveConfirmed)) {
       setActiveStep(1);
       notify("请先核对本版预算与预留并勾选确认。", true);
       return;
     }
+    if (editable && !rememberEditorState({ step })) return;
     setActiveStep(step);
   };
   const synchronizedRevision =
@@ -2552,7 +2537,7 @@ function EditorContent({
                         identity.role === "owner" ? "home" : "department",
                       ),
                     )
-                  : setActiveStep(activeStep - 1)
+                  : chooseStep(activeStep - 1)
               }
             >
               {activeStep === 1 ? "← 返回项目" : "← 上一步"}

@@ -432,7 +432,8 @@ export function WorkbenchProvider({ children }) {
         E.updateInitiative(
           stateRef.current,
           id,
-          { rows: draft.rows, otherBudgets: draft.otherBudgets },
+          { rows: draft.rows, otherBudgets: draft.otherBudgets,
+            ...(draft.editorState !== undefined ? { editorState: draft.editorState } : {}) },
           identity,
           data,
         );
