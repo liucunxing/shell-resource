@@ -229,7 +229,7 @@ async def test_published_stopped_version_does_not_require_department_submissions
     try:
         version = await admin.version("202701")
         await admin.update(version.id, PlanningVersionUpdateDTO(
-            expected_revision=version.revision, published=False, open=False,
+            expected_revision=version.revision, open=False,
         ))
         result = await admin.update(version.id, PlanningVersionUpdateDTO(
             expected_revision=version.revision, published=True, open=False,

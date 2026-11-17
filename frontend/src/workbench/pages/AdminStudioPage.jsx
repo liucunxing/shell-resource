@@ -42,7 +42,7 @@ const ADMIN_META = {
   "admin-versions": [
     "VERSIONS",
     "版本与发布",
-    "创建、发布和停用规划版本；同时仅一个版本开放提交",
+    "创建、编辑、移除、启用和停用规划版本；同时仅一个版本开放提交",
   ],
   "admin-initiatives": [
     "CATALOG",

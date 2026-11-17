@@ -162,7 +162,7 @@ class PlanningService:
             or not version.open
             or not budget.enabled
         ):
-            raise HTTPException(409, "当前版本未开放或项目已取消，请联系管理员")
+            raise HTTPException(409, "当前版本未启用、已停用或项目已取消，请联系管理员")
         state = await self.state(budget.id)
         if state and state.confirmed_publication_id:
             raise HTTPException(
@@ -412,6 +412,10 @@ class PlanningService:
         await AdminService(self.session, self.user)._locked_config()
         version = await self.version(version_id, lock=True)
         self.check_revision(version, payload.expected_revision)
+        if version.published and payload.published is False:
+            raise HTTPException(
+                409, "已启用版本不能撤回可见性；停止分配请使用停用，隐藏版本请使用移除",
+            )
         before = version_view(version)
         if "name" in payload.model_fields_set:
             if payload.name is None:
@@ -529,10 +533,10 @@ class PlanningService:
         version = await self.version(version_id, lock=True)
         self.check_revision(version, payload.expected_revision)
         if version.published and version.open:
-            raise HTTPException(409, "请先关闭提交，再删除规划版本")
+            raise HTTPException(409, "请先停用，再移除规划版本")
         info = await self.deletion_info(version_id)
         if info["submittedCount"] and not payload.confirm_submitted:
-            raise HTTPException(409, "该版本存在已提交内容，请勾选确认后再次确认删除")
+            raise HTTPException(409, "该版本存在已提交内容，请勾选确认后再次确认移除")
         before = version_view(version)
         version.open = False
         version.published = False
@@ -631,7 +635,7 @@ class PlanningService:
         version = await self.version(version_id, lock=True)
         self.check_revision(version, payload.expected_revision)
         if not version.published or not version.open:
-            raise HTTPException(409, "版本已关闭或未开始，不能提交或撤回部门方案")
+            raise HTTPException(409, "版本已停用或未启用，不能提交或撤回部门方案")
         budgets = await self.department_budgets(version_id, payload.sector, payload.department)
         by_budget = await self.states_for(budgets, create_missing=True)
         states = [(b, by_budget[b.id]) for b in budgets]

@@ -25,11 +25,14 @@ async def test_project_config_preserves_version_state_and_allocations(mode, bulk
         budget = budgets[0]
         await submit(session, budget)
         version = await admin.version("202701")
-        if mode in {"stopped", "draft"}:
+        if mode == "stopped":
             await admin.update(version.id, PlanningVersionUpdateDTO(
                 expected_revision=version.revision, open=False,
-                published=mode != "draft",
             ))
+        elif mode == "draft":
+            # Fixture for a version never enabled; enabled versions cannot be hidden again.
+            version.published = version.open = False
+            await session.commit()
         elif mode == "expired":
             version.deadline = datetime.now(UTC) - timedelta(minutes=1)
             await session.commit()

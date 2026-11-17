@@ -7,9 +7,9 @@ import { useWorkbench } from "../WorkbenchContext.jsx";
 
 export function versionStatus(version) {
   if (!version) return "历史工作区";
-  if (!version.published) return "未开始";
-  if (!version.open) return "已关闭";
-  return "开放提交";
+  if (!version.published) return "未启用";
+  if (!version.open) return "已停用";
+  return "已启用";
 }
 
 export function PlanningVersionBar({ fixed = false, scope = "", children }) {

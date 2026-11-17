@@ -491,7 +491,7 @@ export function WorkbenchProvider({ children }) {
       });
       notify(
         error.status === 409
-          ? "草稿已被其他人更新；当前编辑仍保留，请刷新后处理。"
+          ? `${error.message || "草稿或版本状态已变化"} 当前编辑仍保留，请刷新后处理。`
           : error.message || "草稿保存失败，请重试。",
         true,
       );
@@ -581,7 +581,7 @@ export function WorkbenchProvider({ children }) {
       if (epoch !== sessionEpoch.current) return false;
       notify(
         error.status === 409
-          ? "草稿已被其他人更新；当前编辑仍保留，请刷新后处理。"
+          ? `${error.message || "草稿或版本状态已变化"} 当前编辑仍保留，请刷新后处理。`
           : error.message || "同步失败，请重试。",
         true,
       );

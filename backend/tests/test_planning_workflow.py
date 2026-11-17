@@ -862,7 +862,7 @@ async def test_version_edit_and_deletion_preserve_history():
         info = await admin.deletion_info("202703")
         assert info["submittedCount"] == 1 and not info["canDelete"]
         changed = await admin.update("202703", PlanningVersionUpdateDTO(
-            expected_revision=info["revision"], published=False, open=False
+            expected_revision=info["revision"], open=False
         ))
         with pytest.raises(HTTPException) as missing_ack:
             await admin.delete("202703", PlanningVersionDeleteDTO(
