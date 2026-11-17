@@ -414,7 +414,6 @@ function PortfolioDashboard({ mode }) {
         ["overview", "总览"],
         ["health", "集中度"],
         ["stack", "叠加到经销商"],
-        ["dealers", "经销商明细"],
         ["versions", "版本变化"],
       ]
     : [
@@ -422,7 +421,7 @@ function PortfolioDashboard({ mode }) {
         ["health", "健康检查"],
         ["destination", "投资去向"],
         ["sd", "按 SD/RSM 看"],
-        ["dealers", "经销商明细"],
+        ...(mode === "owner" ? [["dealers", "经销商明细"]] : [["stack", "叠加到经销商"]]),
         ...(mode === "department" ? [["versions", "版本变化"]] : []),
       ];
   const [tab, setTab] = useState("overview");
@@ -558,7 +557,7 @@ function PortfolioDashboard({ mode }) {
             comparisonIdentity={identity?.email}
           />
         </TabsContent>
-        <TabsContent value="dealers">
+        {mode === "owner" && <TabsContent value="dealers">
           <V19DealerDetails
             showColumnJumps={mode !== "department"}
             budgetReasons={state.budgetReasons}
@@ -567,7 +566,7 @@ function PortfolioDashboard({ mode }) {
             dealers={data.dealers}
             executive={executive}
           />
-        </TabsContent>
+        </TabsContent>}
         <TabsContent value="versions">
           <VersionComparison executive={executive} />
         </TabsContent>
