@@ -80,7 +80,7 @@ const fmt = (n) =>
 export function allocationBalanceLabel(gap) {
   const cents = Math.round(Number(gap) * 100);
   if (!Number.isFinite(cents) || cents === 0) return "";
-  return `（${cents > 0 ? "少分" : "多分"} ${fmt(Math.abs(cents) / 100)} 元）`;
+  return `（${cents > 0 ? "-" : "+"}${fmt(Math.abs(cents) / 100)} 元）`;
 }
 const histFmt = (value) =>
   historyDisplayValue(value) === null ? "—" : fmt(historyDisplayValue(value));
