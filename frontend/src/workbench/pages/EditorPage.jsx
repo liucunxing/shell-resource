@@ -1735,34 +1735,31 @@ function EditorContent({
                 metric={historyMetric}
                 onMetricChange={setHistoryMetric}
               />
-              <Alert className="v19-quick-allocation-hint" role="note">
-                <AlertDescription>
-                  <strong>快速分配：</strong>点击下方任一快捷方案，即可按所选历史指标快速分配金额；采用后会覆盖当前金额。
-                </AlertDescription>
-              </Alert>
               <div className="v19-trial-tools">
-                <strong>快捷方案选择</strong>
-                {[
-                  ["按Actual Delivery Vol采用", "vol"],
-                  ["按Actual C3采用", "c3"],
-                  ["按历史投资总额采用", "investment"],
-                ].map(([label, metric]) => (
-                  <Button
-                    key={metric}
-                    variant="outline"
-                    aria-pressed={appliedTrial === metric}
-                    className={appliedTrial === metric ? "v19-trial-selected" : undefined}
-                    disabled={!editable || !i.rows.length}
-                    onClick={() => historyFill(metric, trialPeriod)}
-                  >
-                    {label}
+                <div className="v19-trial-quick-options">
+                  <strong>快捷方案选择</strong>
+                  {[
+                    ["按Actual Delivery Vol采用", "vol"],
+                    ["按Actual C3采用", "c3"],
+                    ["按历史投资总额采用", "investment"],
+                  ].map(([label, metric]) => (
+                    <Button
+                      key={metric}
+                      variant="outline"
+                      aria-pressed={appliedTrial === metric}
+                      className={appliedTrial === metric ? "v19-trial-selected" : undefined}
+                      disabled={!editable || !i.rows.length}
+                      onClick={() => historyFill(metric, trialPeriod)}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                  <Button variant="ghost" size="icon" aria-label="清空经销商分配" title="清空经销商分配"
+                    disabled={!editable || !i.rows.some((row) => row.amount !== 0)}
+                    onClick={() => doGuard(() => setModal({ type: "clear-allocations" }))}>
+                    <RotateCcw size={16} aria-hidden="true" />
                   </Button>
-                ))}
-                <Button variant="ghost" size="icon" aria-label="清空经销商分配" title="清空经销商分配"
-                  disabled={!editable || !i.rows.some((row) => row.amount !== 0)}
-                  onClick={() => doGuard(() => setModal({ type: "clear-allocations" }))}>
-                  <RotateCcw size={16} aria-hidden="true" />
-                </Button>
+                </div>
                 <Button
                   variant="outline"
                   onClick={() =>
