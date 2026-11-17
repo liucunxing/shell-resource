@@ -10,7 +10,7 @@ import {
   sdGroupsWithComparison,
   sdPresentationGroups,
 } from "../src/workbench/pages/SdAnalysis.jsx";
-import { V20OrganizationSummary } from "../src/workbench/pages/V20OrganizationSummary.jsx";
+import { HistoricalShareChart, V20OrganizationSummary } from "../src/workbench/pages/V20OrganizationSummary.jsx";
 import { initiativeOrganizationFacts } from "../src/workbench/domain/portfolio-analytics.js";
 
 const dealers = [
@@ -112,8 +112,8 @@ it("uses authorized master counts but historical selected-list denominators incl
   expect(zero.groups.map((g) => [g.volShare, g.c3Share])).toEqual(
     groups.map((g) => [g.volShare, g.c3Share]),
   );
-  // Investment may change; historical series and scale must remain stable.
-  const actual = (html) => [...html.matchAll(/<div class="v20-history-line"[^>]*data-series="(?:vol|c3)"[\s\S]*?<\/i>/g)].map((m) => m[0]);
+  // Historical values stay stable while the common chart scale can change.
+  const actual = (html) => [...html.matchAll(/data-series="(?:vol|c3)" data-value="[^"]*"/g)].map((m) => m[0]);
   expect(actual(draw(zero))).toEqual(actual(draw({ groups, totals })));
 });
 
@@ -168,23 +168,39 @@ it("renders the Step 3 summary in four groups with a project-list denominator an
   expect(html).toMatch(/data-column="delta"[^>]*>—</);
   expect(html).toContain("投资金额占比极差 80.0 pp");
   expect(html).toContain('data-series="investment" data-value="90"');
-  expect(html).toContain('class="v20-share-overflow">90.0%');
+  expect(html).toContain('class="v20-share-value">90.0%');
   expect(html).not.toMatch(/SD-C|分配 \/ 全部|合同量|Phasing|波动率|PPP/);
 });
 
-it("keeps Step 3's historical series and scale unchanged when only investments change", () => {
+it("preserves historical values and expands the shared scale when investment grows", () => {
   const initial = draw(read(), "selected");
   const changed = draw(read(items.map((item) => ({
     ...item,
     rows: item.rows.map((row) => ({ ...row, amount: row.dealerId === "a" ? 0 : 30000 })),
   }))), "selected");
   const historicalTracks = (html) => [
-    ...html.matchAll(/<div[^>]+data-series="(?:vol|c3)"[^>]*>.*?<\/div><\/div>/g),
+    ...html.matchAll(/data-series="(?:vol|c3)" data-value="[^"]*"/g),
   ].map((m) => m[0]);
   expect(historicalTracks(initial)).toHaveLength(6);
   expect(historicalTracks(changed)).toEqual(historicalTracks(initial));
-  expect(initial).toContain("刻度 0–80%");
-  expect(changed).toContain("刻度 0–80%");
+  expect(initial).toContain("刻度 0–90%");
+  expect(changed).toContain("刻度 0–100%");
   expect(changed).toContain('data-series="investment" data-value="100"');
   expect(changed).toContain("投资金额占比极差 100.0 pp");
+});
+
+it("labels every series including zero and missing values, and fits 48.5% on a shared 50% scale", () => {
+  const data = read();
+  data.groups = data.groups.map((g, index) => ({ ...g,
+    amountShare: index === 0 ? 48.5 : 0, volShare: index === 0 ? 16.4 : 0,
+    c3Share: index === 0 ? 16.3 : null,
+  }));
+  const html = draw(data);
+  expect(html).toContain("刻度 0–50%");
+  expect(html).toContain('style="width:97%"');
+  for (const label of ["48.5%", "16.4%", "16.3%", "0.0%", "—"])
+    expect(html).toContain(`class="v20-share-value">${label}</span>`);
+  const chart = renderToStaticMarkup(<HistoricalShareChart investment={100} vol={0} c3={null} scale={100} />);
+  expect(chart).toContain('style="width:100%"');
+  expect(chart.match(/class="v20-share-value"/g)).toHaveLength(3);
 });

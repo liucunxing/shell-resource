@@ -66,10 +66,8 @@ export function HistoricalShareChart({ vol, c3, scale, investment }) {
                 width: `${share == null ? 0 : Math.max(0, Math.min(100, (share / scale) * 100))}%`,
               }}
             />
-            {share > scale && (
-              <span className="v20-share-overflow">{percent(share)}</span>
-            )}
           </div>
+          <span className="v20-share-value">{percent(share)}</span>
         </div>
       ))}
     </div>
@@ -164,7 +162,7 @@ export function V20OrganizationSummary({
       </TableHead>
     );
   };
-  // The historical scale must never depend on allocation amounts.
+  // All rows and series share a scale that includes current investment shares.
   const scale = Math.min(
     100,
     Math.max(
@@ -172,7 +170,7 @@ export function V20OrganizationSummary({
       Math.ceil(
         Math.max(
           0,
-          ...groups.flatMap((g) => [g.volShare || 0, g.c3Share || 0]),
+          ...groups.flatMap((g) => [g.amountShare || 0, g.volShare || 0, g.c3Share || 0]),
         ) / 10,
       ) * 10,
     ),
@@ -384,8 +382,8 @@ export function V20OrganizationSummary({
         {isSelectedScope
           ? "名单 = 本项目在该组织勾选的经销商。"
           : "全部 = 当前授权 Sector 范围内该组织的全部经销商。"}
-        历史产出按当前名单去重，包含零投资经销商；仅改金额不会改变历史 Actual 的数据、历史柱和刻度。
-        {"黄色柱显示本次投资占比；超过刻度上限时标注实际占比。"}
+        历史产出按当前名单去重，包含零投资经销商；仅改金额不会改变历史 Actual 的数值。
+        {"三条柱均显示实际占比，全表使用统一刻度，按投资、Vol、C3 的最大占比向上取整至 10% 调整上限。"}
         较上版按同一
         Initiative 集合比较，保留移除组织的上版投入；
         {sourceVersionId

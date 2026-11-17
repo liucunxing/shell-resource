@@ -78,7 +78,7 @@
 }
 .v20-history-line {
   display: grid;
-  grid-template-columns: 27px 1fr;
+  grid-template-columns: 27px minmax(0, 1fr) 44px;
   align-items: center;
   gap: 7px;
 }
@@ -109,17 +109,12 @@
 .v20-legend-dot.investment {
   background: #fbd000;
 }
-.v20-share-overflow {
-  position: absolute;
-  top: 50%;
-  right: 0;
-  transform: translateY(-50%);
-  padding-inline: 2px;
-  border-radius: 2px;
-  background: #fff5c5;
-  color: #694c00;
-  font-size: 9px;
-  line-height: 12px;
+.v20-history-line > .v20-share-value {
+  color: #263e50;
+  font-size: 11px;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 .v20-organization-legend {
   display: flex;
