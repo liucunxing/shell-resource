@@ -1050,15 +1050,17 @@ export function V19Stack({
         </div>
         <Table sortingMode="manual" className="v20-stack-table" containerClassName="v20-stack-scroll v20-stack-scroll-all">
           <TableHeader><TableRow>
+            <TableHead data-column="rank">排名</TableHead>
             {columns.map(([field,label]) => <TableHead key={field} data-column={field} aria-sort={sort?.field === field ? (sort.asc ? "ascending" : "descending") : "none"}><Button variant="ghost" className="v20-stack-sort" onClick={() => { setSort(prev => ({field,asc:prev?.field === field ? !prev.asc : true})); setPage(1); }}>{label} <span aria-hidden="true">{sort?.field === field ? (sort.asc ? "↑" : "↓") : "↕"}</span></Button></TableHead>)}
           </TableRow></TableHeader>
           <TableBody>
             {list.map(row => (
               <TableRow key={row.key} className={rankByKey.has(row.key) ? "v20-stack-top-row" : undefined}>
+                <TableCell data-column="rank" sortValue={rankByKey.get(row.key) ?? null}>{rankByKey.has(row.key) && <span className="v20-stack-rank">Top {rankByKey.get(row.key)}</span>}</TableCell>
                 {columns.map(([field]) => {
                   const value = read(row, field);
                   return <TableCell key={field} data-column={field} className={!["name", "code", "sd", "rsm", "mix"].includes(field) ? "num" : undefined} sortValue={value}>
-                    {field === "name" ? <><DealerDetailButton variant="link" onClick={() => setSelected({type:"dealer", dealerKey:row.key, period, basis})}>{row.name}</DealerDetailButton>{rankByKey.has(row.key) && <span className="v20-stack-rank">Top {rankByKey.get(row.key)}</span>}<small>{row.sector}</small></>
+                    {field === "name" ? <><DealerDetailButton variant="link" onClick={() => setSelected({type:"dealer", dealerKey:row.key, period, basis})}>{row.name}</DealerDetailButton><small>{row.sector}</small></>
                     : field === "mix" ? <div className="v19-stack-bar">{types.map(type => <span key={type} title={`${type} ${wan(distribution([row], type))}`} style={{background:resourceColor(type),width:`${row.amount ? distribution([row], type) / row.amount * 100 : 0}%`}} />)}</div>
                     : field === "gapC3" || field === "gapVol" ? value == null ? "—" : <div className="v19-diverging"><i style={{left:`${value < 0 ? 50 + value / max * 45 : 50}%`,width:`${Math.abs(value) / max * 45}%`,background:value > 0 ? "#EB8705" : "#89CFDC"}} /><span>{pp(value)}</span></div>
                     : format(value, field)}
@@ -1066,7 +1068,7 @@ export function V19Stack({
                 })}
               </TableRow>
             ))}
-            {!list.length && <TableRow><TableCell colSpan={columns.length} className="empty">没有符合条件的经销商</TableCell></TableRow>}
+            {!list.length && <TableRow><TableCell colSpan={columns.length + 1} className="empty">没有符合条件的经销商</TableCell></TableRow>}
           </TableBody>
         </Table>
         <div className="v19-list-pagination v20-stack-pagination">

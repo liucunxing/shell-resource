@@ -1051,5 +1051,7 @@
 
 /* 保留差值排名，排序或筛选后仍可识别 Top 10。 */
 .v19-fidelity-shell .v20-stack-table tr.v20-stack-top-row > td { background-color: #fff9e6; }
-.v20-stack-rank { display:inline-block; margin-left:6px; padding:1px 5px; border-radius:4px; color:#765100; background:#ffdf79; font-size:11px; font-weight:700; white-space:nowrap; }
+.v20-stack-rank { display:inline-block; padding:1px 5px; border-radius:4px; color:#765100; background:#ffdf79; font-size:11px; font-weight:700; white-space:nowrap; }
 .v20-stack-pagination, .v20-stack-pagination > div { flex-wrap:wrap; gap:8px; }
+
+.v19-fidelity-shell .v20-stack-table th[data-column="rank"] { width:72px; min-width:72px; }
