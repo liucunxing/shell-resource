@@ -11,42 +11,25 @@ from test_planning_workflow import act, prepare, service, submit, user
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("clear_deadline", [False, True])
-async def test_expired_open_version_accepts_owner_save_and_submit_after_deadline_edit(
-    clear_deadline,
-):
+async def test_historical_deadline_does_not_block_owner_save_or_submit():
     session, admin, budgets = await prepare()
     try:
         version = await admin.version("202701")
         version.deadline = datetime.now(UTC) - timedelta(minutes=1)
         await session.commit()
         owner = service(session, user(budgets[0].owner_email))
-        before = await owner.get_workspace(2027, version_id=version.id)
-        assert before["state"]["planningVersion"]["expired"]
-        assert not before["state"]["initiatives"][0]["editable"]
-        with pytest.raises(HTTPException) as blocked:
-            await submit(session, budgets[0])
-        assert blocked.value.status_code == 409
-
-        updated = await admin.update(version.id, PlanningVersionUpdateDTO(
-            expected_revision=version.revision,
-            deadline=None if clear_deadline else datetime.now(UTC) + timedelta(days=1),
-        ))
-        assert updated["open"] and not updated["expired"]
-        after = await owner.get_workspace(2027, version_id=version.id)
-        assert not after["state"]["planningVersion"]["expired"]
-        assert after["state"]["initiatives"][0]["editable"]
-        assert after["state"]["initiatives"][0]["workflow"]["editable"]
+        workspace = await owner.get_workspace(2027, version_id=version.id)
+        assert "deadline" not in workspace["state"]["planningVersion"]
+        assert workspace["state"]["initiatives"][0]["editable"]
         await submit(session, budgets[0])
-        draft = await owner.get_draft(budgets[0].id)
-        assert draft["workflow"]["submitted"] and draft["workflow"]["editable"]
+        assert (await owner.get_draft(budgets[0].id))["workflow"]["submitted"]
     finally:
         await session.close()
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("barrier", ["stopped", "department_confirmed"])
-async def test_deadline_extension_keeps_explicit_version_and_department_locks(barrier):
+async def test_historical_deadline_does_not_bypass_version_and_department_locks(barrier):
     session, admin, budgets = await prepare()
     try:
         if barrier == "department_confirmed":
@@ -60,11 +43,7 @@ async def test_deadline_extension_keeps_explicit_version_and_department_locks(ba
             ))
         version.deadline = datetime.now(UTC) - timedelta(minutes=1)
         await session.commit()
-        updated = await admin.update(version.id, PlanningVersionUpdateDTO(
-            expected_revision=version.revision, deadline=datetime.now(UTC) + timedelta(days=1),
-        ))
-        assert not updated["expired"]
-        assert updated["open"] is (barrier == "department_confirmed")
+        assert version.open is (barrier == "department_confirmed")
         draft = await service(session, user(budgets[0].owner_email)).get_draft(budgets[0].id)
         assert not draft["workflow"]["editable"]
         with pytest.raises(HTTPException) as blocked:

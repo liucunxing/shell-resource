@@ -1198,8 +1198,8 @@ function EditorContent({
           <Alert className="note-box">
             <AlertDescription>
               {i.workflow?.ownerEditLocked
-                ? "部门已提交；版本开放且未截止时，撤回部门提交后可修改。"
-                : "当前方案只读，请核对版本开放状态、截止时间和 Owner 归属。"}
+                ? "部门已提交；版本开放时，撤回部门提交后可修改。"
+                : "当前方案只读，请核对版本开放状态和 Owner 归属。"}
             </AlertDescription>
           </Alert>
         )}

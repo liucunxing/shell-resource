@@ -1,5 +1,4 @@
 import { Alert, AlertDescription } from "../../components/ui/alert";
-import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import {
   NativeSelect,
@@ -49,19 +48,8 @@ export function combineDepartmentReviews(results, current) {
   };
 }
 
-export function departmentWindowOpen(version, now = Date.now()) {
-  const deadline = version?.deadline ? Date.parse(version.deadline) : null;
-  return Boolean(version?.published && version.open && !version.expired &&
-    (deadline === null || (Number.isFinite(deadline) && deadline > now)));
-}
-
-export function releaseDeadline(input, now = Date.now()) {
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(input))
-    throw Error("请填写新的提交截止时间（北京时间）。");
-  const date = new Date(`${input}:00+08:00`);
-  if (!Number.isFinite(date.getTime())) throw Error("请填写有效的北京时间。");
-  if (date.getTime() <= now) throw Error("新的截止时间必须晚于当前时间。");
-  return date.toISOString();
+export function departmentWindowOpen(version) {
+  return Boolean(version?.published && version.open);
 }
 
 export function DepartmentReviewPage() {
@@ -89,7 +77,6 @@ export function DepartmentReviewPage() {
     [loading, setLoading] = useState(false);
   const [dialog, setDialog] = useState(null),
     [reason, setReason] = useState(""),
-    [deadline, setDeadline] = useState(""),
     [busy, setBusy] = useState(false);
   const [sort, setSort] = useState({ key: "name", direction: 1 });
   const current = state.planningVersion;
@@ -154,7 +141,6 @@ export function DepartmentReviewPage() {
     }));
   const start = (action) => {
     setReason("");
-    setDeadline("");
     setError("");
     setDialog({ action });
   };
@@ -165,11 +151,11 @@ export function DepartmentReviewPage() {
       if (dialog.action === "release") {
         await api.releasePlanningVersion(current.id, {
           expected_revision: (result?.version || current).revision,
-          deadline: releaseDeadline(deadline), reason: reason.trim(),
+          reason: reason.trim(),
         });
       } else {
         if (!departmentWindowOpen(result?.version || current))
-          throw Error("当前版本已截止或已关闭，不能提交或撤回部门方案。");
+          throw Error("当前版本已关闭，不能提交或撤回部门方案。");
         await api.reviewDepartment(current.id, dialog.action, {
           ...selectedScope,
           expected_revision: result.version.revision,
@@ -188,7 +174,7 @@ export function DepartmentReviewPage() {
           ? "部门方案已提交管理层。"
           : dialog.action === "withdraw"
             ? "已撤回部门提交，当前部门全部 Owner 可直接修改，已有提交保留。"
-            : "已驳回并开放当前版本全部部门，新的截止时间已生效。",
+            : "已驳回并开放当前版本全部部门。",
       );
     } catch (failure) {
       setError(failure.message);
@@ -201,7 +187,7 @@ export function DepartmentReviewPage() {
       <PageHead
         eyebrow="DEPARTMENT CONFIRMATION"
         title={identity.role === "admin" ? "部门方案与驳回" : "部门方案提交"}
-        description="核对 Owner 提交情况后，统一提交管理层；开放且未截止时可撤回修改。"
+        description="核对 Owner 提交情况后，统一提交管理层；版本开放时可撤回修改。"
       />
       <PlanningVersionBar
         scope={
@@ -282,8 +268,8 @@ export function DepartmentReviewPage() {
             </div>
             <p className="studio-table-note">
               部门提交前 Owner 可直接修改；撤回部门提交后，当前部门全部 Owner 恢复编辑，已有提交保留。
-              保存修改后须重新提交，未修改的项目无需重复提交。截止或管理员停用版本后，部门不能再提交或撤回。
-              {identity.role === "admin" && " 管理员驳回会开放当前版本全部部门，不受查看范围限制，并重新设置截止时间。"}
+              保存修改后须重新提交，未修改的项目无需重复提交。管理员关闭版本后，部门不能再提交或撤回。
+              {identity.role === "admin" && " 管理员驳回会开放当前版本全部部门，不受查看范围限制，。"}
             </p>
             <div className="table-scroll v20-review-scroll">
               <Table sortingMode="manual" containerClassName="overflow-visible">
@@ -351,8 +337,7 @@ export function DepartmentReviewPage() {
           onClose={() => setDialog(null)}
           onConfirm={act}
           confirmLabel={dialog.action === "release" ? "确认驳回并全部开放" : "确认"}
-          disabled={(dialog.action !== "confirm" && !reason.trim()) ||
-            (dialog.action === "release" && !deadline)}
+          disabled={dialog.action !== "confirm" && !reason.trim()}
         >
           <p>
             {dialog.action === "confirm"
@@ -361,14 +346,6 @@ export function DepartmentReviewPage() {
                 ? "撤回当前部门提交后，管理层不再看到该部门分配；本部门全部 Owner 立即恢复编辑，已有提交保留。"
                 : `将驳回版本 ${current.id} · ${current.name} 的全部部门方案，并一键恢复所有 Owner 编辑。本版本将成为唯一开放版本，其他版本自动停用，已有方案和提交记录保留。管理层在各部门重新提交前不展示本版本相应分配。此操作不受当前查看范围限制。`}
           </p>
-          {dialog.action === "release" && (
-            <Label className="grid gap-2">
-              新的提交截止时间（北京时间，必填）
-              <Input type="datetime-local" value={deadline}
-                onChange={(event) => setDeadline(event.target.value)} />
-              <span className="tiny">必须重新设置为晚于当前时间的截止时间。</span>
-            </Label>
-          )}
           {dialog.action !== "confirm" && (
             <Label>
               原因（必填）
