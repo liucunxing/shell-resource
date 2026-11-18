@@ -27,6 +27,7 @@ vi.mock("../src/workbench/api.js", () => ({
   departmentReview: (...args) => harness.read(...args), reviewDepartment: (...args) => harness.action(...args),
 }));
 import { DepartmentReviewPage } from "../src/workbench/pages/DepartmentReviewPage.jsx";
+import { PlanningSummaryAmount } from "../src/workbench/pages/PlanningSummaryAmount";
 
 function render() {
   harness.cursor = 0;
@@ -72,4 +73,23 @@ it("does not issue another status query or report complete success after workspa
   await find(render(), node => typeof node.props?.onConfirm === "function").props.onConfirm();
   expect(harness.read).toHaveBeenCalledTimes(1);
   expect(harness.context.notify).toHaveBeenCalledWith(expect.stringContaining("刷新失败"), true);
+});
+
+it("sorts the 万元 summary by the exact submitted amount and omits unsubmitted draft amounts", async () => {
+  harness.read.mockResolvedValue({
+    version,
+    items: [
+      { id: "a", name: "A", workflow: { submitted: true }, rows: [{ amount: 3040000.1 }] },
+      { id: "b", name: "B", workflow: { submitted: true }, rows: [{ amount: 3040000.02 }] },
+      { id: "c", name: "C", workflow: { submitted: false }, rows: [{ amount: 1 }] },
+    ],
+  });
+  render();
+  await flush();
+  find(render(), node => node.props?.children?.[0] === "分配金额（万元）").props.onClick();
+
+  const ascending = render();
+  expect(find(ascending, node => node.type === PlanningSummaryAmount)?.props.value).toBe(3040000.02);
+  const pendingRow = find(ascending, node => node.key === "c");
+  expect(pendingRow.props.children.at(-1).props.children).toBe("—");
 });

@@ -14,7 +14,6 @@ import {
 } from "../domain/allocation-detail";
 import "../v19-editor.css";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1148,15 +1147,10 @@ function EditorContent({
           />
         </div>
         <div className="v19-work-version">
-          <span>
-            当前版本{" "}
-            <strong>
-              {state.planningVersion?.id} · {state.planningVersion?.name}
-            </strong>
-          </span>
-          <Badge variant="secondary">
-            {editable ? "开放提交" : i.workflow?.submitted ? "已提交" : "只读"}
-          </Badge>
+          当前版本{" "}
+          <strong>
+            {state.planningVersion?.id} · {state.planningVersion?.name}
+          </strong>
         </div>
         <Tabs
           value={String(activeStep)}
