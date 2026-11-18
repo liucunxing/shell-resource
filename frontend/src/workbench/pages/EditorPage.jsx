@@ -2119,7 +2119,7 @@ function EditorContent({
                           {title}
                         </SortHead>
                       ))}
-                      {editable && <TableHead scope="col">操作</TableHead>}
+                      {editable && <TableHead scope="col" data-column="actions">操作</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -2227,9 +2227,11 @@ function EditorContent({
                             </TableCell>
                           ))}
                           {editable && (
-                            <TableCell>
+                            <TableCell data-column="actions">
                               <Button
                                 variant="destructive"
+                                size="sm"
+                                className="v19-allocation-remove"
                                 aria-label={
                                   "移除经销商 " + dealerLabel(r.dealerId)
                                 }
@@ -2292,7 +2294,7 @@ function EditorContent({
                                 )}
                         </TableCell>
                       ))}
-                      {editable && <TableCell />}
+                      {editable && <TableCell data-column="actions" />}
                     </TableRow>
                   </TableFooter>
                 </Table>

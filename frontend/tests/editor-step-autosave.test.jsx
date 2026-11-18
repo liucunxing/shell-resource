@@ -155,6 +155,18 @@ function prepareTrial() {
   return structuredClone(item().rows);
 }
 
+it("keeps each allocation remove button available and confirms before removing", () => {
+  const before = prepareTrial();
+  const remove = elements(render()).find(node => node.props.className === "v19-allocation-remove");
+  expect(remove.props["aria-label"]).toContain("移除经销商");
+  remove.props.onClick();
+  expect(item().rows).toEqual(before);
+  const modal = elements(render()).find(node => node.props.action?.props.children === "确认移除");
+  expect(modal).toBeTruthy();
+  modal.props.action.props.onClick();
+  expect(item().rows).toHaveLength(before.length - 1);
+});
+
 it("places trial controls beside the allocation filters and keeps the table below", () => {
   prepareTrial();
   const tree = render();

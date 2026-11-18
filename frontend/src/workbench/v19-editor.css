@@ -513,6 +513,33 @@
 .v19-editor .v19-allocation-table .allocation-note {
   min-width: 230px;
 }
+/* Keep removal available while the wide allocation table scrolls. */
+.v19-editor .v19-allocation-table [data-column="actions"] {
+  position: sticky;
+  right: 0;
+  min-width: 92px;
+  background: #fff;
+  box-shadow: -1px 0 0 #cbd7df;
+  z-index: 3;
+  text-align: center !important;
+}
+.v19-editor .v19-allocation-table thead [data-column="actions"] {
+  background: #e8eef2;
+  z-index: 5;
+}
+.v19-editor .v19-allocation-table tfoot [data-column="actions"] {
+  background: #edf4f9;
+}
+.v19-editor .v19-allocation-table .v19-allocation-remove {
+  min-width: 58px;
+  border: 1px solid #c84a3e;
+  background: #fff3f2;
+  color: #a32921;
+  font-weight: 600;
+}
+.v19-editor .v19-allocation-table .v19-allocation-remove:hover {
+  background: #ffe3e0;
+}
 .v19-editor .v19-allocation-table thead {
   position: sticky;
   top: 0;
@@ -850,6 +877,10 @@
   color: #003c88;
 }
 @media (max-width: 600px) {
+  .v19-editor .v19-allocation-table [data-column="actions"] {
+    position: static;
+    box-shadow: none;
+  }
   .v19-editor .v19-allocation-table [data-column="name"] {
     left: var(--selection-width);
     width: 135px;
