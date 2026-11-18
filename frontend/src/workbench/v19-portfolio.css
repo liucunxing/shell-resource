@@ -956,6 +956,18 @@
 .v19-sd-heat strong {
   font-size: 15px;
 }
+.v19-portfolio .executive-initiative-comparison {
+  table-layout: auto;
+}
+.v19-portfolio .executive-initiative-comparison :is(th, td) {
+  padding-inline: 8px;
+}
+.v19-portfolio .executive-initiative-comparison :is(th, td):first-child {
+  width: 24%;
+}
+.v19-portfolio .executive-initiative-comparison td:first-child [data-variant="link"] {
+  white-space: nowrap;
+}
 .v19-sd-analysis .v19-facts {
   border-left: 3px solid #eb8705;
   border-radius: 5px;
