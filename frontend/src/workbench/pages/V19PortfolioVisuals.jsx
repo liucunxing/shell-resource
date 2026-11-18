@@ -964,6 +964,7 @@ export function V19Stack({
     .flatMap(column => column[0] === "name" ? [["name", "经销商名称"], ["code", "经销商编码"]] : column[0] === "amount" ? [column, ["mix", "资源大类构成"]] : [column])
     .map(([key, label]) => [key, key === "gapC3" ? "投资金额 − C3" : key === "gapVol" ? "投资金额 − Delivery Vol" : label]);
   const basisGap = basis === "c3" ? "gapC3" : "gapVol";
+  const rankingMetric = basis === "c3" ? "C3" : "Vol";
   const ranked = rows.filter(row => row[basisGap] != null)
     .sort((a, b) => (direction === "over" ? b[basisGap] - a[basisGap] : a[basisGap] - b[basisGap]) || a.key.localeCompare(b.key));
   const rankByKey = new Map(ranked.map((row, index) => [row.key, index + 1]));
@@ -1018,7 +1019,7 @@ export function V19Stack({
         <HistoryControls
           {...{ period, basis, ytdCutoffMonth }}
           setPeriod={(value) => { setPeriod(value); setPage(1); }}
-          setBasis={(value) => { setBasis(value); setPage(1); }}
+          setBasis={(value) => { setBasis(value); setSort(null); setPage(1); }}
         />
         <div className="v20-stack-overview">
           <div className="v20-stack-conclusion">
@@ -1037,10 +1038,10 @@ export function V19Stack({
           </div>
         </div>
         <div className="v19-subpanel-heading">
-          <Tabs value={direction} onValueChange={(v) => { setDirection(v); setSort(null); setPage(1); }}>
-            <TabsList>
-              <TabsTrigger value="over">投资占比高于贡献 Top 10</TabsTrigger>
-              <TabsTrigger value="under">投资占比低于贡献 Top 10</TabsTrigger>
+          <Tabs className="max-w-full" value={direction} onValueChange={(v) => { setDirection(v); setSort(null); setPage(1); }}>
+            <TabsList className="flex-wrap" aria-label="经销商投资占比排名">
+              <TabsTrigger value="over">投资占比高于{rankingMetric}贡献占比TOP10</TabsTrigger>
+              <TabsTrigger value="under">投资占比低于{rankingMetric}贡献占比TOP10</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>

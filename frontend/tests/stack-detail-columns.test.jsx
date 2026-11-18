@@ -58,6 +58,38 @@ it("sorts an added numeric column in both directions",()=>{
  click();tree=render();expect(cells(tree,"c3").map(text)).toEqual(["8.0","2.0","—"]);
 });
 
+it("links both ranking labels and the ranked dealers to the selected historical metric", () => {
+ const props = { items, dealers: dealers.map((dealer, index) => ({
+   ...dealer, history: { ...dealer.history, vol2025: [90000, 10000, null][index] },
+ })) };
+ let tree = render(props);
+ function expectRanking(metric, codes) {
+   for (const [value, direction] of [["over", "高于"], ["under", "低于"]]) {
+     expect(text(nodes(tree).find(node => node.props.value === value && !node.props.onValueChange)))
+       .toBe(`投资占比${direction}${metric}贡献占比TOP10`);
+   }
+   expect(cells(tree, "code").map(text)).toEqual([...codes, "003"]);
+   expect(cells(tree, "rank").map(text)).toEqual(["Top 1", "Top 2", ""]);
+ }
+ function switchDirection(value) {
+   nodes(tree).find(node => node.props.onValueChange && ["over", "under"].includes(node.props.value)).props.onValueChange(value);
+   tree = render(props);
+ }
+ function switchMetric(value) {
+   nodes(tree).find(node => node.props.setBasis).props.setBasis(value);
+   tree = render(props);
+ }
+ expectRanking("C3", ["001", "002"]);
+ // The selected metric takes precedence over a previous manual code sort.
+ nodes(headers(tree).find(node => node.props["data-column"] === "code")).find(node => node.props.onClick).props.onClick();
+ switchMetric("vol");
+ expectRanking("Vol", ["002", "001"]);
+ switchDirection("under");
+ expectRanking("Vol", ["001", "002"]);
+ switchMetric("c3");
+ expectRanking("C3", ["002", "001"]);
+});
+
 it("paginates the full roster without changing ranks and marks only the top ten",()=>{
  const manyDealers=Array.from({length:25},(_,i)=>({id:`d${i}`,name:`Dealer ${String(i).padStart(2,"0")}`,code:`${i}`,sector:"PCMO",history:{c32025:i+1}}));
  const manyItems=[{id:"i",name:"Project",resourceType:"MRD",sector:"PCMO",budget:2500,rows:manyDealers.map(d=>({dealerId:d.id,amount:100})),otherBudgets:[]}];
