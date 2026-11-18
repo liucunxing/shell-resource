@@ -8,7 +8,7 @@ const ok = (data = {}) => ({ ok: true, status: 200, json: async () => ({ code: 2
 
 beforeEach(() => {
   setPreviewUserEmail("");
-  vi.stubGlobal("localStorage", { getItem: () => "admin@example.test" });
+  vi.stubGlobal("sessionStorage", { getItem: () => "admin@example.test" });
 });
 afterEach(() => {
   setPreviewUserEmail("");
