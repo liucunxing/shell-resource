@@ -1,3 +1,4 @@
+import { wholeMetric } from "../domain/metric-precision";
 import { DealerDetailButton } from "../DealerDetailAccess";
 import { MetricHelp } from "./MetricHelp";
 import { useRef, useState } from "react";
@@ -100,14 +101,15 @@ export function V19DealerDetails({
   };
   const open = (row) =>
     setDetail({ type: "dealer", dealerKey: row.key, period, basis });
-  const format = (value, key) =>
-    [
+  const format = (value, key) => {
+    if (key === "vol" || key === "c3") return wholeMetric(value, 1000);
+    if (key === "phasing") return wholeMetric(value);
+    return [
       "amountShare",
       "investmentShare",
       "volShare",
       "c3Share",
       "contractShare",
-      "phasing",
     ].includes(key)
       ? number(value)
       : key === "gapVol" || key === "gapC3"
@@ -118,10 +120,11 @@ export function V19DealerDetails({
             : number(value)
           : key === "amount"
             ? number(value, 10000)
-            : ["investment", "contract", "vol", "c3"].includes(key) ||
+            : ["investment", "contract"].includes(key) ||
                 key.startsWith("expense:")
               ? number(value, 1000)
               : value || "—";
+  };
   const cell = (row, key) =>
     key === "name" ? (
       <>

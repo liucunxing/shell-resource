@@ -390,8 +390,8 @@ describe("V20 V17 allocation table contract", () => {
     expect(rows.map(row => row.phasing)).toEqual([100, 117]);
     expect(historicalDetailTotals([rows[1]], "2025").phasing).toBe(1.17);
     const html = renderToStaticMarkup(<V19DealerDetails items={items.slice(0, 1)} dealers={source} />);
-    expect(html).toContain("100.0");
-    expect(html).toContain("117.0");
+    expect(html).toMatch(/data-column="phasing"[^>]*>100<\/td>/);
+    expect(html).toMatch(/data-column="phasing"[^>]*>117<\/td>/);
     expect(historicalDetailTotals(rows, "2025").phasing).toBeCloseTo((160000 + 1.17 * 700000) / 860000);
   });
 
@@ -406,8 +406,8 @@ describe("V20 V17 allocation table contract", () => {
     );
     const footer = html.match(/<tfoot[\s\S]*?<\/tfoot>/)?.[0];
     expect(footer).toMatch(/data-column="contract"[^>]*>4\.0<\/td>/);
-    expect(footer).toMatch(/data-column="vol"[^>]*>4\.0<\/td>/);
-    expect(footer).toMatch(/data-column="phasing"[^>]*>25\.0<\/td>/);
+    expect(footer).toMatch(/data-column="vol"[^>]*>4<\/td>/);
+    expect(footer).toMatch(/data-column="phasing"[^>]*>25<\/td>/);
   });
 
   it("keeps YTD target values and percentage Phasing consistent in the shared dealer table and drawer", () => {
