@@ -51,19 +51,8 @@
   display: none;
 }
 .v19-work-version {
-  display: flex;
-  align-items: center;
-  gap: 16px;
   font-size: 12px;
   margin: 14px 0 16px;
-}
-.v19-work-version [data-slot="badge"] {
-  background: #eaf6ee;
-  color: #008443;
-  border: 0;
-  border-radius: 3px;
-  font-size: 10px;
-  padding: 3px 7px;
 }
 .v19-editor .v19-workspace-tabs {
   position: sticky;

@@ -16,6 +16,7 @@ import "../v19-portfolio.css";
 import { Badge } from "../../components/ui/badge";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
+import { TooltipProvider } from "../../components/ui/tooltip";
 import {
   Table,
   TableHeader,
@@ -33,6 +34,7 @@ import { useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
 import { PlanningVersionBar as VersionBar } from "./PlanningVersionBar.jsx";
+import { PlanningSummaryAmount } from "./PlanningSummaryAmount";
 import { VersionComparison } from "./VersionComparison.jsx";
 import { SdAnalysis } from "./SdAnalysis.jsx";
 import { V19ExecutiveHealth } from "./V19ExecutiveHealth.jsx";
@@ -231,7 +233,7 @@ export function SubmissionPage() {
       hasReserveAcknowledgement(identity, state.planningVersion?.id, item),
   );
   return (
-    <>
+    <TooltipProvider delayDuration={150}>
       <PageHead eyebrow="DRAFT & SUBMISSION" title="当前版本的草稿与提交" />
       <VersionBar fixed />
       <Card className="panel studio-submission-panel">
@@ -268,10 +270,10 @@ export function SubmissionPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Initiative</TableHead>
-                <TableHead className="num">本版预算（万）</TableHead>
-                <TableHead className="num">已分配</TableHead>
-                <TableHead className="num">预留</TableHead>
-                <TableHead className="num">待分配</TableHead>
+                <TableHead className="num">本版预算（万元）</TableHead>
+                <TableHead className="num">已分配（万元）</TableHead>
+                <TableHead className="num">预留（万元）</TableHead>
+                <TableHead className="num">待分配（万元）</TableHead>
                 <TableHead>提交状态</TableHead>
                 <TableHead />
               </TableRow>
@@ -284,17 +286,17 @@ export function SubmissionPage() {
                     <TableCell>
                       <strong>{item.name}</strong>
                     </TableCell>
-                    <TableCell className="num" sortValue={item.budget / 10000}>
-                      {num(item.budget / 10000, 1)}
+                    <TableCell className="num" sortValue={totals.budget}>
+                      <PlanningSummaryAmount value={totals.budget} />
                     </TableCell>
-                    <TableCell className="num" sortValue={totals.allocated / 10000}>
-                      {num(totals.allocated / 10000, 1)}
+                    <TableCell className="num" sortValue={totals.allocated}>
+                      <PlanningSummaryAmount value={totals.allocated} />
                     </TableCell>
-                    <TableCell className="num" sortValue={totals.otherBudget / 10000}>
-                      {num(totals.otherBudget / 10000, 1)}
+                    <TableCell className="num" sortValue={totals.otherBudget}>
+                      <PlanningSummaryAmount value={totals.otherBudget} />
                     </TableCell>
-                    <TableCell className="num" sortValue={Math.max(0, totals.gap) / 10000}>
-                      {num(Math.max(0, totals.gap) / 10000, 1)}
+                    <TableCell className="num" sortValue={Math.max(0, totals.gap)}>
+                      <PlanningSummaryAmount value={Math.max(0, totals.gap)} />
                     </TableCell>
                     <TableCell sortValue={item.status}>
                       <Status status={item.status} />{" "}
@@ -322,7 +324,7 @@ export function SubmissionPage() {
           提交覆盖仅限当前版本可提交项目，保留修订审计。已取消项目不显示为待提交，历史版本不被删除。
         </p>
       </Card>
-    </>
+    </TooltipProvider>
   );
 }
 

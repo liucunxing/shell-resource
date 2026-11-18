@@ -16,16 +16,16 @@ import {
 } from "../../components/ui/table";
 import { Badge } from "../../components/ui/badge";
 import { Textarea } from "../../components/ui/textarea";
+import { TooltipProvider } from "../../components/ui/tooltip";
 import { useEffect, useMemo, useState } from "react";
 import * as api from "../api.js";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
 import { PageHead } from "./OverviewPages.jsx";
+import { PlanningSummaryAmount } from "./PlanningSummaryAmount";
 import { PlanningVersionBar } from "./PlanningVersionBar.jsx";
 import { WorkflowDialog } from "./WorkflowDialog.jsx";
 
-const money = (value) =>
-  Number(value || 0).toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const stamp = (value) =>
   value ? new Date(value).toLocaleString("zh-CN") : "—";
 export function reviewStatus(item) {
@@ -128,8 +128,12 @@ export function DepartmentReviewPage() {
       submittedAt: item.workflow?.submittedAt || item.publishedAt,
       allocated: item.workflow?.submitted ? E.totals([item]).allocated : null,
     })[sort.key] ?? item[sort.key] ?? "";
+    const aValue = value(a);
+    const bValue = value(b);
+    if (sort.key === "allocated" && typeof aValue === "number" && typeof bValue === "number")
+      return (aValue - bValue) * sort.direction;
     return (
-      String(value(a)).localeCompare(String(value(b)), "zh-CN", {
+      String(aValue).localeCompare(String(bValue), "zh-CN", {
         numeric: true,
       }) * sort.direction
     );
@@ -183,7 +187,7 @@ export function DepartmentReviewPage() {
     }
   };
   return (
-    <>
+    <TooltipProvider delayDuration={150}>
       <PageHead
         eyebrow="DEPARTMENT CONFIRMATION"
         title={identity.role === "admin" ? "部门方案与驳回" : "部门方案提交"}
@@ -275,7 +279,7 @@ export function DepartmentReviewPage() {
               <Table sortingMode="manual" containerClassName="overflow-visible">
                 <TableHeader>
                   <TableRow>
-                    {[["name", "Initiative"], ...(allScopes ? [["sector", "业务线"], ["department", "部门"]] : []), ["ownerId", "Owner"], ["status", "Owner 提交状态"], ["confirmed", "部门提交状态"], ["submittedAt", "提交时间"], ["allocated", "分配金额（元）"]].map(([key,label]) => (
+                    {[["name", "Initiative"], ...(allScopes ? [["sector", "业务线"], ["department", "部门"]] : []), ["ownerId", "Owner"], ["status", "Owner 提交状态"], ["confirmed", "部门提交状态"], ["submittedAt", "提交时间"], ["allocated", "分配金额（万元）"]].map(([key,label]) => (
                       <TableHead key={key} aria-sort={sort.key === key ? (sort.direction === 1 ? "ascending" : "descending") : "none"}>
                         <Button variant="ghost" type="button" className="v19-sort" onClick={() => sortBy(key)}>{label}{sort.key === key ? (sort.direction === 1 ? " ↑" : " ↓") : " ↕"}</Button>
                       </TableHead>
@@ -306,7 +310,7 @@ export function DepartmentReviewPage() {
                       </TableCell>
                       <TableCell className="num">
                         {item.workflow?.submitted
-                          ? money(E.totals([item]).allocated)
+                          ? <PlanningSummaryAmount value={E.totals([item]).allocated} />
                           : "—"}
                       </TableCell>
                     </TableRow>
@@ -355,6 +359,6 @@ export function DepartmentReviewPage() {
           )}
         </WorkflowDialog>
       )}
-    </>
+    </TooltipProvider>
   );
 }
