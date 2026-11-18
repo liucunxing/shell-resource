@@ -25,7 +25,9 @@ from app.schemas.dto.workbench import (
     AdminConfigDTO,
     AdminUserDTO,
     AdminUsersImportDTO,
+    AdminUserUpdateDTO,
 )
+from app.services.planning_service import PlanningService
 from app.services.workspace_service import WorkspaceService
 
 
@@ -219,20 +221,26 @@ class AdminService(WorkspaceService):
             raise
         return self._user_record(user)
 
-    async def update_user(self, user_id: int, payload: AdminUserDTO) -> dict:
+    async def update_user(self, user_id: int, payload: AdminUserUpdateDTO) -> dict:
         self._admin()
         try:
             await self._locked_config()
+            assignments = payload.assignments
+            planning = PlanningService(self.session, self.user)
+            version = None
+            if assignments:
+                version = await planning.version(assignments.version_id, lock=True)
+                planning.check_revision(version, assignments.expected_revision)
             user = await self.admin_repository.locked_user(user_id)
             if user is None:
                 raise HTTPException(status_code=404, detail="人员不存在")
-            if await self.admin_repository.user_has_budgets(user.email):
+            had_budgets = await self.admin_repository.user_has_budgets(user.email)
+            if had_budgets:
                 unchanged = all(
                     getattr(payload, field) == getattr(user, field)
                     for field in ("email", "display_name", "role", "enabled")
                 ) and payload.sector == list(user.sector or [])
-                assigned = await self.admin_repository.assigned_departments(user.email)
-                if not unchanged or not assigned.issubset(payload.department):
+                if not unchanged:
                     raise HTTPException(
                         status_code=409,
                         detail=(
@@ -250,8 +258,36 @@ class AdminService(WorkspaceService):
                     and (not payload.enabled or payload.role != "admin")):
                 await self._require_other_admin(user.id)
             before = self._user_record(user)
-            for field, value in payload.model_dump().items():
+            for field, value in payload.model_dump(exclude={"assignments"}).items():
                 setattr(user, field, value)
+            if assignments and version:
+                await self.session.flush()
+                for transfer in assignments.transfers:
+                    budget = await self.admin_repository.locked_budget(transfer.budget_id)
+                    if budget is None or budget.planning_version_id != version.id:
+                        raise HTTPException(409, "项目不属于当前规划版本")
+                    previous_owner = (budget.owner_email or "").strip().lower()
+                    next_owner = transfer.owner_email.lower()
+                    if user.email.lower() not in {previous_owner, next_owner}:
+                        raise HTTPException(422, "只能调整该用户负责的项目")
+                    if previous_owner == next_owner:
+                        continue
+                    owner = await self._owner(next_owner, budget.department)
+                    if (owner.role not in {"owner", "lead"}
+                            or budget.sector not in (owner.sector or [])):
+                        raise HTTPException(422, "接任负责人未获授权当前项目")
+                    budget.owner_email = owner.email
+                    budget.revision += 1
+                    budget.status = 0
+                    await planning.invalidate_project_confirmations(
+                        version, budget, "人员权限中调整项目负责人",
+                    )
+                    self.repository.add_log(budget.id, "OWNER_TRANSFER", self.user.email,
+                                            {"ownerId": previous_owner}, {"ownerId": next_owner})
+            if had_budgets:
+                assigned = await self.admin_repository.assigned_departments(user.email)
+                if not assigned.issubset(payload.department):
+                    raise HTTPException(409, "不能移除仍有项目的部门")
             after = self._user_record(user)
             if before != after:
                 self.repository.add_log(

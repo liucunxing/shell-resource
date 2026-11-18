@@ -681,7 +681,7 @@ function ResourceDetailContent({
                   analyticalOutput(row.history[`${metric}${suffix}`]),
                   metric === "vol" ? cohortVolTotal : cohortC3Total,
                 ),
-          )}
+          ).replace(/%$/, "")}
         </small>
       )}
     </TableCell>
@@ -812,17 +812,17 @@ function ResourceDetailContent({
               )}
               <TableHead className="num">
                 {showCohortDimensions
-                  ? `投资金额及${dimensionLabel}构成（万元）`
+                  ? `投资金额及${dimensionLabel}构成（万元；占比 %）`
                   : "投资（万元）"}
               </TableHead>
               {!showCohortDimensions && (
                 <TableHead className="num">Delivery Vol（KL）</TableHead>
               )}
               <TableHead className="num">
-                {showCohortDimensions ? "历史 C3（K$）" : "C3（K$）"}
+                {showCohortDimensions ? "历史 C3（K$；占比 %）" : "C3（K$）"}
               </TableHead>
               {showCohortDimensions && basis === "vol" && (
-                <TableHead className="num">Delivery Vol（KL）</TableHead>
+                <TableHead className="num">Delivery Vol（KL；占比 %）</TableHead>
               )}
               {!showCohortDimensions && (
                 <>
@@ -864,7 +864,7 @@ function ResourceDetailContent({
                   {showCohortDimensions && (
                     <small>
                       投资占比{" "}
-                      {percent(share(row.amount, cohortInvestmentTotal))}
+                      {n(share(row.amount, cohortInvestmentTotal))}
                     </small>
                   )}
                   {showCohortDimensions ? (
@@ -920,7 +920,7 @@ function ResourceDetailContent({
                 </TableCell>
                 <TableCell className="num">
                   {n(currentAmount, 10000)}
-                  <small>投资占比 {percent(cohortAmountShare)}</small>
+                  <small>投资占比 {n(cohortAmountShare)}</small>
                 </TableCell>
                 <TableCell className="num">
                   {n(historical.c3, 1000)}
@@ -935,7 +935,7 @@ function ResourceDetailContent({
                         ),
                         cohortC3Total,
                       ),
-                    )}
+                    ).replace(/%$/, "")}
                   </small>
                 </TableCell>
                 {basis === "vol" && (
@@ -952,7 +952,7 @@ function ResourceDetailContent({
                           ),
                           cohortVolTotal,
                         ),
-                      )}
+                      ).replace(/%$/, "")}
                     </small>
                   </TableCell>
                 )}
@@ -1166,9 +1166,9 @@ function ResourceDetailContent({
                         <TableRow>
                           <TableHead>资源大类</TableHead>
                           <TableHead className="num">当前（万元）</TableHead>
-                          <TableHead className="num">当前占比</TableHead>
-                          <TableHead className="num">历史占比</TableHead>
-                          <TableHead className="num">差值</TableHead>
+                          <TableHead className="num">当前占比（%）</TableHead>
+                          <TableHead className="num">历史占比（%）</TableHead>
+                          <TableHead className="num">差值（pp）</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1205,14 +1205,14 @@ function ResourceDetailContent({
                                 {n(row.amount, 10000)}
                               </TableCell>
                               <TableCell className="num" sortValue={now}>
-                                {percent(now)}
+                                {now == null ? "—" : n(now)}
                               </TableCell>
                               <TableCell className="num" sortValue={past}>
-                                {percent(past)}
+                                {past == null ? "—" : n(past)}
                               </TableCell>
                               <TableCell className="num">
                                 {now != null && past != null
-                                  ? `${now - past > 0 ? "+" : ""}${n(now - past)}pp`
+                                  ? `${now - past > 0 ? "+" : ""}${n(now - past)}`
                                   : "—"}
                               </TableCell>
                             </TableRow>
@@ -1358,7 +1358,7 @@ function ResourceDetailContent({
                                           />
                                         </i>
                                         <em>
-                                          {percent(value as number | null)}
+                                          {value == null ? "—" : n(value)}
                                         </em>
                                       </div>
                                     ))}

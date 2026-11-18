@@ -117,6 +117,32 @@ class AdminUserDTO(BaseModel):
         return self
 
 
+class UserInitiativeTransferDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    budget_id: int = Field(gt=0)
+    owner_email: str = Field(min_length=3, max_length=255)
+
+
+class UserInitiativeAssignmentsDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    version_id: str = Field(min_length=1, max_length=32)
+    expected_revision: int = Field(ge=0)
+    transfers: list[UserInitiativeTransferDTO] = Field(min_length=1, max_length=5000)
+
+    @field_validator("transfers")
+    @classmethod
+    def unique_budgets(
+        cls, value: list[UserInitiativeTransferDTO],
+    ) -> list[UserInitiativeTransferDTO]:
+        if len({item.budget_id for item in value}) != len(value):
+            raise ValueError("项目不可重复")
+        return value
+
+
+class AdminUserUpdateDTO(AdminUserDTO):
+    assignments: UserInitiativeAssignmentsDTO | None = None
+
+
 class DistributorAllocationCreateDTO(BaseModel):
     distributor_code: str = Field(min_length=1, max_length=255)
     distributor_budget_amount: Decimal = Field(ge=0, max_digits=18, decimal_places=2)

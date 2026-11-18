@@ -26,14 +26,16 @@ it("uses detail columns without support/note, plus resource mix and authorized e
 });
 it("keeps pp bars, full-roster denominators, units, signed expenses and zero versus null",()=>{
  const tree=render();
- expect(text(cells(tree,"amountShare")[0])).toBe("60.0%");
- expect(text(cells(tree,"gapC3")[0])).toBe("+40.0pp");
+ expect(text(headers(tree).find(n=>n.props["data-column"]==="amountShare"))).toContain("（%）");
+ expect(text(headers(tree).find(n=>n.props["data-column"]==="gapC3"))).toContain("（pp）");
+ expect(text(cells(tree,"amountShare")[0])).toBe("60.0");
+ expect(text(cells(tree,"gapC3")[0])).toBe("+40.0");
  expect(nodes(cells(tree,"gapC3")[0]).some(n=>n.props.className==="v19-diverging")).toBe(true);
  expect(text(cells(tree,"contract")[0])).toBe("20.0");
  expect(text(cells(tree,"c3")[0])).toBe("2.0");
  expect(text(cells(tree,"investment")[0])).toBe("1.0");
  expect(text(cells(tree,"expense:SP&A")[0])).toBe("-0.2");
- expect(text(cells(tree,"phasing")[0])).toBe("0.0%");
+ expect(text(cells(tree,"phasing")[0])).toBe("0.0");
  expect(text(cells(tree,"phasing")[1])).toBe("—");
 });
 it("rounds historical values to one decimal without changing their source",()=>{
@@ -48,7 +50,7 @@ it("rounds historical values to one decimal without changing their source",()=>{
 it("makes missing-history dealers searchable without changing shares",()=>{
  let tree=render();nodes(tree).find(n=>n.props["aria-label"]==="搜索叠加经销商").props.onChange({target:{value:"003"}});
  tree=render();expect(cells(tree,"name")).toHaveLength(1);expect(text(cells(tree,"name")[0])).toContain("No history");
- expect(text(cells(tree,"gapC3")[0])).toBe("—");expect(text(cells(tree,"amountShare")[0])).toBe("10.0%");
+ expect(text(cells(tree,"gapC3")[0])).toBe("—");expect(text(cells(tree,"amountShare")[0])).toBe("10.0");
  expect(text(cells(tree,"rank")[0])).toBe("");
  nodes(tree).find(n=>n.props["aria-label"]==="搜索叠加经销商").props.onChange({target:{value:""}});expect(cells(render(),"name")).toHaveLength(3);
 });

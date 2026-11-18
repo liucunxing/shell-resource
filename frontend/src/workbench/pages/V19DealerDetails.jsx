@@ -30,9 +30,6 @@ const number = (value, scale = 1) =>
   value == null
     ? "—"
     : (value / scale).toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-const pct = (value) => (value == null ? "—" : `${number(value)}%`);
-const gap = (value) =>
-  value == null ? "—" : `${value > 0 ? "+" : ""}${number(value)}pp`;
 const complete = (values) =>
   values.length &&
   values.every((value) => typeof value === "number" && Number.isFinite(value))
@@ -112,9 +109,9 @@ export function V19DealerDetails({
       "contractShare",
       "phasing",
     ].includes(key)
-      ? pct(value)
+      ? number(value)
       : key === "gapVol" || key === "gapC3"
-        ? gap(value)
+        ? value == null ? "—" : `${value > 0 ? "+" : ""}${number(value)}`
         : key === "yield"
           ? value == null || value <= 0
             ? "—"
