@@ -508,13 +508,7 @@
 }
 .v19-editor .v19-allocation-table .v19-allocation-remove {
   min-width: 58px;
-  border: 1px solid #c84a3e;
-  background: #fff3f2;
-  color: #a32921;
   font-weight: 600;
-}
-.v19-editor .v19-allocation-table .v19-allocation-remove:hover {
-  background: #ffe3e0;
 }
 .v19-editor .v19-allocation-table thead {
   position: sticky;
