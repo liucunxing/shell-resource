@@ -473,7 +473,7 @@ describe("V20 V17 allocation table contract", () => {
     ]);
     expect(awards.get("a")?.map(({ name }) => name)).toEqual([current.name, other.name]);
     expect(awards.has("b")).toBe(false);
-    expect(allocationColumnGroups([], true).at(-1)?.columns[0]).toEqual(["support", "获配项目"]);
+    expect(allocationColumnGroups([], true).at(-1)?.columns[0]).toEqual(["support", "获配项目数"]);
   });
 
   it("retains both Actuals and both output-share differences after period/basis switches", () => {
