@@ -28,8 +28,7 @@
   align-items: center;
   gap: 8px;
 }
-.v19-fidelity-shell .studio-table-toolbar input,
-.v19-fidelity-shell .v19-allocation-filters > input {
+.v19-fidelity-shell .studio-table-toolbar input {
   /* Auto basis uses width in a row and height inside a column label. */
   flex: 0 1 auto;
   width: 280px;
