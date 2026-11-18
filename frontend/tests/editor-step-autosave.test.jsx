@@ -155,6 +155,14 @@ function prepareTrial() {
   return structuredClone(item().rows);
 }
 
+it("places the trial panel alongside and after the allocation details", () => {
+  prepareTrial();
+  const layout = elements(render()).find(node => node.props.className === "v19-allocation-layout");
+  expect(layout.props.children.map(child => child.props.className)).toEqual([
+    "panel v19-allocation-panel", "panel studio-trial-panel",
+  ]);
+});
+
 it("restores each initiative's selected scheme after remount and cancels to its original allocations", () => {
   const baseline = prepareTrial();
   button(render(), "按历史投资总额采用").props.onClick();
@@ -195,7 +203,7 @@ it("retains trial metadata when autosaving forward after visiting earlier steps"
 
 it("restores the applied history period and clears the choice only after confirming clear amounts", () => {
   prepareTrial();
-  const controls = () => elements(render()).find(node => node.props.onPeriodChange);
+  const controls = () => elements(render()).find(node => node.props.onPeriodChange && node.props.onMetricChange);
   controls().props.onPeriodChange("2026Ytd");
   button(render(), "按Actual C3采用").props.onClick();
   harness.slots = [];
