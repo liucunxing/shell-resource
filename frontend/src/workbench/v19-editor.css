@@ -257,40 +257,39 @@
   flex-wrap: wrap;
   margin: 14px 0 18px;
 }
-.v19-editor .v19-allocation-layout {
+/* The filter controls and trial controls share a row above the full-width table. */
+.v19-editor .v19-allocation-controls-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  align-items: stretch;
-  margin-bottom: 18px;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 20px;
+  align-items: start;
+  margin-bottom: 16px;
 }
-.v19-editor .v19-allocation-layout > .panel {
+.v19-editor .v19-allocation-controls { min-width: 0; }
+.v19-editor .v19-allocation-controls-row .studio-trial-panel {
   min-width: 0;
   margin: 0;
+  padding-left: 20px;
+  border-left: 1px solid #cbd7df;
 }
-.v19-editor .v19-allocation-layout > .v19-allocation-panel {
-  border-right: 0;
-  border-radius: 6px 0 0 6px;
+.v19-editor .v19-allocation-controls-row .studio-trial-panel > .panel-header {
+  min-height: 0;
+  padding: 0;
+  margin: 0 0 10px;
+  border: 0;
+  background: transparent;
 }
-.v19-editor .v19-allocation-layout > .studio-trial-panel {
-  border-radius: 0 6px 6px 0;
-}
-.v19-editor .v19-allocation-layout .v19-trial-quick-options {
-  width: 100%;
-  flex-direction: column;
-  align-items: stretch;
-}
-.v19-editor .v19-allocation-layout .v19-trial-tools > button:last-child {
-  margin-left: 0;
+.v19-editor .v19-allocation-controls-row .v19-trial-tools { margin: 0; }
+.v19-editor .v19-allocation-controls-row .v19-trial-quick-options {
+  flex-direction: row;
+  align-items: center;
 }
 @media (max-width: 1100px) {
-  .v19-editor .v19-allocation-layout { grid-template-columns: minmax(0, 1fr); }
-  .v19-editor .v19-allocation-layout > .v19-allocation-panel {
-    border-right: 1px solid #cbd7df;
-    border-radius: 6px 6px 0 0;
-  }
-  .v19-editor .v19-allocation-layout > .studio-trial-panel {
-    border-top: 0;
-    border-radius: 0 0 6px 6px;
+  .v19-editor .v19-allocation-controls-row { grid-template-columns: minmax(0, 1fr); }
+  .v19-editor .v19-allocation-controls-row .studio-trial-panel {
+    padding: 16px 0 0;
+    border-left: 0;
+    border-top: 1px solid #cbd7df;
   }
 }
 .v19-editor .v19-trial-quick-options {

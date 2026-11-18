@@ -155,12 +155,16 @@ function prepareTrial() {
   return structuredClone(item().rows);
 }
 
-it("places the trial panel alongside and after the allocation details", () => {
+it("places trial controls beside the allocation filters and keeps the table below", () => {
   prepareTrial();
-  const layout = elements(render()).find(node => node.props.className === "v19-allocation-layout");
-  expect(layout.props.children.map(child => child.props.className)).toEqual([
-    "panel v19-allocation-panel", "panel studio-trial-panel",
+  const tree = render();
+  const panel = elements(tree).find(node => node.props.className === "panel v19-allocation-panel");
+  const row = elements(panel).find(node => node.props.className === "v19-allocation-controls-row");
+  expect(row.props.children.map(child => child.props.className)).toEqual([
+    "v19-allocation-controls", "studio-trial-panel",
   ]);
+  expect(elements(row).some(node => node.props.className === "table-scroll allocation-scroll")).toBe(false);
+  expect(elements(panel).some(node => node.props.className === "table-scroll allocation-scroll")).toBe(true);
 });
 
 it("restores each initiative's selected scheme after remount and cancels to its original allocations", () => {
