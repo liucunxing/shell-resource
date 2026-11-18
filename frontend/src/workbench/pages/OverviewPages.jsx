@@ -299,9 +299,6 @@ export function SubmissionPage() {
                     <TableCell sortValue={item.status}>
                       <Status status={item.status} />{" "}
                       {item.workflow?.editable !== false && !hasReserveAcknowledgement(identity, state.planningVersion?.id, item) && <small className="block muted">待核对预算与预留</small>}
-                      {item.publishedRevision
-                        ? `r${item.publishedRevision}`
-                        : ""}
                     </TableCell>
                     <TableCell>
                       <Button
