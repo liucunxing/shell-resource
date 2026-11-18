@@ -125,7 +125,7 @@ export function DepartmentReviewPage() {
   const items = [...(result?.items || [])].sort((a, b) => {
     const value = (item) => ({
       status: reviewStatus(item), confirmed: item.workflow?.confirmed ? "已提交管理层" : "未提交管理层",
-      revision: item.workflow?.submittedRevision, submittedAt: item.workflow?.submittedAt || item.publishedAt,
+      submittedAt: item.workflow?.submittedAt || item.publishedAt,
       allocated: item.workflow?.submitted ? E.totals([item]).allocated : null,
     })[sort.key] ?? item[sort.key] ?? "";
     return (
@@ -275,7 +275,7 @@ export function DepartmentReviewPage() {
               <Table sortingMode="manual" containerClassName="overflow-visible">
                 <TableHeader>
                   <TableRow>
-                    {[["name", "Initiative"], ...(allScopes ? [["sector", "业务线"], ["department", "部门"]] : []), ["ownerId", "Owner"], ["status", "Owner 提交状态"], ["confirmed", "部门提交状态"], ["revision", "提交版本"], ["submittedAt", "提交时间"], ["allocated", "分配金额（元）"]].map(([key,label]) => (
+                    {[["name", "Initiative"], ...(allScopes ? [["sector", "业务线"], ["department", "部门"]] : []), ["ownerId", "Owner"], ["status", "Owner 提交状态"], ["confirmed", "部门提交状态"], ["submittedAt", "提交时间"], ["allocated", "分配金额（元）"]].map(([key,label]) => (
                       <TableHead key={key} aria-sort={sort.key === key ? (sort.direction === 1 ? "ascending" : "descending") : "none"}>
                         <Button variant="ghost" type="button" className="v19-sort" onClick={() => sortBy(key)}>{label}{sort.key === key ? (sort.direction === 1 ? " ↑" : " ↓") : " ↕"}</Button>
                       </TableHead>
@@ -302,11 +302,6 @@ export function DepartmentReviewPage() {
                         {item.workflow?.confirmed ? "已提交管理层" : "未提交管理层"}
                       </TableCell>
                       <TableCell>
-                        {item.workflow?.submittedRevision != null
-                          ? `r${item.workflow.submittedRevision}`
-                          : "—"}
-                      </TableCell>
-                      <TableCell>
                         {stamp(item.workflow?.submittedAt || item.publishedAt)}
                       </TableCell>
                       <TableCell className="num">
@@ -318,7 +313,7 @@ export function DepartmentReviewPage() {
                   ))}
                   {!loading && !items.length && (
                     <TableRow>
-                      <TableCell colSpan={allScopes ? 9 : 7}>
+                      <TableCell colSpan={allScopes ? 8 : 6}>
                         <div className="empty">当前范围没有启用项目。</div>
                       </TableCell>
                     </TableRow>
