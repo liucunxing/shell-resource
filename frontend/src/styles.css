@@ -4928,6 +4928,8 @@ dialog.modal:not([open]) {
 .studio-table-note, .studio-board-footnote { margin: 10px 0 0; color: #879197; font-size: 9px; line-height: 1.6; }
 .studio-board-footnote { padding: 0 8px; text-align: center; }
 .studio-version-compare .empty { min-height: 90px; }
+.studio-version-search.studio-table-toolbar { flex-wrap: nowrap; }
+.studio-version-search > label { flex: none; white-space: nowrap; }
 .studio-submission-panel { padding: 18px; }
 .studio-budget-ack { display: grid; gap: 12px; margin: 0 0 14px; padding: 16px; }
 .studio-budget-ack > label:first-child { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 650; }
