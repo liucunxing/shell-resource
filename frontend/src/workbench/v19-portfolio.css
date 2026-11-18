@@ -34,8 +34,13 @@
   letter-spacing: -0.6px;
 }
 .v19-home-metric small {
+  margin-inline-start: 6px;
+  letter-spacing: normal;
   font-size: 10px;
   font-weight: 400;
+}
+.v19-home-metric > strong > span {
+  white-space: nowrap;
 }
 .v19-home-list-title {
   font-size: 17px;
