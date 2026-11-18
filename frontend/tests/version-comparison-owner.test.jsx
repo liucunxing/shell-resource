@@ -9,6 +9,7 @@ vi.mock("react", async (original) => ({
     return [harness.slots[index], (value) => { harness.slots[index] = typeof value === "function" ? value(harness.slots[index]) : value; }];
   },
   useEffect: () => {},
+  useId: () => "version-comparison-search",
   useMemo: (calculate) => calculate(),
 }));
 vi.mock("../src/workbench/WorkbenchContext.jsx", () => ({ useWorkbench: () => harness.context }));
