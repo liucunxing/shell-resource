@@ -18,7 +18,15 @@ describe("selected roster export", () => {
       { id: "unselected", code: "0003", status: "active" },
     ];
     const book = new ExcelJS.Workbook();
-    await book.xlsx.load(await excel.exportSelectedRoster(rows, dealers));
+    const directory = [
+      { id: "unselected", code: "0003", name: "Available", sector: "PCMO", sd: "East", rsm: "R1", status: "active" },
+      { id: "other", code: "0003", name: "Other sector", sector: "B2B", sd: "West", rsm: "R2", status: "active" },
+    ];
+    await book.xlsx.load(await excel.exportSelectedRoster(rows, dealers, { distributorDirectory: directory }));
+    expect(book.worksheets.map((sheet) => sheet.name)).toEqual(["已选经销商", "经销商列表"]);
+    expect(book.getWorksheet("经销商列表").getRow(1).values.slice(1)).toEqual(["业务线", "经销商编码", "经销商名称", "SD", "RSM", "状态"]);
+    expect(book.getWorksheet("经销商列表").getRow(2).values.slice(1)).toEqual(["PCMO", "0003", "Available", "East", "R1", "active"]);
+    expect(book.getWorksheet("经销商列表").getRow(3).getCell(1).value).toBe("B2B");
     const sheet = book.getWorksheet("已选经销商");
     expect(sheet.rowCount).toBe(3);
     expect(sheet.getRow(2).values.slice(1)).toEqual([
