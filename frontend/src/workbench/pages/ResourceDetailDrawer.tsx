@@ -560,7 +560,7 @@ function ResourceDetailContent({
   );
   const historyTable = (
     <section className="resource-detail-section">
-      <h3>历史表现 · {period === "2025" ? "2025 全年" : "2026 YTD"}</h3>
+      <h3>历史表现 · {period === "2025" ? "2025 全年" : "2026 YTD"}（基于 {rows.length} 家经销商统计）</h3>
       <div className="resource-history-grid">
         {[
           ["经销商 target（KL）", n(historical.contract, 1000)],
@@ -597,12 +597,6 @@ function ResourceDetailContent({
           </div>
         ))}
       </div>
-      <p className="resource-detail-note">
-        费用明细按权限展示，负费用计入净额。Phasing 单家取原值，多家按有效 target 加权；无有效数据时显示 —。
-        {!historical.aligned
-          ? "Actual 与历史费用覆盖不一致或未知，暂不计算 Yield。"
-          : ""}
-      </p>
     </section>
   );
   const sources = (
