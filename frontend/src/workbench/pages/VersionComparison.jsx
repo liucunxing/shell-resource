@@ -1,3 +1,4 @@
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from "../../components/ui/sheet";
 import { Button } from "../../components/ui/button";
 import { VersionDifferenceDrawer } from "./VersionDifferenceDrawer.jsx";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
@@ -30,7 +31,7 @@ const money = (value) =>
         maximumFractionDigits: 2,
       });
 export function VersionComparison({ executive }) {
-  const { state, data, identity } = useWorkbench();
+  const { state, identity } = useWorkbench();
   const versions = (state.planningVersions || []).filter(
     (version) => version.published,
   );
@@ -53,23 +54,9 @@ export function VersionComparison({ executive }) {
     setLoading(false);
     if (!left || !right || left === right) return;
     setLoading(true);
-    Promise.all([api.workspace(left), api.workspace(right)])
+    Promise.all([api.versionComparisonSummary(left), api.versionComparisonSummary(right)])
       .then(([previous, current]) => {
-        if (active)
-          setResult({
-            previous: submittedVersionItems(previous),
-            current: submittedVersionItems(current),
-            previousDealers: previous.data?.dealers || [],
-            currentDealers: current.data?.dealers || [],
-            dealers: [
-              ...new Map(
-                [
-                  ...(previous.data?.dealers || []),
-                  ...(current.data?.dealers || []),
-                ].map((dealer) => [`${dealer.sector}:${dealer.id}`, dealer]),
-              ).values(),
-            ],
-          });
+        if (active) setResult({ previous: previous.initiatives, current: current.initiatives });
       })
       .catch((failure) => {
         if (active) setError(failure.message);
@@ -87,12 +74,12 @@ export function VersionComparison({ executive }) {
         ? compareVersionGroups(
             result.current,
             result.previous,
-            result.dealers.length ? result.dealers : data.dealers,
+            [],
             dimension,
             { requireConfirmed: executive },
           )
         : [],
-    [result, data.dealers, dimension, executive],
+    [result, dimension, executive],
   );
   const showOwner = executive && dimension === "initiative";
   return (
@@ -258,9 +245,9 @@ export function VersionComparison({ executive }) {
         </>
       )}
       {detail && result && (
-        <VersionDifferenceDrawer
+        <LoadVersionDifference
+          key={JSON.stringify([identity.email, left, right])}
           detail={detail}
-          result={result}
           previousVersion={left}
           currentVersion={right}
           executive={executive}
@@ -270,5 +257,45 @@ export function VersionComparison({ executive }) {
         />
       )}
     </Card>
+  );
+}
+
+
+function LoadVersionDifference(props) {
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let active = true;
+    Promise.all([api.workspace(props.previousVersion), api.workspace(props.currentVersion)])
+      .then(([previous, current]) => {
+        if (active)
+          setResult({
+            previous: submittedVersionItems(previous),
+            current: submittedVersionItems(current),
+            previousDealers: previous.data?.dealers || [],
+            currentDealers: current.data?.dealers || [],
+            dealers: [
+              ...new Map(
+                [
+                  ...(previous.data?.dealers || []),
+                  ...(current.data?.dealers || []),
+                ].map((dealer) => [`${dealer.sector}:${dealer.id}`, dealer]),
+              ).values(),
+            ],
+          });
+      })
+      .catch((failure) => { if (active) setError(failure.message); });
+    return () => { active = false; };
+  }, [props.previousVersion, props.currentVersion]);
+  if (result) return <VersionDifferenceDrawer {...props} result={result} />;
+  return (
+    <Sheet open onOpenChange={(open) => { if (!open) props.onClose(); }}>
+      <SheetContent className="resource-detail-drawer">
+        <SheetTitle>{props.detail.name}</SheetTitle>
+        <SheetDescription role={error ? "alert" : "status"}>
+          {error || "正在读取版本明细…"}
+        </SheetDescription>
+      </SheetContent>
+    </Sheet>
   );
 }
