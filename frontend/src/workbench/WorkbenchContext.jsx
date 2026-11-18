@@ -390,14 +390,6 @@ export function WorkbenchProvider({ children }) {
       email: identity.email.toLowerCase(), version: state.currentVersionId, page, initiativeId,
     }));
   }, [loading, identity, state.currentVersionId, page, initiativeId]);
-  useEffect(() => {
-    if (demoMode || portalMode || typeof window === "undefined") return;
-    const syncLogin = event => {
-      if (event.storageArea === window.localStorage && (event.key === api.DEV_EMAIL_KEY || event.key === null)) window.location.reload();
-    };
-    window.addEventListener?.("storage", syncLogin);
-    return () => window.removeEventListener?.("storage", syncLogin);
-  }, []);
   useEffect(() => () => {
     sessionEpoch.current += 1;
     setPreviewUserEmail("");

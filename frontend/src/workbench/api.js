@@ -17,17 +17,17 @@ export function getDevelopmentEmail() {
   if (isPortalEntry()) return "";
   const localConfig = getLocalPreviewConfig();
   if (localConfig) return getLocalPreviewEmail(localConfig);
-  if (typeof localStorage === "undefined") return "";
-  return String(localStorage.getItem(DEV_EMAIL_KEY) || "").trim();
+  if (typeof sessionStorage === "undefined") return "";
+  return String(sessionStorage.getItem(DEV_EMAIL_KEY) || "").trim();
 }
 
 export function setDevelopmentEmail(email) {
   if (isPortalEntry()) return;
   if (getLocalPreviewConfig()) { setLocalPreviewEmail(String(email || "").trim()); return; }
   const value = String(email || "").trim();
-  if (typeof localStorage === "undefined") return;
-  if (value) localStorage.setItem(DEV_EMAIL_KEY, value);
-  else localStorage.removeItem(DEV_EMAIL_KEY);
+  if (typeof sessionStorage === "undefined") return;
+  if (value) sessionStorage.setItem(DEV_EMAIL_KEY, value);
+  else sessionStorage.removeItem(DEV_EMAIL_KEY);
 }
 
 // Temporary FineReport Portal handoff; permissions are always resolved by the API.
