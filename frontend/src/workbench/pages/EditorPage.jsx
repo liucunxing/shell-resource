@@ -2451,8 +2451,7 @@ function EditorContent({
                 </Table>
               </div>
               <div className="v19-reserve-intro">
-                <strong>先定义预留，再拆分能明确到经销商的预算。</strong>{" "}
-                暂不能明确对象或用途的部分，请设置预留并说明原因。允许有原因的100%预留，不为了配平强行分摊。预留不会因手工微调自动消耗。
+                <strong>先定义预留，再拆分能明确到经销商的预算。</strong>
               </div>
             </Card>
           )}
