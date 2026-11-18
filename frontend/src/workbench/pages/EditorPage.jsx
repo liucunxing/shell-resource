@@ -1,3 +1,4 @@
+import { wholeMetric } from "../domain/metric-precision";
 import { DealerDetailButton } from "../DealerDetailAccess";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MoneyInput } from "./MoneyInput";
@@ -1014,8 +1015,9 @@ function EditorContent({
       note: row.note || "",
     }[key];
   };
-  const allocationFormat = (value, key) =>
-    [
+  const allocationFormat = (value, key) => {
+    if (key === "vol" || key === "c3") return wholeMetric(value, 1000);
+    return [
       "amountShare",
       "volShare",
       "c3Share",
@@ -1028,7 +1030,7 @@ function EditorContent({
       : key === "phasing"
         ? value == null
           ? "—"
-          : fmt(value * 100)
+          : wholeMetric(value * 100)
         : key === "gapVol" || key === "gapC3"
           ? value == null
             ? "—"
@@ -1037,10 +1039,11 @@ function EditorContent({
             ? value == null || value <= 0
               ? "—"
               : fmt(value)
-            : ["contract", "vol", "c3", "investment"].includes(key) ||
+            : ["contract", "investment"].includes(key) ||
                 key.startsWith("expense:")
               ? histFmt(value)
               : (value ?? "—");
+  };
   const totalAllocationValue = (key) => {
     if (key.startsWith("expense:")) {
       const values = i.rows.map((row) => allocationValue(row, key));
@@ -1468,12 +1471,12 @@ function EditorContent({
                                     ]
                                   }
                                 >
-                                  {histFmt(
+                                  {wholeMetric(
                                     h[
                                       period === "2025"
                                         ? "vol2025"
                                         : "vol2026Ytd"
-                                    ],
+                                    ], 1000,
                                   )}
                                 </TableCell>
                                 <TableCell
@@ -1484,10 +1487,10 @@ function EditorContent({
                                     ]
                                   }
                                 >
-                                  {histFmt(
+                                  {wholeMetric(
                                     h[
                                       period === "2025" ? "c32025" : "c32026Ytd"
-                                    ],
+                                    ], 1000,
                                   )}
                                 </TableCell>
                                 <TableCell
@@ -1497,7 +1500,7 @@ function EditorContent({
                                 >
                                   {historyPhasing(h, period) == null
                                     ? "—"
-                                    : fmt(historyPhasing(h, period) * 100)}
+                                    : wholeMetric(historyPhasing(h, period) * 100)}
                                 </TableCell>
                                 <TableCell
                                   className="num"
@@ -1961,7 +1964,7 @@ function EditorContent({
                   <b>
                     {weightedPhasing == null
                       ? "—"
-                      : `${fmt(weightedPhasing * 100)}%`}{" "}
+                      : `${wholeMetric(weightedPhasing * 100)}%`}{" "}
                     ↑
                   </b>
                 </span>

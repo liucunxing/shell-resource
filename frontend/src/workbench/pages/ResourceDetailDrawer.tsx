@@ -1,3 +1,4 @@
+import { wholeMetric } from "../domain/metric-precision";
 import { DealerDetailButton, useDealerDetailAccess } from "../DealerDetailAccess";
 import { InitiativeLabel, useLegendColors } from "../LegendColors";
 import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
@@ -567,13 +568,11 @@ function ResourceDetailContent({
       <div className="resource-history-grid">
         {[
           ["经销商 target（KL）", n(historical.contract, 1000)],
-          ["Delivery Vol（KL）", n(historical.vol, 1000)],
-          ["Actual C3（K$）", n(historical.c3, 1000)],
+          ["Delivery Vol（KL）", wholeMetric(historical.vol, 1000)],
+          ["Actual C3（K$）", wholeMetric(historical.c3, 1000)],
           [
             "Phasing",
-            percent(
-              historical.phasing == null ? null : historical.phasing * 100,
-            ),
+            historical.phasing == null ? "—" : `${wholeMetric(historical.phasing * 100)}%`,
           ],
           ["历史投资总额（K$）", n(historical.investment, 1000)],
           ["Yield（C3 ÷ 历史投资）", n(historical.yield)],
@@ -670,7 +669,7 @@ function ResourceDetailContent({
     metric: "vol" | "c3",
   ) => (
     <TableCell className="num" sortValue={row.history[`${metric}${suffix}`]}>
-      {n(row.history[`${metric}${suffix}`], 1000)}
+      {wholeMetric(row.history[`${metric}${suffix}`], 1000)}
       {current.type === "cohort" && (
         <small>
           占{" "}
@@ -923,7 +922,7 @@ function ResourceDetailContent({
                   <small>投资占比 {n(cohortAmountShare)}</small>
                 </TableCell>
                 <TableCell className="num">
-                  {n(historical.c3, 1000)}
+                  {wholeMetric(historical.c3, 1000)}
                   <small>
                     占{" "}
                     {percent(
@@ -940,7 +939,7 @@ function ResourceDetailContent({
                 </TableCell>
                 {basis === "vol" && (
                   <TableCell className="num">
-                    {n(historical.vol, 1000)}
+                    {wholeMetric(historical.vol, 1000)}
                     <small>
                       占{" "}
                       {percent(

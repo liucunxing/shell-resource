@@ -1,3 +1,4 @@
+import { wholeMetric, isHistoricalOutput } from "../domain/metric-precision";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -251,7 +252,7 @@ export function RawPage() {
                       {typeof r[c.key] === "number"
                         ? c.key === "yield"
                           ? r[c.key].toFixed(1)
-                          : fmt(r[c.key])
+                          : isHistoricalOutput(c.key) ? wholeMetric(r[c.key]) : fmt(r[c.key])
                         : r[c.key]}
                     </TableCell>
                   ))}
