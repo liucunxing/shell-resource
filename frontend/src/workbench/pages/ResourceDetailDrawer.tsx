@@ -598,8 +598,7 @@ function ResourceDetailContent({
         ))}
       </div>
       <p className="resource-detail-note">
-        历史投资总额、Yield、历史投资占比公开；费用明细只使用接口已授权返回的大类。负费用正常计入净额。Phasing
-        直接读取源表对应年份的结果，1 表示 100%；单家直接展示源值，多家按同年源 target 加权。仅纳入同年源 target 大于 0 且源 Phasing 有值的经销商，结果仅代表有效数据范围；无有效数据时汇总显示 —。
+        费用明细按权限展示，负费用计入净额。Phasing 单家取原值，多家按有效 target 加权；无有效数据时显示 —。
         {!historical.aligned
           ? "Actual 与历史费用覆盖不一致或未知，暂不计算 Yield。"
           : ""}
