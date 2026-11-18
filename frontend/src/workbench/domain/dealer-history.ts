@@ -180,7 +180,7 @@ export function historyYoyLabel(
   );
   if (prior !== null && prior <= 0) return "无基期";
   if (prior === null || current === null) return "—";
-  return `${(((current - prior) / prior) * 100).toLocaleString("zh-CN", { maximumFractionDigits: 2 })}%`;
+  return `${(((current - prior) / prior) * 100).toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 }
 
 export function configuredYtdLabel(month: number | null = 10): string {

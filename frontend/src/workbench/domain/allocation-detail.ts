@@ -107,7 +107,7 @@ export function allocationColumnGroups(
       key: "support",
       title: "支持与说明",
       columns: [
-        ["support", editable ? "获配项目" : "获配项目数"],
+        ["support", "获配项目数"],
         ["note", "调整说明"],
       ],
     },

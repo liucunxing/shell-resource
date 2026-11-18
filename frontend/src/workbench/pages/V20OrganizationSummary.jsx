@@ -33,7 +33,7 @@ const moneyChange = (n) => {
   const sign = n > 0 ? "+" : n < 0 ? "−" : "";
   return `${sign}${amount.toLocaleString("zh-CN", {
     minimumFractionDigits: 1,
-    maximumFractionDigits: amount > 0 && amount < 0.05 ? 4 : 1,
+    maximumFractionDigits: 1,
   })}`;
 };
 

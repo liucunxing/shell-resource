@@ -36,9 +36,9 @@ describe("V19 allocation table reference and ordering", () => {
 
 describe("allocation balance indicator", () => {
   it("shows shortages and excesses in yuan and hides a balanced amount", () => {
-    expect(allocationBalanceLabel(1234.56)).toBe("（-1,234.56 元）");
-    expect(allocationBalanceLabel(-0.01)).toBe("（+0.01 元）");
-    expect(allocationBalanceLabel(-1234567.89)).toBe("（+1,234,567.89 元）");
+    expect(allocationBalanceLabel(1234.56)).toBe("（-1,234.6 元）");
+    expect(allocationBalanceLabel(-0.01)).toBe("（+0.0 元）");
+    expect(allocationBalanceLabel(-1234567.89)).toBe("（+1,234,567.9 元）");
     expect(allocationBalanceLabel(0)).toBe("");
   });
 });

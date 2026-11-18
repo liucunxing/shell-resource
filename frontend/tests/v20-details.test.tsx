@@ -390,8 +390,8 @@ describe("V20 V17 allocation table contract", () => {
     expect(rows.map(row => row.phasing)).toEqual([100, 117]);
     expect(historicalDetailTotals([rows[1]], "2025").phasing).toBe(1.17);
     const html = renderToStaticMarkup(<V19DealerDetails items={items.slice(0, 1)} dealers={source} />);
-    expect(html).toContain("100%");
-    expect(html).toContain("117%");
+    expect(html).toContain("100.0%");
+    expect(html).toContain("117.0%");
     expect(historicalDetailTotals(rows, "2025").phasing).toBeCloseTo((160000 + 1.17 * 700000) / 860000);
   });
 
@@ -405,9 +405,9 @@ describe("V20 V17 allocation table contract", () => {
       <V19DealerDetails items={items.slice(0, 1)} dealers={source} />,
     );
     const footer = html.match(/<tfoot[\s\S]*?<\/tfoot>/)?.[0];
-    expect(footer).toMatch(/data-column="contract"[^>]*>4<\/td>/);
-    expect(footer).toMatch(/data-column="vol"[^>]*>4<\/td>/);
-    expect(footer).toMatch(/data-column="phasing"[^>]*>25%<\/td>/);
+    expect(footer).toMatch(/data-column="contract"[^>]*>4\.0<\/td>/);
+    expect(footer).toMatch(/data-column="vol"[^>]*>4\.0<\/td>/);
+    expect(footer).toMatch(/data-column="phasing"[^>]*>25\.0%<\/td>/);
   });
 
   it("keeps YTD target values and percentage Phasing consistent in the shared dealer table and drawer", () => {
@@ -473,7 +473,7 @@ describe("V20 V17 allocation table contract", () => {
     ]);
     expect(awards.get("a")?.map(({ name }) => name)).toEqual([current.name, other.name]);
     expect(awards.has("b")).toBe(false);
-    expect(allocationColumnGroups([], true).at(-1)?.columns[0]).toEqual(["support", "获配项目"]);
+    expect(allocationColumnGroups([], true).at(-1)?.columns[0]).toEqual(["support", "获配项目数"]);
   });
 
   it("retains both Actuals and both output-share differences after period/basis switches", () => {

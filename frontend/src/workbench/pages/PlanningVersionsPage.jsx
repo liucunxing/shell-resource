@@ -198,7 +198,7 @@ export function PlanningVersionsPage() {
                       ? "—"
                       : (
                           versionSummary(version, state).budget / 10000
-                        ).toLocaleString("zh-CN", { maximumFractionDigits: 2 })}
+                        ).toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                   </TableCell>
                   <TableCell>
                     <Badge

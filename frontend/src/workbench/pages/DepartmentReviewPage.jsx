@@ -25,7 +25,7 @@ import { PlanningVersionBar } from "./PlanningVersionBar.jsx";
 import { WorkflowDialog } from "./WorkflowDialog.jsx";
 
 const money = (value) =>
-  Number(value || 0).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
+  Number(value || 0).toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const stamp = (value) =>
   value ? new Date(value).toLocaleString("zh-CN") : "—";
 export function reviewStatus(item) {
