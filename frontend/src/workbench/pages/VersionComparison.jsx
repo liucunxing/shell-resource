@@ -1,3 +1,4 @@
+import { keepUnchanged, readWhileMounted } from "../live-read";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "../../components/ui/sheet";
 import { Button } from "../../components/ui/button";
 import { VersionDifferenceDrawer } from "./VersionDifferenceDrawer.jsx";
@@ -46,29 +47,32 @@ export function VersionComparison({ executive }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   useEffect(() => setPage(1), [query, left, right, dimension]);
+  const leftRevision = versions.find(version => version.id === left)?.revision;
+  const rightRevision = versions.find(version => version.id === right)?.revision;
   const [detail, setDetail] = useState(null);
   useEffect(() => {
-    let active = true;
     setResult(null);
     setDetail(null);
     setError("");
     setLoading(false);
     if (!left || !right || left === right) return;
     setLoading(true);
-    Promise.all([api.versionComparisonSummary(left), api.versionComparisonSummary(right)])
-      .then(([previous, current]) => {
-        if (active) setResult({ previous: previous.initiatives, current: current.initiatives });
-      })
-      .catch((failure) => {
-        if (active) setError(failure.message);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [left, right, identity.email]);
+  }, [left, right, identity.email, identity.role]);
+  useEffect(() => {
+    if (!left || !right || left === right) return;
+    return readWhileMounted(async active => {
+      const [previous, current] = await Promise.all([api.versionComparisonSummary(left), api.versionComparisonSummary(right)]);
+      if (active()) {
+        setResult(old => keepUnchanged(old, { previous: previous.initiatives, current: current.initiatives }));
+        setLoading(false);
+        setError("");
+      }
+    }, { onError: failure => {
+      setError(failure.message);
+      if ([401, 403, 404].includes(failure.status)) setResult(null);
+      setLoading(false);
+    } });
+  }, [left, right, identity.email, identity.role, leftRevision, rightRevision]);
   const rows = useMemo(
     () =>
       result
@@ -256,6 +260,8 @@ export function VersionComparison({ executive }) {
         <LoadVersionDifference
           key={JSON.stringify([identity.email, left, right])}
           detail={detail}
+          leftRevision={leftRevision}
+          rightRevision={rightRevision}
           previousVersion={left}
           currentVersion={right}
           executive={executive}
@@ -273,11 +279,10 @@ function LoadVersionDifference(props) {
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   useEffect(() => {
-    let active = true;
-    Promise.all([api.workspace(props.previousVersion), api.workspace(props.currentVersion)])
+    return readWhileMounted(active => Promise.all([api.workspace(props.previousVersion), api.workspace(props.currentVersion)])
       .then(([previous, current]) => {
-        if (active)
-          setResult({
+        if (active())
+          setResult(old => keepUnchanged(old, {
             previous: submittedVersionItems(previous),
             current: submittedVersionItems(current),
             previousDealers: previous.data?.dealers || [],
@@ -290,11 +295,9 @@ function LoadVersionDifference(props) {
                 ].map((dealer) => [`${dealer.sector}:${dealer.id}`, dealer]),
               ).values(),
             ],
-          });
-      })
-      .catch((failure) => { if (active) setError(failure.message); });
-    return () => { active = false; };
-  }, [props.previousVersion, props.currentVersion]);
+          }));
+      }), { onError: failure => { setError(failure.message); if ([401, 403].includes(failure.status)) setResult(null); } });
+  }, [props.previousVersion, props.currentVersion, props.leftRevision, props.rightRevision]);
   if (result) return <VersionDifferenceDrawer {...props} result={result} />;
   return (
     <Sheet open onOpenChange={(open) => { if (!open) props.onClose(); }}>

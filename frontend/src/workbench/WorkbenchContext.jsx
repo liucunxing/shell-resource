@@ -1,4 +1,5 @@
 import { navigationFor } from "./navigation";
+import { keepUnchanged, watchLiveRead } from "./live-read";
 import { LegendColorProvider } from "./LegendColors";
 import {
   useCallback,
@@ -406,6 +407,65 @@ export function WorkbenchProvider({ children }) {
     const timer = setTimeout(() => setToast(null), 4000);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  const versionId = state.currentVersionId || state.planningVersion?.id;
+  useEffect(() => {
+    if (demoMode || loading || !identity || !versionId) return;
+    // Configuration forms maintain their own editable copies.
+    if (page.startsWith("admin-") && page !== "admin-versions") return;
+    const epoch = sessionEpoch.current;
+    const idle = () => !pendingDrafts.current.size &&
+      !(page.startsWith("admin-") && document.querySelector('[role="dialog"]')) &&
+      !(page === "editor" && (document.activeElement?.matches("input, textarea, select") ||
+        document.querySelector('[data-unsaved-invalid="true"]')));
+    return watchLiveRead(async active => {
+      if (!idle()) return;
+      const before = stateRef.current;
+      const versions = await api.planningVersions();
+      if (!active() || epoch !== sessionEpoch.current || before !== stateRef.current || !idle()) return;
+      const latest = versions.find(version => version.id === versionId);
+      if (latest && latest.revision === before.planningVersion?.revision) {
+        if (keepUnchanged(before.planningVersions, versions) !== before.planningVersions)
+          replaceState({ ...before, planningVersions: versions });
+        return;
+      }
+      if (!latest) {
+        api.setPlanningVersion("");
+        await refresh();
+        return;
+      }
+      const incoming = normalizeWorkspace(await api.workspace(versionId));
+      if (!active() || epoch !== sessionEpoch.current || before !== stateRef.current || !idle()) return;
+      if (incoming.identity?.email !== identity.email ||
+          Boolean(incoming.identity?.preview?.readOnly) !== Boolean(identity.preview?.readOnly)) return;
+      if (keepUnchanged(identity, incoming.identity) !== identity) {
+        await refresh();
+        return;
+      }
+      const next = incoming.state;
+      if (String(next.currentVersionId || next.planningVersion?.id) !== String(versionId)) return;
+      const localDrafts = new Map(before.initiatives.filter(item => dirtyIds.has(item.id)).map(item => [item.id, item]));
+      next.initiatives = next.initiatives.map(remote => {
+        const draft = localDrafts.get(remote.id);
+        return draft && draft.ownerId === remote.ownerId && incoming.identity.role === identity.role
+          ? { ...remote, rows: draft.rows, otherBudgets: draft.otherBudgets, changeReason: draft.changeReason,
+              editorState: draft.editorState, revision: draft.revision }
+          : remote;
+      });
+      if (keepUnchanged(before, next) !== before) {
+        replaceState(next);
+        setServerRevisions(old => Object.fromEntries(next.initiatives.map(item =>
+          [item.id, localDrafts.has(item.id) ? old[item.id] : item.revision])));
+      }
+      setData(old => keepUnchanged(old, { ...incoming.data, distributorDirectory: old.distributorDirectory }));
+      setUsers(old => keepUnchanged(old, incoming.users));
+      setIdentityState(old => keepUnchanged(old, incoming.identity));
+      const allowed = navigationFor(incoming.identity, ownInitiatives(next.initiatives, incoming.identity).length > 0);
+      if (!allowed.some(([key]) => key === page)) setPage(homeFor(incoming.identity));
+    }, { onError: error => {
+      if (epoch === sessionEpoch.current && [401, 403, 404].includes(error.status)) refresh({ preservePage: true });
+    } });
+  }, [identity, versionId, page, loading, dirtyIds]);
 
   const inputReady = () => {
     const invalid = document.querySelector('[data-unsaved-invalid="true"]');
