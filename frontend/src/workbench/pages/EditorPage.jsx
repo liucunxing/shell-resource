@@ -1317,6 +1317,11 @@ function EditorContent({
                     containerClassName="overflow-visible"
                     className="v19-scope-review"
                   >
+                    <colgroup>
+                      {[80, 280, 130, 180, 100, ...Array(10).fill(110), ...Array(4).fill(180), 200].map((width, index) => (
+                        <col key={index} style={{ width }} />
+                      ))}
+                    </colgroup>
                     <TableHeader>
                       <TableRow>
                         <TableHead rowSpan={2}>

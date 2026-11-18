@@ -18,7 +18,7 @@ import {
   TableBody,
   TableCell,
 } from "../../components/ui/table";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import * as api from "../api.js";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import { compareVersionGroups } from "../domain/portfolio-analytics.js";
@@ -44,7 +44,6 @@ export function VersionComparison({ executive }) {
     [error, setError] = useState(""),
     [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
-  const searchId = useId();
   const [detail, setDetail] = useState(null);
   useEffect(() => {
     let active = true;
@@ -152,13 +151,12 @@ export function VersionComparison({ executive }) {
       ) : (
         <>
           <div className="studio-table-toolbar studio-version-search">
-            <Label htmlFor={searchId}>查找</Label>
             <Input
-              id={searchId}
               value={query}
               type="search"
               onChange={(event) => setQuery(event.target.value)}
-              placeholder={showOwner ? "项目 / Owner" : "项目 / 维度名称"}
+              aria-label={showOwner ? "按项目或 Owner 搜索" : "按项目或维度名称搜索"}
+              placeholder={showOwner ? "按项目 / Owner 搜索" : "按项目 / 维度名称搜索"}
             />
           </div>
           <div className="table-scroll v19-comparison-scroll">
