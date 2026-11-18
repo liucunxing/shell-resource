@@ -172,6 +172,7 @@ export function SdAnalysis({
   redThreshold = 10,
   metadata = {},
   sourceVersionId = "",
+  sourceRevision,
   comparisonIdentity = "",
   ytdCutoffMonth = 10,
   budgetReasons = [],
@@ -193,17 +194,21 @@ export function SdAnalysis({
     [sourceError, setSourceError] = useState(""),
     [sourceLoading, setSourceLoading] = useState(false);
   useEffect(() => {
-    let active = true;
     setSource(null);
     setSourceDealers([]);
     setSourceError("");
     setSourceLoading(false);
     if (!sourceVersionId) return;
     setSourceLoading(true);
+  }, [sourceVersionId, comparisonIdentity]);
+  useEffect(() => {
+    if (!sourceVersionId) return;
+    let active = true;
     api
       .workspace(sourceVersionId)
       .then((workspace) => {
         if (active) {
+          setSourceError("");
           setSource(submittedVersionItems(workspace));
           setSourceDealers(workspace.data?.dealers || []);
         }
@@ -217,7 +222,7 @@ export function SdAnalysis({
     return () => {
       active = false;
     };
-  }, [sourceVersionId, comparisonIdentity]);
+  }, [sourceVersionId, comparisonIdentity, sourceRevision]);
   const comparisonDealers = [
     ...new Map(
       [...sourceDealers, ...dealers].map((dealer) => [

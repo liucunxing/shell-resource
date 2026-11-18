@@ -13,7 +13,9 @@ vi.mock("react", async (original) => ({
     }];
   },
   useRef(initial) { const index = harness.cursor++; return harness.slots[index] ??= { current: initial }; },
-  useEffect: () => {},
+  useEffect(effect, deps) {
+    if (harness.liveEffects && deps?.length) harness.liveEffects.push(effect);
+  },
 }));
 vi.mock("../src/workbench/api.js", () => ({
   acceptPortalEmail: vi.fn(), getDevelopmentEmail: () => "owner@example.test", setPlanningVersion: vi.fn(),
@@ -48,7 +50,61 @@ beforeEach(async () => {
   render(); await harness.context.refresh(); render();
   harness.workspace.mockClear();
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  for (const cleanup of harness.cleanups || []) cleanup?.();
+  harness.liveEffects = null;
+  harness.cleanups = [];
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
+
+function startLiveView() {
+  vi.useFakeTimers();
+  vi.stubGlobal("document", Object.assign(new EventTarget(), { visibilityState: "visible", querySelector: () => null }));
+  harness.liveEffects = [];
+  render();
+  harness.cleanups = harness.liveEffects.map(effect => effect());
+  harness.liveEffects = null;
+}
+
+it.each(["lead", "management"])("updates the authorized %s view only when a revision changes", async role => {
+  const base = payload();
+  base.identity.role = role;
+  harness.workspace.mockResolvedValue(base);
+  await harness.context.refresh();
+  render();
+  harness.workspace.mockClear();
+  harness.versions.mockResolvedValue([version]);
+  startLiveView();
+  await vi.advanceTimersByTimeAsync(10000);
+  expect(harness.workspace).not.toHaveBeenCalled();
+  const published = structuredClone(base);
+  published.state.planningVersion = { ...version, revision: 5 };
+  published.state.initiatives[0].workflow = { submitted: true, confirmed: role === "management" };
+  published.state.initiatives[0].rows[0].amount = 98;
+  harness.versions.mockResolvedValue([published.state.planningVersion]);
+  harness.workspace.mockResolvedValue(published);
+  document.dispatchEvent(new Event("visibilitychange"));
+  await vi.advanceTimersByTimeAsync(0);
+  expect(harness.workspace).toHaveBeenCalledExactlyOnceWith(version.id);
+  expect(render().state.initiatives[0].rows[0].amount).toBe(98);
+});
+
+it("keeps the edited amount and original save precondition after another user's update", async () => {
+  harness.context.mutate(state => {
+    state.initiatives[0].revision++;
+    state.initiatives[0].rows[0].amount = 45;
+  });
+  render();
+  const revision = { ...version, revision: 5 };
+  harness.versions.mockResolvedValue([revision]);
+  harness.workspace.mockResolvedValue(payload(revision));
+  startLiveView();
+  await vi.advanceTimersByTimeAsync(10000);
+  expect(render().state.initiatives[0].rows[0].amount).toBe(45);
+  await harness.context.saveDraft("1");
+  expect(harness.save).toHaveBeenCalledWith("1", expect.objectContaining({ rows: [{ dealerId: "D1", amount: 45 }] }), 7);
+});
 
 it("submits a clean loaded draft in one request with its server revision", async () => {
   await expect(harness.context.publish("1", "本版说明")).resolves.toMatchObject({ publishedRevision: 7 });

@@ -553,6 +553,7 @@ function PortfolioDashboard({ mode }) {
             threshold={state.healthThresholds?.concentrationYellow ?? 5}
             redThreshold={state.healthThresholds?.concentrationRed ?? 10}
             sourceVersionId={state.planningVersion?.sourceVersionId}
+            sourceRevision={state.planningVersions?.find(version => version.id === state.planningVersion?.sourceVersionId)?.revision}
             comparisonIdentity={identity?.email}
           />
         </TabsContent>
