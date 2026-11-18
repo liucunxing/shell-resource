@@ -133,7 +133,7 @@ export default function WorkbenchApp() {
   useLayoutEffect(() => {
     const header = navigationRef.current;
     if (!header) return;
-    const workspace = header.parentElement;
+    const workspace = document.documentElement;
     const measure = () => workspace.style.setProperty(
       "--appnav-height", `${header.getBoundingClientRect().height}px`,
     );
