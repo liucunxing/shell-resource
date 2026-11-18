@@ -900,3 +900,26 @@ async def test_renaming_source_updates_derived_versions_and_detects_stale_revisi
         assert stale.value.status_code == 409
     finally:
         await session.close()
+
+@pytest.mark.asyncio
+async def test_comparison_summary_respects_submission_and_confirmation():
+    session, _, budgets = await prepare()
+    try:
+        for budget in budgets:
+            await submit(session, budget)
+        for confirmed in (False, True):
+            if confirmed:
+                await act(session, "confirm")
+            for role in ("lead", "management"):
+                summary = await service(session, user("review@example.com", role)).get_workspace(
+                    2027, version_id="202701", comparison_summary=True,
+                )
+                available = role == "lead" or confirmed
+                assert len(summary["initiatives"]) == len(budgets)
+                for item in summary["initiatives"]:
+                    assert item["allocationVisible"] is available
+                    assert item["allocationTotal"] == (100 if available else 0)
+                    assert item["workflow"]["confirmed"] is confirmed
+                    assert "rows" not in item and "editorState" not in item
+    finally:
+        await session.close()

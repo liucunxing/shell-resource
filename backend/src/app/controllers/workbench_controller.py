@@ -69,6 +69,18 @@ async def get_workspace(
     )
 
 
+@router.get("/version-comparison/summary", response_model=ApiResponse[dict])
+async def version_comparison_summary(
+    planning_year: int,
+    version_id: Annotated[str, Query(min_length=1)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
+) -> ApiResponse[dict]:
+    return success(await _workspace_service(session, user).get_workspace(
+        planning_year, version_id=version_id, comparison_summary=True,
+    ))
+
+
 @router.get(
     "/distributors",
     response_model=ApiResponse[list[dict]],

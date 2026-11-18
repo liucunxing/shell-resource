@@ -49,13 +49,12 @@ class WorkspaceService:
         self.directory_service = directory_service or DistributorDirectoryService(session)
 
     async def get_workspace(
-        self, planning_year: int, *, synced_only: bool = False, version_id: str | None = None
+        self, planning_year: int, *, synced_only: bool = False, version_id: str | None = None,
+        comparison_summary: bool = False,
     ) -> dict:
         department, sector, owner = self._scope()
         planning = PlanningService(self.session, self.user)
         version = await planning.resolve(planning_year, version_id)
-        config = await self.repository.config()
-        users = await self.repository.list_users() if self.user.role == "admin" else []
         own_drafts = []
         if version:
             # Hold the same version lock as workflow mutations while projecting a coherent read.
@@ -68,11 +67,12 @@ class WorkspaceService:
             rows_by_budget, other_by_budget, history_by_budget = (
                 await self.repository.projection_rows(
                     [budget.id for budget in budgets],
-                    include_drafts=self.user.role not in {"lead", "management"} and not synced_only,
+                    include_drafts=self.user.role not in {"lead", "management"} and not synced_only
+                    and not comparison_summary,
                 )
             )
             workflows = await planning.workflows(budgets, version, history_by_budget)
-            if self.user.role == "lead" and not synced_only:
+            if self.user.role == "lead" and not synced_only and not comparison_summary:
                 owned = [
                     b for b in budgets if (b.owner_email or "").lower() == self.user.email.lower()
                 ]
@@ -102,6 +102,11 @@ class WorkspaceService:
                     or (self.user.role == "lead" and workflow["submitted"])
                     or workflow["confirmed"]
                 )
+                if comparison_summary:
+                    initiatives.append(self._comparison_summary(
+                        budget, publication if visible else None, workflow["confirmed"],
+                    ))
+                    continue
                 # Upper levels receive only submitted / confirmed immutable snapshots.
                 if self.user.role in {"lead", "management"} or synced_only:
                     item = (
@@ -141,6 +146,8 @@ class WorkspaceService:
                     publications.extend(history)
                 elif visible and publication:
                     publications.append(publication)
+            if comparison_summary:
+                return {"initiatives": initiatives}
         elif self.user.role == "management" or synced_only:
             publications = await self.repository.latest_publications(
                 planning_year, department, sector, owner
@@ -162,6 +169,8 @@ class WorkspaceService:
                 )
                 publications.extend(history)
         budget_ids = [int(item["id"]) for item in initiatives if str(item.get("id", "")).isdigit()]
+        config = await self.repository.config()
+        users = await self.repository.list_users() if self.user.role == "admin" else []
         reference_service = ReferenceService(self.session)
         dealers = await reference_service.get_dealers(
             planning_year,
@@ -253,6 +262,27 @@ class WorkspaceService:
             },
             "users": [self._user(item) for item in users],
         }
+
+    def _comparison_summary(
+        self, budget: BudgetDO, publication: WorkspacePublicationDO | None, confirmed: bool,
+    ) -> dict:
+        item = (publication.snapshot.get("initiative", {}) if publication
+                else self._budget_projection(budget, [], []))
+        summary = {k: item.get(k) for k in (
+            "name", "ownerId", "ownerName", "department", "resourceType", "sector", "budget",
+        )}
+        summary.update(
+            id=str(item.get("id") or budget.id),
+            initiativeKey=item.get("initiativeKey") or budget.initiative_key,
+            enabled=item.get("enabled", budget.enabled),
+            allocationVisible=bool(publication),
+            workflow={"confirmed": confirmed},
+            allocationTotal=sum(float(row.get("amount") or 0) for row in (item.get("rows") or [])),
+            reserveTotal=sum(
+                float(row.get("amount") or 0) for row in (item.get("otherBudgets") or [])
+            ),
+        )
+        return summary
 
     async def _reference_metadata(self, planning_year: int) -> dict:
         reference_service = ReferenceService(self.session)
