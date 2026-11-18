@@ -17,7 +17,7 @@ import {
   TableBody,
   TableCell,
 } from "../../components/ui/table";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import * as api from "../api.js";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import { compareVersionGroups } from "../domain/portfolio-analytics.js";
@@ -43,6 +43,7 @@ export function VersionComparison({ executive }) {
     [error, setError] = useState(""),
     [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
+  const searchId = useId();
   const [detail, setDetail] = useState(null);
   useEffect(() => {
     let active = true;
@@ -163,16 +164,15 @@ export function VersionComparison({ executive }) {
         <div className="empty">请选择两个不同的已发布版本。</div>
       ) : (
         <>
-          <div className="studio-table-toolbar">
-            <Label>
-              查找
-              <Input
-                value={query}
-                type="search"
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder={showOwner ? "项目 / Owner" : "项目 / 维度名称"}
-              />
-            </Label>
+          <div className="studio-table-toolbar studio-version-search">
+            <Label htmlFor={searchId}>查找</Label>
+            <Input
+              id={searchId}
+              value={query}
+              type="search"
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={showOwner ? "项目 / Owner" : "项目 / 维度名称"}
+            />
           </div>
           <div className="table-scroll v19-comparison-scroll">
             <Table containerClassName="overflow-visible">
