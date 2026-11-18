@@ -100,7 +100,7 @@ describe("imported distributor history", () => {
     expect(historyPhasing({ vol2025: 2500 }, "2025")).toBeNull();
     expect(historyYoyLabel({ vol2024: 0, vol2025: 100 }, "vol")).toBe("无基期");
     expect(historyYoyLabel({ c32024: -1, c32025: 100 }, "c3")).toBe("无基期");
-    expect(historyYoyLabel({ vol2024: 100, vol2025: 125 }, "vol")).toBe("25%");
+    expect(historyYoyLabel({ vol2024: 100, vol2025: 125 }, "vol")).toBe("25.0%");
     expect(historyYoyLabel({ vol2025: 125 }, "vol")).toBe("—");
     expect(configuredYtdLabel(9)).toBe("2026 YTD（1–9月）");
     expect(configuredYtdLabel()).toBe("2026 YTD（1–10月）");

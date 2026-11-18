@@ -262,7 +262,7 @@ export function InitiativeContributionBar({
               background: detailInitiativeColor(source),
             }}
           >
-            <title>{`${source.name}：${(source.amount / 10000).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 万元`}</title>
+            <title>{`${source.name}：${(source.amount / 10000).toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} 万元`}</title>
           </span>
         ))}
     </div>
@@ -288,7 +288,7 @@ export function CohortContributionBar({
         {parts
           .filter((part) => part.amount > 0)
           .map((part) => {
-            const description = `${part.name}：${(part.amount / 10000).toLocaleString("zh-CN", { maximumFractionDigits: 2 })} 万元，占该经销商投资 ${total > 0 ? ((part.amount / total) * 100).toFixed(1) : "—"}%`;
+            const description = `${part.name}：${(part.amount / 10000).toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} 万元，占该经销商投资 ${total > 0 ? ((part.amount / total) * 100).toFixed(1) : "—"}%`;
             return (
               <Tooltip key={part.id}>
                 <TooltipTrigger asChild>

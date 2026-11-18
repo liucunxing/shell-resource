@@ -14,7 +14,7 @@ const esc = (v) =>
       })[c],
   );
 const num = (v) =>
-  Number(v || 0).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
+  Number(v || 0).toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const toDisplayUnit = (value) =>
   Number.isFinite(value) ? value / 1000 : value;
 const sum = (items) =>

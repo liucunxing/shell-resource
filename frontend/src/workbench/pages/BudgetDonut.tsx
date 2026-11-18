@@ -9,7 +9,7 @@ export function BudgetDonut({ parts, center, caption }: { parts: Part[]; center:
       <circle cx="75" cy="75" r="64" fill="none" stroke="#D9D9D9" strokeWidth="22" />
       {parts.filter(part => part.value > 0).map(part => {
         const percent = part.value / total * 100, start = offset; offset += percent;
-        const text = `${part.label}：${(part.value / 10000).toLocaleString("zh-CN", {maximumFractionDigits: 2})} 万元 · ${percent.toFixed(1)}%`;
+        const text = `${part.label}：${(part.value / 10000).toLocaleString("zh-CN", {minimumFractionDigits: 1, maximumFractionDigits: 1})} 万元 · ${percent.toFixed(1)}%`;
         return <Tooltip key={part.label}><TooltipTrigger asChild>
           <circle cx="75" cy="75" r="64" fill="none" stroke={part.color} strokeWidth="22"
             pathLength="100" strokeDasharray={`${percent} ${100 - percent}`} strokeDashoffset={-start}

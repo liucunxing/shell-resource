@@ -246,7 +246,7 @@ describe("executive Top cohort dimension drilldown", () => {
     expect(html).toContain("width:10%");
     expect(html).toContain("background:#123456");
     expect(html).toContain('tabindex="0"');
-    expect(html).toContain("MRD：3 万元，占该经销商投资 75.0%");
-    expect(html).toContain("ICE Rebate：1 万元，占该经销商投资 25.0%");
+    expect(html).toContain("MRD：3.0 万元，占该经销商投资 75.0%");
+    expect(html).toContain("ICE Rebate：1.0 万元，占该经销商投资 25.0%");
   });
 });

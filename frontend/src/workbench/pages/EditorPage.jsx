@@ -77,7 +77,7 @@ export {
   canEnterAllocationStep,
 } from "../domain/reserve-review.js";
 const fmt = (n) =>
-  Number(n || 0).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
+  Number(n || 0).toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 export function allocationBalanceLabel(gap) {
   const cents = Math.round(Number(gap) * 100);
   if (!Number.isFinite(cents) || cents === 0) return "";
@@ -85,7 +85,7 @@ export function allocationBalanceLabel(gap) {
 }
 const histFmt = (value) =>
   historyDisplayValue(value) === null ? "—" : fmt(historyDisplayValue(value));
-const pct = (n, d) => (d ? ((n / d) * 100).toFixed(2) : "0.00");
+const pct = (n, d) => (d ? fmt((n / d) * 100) : "0.0");
 const time = (v) => (v ? new Date(v).toLocaleString("zh-CN") : "尚未提交");
 export function dealerBusinessCode(dealerId, dealer = {}, row = {}) {
   return (
@@ -296,7 +296,7 @@ function RatioIndicator({ value, average }) {
       : "none";
   return (
     <span className={`v19-ratio ${tone}`}>
-      <b>{value.toFixed(2)}</b>
+      <b>{fmt(value)}</b>
       {tone !== "none" && (
         <small>
           {tone === "good" ? "优" : tone === "bad" ? "关注" : "近均"}
@@ -1010,9 +1010,7 @@ function EditorContent({
       investment: historyInvestment(h, historyPeriod),
       yield: historyYield(h, historyPeriod),
       investmentShare: investmentShareFor(row.dealerId, historyPeriod),
-      support: (awardsByDealer.get(String(row.dealerId)) || [])
-        .map((award) => award.name)
-        .join("、"),
+      support: (awardsByDealer.get(String(row.dealerId)) || []).length,
       note: row.note || "",
     }[key];
   };
@@ -1319,6 +1317,11 @@ function EditorContent({
                     containerClassName="overflow-visible"
                     className="v19-scope-review"
                   >
+                    <colgroup>
+                      {[80, 280, 130, 180, 100, ...Array(10).fill(110), ...Array(4).fill(180), 200].map((width, index) => (
+                        <col key={index} style={{ width }} />
+                      ))}
+                    </colgroup>
                     <TableHeader>
                       <TableRow>
                         <TableHead rowSpan={2}>
@@ -1663,8 +1666,7 @@ function EditorContent({
                               </TableCell>
                               <TableCell>
                                 <Button
-                                  variant="outline"
-                                  className="selected-roster-remove"
+                                  variant="destructive"
                                   disabled={!editable}
                                   aria-label={`移除 ${dealerLabel(row.dealerId)}`}
                                   onClick={() =>
@@ -1966,7 +1968,7 @@ function EditorContent({
                   <b>
                     {weightedYield == null
                       ? "—"
-                      : `${weightedYield.toFixed(2)}`}{" "}
+                      : fmt(weightedYield)}{" "}
                     ↑
                   </b>
                 </span>
@@ -2150,7 +2152,7 @@ function EditorContent({
                                     ? "num v19-money-cell"
                                     : key === "note"
                                       ? "allocation-note"
-                                      : ["code", "status", "sd", "rsm", "support"].includes(key)
+                                      : ["code", "status", "sd", "rsm"].includes(key)
                                         ? ""
                                         : "num"
                               }
@@ -2195,39 +2197,7 @@ function EditorContent({
                                   average={weightedYield}
                                 />
                               ) : key === "support" ? (
-                                awards.length ? (
-                                  <div className="v20-allocation-awards">
-                                    {awards.map((item) => (
-                                      <Button
-                                        key={item.id}
-                                        variant="outline"
-                                        size="sm"
-                                        title={item.name}
-                                        data-awarded-initiative={item.id}
-                                        onClick={() =>
-                                          setDetail({
-                                            type: "initiative",
-                                            initiativeId: item.id,
-                                            awardedProject: true,
-                                            dealerId: String(r.dealerId),
-                                            scopeDealerKeys: [
-                                              `${i.sector}:${r.dealerId}`,
-                                            ],
-                                            period: historyPeriod,
-                                            basis:
-                                              historyMetric === "vol"
-                                                ? "vol"
-                                                : "c3",
-                                          })
-                                        }
-                                      >
-                                        {item.name}
-                                      </Button>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  "—"
-                                )
+                                awards.length
                               ) : key === "note" ? (
                                 editable ? (
                                   <Input
@@ -2257,7 +2227,7 @@ function EditorContent({
                           {editable && (
                             <TableCell>
                               <Button
-                                variant="ghost"
+                                variant="destructive"
                                 aria-label={
                                   "移除经销商 " + dealerLabel(r.dealerId)
                                 }
@@ -2447,8 +2417,8 @@ function EditorContent({
                         {editable && (
                           <TableCell>
                             <Button
-                              variant="ghost"
-                              className="button subtle small"
+                              variant="destructive"
+                              size="sm"
                               aria-label={`移除第 ${n + 1} 项预算安排`}
                               onClick={() =>
                                 doGuard(() =>
@@ -2665,7 +2635,6 @@ function EditorContent({
               ) : modal.type === "remove" ? (
                 <Button
                   variant="destructive"
-                  className="button danger"
                   onClick={() => {
                     if (
                       update({
