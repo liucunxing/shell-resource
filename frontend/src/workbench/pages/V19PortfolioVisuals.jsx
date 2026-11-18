@@ -966,7 +966,7 @@ export function V19Stack({
   const basisGap = basis === "c3" ? "gapC3" : "gapVol";
   const ranked = rows.filter(row => row[basisGap] != null)
     .sort((a, b) => (direction === "over" ? b[basisGap] - a[basisGap] : a[basisGap] - b[basisGap]) || a.key.localeCompare(b.key));
-  const rankByKey = new Map(ranked.slice(0, 10).map((row, index) => [row.key, index + 1]));
+  const rankByKey = new Map(ranked.map((row, index) => [row.key, index + 1]));
   const ordered = [...ranked, ...rows.filter(row => row[basisGap] == null)];
   const read = (row, field) => field.startsWith("expense:") ? row.resources[field.slice(8)]
     : field === "mix" ? typesForSort(row) : row[field];
@@ -1054,20 +1054,24 @@ export function V19Stack({
             {columns.map(([field,label]) => <TableHead key={field} data-column={field} aria-sort={sort?.field === field ? (sort.asc ? "ascending" : "descending") : "none"}><Button variant="ghost" className="v20-stack-sort" onClick={() => { setSort(prev => ({field,asc:prev?.field === field ? !prev.asc : true})); setPage(1); }}>{label} <span aria-hidden="true">{sort?.field === field ? (sort.asc ? "↑" : "↓") : "↕"}</span></Button></TableHead>)}
           </TableRow></TableHeader>
           <TableBody>
-            {list.map(row => (
-              <TableRow key={row.key} className={rankByKey.has(row.key) ? "v20-stack-top-row" : undefined}>
-                <TableCell data-column="rank" sortValue={rankByKey.get(row.key) ?? null}>{rankByKey.has(row.key) && <span className="v20-stack-rank">Top {rankByKey.get(row.key)}</span>}</TableCell>
-                {columns.map(([field]) => {
-                  const value = read(row, field);
-                  return <TableCell key={field} data-column={field} className={!["name", "code", "sd", "rsm", "mix"].includes(field) ? "num" : undefined} sortValue={value}>
-                    {field === "name" ? <><DealerDetailButton variant="link" onClick={() => setSelected({type:"dealer", dealerKey:row.key, period, basis})}>{row.name}</DealerDetailButton><small>{row.sector}</small></>
-                    : field === "mix" ? <div className="v19-stack-bar">{types.map(type => <span key={type} title={`${type} ${wan(distribution([row], type))}`} style={{background:resourceColor(type),width:`${row.amount ? distribution([row], type) / row.amount * 100 : 0}%`}} />)}</div>
-                    : field === "gapC3" || field === "gapVol" ? value == null ? "—" : <div className="v19-diverging"><i style={{left:`${value < 0 ? 50 + value / max * 45 : 50}%`,width:`${Math.abs(value) / max * 45}%`,background:value > 0 ? "#EB8705" : "#89CFDC"}} /><span>{pp(value)}</span></div>
-                    : format(value, field)}
-                  </TableCell>;
-                })}
-              </TableRow>
-            ))}
+            {list.map(row => {
+              const rank = rankByKey.get(row.key);
+              const isTop = rank != null && rank <= 10;
+              return (
+                <TableRow key={row.key} className={isTop ? "v20-stack-top-row" : undefined}>
+                  <TableCell data-column="rank" sortValue={rank ?? null}>{isTop ? <span className="v20-stack-rank">Top {rank}</span> : rank}</TableCell>
+                  {columns.map(([field]) => {
+                    const value = read(row, field);
+                    return <TableCell key={field} data-column={field} className={!["name", "code", "sd", "rsm", "mix"].includes(field) ? "num" : undefined} sortValue={value}>
+                      {field === "name" ? <><DealerDetailButton variant="link" onClick={() => setSelected({type:"dealer", dealerKey:row.key, period, basis})}>{row.name}</DealerDetailButton><small>{row.sector}</small></>
+                      : field === "mix" ? <div className="v19-stack-bar">{types.map(type => <span key={type} title={`${type} ${wan(distribution([row], type))}`} style={{background:resourceColor(type),width:`${row.amount ? distribution([row], type) / row.amount * 100 : 0}%`}} />)}</div>
+                      : field === "gapC3" || field === "gapVol" ? value == null ? "—" : <div className="v19-diverging"><i style={{left:`${value < 0 ? 50 + value / max * 45 : 50}%`,width:`${Math.abs(value) / max * 45}%`,background:value > 0 ? "#EB8705" : "#89CFDC"}} /><span>{pp(value)}</span></div>
+                      : format(value, field)}
+                    </TableCell>;
+                  })}
+                </TableRow>
+              );
+            })}
             {!list.length && <TableRow><TableCell colSpan={columns.length + 1} className="empty">没有符合条件的经销商</TableCell></TableRow>}
           </TableBody>
         </Table>
