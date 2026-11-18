@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast as notify } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -14,6 +14,11 @@ export function toastHost(root) {
 
 export function ToastNotice({ toast, onDismiss }) {
   const [host, setHost] = useState(() => toastHost(document));
+  const layer = useRef(null);
+  useLayoutEffect(() => {
+    // Escape the dialog's transformed, clipped box while retaining its focus scope.
+    layer.current?.showPopover?.();
+  }, [host]);
   useLayoutEffect(() => {
     const update = () => setHost(toastHost(document));
     const observer = new MutationObserver(update);
@@ -33,8 +38,8 @@ export function ToastNotice({ toast, onDismiss }) {
       notify.dismiss(toast.id);
     };
   }, [toast.id, toast.message, toast.error]);
-  return createPortal(
-    <Toaster className="resource-toaster" position="top-right" closeButton richColors theme="light" />,
-    host,
-  );
+  const toaster = <Toaster className="resource-toaster" position="top-right" closeButton richColors theme="light" />;
+  return createPortal(host === document.body ? toaster : (
+    <div ref={layer} popover="manual" className="resource-toast-layer">{toaster}</div>
+  ), host);
 }

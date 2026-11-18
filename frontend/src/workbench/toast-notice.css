@@ -1,30 +1,37 @@
-/* Sonner defaults are 356px wide with 13px type and 16px padding. */
+.resource-toast-layer {
+  padding: 0;
+  border: 0;
+  overflow: visible;
+}
 [data-sonner-toaster].resource-toaster {
-  --width: min(534px, calc(100vw - 32px)) !important;
+  --width: min(427.2px, calc(80vw - 25.6px)) !important;
   right: 16px;
   left: auto;
   width: var(--width);
 }
+[data-sonner-toaster].resource-toaster[data-y-position="top"] {
+  top: calc(var(--appnav-height, 68px) + 14px);
+}
 [data-sonner-toaster].resource-toaster [data-sonner-toast][data-styled="true"] {
   width: 100%;
-  padding: 24px;
-  gap: 9px;
-  font-size: 19.5px;
+  padding: 19.2px;
+  gap: 7.2px;
+  font-size: 15.6px;
 }
 [data-sonner-toaster].resource-toaster [data-sonner-toast] [data-icon],
 [data-sonner-toaster].resource-toaster [data-sonner-toast] [data-icon] svg {
-  width: 24px;
-  height: 24px;
+  width: 19.2px;
+  height: 19.2px;
 }
 [data-sonner-toaster].resource-toaster [data-sonner-toast] [data-close-button] {
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
 }
 @media (max-width: 600px) {
   [data-sonner-toaster].resource-toaster {
     left: auto;
     right: 16px;
-    width: calc(100vw - 32px);
+    width: var(--width);
   }
   [data-sonner-toaster].resource-toaster [data-sonner-toast] {
     width: 100%;

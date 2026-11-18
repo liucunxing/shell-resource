@@ -95,7 +95,7 @@ let selectedVersionId = "";
 export const setPlanningVersion = (id) => { selectedVersionId = String(id || ""); };
 export const workspace = (versionId = selectedVersionId) => request(`/workspace?planning_year=${planningYear}${versionId ? `&version_id=${encodeURIComponent(versionId)}` : ""}`);
 export const versionComparisonSummary = (id) => request(`/version-comparison/summary?planning_year=${planningYear}&version_id=${encodeURIComponent(id)}`);
-export const planningVersions = () => request(`/planning-versions?planning_year=${planningYear}`);
+export const planningVersions = () => request(`/planning-versions?planning_year=${planningYear}`, { cache: "no-store" });
 export const createPlanningVersion = (value) => request("/planning-versions", {
   method: "POST", body: JSON.stringify({ planning_year: planningYear, ...value }),
 });

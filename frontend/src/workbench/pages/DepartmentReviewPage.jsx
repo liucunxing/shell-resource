@@ -1,3 +1,4 @@
+import { keepUnchanged, readWhileMounted } from "../live-read";
 import { Alert, AlertDescription } from "../../components/ui/alert";
 import { Label } from "../../components/ui/label";
 import {
@@ -100,25 +101,25 @@ export function DepartmentReviewPage() {
     }
   };
   useEffect(() => {
-    let live = true;
     setResult(null);
     setError("");
+    setLoading(Boolean(apiMode && current && (selectedScope || allScopes)));
+  }, [apiMode, current?.id, scopeKey, identity.email, identity.role, allScopes && scopes.map(([key]) => key).join("|")]);
+  useEffect(() => {
     if (!apiMode || !current || (!selectedScope && !allScopes)) return;
-    setLoading(true);
-    fetchReview()
-      .then((value) => {
-        if (live) setResult(value);
-      })
-      .catch((failure) => {
-        if (live) setError(failure.message);
-      })
-      .finally(() => {
-        if (live) setLoading(false);
-      });
-    return () => {
-      live = false;
-    };
-  }, [apiMode, current?.id, current?.revision, scopeKey]);
+    return readWhileMounted(async active => {
+      const value = await fetchReview();
+      if (active()) {
+        setResult(old => keepUnchanged(old, value));
+        setError("");
+        setLoading(false);
+      }
+    }, { onError: failure => {
+      setError(failure.message);
+      setLoading(false);
+      if ([401, 403].includes(failure.status)) setResult(null);
+    } });
+  }, [apiMode, current?.id, current?.revision, scopeKey, identity.email, identity.role, allScopes && scopes.map(([key]) => key).join("|")]);
   if (!["lead", "admin"].includes(identity.role))
     return <div className="empty">仅部门负责人和管理员可查看部门方案。</div>;
   const windowOpen = departmentWindowOpen(result?.version || current);
@@ -146,7 +147,7 @@ export function DepartmentReviewPage() {
   const start = (action) => {
     setReason("");
     setError("");
-    setDialog({ action });
+    setDialog({ action, revision: (result?.version || current).revision });
   };
   const act = async () => {
     setBusy(true);
@@ -154,7 +155,7 @@ export function DepartmentReviewPage() {
     try {
       if (dialog.action === "release") {
         await api.releasePlanningVersion(current.id, {
-          expected_revision: (result?.version || current).revision,
+          expected_revision: dialog.revision,
           reason: reason.trim(),
         });
       } else {
@@ -162,7 +163,7 @@ export function DepartmentReviewPage() {
           throw Error("当前版本已停用，不能提交或撤回部门方案。");
         await api.reviewDepartment(current.id, dialog.action, {
           ...selectedScope,
-          expected_revision: result.version.revision,
+          expected_revision: dialog.revision,
           ...(dialog.action === "withdraw" ? { reason: reason.trim() } : {}),
         });
       }
