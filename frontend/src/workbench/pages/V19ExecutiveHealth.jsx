@@ -50,10 +50,10 @@ function TopRows({ rows, basis, thresholds, onSelect }) {
     <Table className="v19-exec-top-table">
       <TableHeader>
         <TableRow>
-          <TableHead>经销商</TableHead>
-          <TableHead>投资金额</TableHead>
-          <TableHead>{basis === "c3" ? "C3" : "Vol"}</TableHead>
-          <TableHead>差值</TableHead>
+          <TableHead>经销商（家）</TableHead>
+          <TableHead>投资金额占比（%）</TableHead>
+          <TableHead>{basis === "c3" ? "C3" : "Vol"} 占比（%）</TableHead>
+          <TableHead>差值（pp）</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -65,19 +65,19 @@ function TopRows({ rows, basis, thresholds, onSelect }) {
                 <Button variant="link" onClick={() => onSelect(top)}>
                   Top {top}%
                 </Button>
-                <small>{result?.n || 0} 家</small>
+                <small>{result?.n || 0}</small>
               </TableCell>
               <TableCell sortValue={result?.amountShare}>
-                {percent(result?.amountShare)}
+                {result?.amountShare == null ? "—" : number(result.amountShare)}
               </TableCell>
               <TableCell sortValue={result?.metricShare}>
-                {percent(result?.metricShare)}
+                {result?.metricShare == null ? "—" : number(result.metricShare)}
               </TableCell>
               <TableCell
                 data-level={level(result?.gap, thresholds)}
                 sortValue={result?.gap}
               >
-                {gap(result?.gap)}
+                {result?.gap == null ? "—" : `${result.gap > 0 ? "+" : ""}${number(result.gap)}`}
               </TableCell>
             </TableRow>
           );
@@ -406,10 +406,10 @@ export function V19ExecutiveHealth({
                   <TableHead>Owner</TableHead>
                   {tops.map((top) => (
                     <TableHead key={top}>
-                      Top {top}% · 投资 / {label}
+                      Top {top}% · 投资 / {label}（%）
                     </TableHead>
                   ))}
-                  <TableHead>最大集中度差值</TableHead>
+                  <TableHead>最大集中度差值（pp）</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -454,14 +454,14 @@ export function V19ExecutiveHealth({
                               )
                             }
                           >
-                            {percent(result?.amountShare)} /{" "}
-                            {percent(result?.metricShare)}
+                            {result?.amountShare == null ? "—" : number(result.amountShare)} /{" "}
+                            {result?.metricShare == null ? "—" : number(result.metricShare)}
                           </Button>
                         </TableCell>
                       );
                     })}
                     <TableCell sortValue={item.worst?.gap}>
-                      {gap(item.worst?.gap)}
+                      {item.worst?.gap == null ? "—" : `${item.worst.gap > 0 ? "+" : ""}${number(item.worst.gap)}`}
                     </TableCell>
                   </TableRow>
                 ))}

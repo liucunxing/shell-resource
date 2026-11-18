@@ -168,7 +168,7 @@ it("renders the Step 3 summary in four groups with a project-list denominator an
   expect(html).toMatch(/data-column="delta"[^>]*>—</);
   expect(html).toContain("投资金额占比极差 80.0 pp");
   expect(html).toContain('data-series="investment" data-value="90"');
-  expect(html).toContain('class="v20-share-value">90.0%');
+  expect(html).toContain('class="v20-share-value">90.0');
   expect(html).not.toMatch(/SD-C|分配 \/ 全部|合同量|Phasing|波动率|PPP/);
 });
 
@@ -198,7 +198,7 @@ it("labels every series including zero and missing values, and fits 48.5% on a s
   const html = draw(data);
   expect(html).toContain("刻度 0–50%");
   expect(html).toContain('style="width:97%"');
-  for (const label of ["48.5%", "16.4%", "16.3%", "0.0%", "—"])
+  for (const label of ["48.5", "16.4", "16.3", "0.0", "—"])
     expect(html).toContain(`class="v20-share-value">${label}</span>`);
   const chart = renderToStaticMarkup(<HistoricalShareChart investment={100} vol={0} c3={null} scale={100} />);
   expect(chart).toContain('style="width:100%"');

@@ -116,9 +116,9 @@ it("shows both historical C3 and Delivery Vol comparisons with their actual shar
   expect(html).toContain("C3占比");
   expect(html).toContain("Delivery Vol占比");
   expect(html).toContain("投资金额 − Delivery Vol");
-  expect(html).toContain("60.0%");
-  expect(html).toContain("+30.0pp");
-  expect(html).toContain("+65.0pp");
+  expect(html).toContain(">60.0</td>");
+  expect(html).toContain(">+30.0</span>");
+  expect(html).toContain(">+65.0</span>");
 });
 
 it("uses submission state for department summary even when a submitted budget is all reserve", () => {
@@ -259,7 +259,8 @@ it("renders the executive budget composition ring and the complete resource cate
   expect(html).toContain("分配进度");
   expect(html).toContain("获配经销商");
   expect(html).not.toContain("拆分依据");
-  expect(html).toContain("2 家");
+  expect(html).toContain("获配经销商（家）");
+  expect(html).toMatch(/<td[^>]*>2<\/td>/);
   expect(html).not.toContain("未确认的 Initiative");
 });
 

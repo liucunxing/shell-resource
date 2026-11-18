@@ -66,11 +66,11 @@ export function allocationColumnGroups(
       key: "share",
       title: "分布占比 · 差值",
       columns: [
-        ["amountShare", "投资金额占比"],
-        ["volShare", "Delivery Vol占比"],
-        ["c3Share", "C3占比"],
-        ["gapVol", "投资金额−Delivery Vol"],
-        ["gapC3", "投资金额−C3"],
+        ["amountShare", "投资金额占比（%）"],
+        ["volShare", "Delivery Vol占比（%）"],
+        ["c3Share", "C3占比（%）"],
+        ["gapVol", "投资金额−Delivery Vol（pp）"],
+        ["gapC3", "投资金额−C3（pp）"],
       ],
     },
     {
@@ -78,7 +78,7 @@ export function allocationColumnGroups(
       title: "① 经销商 target",
       columns: [
         ["contract", "经销商 target（KL）"],
-        ["contractShare", "target 占比"],
+        ["contractShare", "target 占比（%）"],
       ],
     },
     {
@@ -87,7 +87,7 @@ export function allocationColumnGroups(
       columns: [
         ["vol", "Delivery Vol（KL）"],
         ["c3", "Actual C3（K$）"],
-        ["phasing", "Phasing"],
+        ["phasing", "Phasing（%）"],
       ],
     },
     {
@@ -100,7 +100,7 @@ export function allocationColumnGroups(
             [`expense:${type}`, `${type}（K$）`] as [string, string],
         ),
         ["yield", "Yield（C3÷投资）"],
-        ["investmentShare", "历史投资占比"],
+        ["investmentShare", "历史投资占比（%）"],
       ],
     },
     {

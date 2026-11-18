@@ -175,7 +175,7 @@ export function VersionComparison({ executive }) {
                   <TableHead className="num">来源版本投资（万元）</TableHead>
                   <TableHead className="num">本版投资（万元）</TableHead>
                   <TableHead className="num">变化金额（万元）</TableHead>
-                  <TableHead className="num">波动率</TableHead>
+                  <TableHead className="num">波动率（%）</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -223,10 +223,10 @@ export function VersionComparison({ executive }) {
                         {row.comparable ? money(row.delta) : "不可比较"}
                       </TableCell>
                       <TableCell className="num" sortValue={row.changeRate}>
-                        {row.changeLabel ||
+                        {row.changeLabel?.replace(/%$/, "") ||
                           (row.changeRate == null
                             ? "—"
-                            : `${Number(row.changeRate).toFixed(1)}%`)}
+                            : Number(row.changeRate).toFixed(1))}
                       </TableCell>
                     </TableRow>
                   ))}

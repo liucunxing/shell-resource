@@ -1024,15 +1024,15 @@ function EditorContent({
     ].includes(key)
       ? value == null
         ? "—"
-        : `${fmt(value)}%`
+        : fmt(value)
       : key === "phasing"
         ? value == null
           ? "—"
-          : `${fmt(value * 100)}%`
+          : fmt(value * 100)
         : key === "gapVol" || key === "gapC3"
           ? value == null
             ? "—"
-            : `${value > 0 ? "+" : ""}${fmt(value)}pp`
+            : `${value > 0 ? "+" : ""}${fmt(value)}`
           : key === "yield"
             ? value == null || value <= 0
               ? "—"
@@ -1374,7 +1374,7 @@ function EditorContent({
                       </TableRow>
                       <TableRow>
                         {["2025", "2026Ytd"].map((period) =>
-                          ["Vol（KL）", "C3（K$）", "Phasing", "Yield"].map(
+                          ["Vol（KL）", "C3（K$）", "Phasing（%）", "Yield"].map(
                             (label) => (
                               <TableHead className="num" key={period + label}>
                                 {label}
@@ -1382,14 +1382,14 @@ function EditorContent({
                             ),
                           ),
                         )}
-                        <TableHead className="num">Vol</TableHead>
-                        <TableHead className="num">C3</TableHead>
+                        <TableHead className="num">Vol（%）</TableHead>
+                        <TableHead className="num">C3（%）</TableHead>
                         <TableHead className="num">2025 投资（K$）</TableHead>
-                        <TableHead className="num">2025 资源占比</TableHead>
+                        <TableHead className="num">2025 资源占比（%）</TableHead>
                         <TableHead className="num">
                           2026 YTD 投资（K$）
                         </TableHead>
-                        <TableHead className="num">2026 YTD 资源占比</TableHead>
+                        <TableHead className="num">2026 YTD 资源占比（%）</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1497,7 +1497,7 @@ function EditorContent({
                                 >
                                   {historyPhasing(h, period) == null
                                     ? "—"
-                                    : `${fmt(historyPhasing(h, period) * 100)}%`}
+                                    : fmt(historyPhasing(h, period) * 100)}
                                 </TableCell>
                                 <TableCell
                                   className="num"
@@ -1510,10 +1510,10 @@ function EditorContent({
                               </Fragment>
                             ))}
                             <TableCell className="num">
-                              {historyYoyLabel(h, "vol")}
+                              {historyYoyLabel(h, "vol").replace(/%$/, "")}
                             </TableCell>
                             <TableCell className="num">
-                              {historyYoyLabel(h, "c3")}
+                              {historyYoyLabel(h, "c3").replace(/%$/, "")}
                             </TableCell>
                             {["2025", "2026Ytd"].map((period) => (
                               <Fragment key={period}>
@@ -1532,7 +1532,7 @@ function EditorContent({
                                 >
                                   {investmentShareFor(dealer.id, period) == null
                                     ? "—"
-                                    : `${fmt(investmentShareFor(dealer.id, period))}%`}
+                                    : fmt(investmentShareFor(dealer.id, period))}
                                 </TableCell>
                               </Fragment>
                             ))}
@@ -2701,7 +2701,7 @@ function EditorContent({
                         <TableHead>Initiative</TableHead>
                         <TableHead>资源大类</TableHead>
                         <TableHead>金额</TableHead>
-                        <TableHead>本项目投资占比</TableHead>
+                        <TableHead>本项目投资占比（%）</TableHead>
                         <TableHead>说明</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -2727,7 +2727,7 @@ function EditorContent({
                               {fmt(row.amount)}
                             </TableCell>
                             <TableCell>
-                              {pct(row.amount, E.totals([item]).allocated)}%
+                              {pct(row.amount, E.totals([item]).allocated)}
                             </TableCell>
                             <TableCell>{row.note || "—"}</TableCell>
                           </TableRow>
