@@ -319,7 +319,9 @@ function ResourceDetailContent({
   const [cohortDimension, setCohortDimension] = useState<CohortDimension>(() =>
     defaultCohortDimension(detail.cohortFilteredDimensions),
   );
-  const [width, setWidth] = useState(() => Math.round(window.innerWidth * 0.7));
+  const [width, setWidth] = useState(() =>
+    Math.round(window.innerWidth * (detail.type === "rationale" ? 0.96 : 0.7)),
+  );
   const previous = useRef(
     typeof document === "undefined"
       ? null
@@ -498,7 +500,8 @@ function ResourceDetailContent({
   ).size;
   const reason = (id?: string) => reserveReasonLabel(budgetReasons, id);
   const resize = (value: number) => {
-    const next = Math.max(580, Math.min(1480, window.innerWidth - 24, value));
+    const maxWidth = Math.min(window.innerWidth - 24, current.type === "rationale" ? Infinity : 1480);
+    const next = Math.max(Math.min(580, maxWidth), Math.min(maxWidth, value));
     setWidth(next);
     try {
       localStorage.setItem("ResourceStudioDetailWidth", String(next));

@@ -53,6 +53,19 @@ async function workerHandler() {
 }
 
 describe("background workbook export", () => {
+  it("exports the roster with the same directory as the full allocation workbook", async () => {
+    const postMessage = await workerHandler();
+    await self.onmessage({ data: { operation: "export", kind: "roster", args: [state.initiatives[0].rows, dealers, data] } });
+    const roster = new ExcelJS.Workbook();
+    await roster.xlsx.load(postMessage.mock.calls[0][0].bytes);
+    await self.onmessage({ data: { operation: "export", kind: "allocation", args: [state, "I", identity, data] } });
+    const allocation = new ExcelJS.Workbook();
+    await allocation.xlsx.load(postMessage.mock.calls[1][0].bytes);
+    expect(roster.worksheets.map((sheet) => sheet.name)).toEqual(["已选经销商", "经销商列表"]);
+    expect(roster.getWorksheet("经销商列表").getSheetValues()).toEqual(allocation.getWorksheet("经销商列表").getSheetValues());
+    await self.onmessage({ data: { kind: "roster", buffer: postMessage.mock.calls[0][0].bytes, args: [state, "I", identity, dealers] } });
+    expect(postMessage.mock.calls[2][0].preview.errors).toEqual([]);
+  });
   it("exports transferable XLSX and preserves same-code RSM rows, including zero allocation", async () => {
     const postMessage = await workerHandler();
     await self.onmessage({
