@@ -320,9 +320,7 @@ function ResourceDetailContent({
   const [cohortDimension, setCohortDimension] = useState<CohortDimension>(() =>
     defaultCohortDimension(detail.cohortFilteredDimensions),
   );
-  const [width, setWidth] = useState(() =>
-    Math.round(window.innerWidth * (detail.type === "rationale" ? 0.96 : 0.7)),
-  );
+  const [width, setWidth] = useState(() => Math.round(window.innerWidth * 0.7));
   const previous = useRef(
     typeof document === "undefined"
       ? null
@@ -501,7 +499,7 @@ function ResourceDetailContent({
   ).size;
   const reason = (id?: string) => reserveReasonLabel(budgetReasons, id);
   const resize = (value: number) => {
-    const maxWidth = Math.min(window.innerWidth - 24, current.type === "rationale" ? Infinity : 1480);
+    const maxWidth = Math.min(window.innerWidth - 24, 1480);
     const next = Math.max(Math.min(580, maxWidth), Math.min(maxWidth, value));
     setWidth(next);
     try {
@@ -1064,6 +1062,7 @@ function ResourceDetailContent({
     >
       <SheetContent
         className="resource-detail-drawer"
+        data-detail-kind={current.type}
         style={{ "--detail-width": `${width}px` } as CSSProperties}
         onCloseAutoFocus={(event) => {
           event.preventDefault();
