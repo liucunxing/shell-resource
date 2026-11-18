@@ -15,6 +15,7 @@ vi.mock("react", async (original) => ({
   useLayoutEffect: () => {},
 }));
 vi.mock("../src/workbench/WorkbenchContext.jsx", () => ({ useWorkbench: () => harness.context }));
+import { TableBody } from "../src/components/ui/table";
 import { EditorPage } from "../src/workbench/pages/EditorPage.jsx";
 import E from "../src/workbench/domain/engine.js";
 import data from "../src/workbench/domain/demo-data.json";
@@ -167,16 +168,31 @@ it("keeps each allocation remove button available and confirms before removing",
   expect(item().rows).toHaveLength(before.length - 1);
 });
 
-it("places trial controls beside the allocation filters and keeps the table below", () => {
-  prepareTrial();
-  const tree = render();
-  const panel = elements(tree).find(node => node.props.className === "panel v19-allocation-panel");
-  const row = elements(panel).find(node => node.props.className === "v19-allocation-controls-row");
-  expect(row.props.children.map(child => child.props.className)).toEqual([
-    "v19-allocation-controls", "studio-trial-panel",
-  ]);
-  expect(elements(row).some(node => node.props.className === "table-scroll allocation-scroll")).toBe(false);
-  expect(elements(panel).some(node => node.props.className === "table-scroll allocation-scroll")).toBe(true);
+it("shares one period between the allocation table and the quick schemes", () => {
+  const baseline = prepareTrial();
+  const panel = () => elements(render()).find(node => node.props.className === "panel v19-allocation-panel");
+  const controls = () => elements(panel()).filter(node => node.props.onPeriodChange);
+  const volumes = () => {
+    const body = elements(panel()).find(node => node.type === TableBody);
+    return elements(body).filter(node => node.props["data-column"] === "vol").map(node => node.props.children);
+  };
+  expect(controls()).toHaveLength(1);
+  expect(elements(controls()[0]).some(node => node.props.onCheckedChange)).toBe(true);
+  const quickRow = elements(panel()).find(node => node.props.className === "v19-trial-tools");
+  const search = quickRow.props.children.at(-1);
+  expect(search.props.type).toBe("search");
+
+  const annual = volumes();
+  expect(annual.length).toBeGreaterThan(0);
+  controls()[0].props.onPeriodChange("2026Ytd");
+  expect(volumes()).not.toEqual(annual);
+  expect(item().rows).toEqual(baseline);
+
+  search.props.onChange({ target: { value: "no matching dealer" } });
+  expect(volumes()).toHaveLength(0);
+  button(render(), "按Actual Delivery Vol采用").props.onClick();
+  expect(item().editorState.trial.period).toBe("2026Ytd");
+  expect(item().rows.every(row => row.amount > 0)).toBe(true);
 });
 
 it("restores each initiative's selected scheme after remount and cancels to its original allocations", () => {
