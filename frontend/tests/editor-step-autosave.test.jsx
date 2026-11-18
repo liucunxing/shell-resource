@@ -56,7 +56,7 @@ beforeEach(() => {
     mutate: vi.fn(change => { change(state); return true; }),
     saveDraft: vi.fn().mockResolvedValue(true),
   };
-  vi.stubGlobal("document", { querySelector: () => null });
+  vi.stubGlobal("document", { querySelectorAll: () => [] });
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -128,13 +128,37 @@ it("read-only step navigation never writes a draft", async () => {
 
 it("invalid input blocks next-step autosave and keeps focus on the error", async () => {
   const invalid = { dataset: { invalidMessage: "金额无效" }, focus: vi.fn() };
-  vi.stubGlobal("document", { querySelector: () => invalid });
+  vi.stubGlobal("document", { querySelectorAll: () => [invalid] });
   await steps(render()).props.onValueChange("2");
   expect(harness.context.saveDraft).not.toHaveBeenCalled();
   expect(steps(render()).props.value).toBe("1");
   expect(invalid.focus).toHaveBeenCalled();
 });
 
+
+it("removes a reserve with an empty amount while still guarding other rows", () => {
+  item().otherBudgets = [
+    { id: "r1", reasonId: "reserve", amount: 0 },
+    { id: "r2", reasonId: "reserve", amount: 250 },
+  ];
+  const emptyAmount = { dataset: {}, focus: vi.fn() };
+  const otherInvalidAmount = { dataset: {}, focus: vi.fn() };
+  const removedRow = { contains: (input) => input === emptyAmount };
+  const event = { currentTarget: { closest: () => removedRow } };
+  const remove = elements(render()).find(node => node.props["aria-label"] === "移除第 1 项预算安排");
+
+  vi.stubGlobal("document", { querySelectorAll: () => [emptyAmount, otherInvalidAmount] });
+  remove.props.onClick(event);
+  expect(item().otherBudgets.map(row => row.id)).toEqual(["r1", "r2"]);
+  expect(otherInvalidAmount.focus).toHaveBeenCalledOnce();
+  expect(emptyAmount.focus).not.toHaveBeenCalled();
+
+  vi.stubGlobal("document", { querySelectorAll: () => [emptyAmount] });
+  harness.context.notify.mockClear();
+  remove.props.onClick(event);
+  expect(item().otherBudgets.map(row => [row.id, row.amount])).toEqual([["r2", 250]]);
+  expect(harness.context.notify).not.toHaveBeenCalled();
+});
 
 it("shows the live project balance next to the dealer total, including reserve", () => {
   item().editorState.step = 3;
