@@ -96,28 +96,28 @@ export function HomePage() {
             "预算总额",
             <>
               {num(total.budget / 10000, 1)}
-              <small>万</small>
+              <small>万元</small>
             </>,
           ],
           [
             "已分配到经销商",
             <>
               {num(total.allocated / 10000, 1)}
-              <small>万</small>
+              <small>万元</small>
             </>,
           ],
           [
             "未分配合计",
             <>
               {num((total.otherBudget + Math.max(0, total.gap)) / 10000, 1)}
-              <small>万</small>
+              <small>万元</small>
             </>,
           ],
           [
             "未分配构成",
             <>
-              {num(total.otherBudget / 10000, 1)} <small>预留</small> /{" "}
-              {num(Math.max(0, total.gap) / 10000, 1)} <small>待分配</small>
+              <span>{num(total.otherBudget / 10000, 1)}<small>万元预留</small></span>{" / "}
+              <span>{num(Math.max(0, total.gap) / 10000, 1)}<small>万元待分配</small></span>
             </>,
           ],
         ].map(([label, value], index) => (
@@ -299,9 +299,6 @@ export function SubmissionPage() {
                     <TableCell sortValue={item.status}>
                       <Status status={item.status} />{" "}
                       {item.workflow?.editable !== false && !hasReserveAcknowledgement(identity, state.planningVersion?.id, item) && <small className="block muted">待核对预算与预留</small>}
-                      {item.publishedRevision
-                        ? `r${item.publishedRevision}`
-                        : ""}
                     </TableCell>
                     <TableCell>
                       <Button

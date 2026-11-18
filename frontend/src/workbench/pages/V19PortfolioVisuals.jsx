@@ -1,3 +1,4 @@
+import { wholeMetric } from "../domain/metric-precision";
 import { dealerDetailRows } from "../domain/dealer-detail-rows.js";
 import { allocationColumnGroups, EXPENSE_COLUMN_ORDER } from "../domain/allocation-detail";
 import { Input } from "../../components/ui/input";
@@ -984,9 +985,11 @@ export function V19Stack({
     max = Math.max(3, ...rows.flatMap(row => [row.gapC3, row.gapVol]).filter(value => value != null).map(Math.abs));
   const format = (value, field) => {
     if (value == null || (field === "yield" && value <= 0)) return "—";
-    if (["amountShare", "volShare", "c3Share", "contractShare", "phasing", "investmentShare"].includes(field)) return n(value);
+    if (field === "vol" || field === "c3") return wholeMetric(value, 1000);
+    if (field === "phasing") return wholeMetric(value);
+    if (["amountShare", "volShare", "c3Share", "contractShare", "investmentShare"].includes(field)) return n(value);
     if (field === "amount") return n(value / 10000, 1);
-    if (["contract", "vol", "c3", "investment"].includes(field) || field.startsWith("expense:")) return n(value / 1000, 1);
+    if (["contract", "investment"].includes(field) || field.startsWith("expense:")) return n(value / 1000, 1);
     return typeof value === "number" ? n(value, 1) : value || "—";
   };
   const types = orderedResourceTypes(items.map((i) => i.resourceType)),

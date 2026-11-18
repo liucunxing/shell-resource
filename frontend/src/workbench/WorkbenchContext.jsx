@@ -1,3 +1,4 @@
+import { navigationFor } from "./navigation";
 import { LegendColorProvider } from "./LegendColors";
 import {
   useCallback,
@@ -34,6 +35,7 @@ export function resolveEditorTarget(requestedId, previousId, initiatives, option
   });
   return (latest(drafts) || find(previousId) || latest(initiatives))?.id ?? null;
 }
+const locationKey = "resource-workbench-location";
 const portalMode = isPortalEntry();
 const demoMode = !portalMode && import.meta.env.VITE_DATA_MODE === "demo";
 if (!demoMode && !portalMode) api.acceptPortalEmail();
@@ -258,7 +260,14 @@ export function WorkbenchProvider({ children }) {
     setDirectoryStatus(demoMode ? "ready" : "idle");
     setStorageWarning("");
     try {
-      const workspace = normalizeWorkspace(await api.workspace());
+      let response;
+      try {
+        response = options.location?.version ? await api.workspace(options.location.version) : await api.workspace();
+      } catch (error) {
+        if (!options.location?.version || ![403, 404].includes(error.status)) throw error;
+        response = await api.workspace();
+      }
+      const workspace = normalizeWorkspace(response);
       if (epoch !== sessionEpoch.current) return false;
       if (options.expectedVersionId && String(workspace.state.currentVersionId || workspace.state.planningVersion?.id || "") !== String(options.expectedVersionId))
         throw Error("所选规划版本加载失败，请刷新后重试。");
@@ -282,7 +291,16 @@ export function WorkbenchProvider({ children }) {
       setEditorOperations({});
       api.setPlanningVersion(workspace.state.currentVersionId || workspace.state.planningVersion?.id || "");
       if (options.targetPage) setPage(options.targetPage);
-      else if (!options.preservePage) setPage(homeFor(workspace.identity));
+      else if (!options.preservePage) {
+        const saved = options.location;
+        const owned = ownInitiatives(workspace.state.initiatives, workspace.identity);
+        const available = navigationFor(workspace.identity, owned.length > 0);
+        const canRestore = saved && saved.email === workspaceEmail && available.some(([key]) => key === saved.page)
+          && (saved.page !== "editor" || (saved.version === workspace.state.currentVersionId &&
+            owned.some(item => item.id === saved.initiativeId)));
+        if (canRestore) setInitiativeId(saved.initiativeId);
+        setPage(canRestore ? saved.page : homeFor(workspace.identity));
+      }
       return true;
     } catch (error) {
       if (epoch !== sessionEpoch.current) return false;
@@ -356,8 +374,28 @@ export function WorkbenchProvider({ children }) {
     // The new Portal entry has already confirmed its server session. FineReport
     // still initializes from the existing email handoff before React mounts.
     if (demoMode) return;
-    if (portalMode || api.getDevelopmentEmail()) refresh();
+    if (portalMode || api.getDevelopmentEmail()) {
+      let location;
+      if (!portalMode) {
+        try { location = JSON.parse(globalThis.sessionStorage?.getItem(locationKey) || "null"); } catch {}
+      }
+      refresh({ location: location && location.email === api.getDevelopmentEmail().toLowerCase() ? location : null });
+    }
     else setLoading(false);
+  }, []);
+  useEffect(() => {
+    if (demoMode || portalMode || loading || !identity?.email || getPreviewUserEmail()) return;
+    globalThis.sessionStorage?.setItem?.(locationKey, JSON.stringify({
+      email: identity.email.toLowerCase(), version: state.currentVersionId, page, initiativeId,
+    }));
+  }, [loading, identity, state.currentVersionId, page, initiativeId]);
+  useEffect(() => {
+    if (demoMode || portalMode || typeof window === "undefined") return;
+    const syncLogin = event => {
+      if (event.storageArea === window.localStorage && (event.key === api.DEV_EMAIL_KEY || event.key === null)) window.location.reload();
+    };
+    window.addEventListener?.("storage", syncLogin);
+    return () => window.removeEventListener?.("storage", syncLogin);
   }, []);
   useEffect(() => () => {
     sessionEpoch.current += 1;
@@ -689,6 +727,7 @@ export function WorkbenchProvider({ children }) {
     if (demoMode) return;
     setPreviewUserEmail("");
     setPreviewActor(null);
+    globalThis.sessionStorage?.removeItem?.(locationKey);
     api.setDevelopmentEmail(email);
     api.setPlanningVersion("");
     setDevEmailState(api.getDevelopmentEmail());

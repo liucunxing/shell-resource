@@ -1,3 +1,4 @@
+import { wholeMetric } from "../domain/metric-precision";
 import { DealerDetailButton } from "../DealerDetailAccess";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MoneyInput } from "./MoneyInput";
@@ -312,6 +313,7 @@ function HistoryControls({
   metric,
   onMetricChange,
   ytdCutoffMonth = 10,
+  children,
 }) {
   return (
     <div className="v19-editor-history">
@@ -334,6 +336,7 @@ function HistoryControls({
           </TabsList>
         </Tabs>
       )}
+      {children}
     </div>
   );
 }
@@ -459,8 +462,7 @@ function EditorContent({
   const [detail, setDetail] = useState(null);
   const [modal, setModal] = useState(null),
     [historyMetric, setHistoryMetric] = useState("c3"),
-    [historyPeriod, setHistoryPeriod] = useState("2025"),
-    [trialPeriod, setTrialPeriod] = useState(() => trial?.period || "2025"),
+    [historyPeriod, setHistoryPeriod] = useState(() => trial?.period || "2025"),
     [activeStep, setActiveStep] = useState(() => restoredEditorStep(identity, state.planningVersion?.id, i, editable)),
     [balanceIds, setBalanceIds] = useState([]),
     [scopeSearch, setScopeSearch] = useState(""),
@@ -483,8 +485,8 @@ function EditorContent({
     ),
     [busy, setBusy] = useState(false);
   const allocationEditOrder = useRef(null);
-  const appliedTrial = trial?.period === trialPeriod ? trial.metric : null;
-  useEffect(() => { setFillNotice(null); }, [initiativeId, trialPeriod]);
+  const appliedTrial = trial?.period === historyPeriod ? trial.metric : null;
+  useEffect(() => { setFillNotice(null); }, [initiativeId, historyPeriod]);
   useEffect(() => {
     if (previousAcknowledgement.current !== acknowledgementFingerprint) {
       if (!previouslySubmitted) setActiveStep(1);
@@ -1014,8 +1016,9 @@ function EditorContent({
       note: row.note || "",
     }[key];
   };
-  const allocationFormat = (value, key) =>
-    [
+  const allocationFormat = (value, key) => {
+    if (key === "vol" || key === "c3") return wholeMetric(value, 1000);
+    return [
       "amountShare",
       "volShare",
       "c3Share",
@@ -1028,7 +1031,7 @@ function EditorContent({
       : key === "phasing"
         ? value == null
           ? "—"
-          : fmt(value * 100)
+          : wholeMetric(value * 100)
         : key === "gapVol" || key === "gapC3"
           ? value == null
             ? "—"
@@ -1037,10 +1040,11 @@ function EditorContent({
             ? value == null || value <= 0
               ? "—"
               : fmt(value)
-            : ["contract", "vol", "c3", "investment"].includes(key) ||
+            : ["contract", "investment"].includes(key) ||
                 key.startsWith("expense:")
               ? histFmt(value)
               : (value ?? "—");
+  };
   const totalAllocationValue = (key) => {
     if (key.startsWith("expense:")) {
       const values = i.rows.map((row) => allocationValue(row, key));
@@ -1091,6 +1095,11 @@ function EditorContent({
     (currentAllocationPage - 1) * 20,
     currentAllocationPage * 20,
   );
+  const changeHistoryPeriod = (period) => {
+    allocationEditOrder.current = null;
+    setHistoryPeriod(period);
+    setAllocationPage(1);
+  };
   const sortAllocation = (key) => {
     allocationEditOrder.current = null;
     setAllocationSort((value) => ({
@@ -1468,12 +1477,12 @@ function EditorContent({
                                     ]
                                   }
                                 >
-                                  {histFmt(
+                                  {wholeMetric(
                                     h[
                                       period === "2025"
                                         ? "vol2025"
                                         : "vol2026Ytd"
-                                    ],
+                                    ], 1000,
                                   )}
                                 </TableCell>
                                 <TableCell
@@ -1484,10 +1493,10 @@ function EditorContent({
                                     ]
                                   }
                                 >
-                                  {histFmt(
+                                  {wholeMetric(
                                     h[
                                       period === "2025" ? "c32025" : "c32026Ytd"
-                                    ],
+                                    ], 1000,
                                   )}
                                 </TableCell>
                                 <TableCell
@@ -1497,7 +1506,7 @@ function EditorContent({
                                 >
                                   {historyPhasing(h, period) == null
                                     ? "—"
-                                    : fmt(historyPhasing(h, period) * 100)}
+                                    : wholeMetric(historyPhasing(h, period) * 100)}
                                 </TableCell>
                                 <TableCell
                                   className="num"
@@ -1739,45 +1748,207 @@ function EditorContent({
             />
           )}
           {activeStep === 3 && (
-            <div className="v19-allocation-layout">
             <Card className="panel v19-allocation-panel">
               <div className="panel-header">
                 <h2>经销商分配明细</h2>
               </div>
-              <HistoryControls
-                ytdCutoffMonth={state.ytdCutoffMonth}
-                period={historyPeriod}
-                onPeriodChange={setHistoryPeriod}
-              />
-              {editable && (
-                <p className="work-caption">
-                  完整金额 Excel 包含「经销商分配」和「经销商列表」；上传新版模板会替换经销商分配，其他预算安排保持不变。
-                </p>
-              )}
-              <div className="v19-allocation-filters">
-                <Input
-                  type="search"
-                  value={allocationQuery}
-                  onChange={(event) => {
-                    allocationEditOrder.current = null;
-                    setAllocationQuery(event.target.value);
-                    setAllocationPage(1);
-                  }}
-                  placeholder="搜索经销商 / 编码 / SD / RSM"
-                  aria-label="查找经销商分配"
-                />
-                <Label>
-                  <Checkbox
-                    checked={allocatedOnly}
-                    onCheckedChange={(checked) => {
+              <section className="studio-trial-panel" aria-label="试算方案">
+                <div className="panel-header">
+                  <div>
+                    <h2>试算方案</h2>
+                    <p className="small-text muted">
+                      采用试算会直接覆盖当前金额，保留名单与主动预留；请检查明细并保存草稿。
+                    </p>
+                  </div>
+                </div>
+                {fillNotice && <MissingHistoryNotice {...fillNotice} />}
+                <HistoryControls
+                  ytdCutoffMonth={state.ytdCutoffMonth}
+                  period={historyPeriod}
+                  onPeriodChange={changeHistoryPeriod}
+                  metric={historyMetric}
+                  onMetricChange={setHistoryMetric}
+                >
+                  <Label className="v19-allocated-only">
+                    <Checkbox
+                      checked={allocatedOnly}
+                      onCheckedChange={(checked) => {
+                        allocationEditOrder.current = null;
+                        setAllocatedOnly(checked === true);
+                        setAllocationPage(1);
+                      }}
+                    />
+                    只看已获配
+                  </Label>
+                </HistoryControls>
+                <div className="v19-trial-tools">
+                  <div className="v19-trial-quick-options">
+                    <strong>快捷方案选择</strong>
+                    {[
+                      ["按Actual Delivery Vol采用", "vol"],
+                      ["按Actual C3采用", "c3"],
+                      ["按历史投资总额采用", "investment"],
+                    ].map(([label, metric]) => (
+                      <Button
+                        key={metric}
+                        variant="outline"
+                        aria-pressed={appliedTrial === metric}
+                        className={appliedTrial === metric ? "v19-trial-selected" : undefined}
+                        disabled={!editable || !i.rows.length}
+                        onClick={() => historyFill(metric)}
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                    <Button variant="ghost" size="icon" aria-label="清空经销商分配" title="清空经销商分配"
+                      disabled={!editable || !i.rows.some((row) => row.amount !== 0)}
+                      onClick={() => doGuard(() => setModal({ type: "clear-allocations" }))}>
+                      <RotateCcw size={16} aria-hidden="true" />
+                    </Button>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      setDetail({
+                        type: "rationale",
+                        initiativeId: i.id,
+                        period: historyPeriod,
+                        basis: historyMetric === "vol" ? "vol" : "c3",
+                      })
+                    }
+                  >
+                    查看拆分依据与说明
+                  </Button>
+                  <Input
+                    className="v19-allocation-search"
+                    type="search"
+                    value={allocationQuery}
+                    onChange={(event) => {
                       allocationEditOrder.current = null;
-                      setAllocatedOnly(checked === true);
+                      setAllocationQuery(event.target.value);
                       setAllocationPage(1);
                     }}
+                    placeholder="搜索经销商 / 编码 / SD / RSM"
+                    aria-label="查找经销商分配"
                   />
-                  只看已获配
-                </Label>
-              </div>
+                </div>
+                {trialCompare && (
+                  <EditorDialog
+                    compact
+                    title="对比三种试算方案"
+                    close={() => setTrialCompare(false)}
+                    action={null}
+                  >
+                    <HistoryControls
+                      ytdCutoffMonth={state.ytdCutoffMonth}
+                      period={historyPeriod}
+                      onPeriodChange={changeHistoryPeriod}
+                      metric={historyMetric}
+                      onMetricChange={setHistoryMetric}
+                    />
+                    <div className="studio-trial-grid">
+                      {[
+                        ["Delivery Vol", "vol", "按历史规模拆分"],
+                        ["C3", "c3", "按历史贡献拆分"],
+                        ["历史投资", "investment", "按四类历史投资合计拆分"],
+                      ].map(([label, metric, note]) => {
+                        let trial = null;
+                        try {
+                          trial = allocateByHistory(
+                            i.rows,
+                            dealers,
+                            E.cents(i.budget - totals.otherBudget),
+                            allocationHistoryField(metric, historyPeriod),
+                            i.sector,
+                            directoryDealers,
+                          );
+                        } catch (_) {
+                          /* The card explains unavailable data through a disabled action. */
+                        }
+                        const impact = trial?.hasHistory
+                          ? concentration(
+                              portfolioRows(
+                                [{ ...i, rows: trial.rows }],
+                                dealers,
+                                historyMetric === "vol" ? "vol" : "c3",
+                                historyPeriod,
+                              ),
+                              20,
+                            )
+                          : null;
+                        return (
+                          <article key={metric}>
+                            <span>试算</span>
+                            <h3>{label}</h3>
+                            <p>{note}</p>
+                            <strong>
+                              {i.rows.length} 家 ·{" "}
+                              {fmt(Math.max(0, i.budget - totals.otherBudget))} 元
+                            </strong>
+                            <p>
+                              {trial?.hasHistory
+                                ? `${trial.rows.filter((row) => row.amount > 0).length} 家获配 · ${trial.unavailable.length} 家无有效历史`
+                                : "缺少有效历史，暂不可采用"}
+                            </p>
+                            <p>
+                              Top 20% 投资 /{" "}
+                              {historyMetric === "vol" ? "Delivery Vol" : "C3"}{" "}
+                              偏离：
+                              {impact ? `${impact.gap.toFixed(1)} pp` : "—"}
+                            </p>
+                            <Button
+                              variant="outline"
+                              disabled={!trial?.hasHistory}
+                              onClick={() => {
+                                setTrialCompare(false);
+                                setDetail({
+                                  type: "initiative",
+                                  initiativeId: i.id,
+                                  period: historyPeriod,
+                                  basis: historyMetric === "vol" ? "vol" : "c3",
+                                  previewRows: trial.rows,
+                                  title: `${label}试算预览 · 尚未采用`,
+                                });
+                              }}
+                            >
+                              查看经销商试算明细
+                            </Button>
+                            <Button
+                              variant="default"
+                              className="button primary small"
+                              disabled={
+                                !trial?.hasHistory ||
+                                !editable ||
+                                !i.rows.length ||
+                                (metric === "investment" &&
+                                  !i.rows.some(
+                                    (row) =>
+                                      historyInvestment(
+                                        dealerMeta(row.dealerId).history,
+                                        historyPeriod,
+                                      ) > 0,
+                                  ))
+                              }
+                              title={
+                                metric === "investment"
+                                  ? "使用公共历史投资合计；缺少对应期间数据时不能试算"
+                                  : undefined
+                              }
+                              onClick={() => {
+                                setTrialCompare(false);
+                                setHistoryMetric(metric);
+                                historyFill(metric);
+                              }}
+                            >
+                              采用此试算
+                            </Button>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </EditorDialog>
+                )}
+              </section>
               <div className="v19-allocation-toolbar">
               <div className="v19-ratio-legend">
                 <span title="Phasing 仅对同年源 target 大于 0 且源 Phasing 有值的经销商加权；缺失或非正权重不参与，结果仅代表有效数据范围。无有效数据时显示 —；单家直接展示源值。">
@@ -1785,7 +1956,7 @@ function EditorContent({
                   <b>
                     {weightedPhasing == null
                       ? "—"
-                      : `${fmt(weightedPhasing * 100)}%`}{" "}
+                      : `${wholeMetric(weightedPhasing * 100)}%`}{" "}
                     ↑
                   </b>
                 </span>
@@ -1943,7 +2114,7 @@ function EditorContent({
                           {title}
                         </SortHead>
                       ))}
-                      {editable && <TableHead scope="col">操作</TableHead>}
+                      {editable && <TableHead scope="col" data-column="actions">操作</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -2051,9 +2222,11 @@ function EditorContent({
                             </TableCell>
                           ))}
                           {editable && (
-                            <TableCell>
+                            <TableCell data-column="actions">
                               <Button
                                 variant="destructive"
+                                size="sm"
+                                className="v19-allocation-remove"
                                 aria-label={
                                   "移除经销商 " + dealerLabel(r.dealerId)
                                 }
@@ -2116,7 +2289,7 @@ function EditorContent({
                                 )}
                         </TableCell>
                       ))}
-                      {editable && <TableCell />}
+                      {editable && <TableCell data-column="actions" />}
                     </TableRow>
                   </TableFooter>
                 </Table>
@@ -2158,180 +2331,6 @@ function EditorContent({
                 </span>
               </div>
             </Card>
-            <Card className="panel studio-trial-panel">
-              <div className="panel-header">
-                <div>
-                  <h2>试算方案</h2>
-                  <p className="small-text muted">
-                    采用试算会直接覆盖当前金额，保留名单与主动预留；请检查明细并保存草稿。
-                  </p>
-                </div>
-              </div>
-              {fillNotice && <MissingHistoryNotice {...fillNotice} />}
-              <HistoryControls
-                ytdCutoffMonth={state.ytdCutoffMonth}
-                period={trialPeriod}
-                onPeriodChange={setTrialPeriod}
-                metric={historyMetric}
-                onMetricChange={setHistoryMetric}
-              />
-              <div className="v19-trial-tools">
-                <div className="v19-trial-quick-options">
-                  <strong>快捷方案选择</strong>
-                  {[
-                    ["按Actual Delivery Vol采用", "vol"],
-                    ["按Actual C3采用", "c3"],
-                    ["按历史投资总额采用", "investment"],
-                  ].map(([label, metric]) => (
-                    <Button
-                      key={metric}
-                      variant="outline"
-                      aria-pressed={appliedTrial === metric}
-                      className={appliedTrial === metric ? "v19-trial-selected" : undefined}
-                      disabled={!editable || !i.rows.length}
-                      onClick={() => historyFill(metric, trialPeriod)}
-                    >
-                      {label}
-                    </Button>
-                  ))}
-                  <Button variant="ghost" size="icon" aria-label="清空经销商分配" title="清空经销商分配"
-                    disabled={!editable || !i.rows.some((row) => row.amount !== 0)}
-                    onClick={() => doGuard(() => setModal({ type: "clear-allocations" }))}>
-                    <RotateCcw size={16} aria-hidden="true" />
-                  </Button>
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    setDetail({
-                      type: "rationale",
-                      initiativeId: i.id,
-                      period: trialPeriod,
-                      basis: historyMetric === "vol" ? "vol" : "c3",
-                    })
-                  }
-                >
-                  查看拆分依据与说明
-                </Button>
-              </div>
-              {trialCompare && (
-                <EditorDialog
-                  compact
-                  title="对比三种试算方案"
-                  close={() => setTrialCompare(false)}
-                  action={null}
-                >
-                  <HistoryControls
-                    ytdCutoffMonth={state.ytdCutoffMonth}
-                    period={trialPeriod}
-                    onPeriodChange={setTrialPeriod}
-                    metric={historyMetric}
-                    onMetricChange={setHistoryMetric}
-                  />
-                  <div className="studio-trial-grid">
-                    {[
-                      ["Delivery Vol", "vol", "按历史规模拆分"],
-                      ["C3", "c3", "按历史贡献拆分"],
-                      ["历史投资", "investment", "按四类历史投资合计拆分"],
-                    ].map(([label, metric, note]) => {
-                      let trial = null;
-                      try {
-                        trial = allocateByHistory(
-                          i.rows,
-                          dealers,
-                          E.cents(i.budget - totals.otherBudget),
-                          allocationHistoryField(metric, trialPeriod),
-                          i.sector,
-                          directoryDealers,
-                        );
-                      } catch (_) {
-                        /* The card explains unavailable data through a disabled action. */
-                      }
-                      const impact = trial?.hasHistory
-                        ? concentration(
-                            portfolioRows(
-                              [{ ...i, rows: trial.rows }],
-                              dealers,
-                              historyMetric === "vol" ? "vol" : "c3",
-                              trialPeriod,
-                            ),
-                            20,
-                          )
-                        : null;
-                      return (
-                        <article key={metric}>
-                          <span>试算</span>
-                          <h3>{label}</h3>
-                          <p>{note}</p>
-                          <strong>
-                            {i.rows.length} 家 ·{" "}
-                            {fmt(Math.max(0, i.budget - totals.otherBudget))} 元
-                          </strong>
-                          <p>
-                            {trial?.hasHistory
-                              ? `${trial.rows.filter((row) => row.amount > 0).length} 家获配 · ${trial.unavailable.length} 家无有效历史`
-                              : "缺少有效历史，暂不可采用"}
-                          </p>
-                          <p>
-                            Top 20% 投资 /{" "}
-                            {historyMetric === "vol" ? "Delivery Vol" : "C3"}{" "}
-                            偏离：
-                            {impact ? `${impact.gap.toFixed(1)} pp` : "—"}
-                          </p>
-                          <Button
-                            variant="outline"
-                            disabled={!trial?.hasHistory}
-                            onClick={() => {
-                              setTrialCompare(false);
-                              setDetail({
-                                type: "initiative",
-                                initiativeId: i.id,
-                                period: trialPeriod,
-                                basis: historyMetric === "vol" ? "vol" : "c3",
-                                previewRows: trial.rows,
-                                title: `${label}试算预览 · 尚未采用`,
-                              });
-                            }}
-                          >
-                            查看经销商试算明细
-                          </Button>
-                          <Button
-                            variant="default"
-                            className="button primary small"
-                            disabled={
-                              !trial?.hasHistory ||
-                              !editable ||
-                              !i.rows.length ||
-                              (metric === "investment" &&
-                                !i.rows.some(
-                                  (row) =>
-                                    historyInvestment(
-                                      dealerMeta(row.dealerId).history,
-                                      trialPeriod,
-                                    ) > 0,
-                                ))
-                            }
-                            title={
-                              metric === "investment"
-                                ? "使用公共历史投资合计；缺少对应期间数据时不能试算"
-                                : undefined
-                            }
-                            onClick={() => {
-                              setTrialCompare(false);
-                              setHistoryMetric(metric);
-                              historyFill(metric, trialPeriod);
-                            }}
-                          >
-                            采用此试算
-                          </Button>
-                        </article>
-                      );
-                    })}
-                  </div>
-                </EditorDialog>
-              )}
-            </Card>
-            </div>
           )}
           {activeStep === 1 && (
             <Card className="panel other-budget-panel">

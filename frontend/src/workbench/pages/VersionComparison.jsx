@@ -44,6 +44,8 @@ export function VersionComparison({ executive }) {
     [error, setError] = useState(""),
     [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  useEffect(() => setPage(1), [query, left, right, dimension]);
   const [detail, setDetail] = useState(null);
   useEffect(() => {
     let active = true;
@@ -81,6 +83,11 @@ export function VersionComparison({ executive }) {
     [result, dimension, executive],
   );
   const showOwner = executive && dimension === "initiative";
+  const filtered = rows.filter(row =>
+    `${row.name || row.key} ${showOwner ? row.owner || "" : ""}`.toLowerCase().includes(query.toLowerCase()),
+  );
+  const pages = Math.max(1, Math.ceil(filtered.length / 20));
+  const currentPage = Math.min(page, pages);
   return (
     <Card
       id="studio-version-change"
@@ -160,7 +167,8 @@ export function VersionComparison({ executive }) {
             />
           </div>
           <div className="table-scroll v19-comparison-scroll">
-            <Table containerClassName="overflow-visible">
+            <Table containerClassName="overflow-visible" className={showOwner ? "executive-initiative-comparison" : undefined}
+              pageSize={executive ? 20 : undefined} pageIndex={currentPage - 1} onSort={() => setPage(1)}>
               <TableHeader>
                 <TableRow>
                   <TableHead>
@@ -179,13 +187,7 @@ export function VersionComparison({ executive }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows
-                  .filter((row) =>
-                    `${row.name || row.key} ${showOwner ? row.owner || "" : ""}`
-                      .toLowerCase()
-                      .includes(query.toLowerCase()),
-                  )
-                  .map((row) => (
+                {filtered.map((row) => (
                     <TableRow key={row.key}>
                       <TableCell>
                         <Button
@@ -230,16 +232,24 @@ export function VersionComparison({ executive }) {
                       </TableCell>
                     </TableRow>
                   ))}
-                {!rows.length && (
+                {!filtered.length && (
                   <TableRow>
                     <TableCell colSpan={showOwner ? 9 : 8}>
-                      <div className="empty">当前授权范围没有可比较项目。</div>
+                      <div className="empty">{rows.length ? "没有匹配的项目。" : "当前授权范围没有可比较项目。"}</div>
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
           </div>
+          {executive && <nav className="v19-list-pagination" aria-label="版本变化分页">
+            <span>共 {filtered.length} 条 · 每页 20 条</span>
+            <div>
+              <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>上一页</Button>
+              <span>{currentPage} / {pages}</span>
+              <Button variant="outline" size="sm" disabled={currentPage === pages} onClick={() => setPage(currentPage + 1)}>下一页</Button>
+            </div>
+          </nav>}
         </>
       )}
       {detail && result && (
