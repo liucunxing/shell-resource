@@ -210,7 +210,7 @@ async function exportDealerDirectory(data) {
   addDealerDirectory(book, data);
   return book.xlsx.writeBuffer();
 }
-async function exportSelectedRoster(rows, dealers) {
+async function exportSelectedRoster(rows, dealers, data = { dealers }) {
   const book = new (await excelLibrary()).Workbook();
   const sheet = book.addWorksheet("已选经销商");
   sheet.addRow([
@@ -235,6 +235,7 @@ async function exportSelectedRoster(rows, dealers) {
     ]);
   }
   style(sheet, [24, 48, 24, 24, 18, 24]);
+  addDealerDirectory(book, data);
   return book.xlsx.writeBuffer();
 }
 async function previewRosterImport(buffer, state, id, identity, dealers) {
@@ -250,7 +251,7 @@ async function previewRosterImport(buffer, state, id, identity, dealers) {
   try { await book.xlsx.load(buffer); }
   catch { out.errors.push("文件不是可读取的 Excel 工作簿，请使用下载的名单 Excel。"); return out; }
   const sheet = book.getWorksheet("已选经销商");
-  if (!sheet || book.worksheets.length !== 1) { out.errors.push("请使用下载的已选经销商名单 Excel。"); return out; }
+  if (!sheet || book.worksheets.some((worksheet) => !["已选经销商", "经销商列表"].includes(worksheet.name))) { out.errors.push("请使用下载的已选经销商名单 Excel。"); return out; }
   if (sheet.rowCount > 5001) { out.errors.push("单次最多导入 5000 行。"); return out; }
   const read = readFactory(out);
   checkHeaders(read, out, sheet, ["经销商编码", "经销商名称", "SD", "RSM", "状态", "已分配（元）"]);
