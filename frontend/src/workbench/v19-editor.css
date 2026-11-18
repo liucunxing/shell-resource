@@ -133,14 +133,6 @@
   max-height: 330px;
   overflow: auto;
 }
-.v19-editor .selected-roster-remove {
-  background: #fff1f0;
-  border-color: #efb4ae;
-  color: #9b2c24;
-}
-.v19-editor .selected-roster-remove:not(:disabled):hover {
-  background: #ffe0dc;
-}
 .v19-editor .studio-selected-roster .panel-header {
   flex-wrap: wrap;
   gap: 12px;
