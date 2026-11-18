@@ -21,6 +21,7 @@ from app.schemas.dto.workbench import (
     AdminConfigDTO,
     AdminUserDTO,
     AdminUsersImportDTO,
+    AdminUserUpdateDTO,
     DistributorAllocationCreateDTO,
     DistributorAllocationUpdateDTO,
     InitiativeDraftUpdateDTO,
@@ -254,7 +255,7 @@ async def post_admin_user(
 @router.put("/admin/users/{user_id}", response_model=ApiResponse[dict], summary="修改人员权限")
 async def put_admin_user(
     user_id: int,
-    payload: AdminUserDTO,
+    payload: AdminUserUpdateDTO,
     session: Annotated[AsyncSession, Depends(get_db_session)],
     user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
 ) -> ApiResponse[dict]:

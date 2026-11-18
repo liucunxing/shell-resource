@@ -473,10 +473,10 @@ export function SdAnalysis({
                   <TableHead className="num">已分配（万元）</TableHead>
                   {sdKeys.map((key) => (
                     <TableHead key={key} className="num">
-                      {key}
+                      {key}（占比 % / 差值 pp）
                     </TableHead>
                   ))}
-                  <TableHead className="num">最大偏离</TableHead>
+                  <TableHead className="num">最大偏离（pp）</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -489,10 +489,10 @@ export function SdAnalysis({
                   </TableCell>
                   {groups.map((group) => (
                     <TableCell key={group.key} className="num">
-                      <b>{percentage(group.amountShare)}</b>
+                      <b>{group.amountShare == null ? "—" : amount(group.amountShare)}</b>
                       <small>
                         {basis === "c3" ? "C3" : "Vol"}{" "}
-                        {percentage(group.metricShare)}
+                        {group.metricShare == null ? "—" : amount(group.metricShare)}
                       </small>
                     </TableCell>
                   ))}
@@ -553,11 +553,11 @@ export function SdAnalysis({
                         >
                           {group ? (
                             <>
-                              <strong>{percentage(group.amountShare)}</strong>
+                              <strong>{group.amountShare == null ? "—" : amount(group.amountShare)}</strong>
                               <small>
                                 {basis === "c3" ? "C3" : "Vol"}{" "}
-                                {percentage(group.metricShare)} ·{" "}
-                                {difference(group.gap)}
+                                {group.metricShare == null ? "—" : amount(group.metricShare)} ·{" "}
+                                {difference(group.gap).replace(/ pp$/, "")}
                               </small>
                             </>
                           ) : (
@@ -573,7 +573,7 @@ export function SdAnalysis({
                     <TableCell className="num" sortValue={worst?.gap} data-level={level(worst?.gap)}>
                       {worst ? (
                         <>
-                          <b>{difference(worst.gap)}</b>
+                          <b>{difference(worst.gap).replace(/ pp$/, "")}</b>
                           <small>{worst.key}</small>
                         </>
                       ) : (

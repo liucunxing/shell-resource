@@ -24,3 +24,9 @@
 - 截图：`output/playwright/admin-users-import-tags.png`、`output/playwright/admin-legend-colors.png`。文件样例位于`output/admin-import/`，均为example.test合成账号，未进入Git。
 
 仅本地合成数据交互和自动化验证，不代表远端部署、真实SSO或业务UAT。真实PG未被导入测试写入。原target来源核查与待确认单位/期间不属于本次改动。
+
+## 人员编辑中的项目改派
+
+`PUT /api/v1/workbench/admin/users/{user_id}` 可在原有人员字段之外提交 `assignments`。它包含当前规划版本的 `version_id`、打开编辑窗口时的 `expected_revision`，以及 `transfers` 数组。每项使用 `budget_id` 和接任人的 `owner_email`。只有实际改派的项目才进入数组。接任人须启用并具有项目所属部门和业务线的授权。管理员可将项目分配给正在编辑的人员，或将该人员已有的项目转给其他符合范围的负责人。
+
+人员与项目改派在同一事务中保存。版本修订冲突返回 409，人员权限或项目校验失败会回滚整批修改。省略 `assignments` 时仅更新人员。改派记录进入操作审计。

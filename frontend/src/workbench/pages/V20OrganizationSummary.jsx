@@ -67,7 +67,7 @@ export function HistoricalShareChart({ vol, c3, scale, investment }) {
               }}
             />
           </div>
-          <span className="v20-share-value">{percent(share)}</span>
+          <span className="v20-share-value">{value(share)}</span>
         </div>
       ))}
     </div>
@@ -221,14 +221,14 @@ export function V20OrganizationSummary({
               {[
                 ["count", isSelectedScope ? "分配 / 名单" : "分配 / 全部"],
                 ["amount", "投资金额（万元）"],
-                ["average", "客均（万元）"],
-                ["investment-share", "投资金额占比"],
+                ["average", "客均（万元） · 偏离均值（%）"],
+                ["investment-share", "投资金额占比（%）"],
               ].map(([field, title]) => head(field, title, "num"))}
-              {head("vol-share", "Delivery Vol 占比", "num v20-actual")}
-              {head("c3-share", "C3 占比", "num v20-actual")}
-              {head("history-chart", "占比对照图（按投资占比）", "v20-actual", undefined, `刻度 0–${scale}%`)}
-              {head("vs-vol", "vs Delivery Vol", "num")}
-              {head("vs-c3", "vs C3", "num")}
+              {head("vol-share", "Delivery Vol 占比（%）", "num v20-actual")}
+              {head("c3-share", "C3 占比（%）", "num v20-actual")}
+              {head("history-chart", "占比对照图（%）", "v20-actual", undefined, `刻度 0–${scale}%`)}
+              {head("vs-vol", "vs Delivery Vol（pp）", "num")}
+              {head("vs-c3", "vs C3（pp）", "num")}
               {head("judgment", "判断（按偏离程度）")}
               {head("delta", "增减金额（万元）", "num v20-previous")}
             </TableRow>
@@ -272,13 +272,13 @@ export function V20OrganizationSummary({
                       <small>
                         {averageDeviation == null
                           ? "—"
-                          : `${averageDeviation >= 0 ? "+" : ""}${Math.round(averageDeviation)}% vs 平均`}
+                          : `${averageDeviation >= 0 ? "+" : ""}${Math.round(averageDeviation)} vs 平均`}
                       </small>
                     </>,
                   )}
-                  {cell("investment-share", <b>{percent(g.amountShare)}</b>)}
-                  {cell("vol-share", percent(g.volShare), "v20-actual")}
-                  {cell("c3-share", percent(g.c3Share), "v20-actual")}
+                  {cell("investment-share", <b>{value(g.amountShare)}</b>)}
+                  {cell("vol-share", value(g.volShare), "v20-actual")}
+                  {cell("c3-share", value(g.c3Share), "v20-actual")}
                   <TableCell className="v20-actual" data-column="history-chart">
                     <HistoricalShareChart
                       vol={g.volShare}
@@ -289,11 +289,11 @@ export function V20OrganizationSummary({
                   </TableCell>
                   {cell(
                     "vs-vol",
-                    <b data-level={level(gapVol)}>{difference(gapVol)}</b>,
+                    <b data-level={level(gapVol)}>{difference(gapVol).replace(/ pp$/, "")}</b>,
                   )}
                   {cell(
                     "vs-c3",
-                    <b data-level={level(gapC3)}>{difference(gapC3)}</b>,
+                    <b data-level={level(gapC3)}>{difference(gapC3).replace(/ pp$/, "")}</b>,
                   )}
                   <TableCell data-column="judgment">
                     <Badge
@@ -335,15 +335,15 @@ export function V20OrganizationSummary({
               {cell("count", formatCount(totals))}
               {cell("amount", value(totals.amount, 10000))}
               {cell("average", value(totals.average, 10000))}
-              {cell("investment-share", totals.amount > 0 ? "100.0%" : "—")}
+              {cell("investment-share", totals.amount > 0 ? "100.0" : "—")}
               {cell(
                 "vol-share",
-                totals.analyticalVol > 0 ? "100.0%" : "—",
+                totals.analyticalVol > 0 ? "100.0" : "—",
                 "v20-actual",
               )}
               {cell(
                 "c3-share",
-                totals.analyticalC3 > 0 ? "100.0%" : "—",
+                totals.analyticalC3 > 0 ? "100.0" : "—",
                 "v20-actual",
               )}
               <TableCell className="v20-actual">

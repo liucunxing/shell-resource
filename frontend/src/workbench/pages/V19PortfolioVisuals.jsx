@@ -314,8 +314,8 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                     "已分配（万元）",
                     "预留（万元）",
                     "未确认（万元）",
-                    "分配进度",
-                    "获配经销商",
+                    "分配进度（%）",
+                    "获配经销商（家）",
                     "已确认",
                   ].map((label) => (
                     <TableHead key={label}>{label}</TableHead>
@@ -352,10 +352,10 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                       <TableCell sortValue={t.budget ? t.allocated / t.budget : null}>
                         <AllocationBar total={t} />
                         <small>
-                          {pct(t.budget ? (t.allocated / t.budget) * 100 : 0)}
+                          {n(t.budget ? (t.allocated / t.budget) * 100 : 0)}
                         </small>
                       </TableCell>
-                      <TableCell>{dealers} 家</TableCell>
+                      <TableCell>{dealers}</TableCell>
                       <TableCell sortValue={confirmed.length}>
                         {confirmed.length} / {group.length}
                       </TableCell>
@@ -371,8 +371,8 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                   <TableHead>Initiative</TableHead>
                   <TableHead>资源大类 · Owner</TableHead>
                   <TableHead>预留原因</TableHead>
-                  <TableHead className="num">预留金额</TableHead>
-                  <TableHead className="num">占预留</TableHead>
+                  <TableHead className="num">预留金额（万元）</TableHead>
+                  <TableHead className="num">占预留（%）</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -396,11 +396,11 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                       {item.resourceType} · {item.ownerName || item.ownerId}
                     </TableCell>
                     <TableCell>{reason(item)}</TableCell>
-                    <TableCell className="num" sortValue={reserve(item)}>{wan(reserve(item))}</TableCell>
+                    <TableCell className="num" sortValue={reserve(item)}>{n(reserve(item) / 10000)}</TableCell>
                     <TableCell className="num" sortValue={total.otherBudget
                           ? (reserve(item) / total.otherBudget) * 100
                           : 0}>
-                      {pct(
+                      {n(
                         total.otherBudget
                           ? (reserve(item) / total.otherBudget) * 100
                           : 0,
@@ -422,10 +422,10 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                 <TableRow>
                   <TableCell colSpan={3}>合计</TableCell>
                   <TableCell className="num" sortValue={total.otherBudget}>
-                    {wan(total.otherBudget)}
+                    {n(total.otherBudget / 10000)}
                   </TableCell>
                   <TableCell className="num">
-                    {total.otherBudget ? "100.0%" : "—"}
+                    {total.otherBudget ? "100.0" : "—"}
                   </TableCell>
                 </TableRow>
               </TableFooter>
@@ -450,9 +450,9 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
               <TableRow>
                 <TableHead>Initiative</TableHead>
                 <TableHead>Owner</TableHead>
-                <TableHead>预算</TableHead>
-                <TableHead>已分配</TableHead>
-                <TableHead>预留</TableHead>
+                <TableHead>预算（万元）</TableHead>
+                <TableHead>已分配（万元）</TableHead>
+                <TableHead>预留（万元）</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -469,9 +469,9 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                     </Button>
                   </TableCell>
                   <TableCell>{i.ownerName || i.ownerId}</TableCell>
-                  <TableCell sortValue={i.budget}>{wan(i.budget)}</TableCell>
-                  <TableCell sortValue={paid(i)}>{wan(paid(i))}</TableCell>
-                  <TableCell sortValue={reserve(i)}>{wan(reserve(i))}</TableCell>
+                  <TableCell sortValue={i.budget}>{n(i.budget / 10000)}</TableCell>
+                  <TableCell sortValue={paid(i)}>{n(paid(i) / 10000)}</TableCell>
+                  <TableCell sortValue={reserve(i)}>{n(reserve(i) / 10000)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -788,9 +788,9 @@ export function V19Health({
                     <TableRow>
                       <TableHead>投资金额最多的</TableHead>
                       <TableHead>家数</TableHead>
-                      <TableHead>获得投资</TableHead>
-                      <TableHead>贡献 {label}</TableHead>
-                      <TableHead>差值</TableHead>
+                      <TableHead>获得投资（%）</TableHead>
+                      <TableHead>贡献 {label}（%）</TableHead>
+                      <TableHead>差值（pp）</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -804,9 +804,9 @@ export function V19Health({
                             </Button>
                           </TableCell>
                           <TableCell>{r?.n ?? "—"}</TableCell>
-                          <TableCell sortValue={r?.amountShare}>{pct(r?.amountShare)}</TableCell>
-                          <TableCell sortValue={r?.metricShare}>{pct(r?.metricShare)}</TableCell>
-                          <TableCell sortValue={r?.gap}>{pp(r?.gap)}</TableCell>
+                          <TableCell sortValue={r?.amountShare}>{r?.amountShare == null ? "—" : n(r.amountShare)}</TableCell>
+                          <TableCell sortValue={r?.metricShare}>{r?.metricShare == null ? "—" : n(r.metricShare)}</TableCell>
+                          <TableCell sortValue={r?.gap}>{r?.gap == null ? "—" : `${r.gap > 0 ? "+" : ""}${n(r.gap)}`}</TableCell>
                         </TableRow>
                       );
                     })}
@@ -827,11 +827,11 @@ export function V19Health({
                         {mode === "exec" ? "资源大类" : "Initiative"}
                       </TableHead>
                       {mode === "department" && <TableHead>资源大类</TableHead>}
-                      <TableHead>名单</TableHead>
+                      <TableHead>名单（家）</TableHead>
                       <TableHead>
-                        Top {top}%：● 投资金额 vs ○ {label}
+                        Top {top}%：● 投资金额 vs ○ {label}（%）
                       </TableHead>
-                      <TableHead>差值</TableHead>
+                      <TableHead>差值（pp）</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -875,8 +875,8 @@ export function V19Health({
                           <TableCell>{group.resourceType}</TableCell>
                         )}
                         <TableCell>
-                          {group.stats?.count ?? 0} 家
-                          <small>Top {group.stats?.n ?? 0} 家</small>
+                          {group.stats?.count ?? 0}
+                          <small>Top {group.stats?.n ?? 0}</small>
                         </TableCell>
                         <TableCell sortValue={group.stats?.amountShare}>
                           <div className="v19-dumbbell">
@@ -898,8 +898,8 @@ export function V19Health({
                             />
                           </div>
                           <small>
-                            {pct(group.stats?.amountShare)} vs{" "}
-                            {pct(group.stats?.metricShare)}
+                            {group.stats?.amountShare == null ? "—" : n(group.stats.amountShare)} vs{" "}
+                            {group.stats?.metricShare == null ? "—" : n(group.stats.metricShare)}
                           </small>
                         </TableCell>
                         <TableCell
@@ -910,7 +910,7 @@ export function V19Health({
                               : ""
                           }
                          sortValue={group.stats?.gap}>
-                          {pp(group.stats?.gap)}
+                          {group.stats?.gap == null ? "—" : `${group.stats.gap > 0 ? "+" : ""}${n(group.stats.gap)}`}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -962,7 +962,7 @@ export function V19Stack({
     .filter(group => group.key !== "support")
     .flatMap(group => group.columns)
     .flatMap(column => column[0] === "name" ? [["name", "经销商名称"], ["code", "经销商编码"]] : column[0] === "amount" ? [column, ["mix", "资源大类构成"]] : [column])
-    .map(([key, label]) => [key, key === "gapC3" ? "投资金额 − C3" : key === "gapVol" ? "投资金额 − Delivery Vol" : label]);
+    .map(([key, label]) => [key, key === "gapC3" ? "投资金额 − C3（pp）" : key === "gapVol" ? "投资金额 − Delivery Vol（pp）" : label]);
   const basisGap = basis === "c3" ? "gapC3" : "gapVol";
   const rankingMetric = basis === "c3" ? "C3" : "Vol";
   const ranked = rows.filter(row => row[basisGap] != null)
@@ -984,7 +984,7 @@ export function V19Stack({
     max = Math.max(3, ...rows.flatMap(row => [row.gapC3, row.gapVol]).filter(value => value != null).map(Math.abs));
   const format = (value, field) => {
     if (value == null || (field === "yield" && value <= 0)) return "—";
-    if (["amountShare", "volShare", "c3Share", "contractShare", "phasing", "investmentShare"].includes(field)) return pct(value);
+    if (["amountShare", "volShare", "c3Share", "contractShare", "phasing", "investmentShare"].includes(field)) return n(value);
     if (field === "amount") return n(value / 10000, 1);
     if (["contract", "vol", "c3", "investment"].includes(field) || field.startsWith("expense:")) return n(value / 1000, 1);
     return typeof value === "number" ? n(value, 1) : value || "—";
@@ -1066,7 +1066,7 @@ export function V19Stack({
                     return <TableCell key={field} data-column={field} className={!["name", "code", "sd", "rsm", "mix"].includes(field) ? "num" : undefined} sortValue={value}>
                       {field === "name" ? <><DealerDetailButton variant="link" onClick={() => setSelected({type:"dealer", dealerKey:row.key, period, basis})}>{row.name}</DealerDetailButton><small>{row.sector}</small></>
                       : field === "mix" ? <div className="v19-stack-bar">{types.map(type => <span key={type} title={`${type} ${wan(distribution([row], type))}`} style={{background:resourceColor(type),width:`${row.amount ? distribution([row], type) / row.amount * 100 : 0}%`}} />)}</div>
-                      : field === "gapC3" || field === "gapVol" ? value == null ? "—" : <div className="v19-diverging"><i style={{left:`${value < 0 ? 50 + value / max * 45 : 50}%`,width:`${Math.abs(value) / max * 45}%`,background:value > 0 ? "#EB8705" : "#89CFDC"}} /><span>{pp(value)}</span></div>
+                      : field === "gapC3" || field === "gapVol" ? value == null ? "—" : <div className="v19-diverging"><i style={{left:`${value < 0 ? 50 + value / max * 45 : 50}%`,width:`${Math.abs(value) / max * 45}%`,background:value > 0 ? "#EB8705" : "#89CFDC"}} /><span>{`${value > 0 ? "+" : ""}${n(value)}`}</span></div>
                       : format(value, field)}
                     </TableCell>;
                   })}
@@ -1134,11 +1134,11 @@ export function V19Destination({
               <TableHead>Initiative</TableHead>
               <TableHead>资源大类</TableHead>
               <TableHead className="num">预算（万元）</TableHead>
-              <TableHead className="num">已分配</TableHead>
-              <TableHead className="num">预留</TableHead>
-              <TableHead className="num">待分配</TableHead>
+              <TableHead className="num">已分配（万元）</TableHead>
+              <TableHead className="num">预留（万元）</TableHead>
+              <TableHead className="num">待分配（万元）</TableHead>
               <TableHead>结构</TableHead>
-              <TableHead>获配经销商</TableHead>
+              <TableHead>获配经销商（家）</TableHead>
               <TableHead>拆分依据</TableHead>
               <TableHead>状态</TableHead>
             </TableRow>
@@ -1191,7 +1191,7 @@ export function V19Destination({
                       <AllocationBar total={t} />
                     </TableCell>
                     <TableCell>
-                      {(i.rows || []).filter((r) => r.amount > 0).length} 家
+                      {(i.rows || []).filter((r) => r.amount > 0).length}
                     </TableCell>
                     <TableCell>
                       <Button variant="outline" className="v20-rationale-chip" onClick={() => setDetail({ type: "rationale", initiativeId: i.id })}>
@@ -1221,7 +1221,7 @@ export function V19Destination({
               <TableCell>
                 <AllocationBar total={total} />
               </TableCell>
-              <TableCell>{funded} 家</TableCell>
+              <TableCell>{funded}</TableCell>
               <TableCell colSpan={2} />
             </TableRow>
           </TableFooter>

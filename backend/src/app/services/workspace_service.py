@@ -770,6 +770,8 @@ class WorkspaceService:
         return {
             "email": item.email,
             "label": item.display_name,
+            "sector": list(item.sector or []),
+            "enabled": item.enabled,
             "role": item.role,
             "affiliation_sector": item.affiliation_sector,
             "affiliation_department": item.affiliation_department,

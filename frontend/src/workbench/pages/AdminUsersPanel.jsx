@@ -1,6 +1,5 @@
 import { AdminImportPanel } from "./AdminImportPanel";
-import { InitiativeChip } from "./V19PortfolioVisuals";
-import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
+import { UserInitiativePicker } from "./UserInitiativePicker";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +26,7 @@ import {
 } from "../../components/ui/table";
 import { Badge } from "../../components/ui/badge";
 import { Checkbox } from "../../components/ui/checkbox";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import E from "../domain/engine.js";
 import * as api from "../api.js";
 import { useWorkbench } from "../WorkbenchContext.jsx";
@@ -109,6 +108,9 @@ function UserDialog({
   onConfirm,
   confirmLabel,
   saving,
+  onDelete,
+  editing,
+  returnFocus,
 }) {
   return (
     <Dialog
@@ -119,9 +121,24 @@ function UserDialog({
     >
       <DialogContent
         size="form"
+        className={editing ? "user-editor-dialog" : undefined}
         showCloseButton={false}
         aria-describedby={undefined}
+        onCloseAutoFocus={(event) => {
+          if (returnFocus?.isConnected) {
+            event.preventDefault();
+            returnFocus.focus();
+          }
+        }}
         onEscapeKeyDown={(event) => {
+          const picker = document.activeElement?.closest(
+            ".user-editor-projects details[open]",
+          );
+          if (picker) {
+            event.preventDefault();
+            picker.open = false;
+            picker.querySelector("summary").focus();
+          }
           if (saving) event.preventDefault();
         }}
         onPointerDownOutside={(event) => {
@@ -133,6 +150,16 @@ function UserDialog({
         </DialogHeader>
         <DialogBody>{children}</DialogBody>
         <DialogFooter>
+          {onDelete && (
+            <Button
+              variant="ghost"
+              className="user-editor-delete"
+              disabled={saving}
+              onClick={onDelete}
+            >
+              删除用户
+            </Button>
+          )}
           <Button
             type="button"
             variant="outline"
@@ -162,7 +189,6 @@ function UserDialog({
 export function AdminUsersPanel() {
   const {
     state,
-    data,
     roles,
     identity,
     notify,
@@ -172,7 +198,8 @@ export function AdminUsersPanel() {
     switchingPreview,
     loading: workspaceLoading,
   } = useWorkbench();
-  const [initiativeDetail, setInitiativeDetail] = useState(null);
+  const opener = useRef(null);
+  const [transfers, setTransfers] = useState({});
   const [draftFilters, setDraftFilters] = useState(EMPTY_FILTERS);
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
@@ -221,6 +248,8 @@ export function AdminUsersPanel() {
   };
   const open = (kind, user = null) => {
     setFormError("");
+    if (kind === "edit" || kind === "create")
+      opener.current = globalThis.document?.activeElement;
     if (user?.has_initiatives && kind === "delete") {
       setDialog({ kind: "blocked", user });
       return;
@@ -240,7 +269,17 @@ export function AdminUsersPanel() {
           }
         : { ...EMPTY_USER },
     );
-    setDialog({ kind, user });
+    setTransfers({});
+    const items = state?.initiatives || [];
+    setDialog({
+      kind,
+      user,
+      version: state?.planningVersion,
+      items,
+      owned: new Set(
+        user ? initiativesForUser(user, items).map((item) => item.id) : [],
+      ),
+    });
   };
 
   async function persist() {
@@ -309,18 +348,30 @@ export function AdminUsersPanel() {
                   ),
                 ),
         };
+        if (dialog.kind === "edit" && Object.keys(transfers).length) {
+          if (Object.values(transfers).some((email) => !email))
+            throw Error("请为移出的项目选择接任负责人。");
+          payload.assignments = {
+            version_id: dialog.version.id,
+            expected_revision: dialog.version.revision,
+            transfers: Object.entries(transfers).map(([id, email]) => ({
+              budget_id: Number(id),
+              owner_email: email === true ? payload.email : email,
+            })),
+          };
+        }
         if (dialog.kind === "create") await api.createAdminUser(payload);
         else await api.updateAdminUser(dialog.user.id, payload);
       }
       const action = { create: "新增", edit: "修改", delete: "删除" }[
         dialog.kind
       ];
-      setDialog(null);
       notify(`人员${action}成功。`);
       if (dialog.kind === "delete" && result.items.length === 1 && offset > 0)
         setOffset(Math.max(0, offset - PAGE_SIZE));
       else setRevision((value) => value + 1);
       await refresh({ preservePage: true });
+      setDialog(null);
     } catch (error) {
       if (
         dialog.kind === "delete" &&
@@ -338,22 +389,10 @@ export function AdminUsersPanel() {
 
   return (
     <>
-      {initiativeDetail && (
-        <ResourceDetailDrawer
-          detail={initiativeDetail}
-          items={state.initiatives || []}
-          dealers={data.dealers || []}
-          budgetReasons={state.budgetReasons}
-          ytdCutoffMonth={state.ytdCutoffMonth}
-          onClose={() => setInitiativeDetail(null)}
-        />
-      )}
       <div className="user-list-heading">
         <h2>用户清单 · {result.total} 人</h2>
         <div className="actions">
-          <AdminImportPanel
-            kind="users"
-          />
+          <AdminImportPanel kind="users" />
           <Button
             variant="ghost"
             size="sm"
@@ -366,7 +405,7 @@ export function AdminUsersPanel() {
           <Button
             variant="default"
             type="button"
-            disabled={previewMode}
+            disabled={previewMode || workspaceLoading || loading || saving}
             onClick={() => open("create")}
           >
             ＋ 新增用户
@@ -503,12 +542,6 @@ export function AdminUsersPanel() {
                 <TableHead>登录账号</TableHead>
                 <TableHead>角色</TableHead>
                 <TableHead>授权范围</TableHead>
-                <TableHead>
-                  负责 Initiative
-                  {state?.currentVersionId
-                    ? `（${state.currentVersionId}）`
-                    : ""}
-                </TableHead>
                 <TableHead>状态</TableHead>
                 <TableHead>操作</TableHead>
                 <TableHead>所属部门</TableHead>
@@ -538,29 +571,6 @@ export function AdminUsersPanel() {
                               )),
                             )}
                   </TableCell>
-                  <TableCell className="v19-user-initiatives">
-                    {initiativesForUser(user, state?.initiatives).length ? (
-                      <div className="v19-user-initiative-grid">
-                        {initiativesForUser(user, state?.initiatives).map(
-                          (item) => (
-                            <InitiativeChip
-                              key={item.id}
-                              item={item}
-                              name={item.name}
-                              onClick={() =>
-                                setInitiativeDetail({
-                                  type: "initiative",
-                                  initiativeId: String(item.id),
-                                })
-                              }
-                            />
-                          ),
-                        )}
-                      </div>
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
                   <TableCell>
                     <Badge
                       variant="secondary"
@@ -575,7 +585,7 @@ export function AdminUsersPanel() {
                         variant="outline"
                         size="sm"
                         type="button"
-                        disabled={previewMode}
+                        disabled={previewMode || workspaceLoading || loading || saving}
                         onClick={() => open("edit", user)}
                       >
                         编辑
@@ -614,7 +624,7 @@ export function AdminUsersPanel() {
               ))}
               {!loading && !result.items.length && (
                 <TableRow>
-                  <TableCell colSpan={8}>暂无匹配人员。</TableCell>
+                  <TableCell colSpan={7}>暂无匹配人员。</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -627,8 +637,7 @@ export function AdminUsersPanel() {
         )}
       </div>
       <p className="small-text muted">
-        生产系统通过 SSO 登录，账号与 AD 对齐；停用用户不能登录，其负责的
-        Initiative 需在“项目配置”中改派 Owner。模拟进入按实际权限只读查看。
+        生产系统通过 SSO 登录，账号与 AD 对齐。模拟进入按该用户的实际权限只读查看。
       </p>
       <div className="user-list-footer">
         <span>
@@ -673,7 +682,14 @@ export function AdminUsersPanel() {
               : undefined
           }
           confirmLabel={dialog.kind === "delete" ? "确认删除" : "保存"}
+          returnFocus={opener.current}
           saving={saving}
+          editing={["create", "edit"].includes(dialog.kind)}
+          onDelete={
+            dialog.kind === "edit" && !previewMode
+              ? () => open("delete", dialog.user)
+              : undefined
+          }
         >
           {dialog.kind === "blocked" && (
             <Alert variant="destructive" className="note-box warn" role="alert">
@@ -690,280 +706,296 @@ export function AdminUsersPanel() {
             </p>
           )}
           {["create", "edit"].includes(dialog.kind) && (
-            <>
-              <Label className="form-field">
-                邮箱
-                <Input
-                  disabled={dialog.user?.has_initiatives}
-                  type="email"
-                  maxLength={255}
-                  value={form.email}
-                  autoFocus
-                  onChange={(event) =>
-                    setForm({ ...form, email: event.target.value })
-                  }
-                />
-              </Label>
-              <Label className="form-field">
-                姓名
-                <Input
-                  disabled={dialog.user?.has_initiatives}
-                  maxLength={255}
-                  value={form.display_name}
-                  onChange={(event) =>
-                    setForm({ ...form, display_name: event.target.value })
-                  }
-                />
-              </Label>
-              <Label className="form-field">
-                角色
-                <NativeSelect
-                  disabled={dialog.user?.has_initiatives}
-                  value={form.role}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      role: event.target.value,
-                      department: departmentAfterRoleChange(
-                        event.target.value,
-                        form.department,
-                      ),
-                      sector: sectorAfterRoleChange(
-                        event.target.value,
-                        form.sector,
-                      ),
-                    })
-                  }
-                >
-                  {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                    <NativeSelectOption key={value} value={value}>
-                      {label}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-              </Label>
-              {dialog.user?.has_initiatives && (
-                <Alert role="note" className="note-box">
-                  <AlertDescription>
-                    已有预算事项，可调整部门、所属归属和费用列；仍有项目的授权部门必须保留。
-                  </AlertDescription>
-                </Alert>
-              )}
-              <fieldset className="form-field">
-                <legend>所属部门（所有角色必填）</legend>
-                <Label className="form-field">
-                  所属 Sector
-                  <NativeSelect
-                    required
-                    value={form.affiliation_sector}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        affiliation_sector: event.target.value,
-                      })
-                    }
-                  >
-                    <NativeSelectOption value="">
-                      请选择 Sector
-                    </NativeSelectOption>
-                    {SECTORS.map((value) => (
-                      <NativeSelectOption key={value} value={value}>
-                        {value}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
-                </Label>
-                <Label className="form-field">
-                  所属 Department
-                  <NativeSelect
-                    required
-                    value={form.affiliation_department}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        affiliation_department: event.target.value,
-                      })
-                    }
-                  >
-                    <NativeSelectOption value="">
-                      请选择 Department
-                    </NativeSelectOption>
-                    {DEPARTMENTS.map((value) => (
-                      <NativeSelectOption key={value} value={value}>
-                        {value}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
-                </Label>
-                <small>
-                  仅用于关联历史费用权限，不自动改变下方业务授权。未配置有效归属时不显示费用明细。
-                </small>
-              </fieldset>
-              <fieldset className="form-field">
-                <legend>历史费用列范围</legend>
-                <Label>
-                  <Checkbox
-                    checked={form.history_resources !== null}
-                    onCheckedChange={(checked) =>
-                      setForm({
-                        ...form,
-                        history_resources: checked === true ? [] : null,
-                      })
-                    }
-                  />
-                  为此用户收窄可见费用列
-                </Label>
-                {form.history_resources !== null && (
-                  <div className="sector-choice-group">
-                    {HISTORY_RESOURCES.map((resource) => (
-                      <Label key={resource}>
-                        <Checkbox
-                          disabled={
-                            !hasValidAffiliation(form) ||
-                            !departmentExpenseLimit(
-                              form.affiliation_department,
-                            ).includes(resource)
-                          }
-                          checked={
-                            departmentExpenseLimit(
-                              form.affiliation_department,
-                            ).includes(resource) &&
-                            form.history_resources.includes(resource)
-                          }
-                          onCheckedChange={(checked) =>
-                            setForm({
-                              ...form,
-                              history_resources:
-                                checked === true
-                                  ? [...form.history_resources, resource]
-                                  : form.history_resources.filter(
-                                      (item) => item !== resource,
-                                    ),
-                            })
-                          }
-                        />
-                        {resource}
-                      </Label>
-                    ))}
-                  </div>
-                )}
-                <small>
-                  只能在所属部门对应的大类内收窄；单独配置后不勾选即全部隐藏，管理层和管理员也不跨部门扩权。历史总额与
-                  Yield 等公共指标不受影响。
-                </small>
-              </fieldset>
-              {["owner", "lead"].includes(form.role) && (
-                <div className="form-field">
-                  部门（可多选）
-                  <div
-                    className="sector-choice-group"
-                    role="group"
-                    aria-label="选择部门"
-                  >
-                    {userDepartmentOptions(form.department).map((value) => (
-                      <Button
-                        variant={
-                          form.department.includes(value)
-                            ? "default"
-                            : "outline"
-                        }
-                        key={value}
-                        type="button"
-                        className="sector-choice"
-                        aria-pressed={form.department.includes(value)}
-                        onClick={() => {
-                          const department = form.department.includes(value)
-                            ? form.department.filter((dep) => dep !== value)
-                            : [...form.department, value];
-                          const allowed = ownerSectorOptions(
-                            department,
-                            result.lead_sectors_by_department,
-                          );
-                          setForm({
-                            ...form,
-                            department,
-                            sector:
-                              form.role === "owner" &&
-                              !dialog.user?.has_initiatives &&
-                              !allowed.includes(form.sector[0])
-                                ? []
-                                : form.sector,
-                          });
-                        }}
-                      >
-                        {value}
-                      </Button>
-                    ))}
-                  </div>
+            <div className="user-editor">
+              <section>
+                <h3>账号信息</h3>
+                <div className="user-editor-account">
+                  <Label className="form-field">
+                    邮箱
+                    <Input
+                      disabled={dialog.user?.has_initiatives}
+                      type="email"
+                      aria-label="邮箱"
+                      maxLength={255}
+                      value={form.email}
+                      autoFocus
+                      onChange={(event) =>
+                        setForm({ ...form, email: event.target.value })
+                      }
+                    />
+                  </Label>
+                  <Label className="form-field">
+                    姓名
+                    <Input
+                      disabled={dialog.user?.has_initiatives}
+                      maxLength={255}
+                      aria-label="姓名"
+                      value={form.display_name}
+                      onChange={(event) =>
+                        setForm({ ...form, display_name: event.target.value })
+                      }
+                    />
+                  </Label>
+                  <Label className="form-field">
+                    角色
+                    <NativeSelect
+                      disabled={dialog.user?.has_initiatives}
+                      aria-label="角色"
+                      value={form.role}
+                      onChange={(event) => {
+                        setTransfers({});
+                        setForm({
+                          ...form,
+                          role: event.target.value,
+                          department: departmentAfterRoleChange(
+                            event.target.value,
+                            form.department,
+                          ),
+                          sector: sectorAfterRoleChange(
+                            event.target.value,
+                            form.sector,
+                          ),
+                        });
+                      }}
+                    >
+                      {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                        <NativeSelectOption key={value} value={value}>
+                          {label}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </Label>
+                  <Label className="user-enabled-field">
+                    <Checkbox
+                      disabled={dialog.user?.has_initiatives}
+                      checked={form.enabled}
+                      onCheckedChange={(checked) =>
+                        setForm({ ...form, enabled: checked === true })
+                      }
+                    />
+                    启用该用户
+                  </Label>
                 </div>
-              )}
+                {dialog.user?.has_initiatives && (
+                  <Alert role="note" className="note-box">
+                    <AlertDescription>
+                      已有预算事项，账号、姓名、角色、业务线和启用状态已锁定。
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </section>
               {["owner", "lead"].includes(form.role) && (
-                <div className="form-field">
-                  业务线
-                  <div
-                    className="sector-choice-group"
-                    role="group"
-                    aria-label="选择业务线"
-                  >
-                    {SECTORS.map((value) => (
-                      <Button
-                        variant={
-                          form.sector.includes(value) ? "default" : "outline"
-                        }
-                        key={value}
-                        type="button"
-                        className="sector-choice"
-                        aria-pressed={form.sector.includes(value)}
-                        disabled={
-                          dialog.user?.has_initiatives ||
-                          (form.role === "owner" &&
-                            !ownerAllowedSectors.includes(value))
-                        }
-                        onClick={() =>
-                          setForm({
-                            ...form,
-                            sector: toggleSectorSelection(
-                              form.role,
-                              form.sector,
-                              value,
-                            ),
-                          })
-                        }
+                <section>
+                  <h3>业务授权</h3>
+                  <div className="user-editor-pair">
+                    <div className="form-field">
+                      部门（可多选）
+                      <div
+                        className="sector-choice-group"
+                        role="group"
+                        aria-label="选择部门"
                       >
-                        {value}
-                      </Button>
-                    ))}
+                        {userDepartmentOptions(form.department).map((value) => (
+                          <Button
+                            variant={
+                              form.department.includes(value)
+                                ? "default"
+                                : "outline"
+                            }
+                            key={value}
+                            type="button"
+                            className="sector-choice"
+                            aria-pressed={form.department.includes(value)}
+                            onClick={() => {
+                              const department = form.department.includes(value)
+                                ? form.department.filter((dep) => dep !== value)
+                                : [...form.department, value];
+                              const allowed = ownerSectorOptions(
+                                department,
+                                result.lead_sectors_by_department,
+                              );
+                              setForm({
+                                ...form,
+                                department,
+                                sector:
+                                  form.role === "owner" &&
+                                  !dialog.user?.has_initiatives &&
+                                  !allowed.includes(form.sector[0])
+                                    ? []
+                                    : form.sector,
+                              });
+                            }}
+                          >
+                            {value}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="form-field">
+                      业务线
+                      <div
+                        className="sector-choice-group"
+                        role="group"
+                        aria-label="选择业务线"
+                      >
+                        {SECTORS.map((value) => (
+                          <Button
+                            variant={
+                              form.sector.includes(value)
+                                ? "default"
+                                : "outline"
+                            }
+                            key={value}
+                            type="button"
+                            className="sector-choice"
+                            aria-pressed={form.sector.includes(value)}
+                            disabled={
+                              dialog.user?.has_initiatives ||
+                              (form.role === "owner" &&
+                                !ownerAllowedSectors.includes(value))
+                            }
+                            onClick={() =>
+                              setForm({
+                                ...form,
+                                sector: toggleSectorSelection(
+                                  form.role,
+                                  form.sector,
+                                  value,
+                                ),
+                              })
+                            }
+                          >
+                            {value}
+                          </Button>
+                        ))}
+                      </div>
+                      <small>
+                        {form.role === "owner"
+                          ? ownerAllowedSectors.length
+                            ? `Owner 仅可选择所有所选部门负责人共同覆盖的业务线：${ownerAllowedSectors.join("、")}。`
+                            : "请先为该部门配置启用的部门负责人及其业务线。"
+                          : "部门负责人可选择一至四条业务线。"}
+                      </small>
+                    </div>
                   </div>
+                  {dialog.kind === "edit" && dialog.version && (
+                    <UserInitiativePicker
+                      user={dialog.user}
+                      form={form}
+                      version={dialog.version}
+                      items={dialog.items}
+                      owned={dialog.owned}
+                      users={roles}
+                      transfers={transfers}
+                      onChange={setTransfers}
+                    />
+                  )}
+                </section>
+              )}
+              <section>
+                <h3>所属组织与历史费用</h3>
+                <div className="user-editor-pair">
+                  <Label className="form-field">
+                    所属 Sector
+                    <NativeSelect
+                      required
+                      aria-label="所属 Sector"
+                      value={form.affiliation_sector}
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          affiliation_sector: event.target.value,
+                        })
+                      }
+                    >
+                      <NativeSelectOption value="">
+                        请选择 Sector
+                      </NativeSelectOption>
+                      {SECTORS.map((value) => (
+                        <NativeSelectOption key={value} value={value}>
+                          {value}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </Label>
+                  <Label className="form-field">
+                    所属 Department
+                    <NativeSelect
+                      required
+                      aria-label="所属 Department"
+                      value={form.affiliation_department}
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          affiliation_department: event.target.value,
+                        })
+                      }
+                    >
+                      <NativeSelectOption value="">
+                        请选择 Department
+                      </NativeSelectOption>
+                      {DEPARTMENTS.map((value) => (
+                        <NativeSelectOption key={value} value={value}>
+                          {value}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </Label>
+                </div>
+                <div className="user-editor-fees">
+                  <Label>
+                    <Checkbox
+                      checked={form.history_resources !== null}
+                      onCheckedChange={(checked) =>
+                        setForm({
+                          ...form,
+                          history_resources: checked === true ? [] : null,
+                        })
+                      }
+                    />
+                    为此用户收窄可见费用列
+                  </Label>
+                  {form.history_resources !== null && (
+                    <div className="sector-choice-group">
+                      {HISTORY_RESOURCES.map((resource) => (
+                        <Label key={resource}>
+                          <Checkbox
+                            disabled={
+                              !hasValidAffiliation(form) ||
+                              !departmentExpenseLimit(
+                                form.affiliation_department,
+                              ).includes(resource)
+                            }
+                            checked={
+                              departmentExpenseLimit(
+                                form.affiliation_department,
+                              ).includes(resource) &&
+                              form.history_resources.includes(resource)
+                            }
+                            onCheckedChange={(checked) =>
+                              setForm({
+                                ...form,
+                                history_resources:
+                                  checked === true
+                                    ? [...form.history_resources, resource]
+                                    : form.history_resources.filter(
+                                        (item) => item !== resource,
+                                      ),
+                              })
+                            }
+                          />
+                          {resource}
+                        </Label>
+                      ))}
+                    </div>
+                  )}
                   <small>
-                    {form.role === "owner"
-                      ? ownerAllowedSectors.length
-                        ? `Owner 仅可选择所有所选部门负责人共同覆盖的业务线：${ownerAllowedSectors.join("、")}。`
-                        : "请先为该部门配置启用的部门负责人及其业务线。"
-                      : "部门负责人可选择一至四条业务线。"}
+                    勾选后仅显示选中的费用列，留空会隐藏全部明细。历史总额与
+                    Yield 仍可见。
                   </small>
                 </div>
-              )}
-              <Label className="user-enabled-field">
-                <Checkbox
-                  disabled={dialog.user?.has_initiatives}
-                  checked={form.enabled}
-                  onCheckedChange={(checked) =>
-                    setForm({ ...form, enabled: checked === true })
-                  }
-                />
-                启用该用户
-              </Label>
-              {dialog.kind === "edit" && (
-                <Button
-                  variant="destructive"
-                  type="button"
-                  disabled={previewMode || saving}
-                  onClick={() => open("delete", dialog.user)}
-                >
-                  删除用户
-                </Button>
-              )}
-            </>
+              </section>
+            </div>
           )}
           {formError && (
             <Alert

@@ -11,6 +11,7 @@ from app.controllers.workbench_controller import router
 from app.core.exception_handlers import register_exception_handlers
 from app.db.session import get_db_session
 from app.models.do.budget import BudgetDO
+from app.models.do.planning import InitiativeWorkflowDO, PlanningVersionDO
 from app.models.do.workspace import UserPermissionDO
 from app.services.admin_service import AdminService
 from test_workspace import _session
@@ -393,3 +394,42 @@ async def test_existing_owner_can_add_department_but_not_remove_used_department(
     )
     assert restored.status_code == 200
     assert restored.json()["data"]["department"] == ["MKT"]
+
+
+@pytest.mark.asyncio
+async def test_edit_person_transfers_current_version_projects_atomically(api):
+    client, engine = api
+    async with AsyncSession(engine) as session:
+        session.add(PlanningVersionDO(id="202701", name="Plan", planning_year=2027,
+                                      created_by="admin@example.com"))
+        for budget in (await session.scalars(select(BudgetDO))).all():
+            budget.planning_version_id = "202701"
+            session.add(InitiativeWorkflowDO(budget_id=budget.id, publication_id=budget.id,
+                                             confirmed_publication_id=budget.id,
+                                             owner_edit_locked=True))
+        await session.commit()
+
+    body = payload(email="a@example.com", display_name="A", department=["MKT"])
+    transfers = [{"budget_id": 2, "owner_email": "a@example.com"},
+                 {"budget_id": 1, "owner_email": "ice-lead@example.com"}]
+    body["assignments"] = {"version_id": "202701", "expected_revision": 0,
+                           "transfers": transfers}
+    failed = await client.put("admin/users/1", json=body, headers=headers())
+    assert failed.status_code == 422
+    async with AsyncSession(engine) as session:
+        assert (await session.get(BudgetDO, 2)).owner_email == "b@example.com"
+        assert (await session.get(PlanningVersionDO, "202701")).revision == 0
+        assert (await session.get(InitiativeWorkflowDO, 2)).confirmed_publication_id == 2
+        assert (await session.get(UserPermissionDO, 1)).affiliation_department is None
+    transfers[1]["owner_email"] = "mkt-lead@example.com"
+    saved = await client.put("admin/users/1", json=body, headers=headers())
+    assert saved.status_code == 200, saved.text
+    async with AsyncSession(engine) as session:
+        assert (await session.get(BudgetDO, 2)).owner_email == "a@example.com"
+        assert (await session.get(BudgetDO, 1)).owner_email == "mkt-lead@example.com"
+        assert (await session.get(UserPermissionDO, 1)).affiliation_department == "ICE"
+        for budget_id in (1, 2):
+            workflow = await session.get(InitiativeWorkflowDO, budget_id)
+            assert workflow.requires_resubmission and workflow.confirmed_publication_id is None
+    stale = await client.put("admin/users/1", json=body, headers=headers())
+    assert stale.status_code == 409
