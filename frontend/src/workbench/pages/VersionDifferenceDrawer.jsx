@@ -32,7 +32,7 @@ const money = (value) =>
     ? "不可比较"
     : (Number(value) / 10000).toLocaleString("zh-CN", {
         minimumFractionDigits: 1,
-        maximumFractionDigits: 2,
+        maximumFractionDigits: 1,
       });
 const change = (value) =>
   value == null

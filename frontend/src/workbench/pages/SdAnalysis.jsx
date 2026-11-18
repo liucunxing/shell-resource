@@ -29,7 +29,7 @@ const amount = (value, scale = 1) =>
   value == null
     ? "—"
     : (Number(value) / scale).toLocaleString("zh-CN", {
-        maximumFractionDigits: 2,
+        minimumFractionDigits: 1, maximumFractionDigits: 1,
       });
 const percentage = (value) => (value == null ? "—" : `${amount(value)}%`);
 const difference = (value) =>

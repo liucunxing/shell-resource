@@ -77,7 +77,7 @@ export {
   canEnterAllocationStep,
 } from "../domain/reserve-review.js";
 const fmt = (n) =>
-  Number(n || 0).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
+  Number(n || 0).toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 export function allocationBalanceLabel(gap) {
   const cents = Math.round(Number(gap) * 100);
   if (!Number.isFinite(cents) || cents === 0) return "";
@@ -85,7 +85,7 @@ export function allocationBalanceLabel(gap) {
 }
 const histFmt = (value) =>
   historyDisplayValue(value) === null ? "—" : fmt(historyDisplayValue(value));
-const pct = (n, d) => (d ? ((n / d) * 100).toFixed(2) : "0.00");
+const pct = (n, d) => (d ? fmt((n / d) * 100) : "0.0");
 const time = (v) => (v ? new Date(v).toLocaleString("zh-CN") : "尚未提交");
 export function dealerBusinessCode(dealerId, dealer = {}, row = {}) {
   return (
@@ -296,7 +296,7 @@ function RatioIndicator({ value, average }) {
       : "none";
   return (
     <span className={`v19-ratio ${tone}`}>
-      <b>{value.toFixed(2)}</b>
+      <b>{fmt(value)}</b>
       {tone !== "none" && (
         <small>
           {tone === "good" ? "优" : tone === "bad" ? "关注" : "近均"}
@@ -1968,7 +1968,7 @@ function EditorContent({
                   <b>
                     {weightedYield == null
                       ? "—"
-                      : `${weightedYield.toFixed(2)}`}{" "}
+                      : fmt(weightedYield)}{" "}
                     ↑
                   </b>
                 </span>

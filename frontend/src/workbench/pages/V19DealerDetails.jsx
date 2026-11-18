@@ -29,7 +29,7 @@ import {
 const number = (value, scale = 1) =>
   value == null
     ? "—"
-    : (value / scale).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
+    : (value / scale).toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const pct = (value) => (value == null ? "—" : `${number(value)}%`);
 const gap = (value) =>
   value == null ? "—" : `${value > 0 ? "+" : ""}${number(value)}pp`;

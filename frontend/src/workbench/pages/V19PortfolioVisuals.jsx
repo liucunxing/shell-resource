@@ -984,9 +984,9 @@ export function V19Stack({
   const format = (value, field) => {
     if (value == null || (field === "yield" && value <= 0)) return "—";
     if (["amountShare", "volShare", "c3Share", "contractShare", "phasing", "investmentShare"].includes(field)) return pct(value);
-    if (field === "amount") return n(value / 10000, 2);
-    if (["contract", "vol", "c3", "investment"].includes(field) || field.startsWith("expense:")) return n(value / 1000, 2);
-    return typeof value === "number" ? n(value, 2) : value || "—";
+    if (field === "amount") return n(value / 10000, 1);
+    if (["contract", "vol", "c3", "investment"].includes(field) || field.startsWith("expense:")) return n(value / 1000, 1);
+    return typeof value === "number" ? n(value, 1) : value || "—";
   };
   const types = orderedResourceTypes(items.map((i) => i.resourceType)),
     distribution = (set, type) =>

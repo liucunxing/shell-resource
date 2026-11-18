@@ -23,9 +23,9 @@ import { PageHead } from "./OverviewPages.jsx";
 import { validatePortalSession } from "../../portal/session";
 import { assertPreviewResponseCurrent, getPreviewEpoch } from "../userPreview";
 const fmt = (n) =>
-  (Math.abs(n) < 0.005 ? 0 : n).toLocaleString("zh-CN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+  (Math.abs(n) < 0.05 ? 0 : n).toLocaleString("zh-CN", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
   });
 export function RawPage() {
   const { state, identity, data, rawRequest, notify } = useWorkbench();

@@ -28,7 +28,7 @@ const money = (value) =>
   value == null
     ? "不可比较"
     : (Number(value) / 10000).toLocaleString("zh-CN", {
-        maximumFractionDigits: 2,
+        minimumFractionDigits: 1, maximumFractionDigits: 1,
       });
 export function VersionComparison({ executive }) {
   const { state, identity } = useWorkbench();

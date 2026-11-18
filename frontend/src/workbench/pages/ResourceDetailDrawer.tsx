@@ -138,7 +138,7 @@ const n = (value: unknown, scale = 1) =>
   finiteHistoryValue(value) == null
     ? "—"
     : (Number(value) / scale).toLocaleString("zh-CN", {
-        maximumFractionDigits: 2,
+        minimumFractionDigits: 1, maximumFractionDigits: 1,
       });
 const percent = (value: number | null) =>
   value == null ? "—" : `${n(value)}%`;

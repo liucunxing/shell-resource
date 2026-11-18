@@ -279,7 +279,7 @@ export function AdminImportPanel({ kind }) {
                         item.name,
                         `${item.sector} / ${item.department} / ${item.resourceType}`,
                         item.ownerId,
-                        item.budget.toLocaleString("zh-CN"),
+                        item.budget.toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
                         item.reason,
                       ]
                   ).map((value, n) => (
