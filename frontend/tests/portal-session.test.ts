@@ -27,7 +27,7 @@ beforeEach(() => {
     parent: {}, dispatchEvent: events.dispatchEvent.bind(events),
   });
   storage = { getItem: vi.fn(() => "legacy-a@example.invalid"), setItem: vi.fn(), removeItem: vi.fn() };
-  vi.stubGlobal("sessionStorage", storage);
+  vi.stubGlobal("localStorage", storage);
   fetchMock = vi.fn().mockResolvedValueOnce(ok(context)).mockResolvedValueOnce(ok({ csrfToken: "test-csrf" }));
   vi.stubGlobal("fetch", fetchMock);
 });

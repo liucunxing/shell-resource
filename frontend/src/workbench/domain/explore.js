@@ -1,3 +1,4 @@
+import { isHistoricalOutput, wholeMetric } from "./metric-precision";
 import E from "./engine.js";
 import { departmentExpenseFields } from "./history-permissions";
 ("use strict");
@@ -454,7 +455,7 @@ function renderRaw(model, { search = "", page = 1, pageSize = 15 } = {}) {
       .slice((page - 1) * size, page * size)
       .map(
         (r) =>
-          `<tr>${model.columns.map((c) => `<td>${typeof r[c.key] === "number" ? (c.key === "yield" ? r[c.key].toFixed(1) : num(r[c.key])) : esc(r[c.key])}</td>`).join("")}</tr>`,
+          `<tr>${model.columns.map((c) => `<td>${typeof r[c.key] === "number" ? (c.key === "yield" ? r[c.key].toFixed(1) : isHistoricalOutput(c.key) ? wholeMetric(r[c.key]) : num(r[c.key])) : esc(r[c.key])}</td>`).join("")}</tr>`,
       )
       .join("") ||
     `<tr><td colspan="${model.columns.length}">暂无匹配数据</td></tr>`

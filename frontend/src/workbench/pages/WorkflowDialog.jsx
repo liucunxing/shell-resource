@@ -16,6 +16,7 @@ export function WorkflowDialog({
   onClose,
   onConfirm,
   confirmLabel = "确认",
+  confirmVariant = "default",
   disabled = false,
   wide = false,
 }) {
@@ -62,7 +63,7 @@ export function WorkflowDialog({
             {onConfirm ? "取消" : "关闭"}
           </Button>
           {onConfirm && (
-            <Button disabled={busy || disabled} onClick={onConfirm}>
+            <Button variant={confirmVariant} disabled={busy || disabled} onClick={onConfirm}>
               {busy ? "处理中…" : confirmLabel}
             </Button>
           )}

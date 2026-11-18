@@ -267,6 +267,7 @@ export function PlanningVersionsPage() {
           onConfirm={dialog.kind === "edit" ? () => open({ ...dialog, kind: "edit-confirm" }) :
             dialog.kind === "delete-warning" ? () => open({ ...dialog, kind: "delete-confirm" }) : persist}
           confirmLabel={dialog.kind === "edit" || dialog.kind === "delete-warning" ? "继续" : dialog.kind === "delete-confirm" ? "确认移除" : "确认"}
+          confirmVariant={dialog.kind === "delete-confirm" ? "destructive" : "default"}
           disabled={
             previewMode || !apiMode ||
             (["create", "edit"].includes(dialog.kind) &&

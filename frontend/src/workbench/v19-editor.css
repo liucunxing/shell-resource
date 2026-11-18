@@ -255,43 +255,18 @@
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin: 14px 0 18px;
-}
-.v19-editor .v19-allocation-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  align-items: stretch;
-  margin-bottom: 18px;
-}
-.v19-editor .v19-allocation-layout > .panel {
-  min-width: 0;
   margin: 0;
 }
-.v19-editor .v19-allocation-layout > .v19-allocation-panel {
-  border-right: 0;
-  border-radius: 6px 0 0 6px;
+.v19-editor .studio-trial-panel {
+  min-width: 0;
+  margin: 0 0 16px;
 }
-.v19-editor .v19-allocation-layout > .studio-trial-panel {
-  border-radius: 0 6px 6px 0;
-}
-.v19-editor .v19-allocation-layout .v19-trial-quick-options {
-  width: 100%;
-  flex-direction: column;
-  align-items: stretch;
-}
-.v19-editor .v19-allocation-layout .v19-trial-tools > button:last-child {
-  margin-left: 0;
-}
-@media (max-width: 1100px) {
-  .v19-editor .v19-allocation-layout { grid-template-columns: minmax(0, 1fr); }
-  .v19-editor .v19-allocation-layout > .v19-allocation-panel {
-    border-right: 1px solid #cbd7df;
-    border-radius: 6px 6px 0 0;
-  }
-  .v19-editor .v19-allocation-layout > .studio-trial-panel {
-    border-top: 0;
-    border-radius: 0 0 6px 6px;
-  }
+.v19-editor .studio-trial-panel > .panel-header {
+  min-height: 0;
+  padding: 0;
+  margin: 0 0 10px;
+  border: 0;
+  background: transparent;
 }
 .v19-editor .v19-trial-quick-options {
   display: flex;
@@ -320,7 +295,10 @@
   color: #3f390e;
   font-weight: 600;
 }
-.v19-trial-tools > button:last-child {
+.v19-editor .v19-allocation-search {
+  width: 280px;
+  max-width: 100%;
+  min-width: 0;
   margin-left: auto;
 }
 .v19-editor .studio-trial-grid {
@@ -402,9 +380,6 @@
   }
   .v19-budget-card > p {
     font-size: 10px;
-  }
-  .v19-trial-tools > button:last-child {
-    margin-left: 0;
   }
   .v19-editor .studio-trial-grid {
     grid-template-columns: 1fr;
@@ -514,6 +489,27 @@
 .v19-editor .v19-allocation-table .allocation-note {
   min-width: 230px;
 }
+/* Keep removal available while the wide allocation table scrolls. */
+.v19-editor .v19-allocation-table [data-column="actions"] {
+  position: sticky;
+  right: 0;
+  min-width: 92px;
+  background: #fff;
+  box-shadow: -1px 0 0 #cbd7df;
+  z-index: 3;
+  text-align: center !important;
+}
+.v19-editor .v19-allocation-table thead [data-column="actions"] {
+  background: #e8eef2;
+  z-index: 5;
+}
+.v19-editor .v19-allocation-table tfoot [data-column="actions"] {
+  background: #edf4f9;
+}
+.v19-editor .v19-allocation-table .v19-allocation-remove {
+  min-width: 58px;
+  font-weight: 600;
+}
 .v19-editor .v19-allocation-table thead {
   position: sticky;
   top: 0;
@@ -558,19 +554,7 @@
   color: #657b8b;
   margin-left: 5px;
 }
-.v19-editor .v19-allocation-filters {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin: 0 0 12px;
-  flex-wrap: wrap;
-}
-.v19-allocation-filters > input {
-  max-width: 280px;
-  min-width: 0;
-  height: 32px;
-}
-.v19-editor .v19-allocation-filters > label {
+.v19-editor .v19-allocated-only {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -851,6 +835,10 @@
   color: #003c88;
 }
 @media (max-width: 600px) {
+  .v19-editor .v19-allocation-table [data-column="actions"] {
+    position: static;
+    box-shadow: none;
+  }
   .v19-editor .v19-allocation-table [data-column="name"] {
     left: var(--selection-width);
     width: 135px;

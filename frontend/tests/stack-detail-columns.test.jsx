@@ -32,18 +32,18 @@ it("keeps pp bars, full-roster denominators, units, signed expenses and zero ver
  expect(text(cells(tree,"gapC3")[0])).toBe("+40.0");
  expect(nodes(cells(tree,"gapC3")[0]).some(n=>n.props.className==="v19-diverging")).toBe(true);
  expect(text(cells(tree,"contract")[0])).toBe("20.0");
- expect(text(cells(tree,"c3")[0])).toBe("2.0");
+ expect(text(cells(tree,"c3")[0])).toBe("2");
  expect(text(cells(tree,"investment")[0])).toBe("1.0");
  expect(text(cells(tree,"expense:SP&A")[0])).toBe("-0.2");
- expect(text(cells(tree,"phasing")[0])).toBe("0.0");
+ expect(text(cells(tree,"phasing")[0])).toBe("0");
  expect(text(cells(tree,"phasing")[1])).toBe("—");
 });
-it("rounds historical values to one decimal without changing their source",()=>{
+it("rounds displayed volume to whole KL without changing their source",()=>{
  const history=dealers[0].history;
  const previous=history.vol2025;
  try {
   history.vol2025=498960;
-  expect(text(cells(render(),"vol")[0])).toBe("499.0");
+  expect(text(cells(render(),"vol")[0])).toBe("499");
   expect(history.vol2025).toBe(498960);
  } finally { history.vol2025=previous; }
 });
@@ -56,8 +56,8 @@ it("makes missing-history dealers searchable without changing shares",()=>{
 });
 it("sorts an added numeric column in both directions",()=>{
  let tree=render();const click=()=>nodes(headers(tree).find(n=>n.props["data-column"]==="c3")).find(n=>n.props.onClick).props.onClick();
- click();tree=render();expect(cells(tree,"c3").map(text)).toEqual(["2.0","8.0","—"]);
- click();tree=render();expect(cells(tree,"c3").map(text)).toEqual(["8.0","2.0","—"]);
+ click();tree=render();expect(cells(tree,"c3").map(text)).toEqual(["2","8","—"]);
+ click();tree=render();expect(cells(tree,"c3").map(text)).toEqual(["8","2","—"]);
 });
 
 it("links both ranking labels and the ranked dealers to the selected historical metric", () => {

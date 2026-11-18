@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { acceptPortalEmail, DEV_EMAIL_KEY, getDevelopmentEmail, workspace } from "../src/workbench/api.js";
+import { acceptPortalEmail, DEV_EMAIL_KEY, getDevelopmentEmail, setDevelopmentEmail, workspace } from "../src/workbench/api.js";
 
 function navigate(query) {
   const windowMock = {
@@ -12,7 +12,7 @@ function navigate(query) {
 
 beforeEach(() => {
   const values = new Map([[DEV_EMAIL_KEY, "old@example.com"]]);
-  vi.stubGlobal("sessionStorage", {
+  vi.stubGlobal("localStorage", {
     getItem: (key) => values.get(key) ?? null,
     setItem: (key, value) => values.set(key, value),
     removeItem: (key) => values.delete(key),
@@ -39,8 +39,11 @@ describe("FineReport Portal email handoff", () => {
     expect(getDevelopmentEmail()).toBe("example.user02@example.invalid");
   });
 
-  it("clears the current identity without a Portal handoff", () => {
+  it("restores the saved email on refresh and clears it on logout", () => {
     const browser = navigate("?view=admin");
+    acceptPortalEmail();
+    expect(getDevelopmentEmail()).toBe("old@example.com");
+    setDevelopmentEmail("");
     acceptPortalEmail();
     expect(getDevelopmentEmail()).toBe("");
     expect(browser.history.replaceState).not.toHaveBeenCalled();
