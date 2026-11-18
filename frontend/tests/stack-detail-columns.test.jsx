@@ -40,6 +40,7 @@ it("makes missing-history dealers searchable without changing shares",()=>{
  let tree=render();nodes(tree).find(n=>n.props["aria-label"]==="搜索叠加经销商").props.onChange({target:{value:"003"}});
  tree=render();expect(cells(tree,"name")).toHaveLength(1);expect(text(cells(tree,"name")[0])).toContain("No history");
  expect(text(cells(tree,"gapC3")[0])).toBe("—");expect(text(cells(tree,"amountShare")[0])).toBe("10.0%");
+ expect(text(cells(tree,"rank")[0])).toBe("");
  nodes(tree).find(n=>n.props["aria-label"]==="搜索叠加经销商").props.onChange({target:{value:""}});expect(cells(render(),"name")).toHaveLength(3);
 });
 it("sorts an added numeric column in both directions",()=>{
@@ -48,7 +49,7 @@ it("sorts an added numeric column in both directions",()=>{
  click();tree=render();expect(cells(tree,"c3").map(text)).toEqual(["8.00","2.00","—"]);
 });
 
-it("paginates the full roster and keeps the top ten marked after sorting and filtering",()=>{
+it("paginates the full roster without changing ranks and marks only the top ten",()=>{
  const manyDealers=Array.from({length:25},(_,i)=>({id:`d${i}`,name:`Dealer ${String(i).padStart(2,"0")}`,code:`${i}`,sector:"PCMO",history:{c32025:i+1}}));
  const manyItems=[{id:"i",name:"Project",resourceType:"MRD",sector:"PCMO",budget:2500,rows:manyDealers.map(d=>({dealerId:d.id,amount:100})),otherBudgets:[]}];
  const props={items:manyItems,dealers:manyDealers};
@@ -56,9 +57,17 @@ it("paginates the full roster and keeps the top ten marked after sorting and fil
  expect(cells(tree,"name")).toHaveLength(20);
  expect(text(tree)).toContain("筛选 25 / 25 家 · 本页 20 家");
  expect(nodes(tree).filter(n=>n.props.className==="v20-stack-rank")).toHaveLength(10);
+ expect(nodes(tree).filter(n=>n.props.className==="v20-stack-top-row")).toHaveLength(10);
+ expect(cells(tree,"rank").slice(9,12).map(text)).toEqual(["Top 10","11","12"]);
  expect(text(tree)).not.toContain("查看全部");
  nodes(tree).find(n=>text(n)==="下一页"&&n.props.onClick).props.onClick();
  tree=render(props); expect(cells(tree,"name")).toHaveLength(5); expect(text(tree)).toContain("2 / 2");
+ expect(cells(tree,"rank").map(text)).toEqual(["21","22","23","24","25"]);
+ nodes(tree).find(n=>n.props["aria-label"]==="搜索叠加经销商").props.onChange({target:{value:"Dealer 10"}});
+ tree=render(props); expect(cells(tree,"rank").map(text)).toEqual(["11"]);
+ nodes(tree).find(n=>n.props.value==="over"&&n.props.onValueChange).props.onValueChange("under");
+ tree=render(props); expect(cells(tree,"rank").map(text)).toEqual(["15"]);
+ nodes(tree).find(n=>n.props.value==="under"&&n.props.onValueChange).props.onValueChange("over");
  nodes(tree).find(n=>n.props["aria-label"]==="搜索叠加经销商").props.onChange({target:{value:"Dealer 00"}});
  tree=render(props); expect(cells(tree,"name")).toHaveLength(1); expect(text(cells(tree,"rank")[0])).toContain("Top 1"); expect(text(tree)).toContain("1 / 1");
 });

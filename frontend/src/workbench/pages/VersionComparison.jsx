@@ -93,6 +93,7 @@ export function VersionComparison({ executive }) {
         : [],
     [result, data.dealers, dimension, executive],
   );
+  const showOwner = executive && dimension === "initiative";
   return (
     <Card
       id="studio-version-change"
@@ -169,7 +170,7 @@ export function VersionComparison({ executive }) {
                 value={query}
                 type="search"
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="项目 / 维度名称"
+                placeholder={showOwner ? "项目 / Owner" : "项目 / 维度名称"}
               />
             </Label>
           </div>
@@ -182,6 +183,7 @@ export function VersionComparison({ executive }) {
                       ? "Initiative"
                       : "汇总维度"}
                   </TableHead>
+                  {showOwner && <TableHead>Owner</TableHead>}
                   <TableHead className="num">来源预算（万元）</TableHead>
                   <TableHead className="num">本版预算（万元）</TableHead>
                   <TableHead className="num">预算变化（万元）</TableHead>
@@ -194,7 +196,7 @@ export function VersionComparison({ executive }) {
               <TableBody>
                 {rows
                   .filter((row) =>
-                    `${row.name || row.key}`
+                    `${row.name || row.key} ${showOwner ? row.owner || "" : ""}`
                       .toLowerCase()
                       .includes(query.toLowerCase()),
                   )
@@ -214,6 +216,7 @@ export function VersionComparison({ executive }) {
                           {row.name || row.key}
                         </Button>
                       </TableCell>
+                      {showOwner && <TableCell sortValue={row.owner || ""}>{row.owner || "—"}</TableCell>}
                       <TableCell className="num" sortValue={row.previousBudget}>
                         {money(row.previousBudget)}
                       </TableCell>
@@ -244,7 +247,7 @@ export function VersionComparison({ executive }) {
                   ))}
                 {!rows.length && (
                   <TableRow>
-                    <TableCell colSpan="8">
+                    <TableCell colSpan={showOwner ? 9 : 8}>
                       <div className="empty">当前授权范围没有可比较项目。</div>
                     </TableCell>
                   </TableRow>

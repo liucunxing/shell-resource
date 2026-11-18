@@ -391,6 +391,8 @@ export function compareVersionGroups(
           groupBy === "initiative" ? item.name : key,
           groupBy === "initiative" ? owner : null,
         );
+        // Display the current version owner when ownership changed; removed projects retain their source owner.
+        if (groupBy === "initiative" && side === "current") group.owner = owner;
         group[`${side}Budget`] += number(item.budget) || 0;
         group[`${side}Amount`] += (item.rows || []).reduce(
           (sum, row) => sum + (number(row.amount) || 0),
