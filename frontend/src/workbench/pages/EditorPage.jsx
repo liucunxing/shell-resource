@@ -776,7 +776,7 @@ function EditorContent({
         throw Error("经销商目录加载失败，暂不能下载，请稍后重试。");
       const exportData = { ...data, distributorDirectory: directory };
       const bytes = rosterOnly
-        ? await exportExcelInWorker("roster", selectedScopeRows, dealers)
+        ? await exportExcelInWorker("roster", selectedScopeRows, dealers, exportData)
         : await exportExcelInWorker(
               "allocation",
               state,
