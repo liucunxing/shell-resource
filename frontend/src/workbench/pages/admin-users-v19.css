@@ -1,19 +1,8 @@
 .v19-user-table {
-  min-width: 1120px;
+  min-width: 860px;
 }
 .v19-user-table td {
   vertical-align: top;
-}
-.v19-user-initiative-grid {
-  display: grid;
-  grid-template-columns: repeat(2, max-content);
-  gap: 6px;
-  align-items: start;
-}
-.v19-user-initiative-grid .v20-initiative-chip {
-  white-space: nowrap;
-  width: 100%;
-  justify-content: flex-start;
 }
 .v19-user-permission-source {
   display: block;
@@ -80,15 +69,37 @@
   padding: 0 18px 18px;
 }
 
-.v19-fidelity-shell .v19-user-table .v19-user-initiative-grid .v20-initiative-chip {
-  min-height: 28px;
-  height: auto;
-  padding: 4px 8px;
-  font-size: 12px;
-  line-height: 1.4;
-  text-align: left;
-  color: #263b4b;
-  border: 1px solid color-mix(in srgb, var(--initiative-color) 45%, white);
-  border-left: 3px solid var(--initiative-color);
-  background: color-mix(in srgb, var(--initiative-color) 15%, white);
+.user-editor-dialog[data-slot="dialog-content"] { --dialog-width: 800px; }
+.user-editor-dialog [data-slot="dialog-body"] { padding: 2px 4px; }
+.user-editor { display: grid; gap: 18px; font-size: 14px; text-align: left; }
+.user-editor section + section { border-top: 1px solid #dce3e8; padding-top: 14px; }
+.user-editor h3 { font-size: 15px; font-weight: 700; color: #283943; margin: 0 0 10px; }
+.user-editor .form-field { display: flex; flex-direction: column; align-items: stretch; gap: 4px; min-width: 0; margin: 0; text-align: left; }
+.user-editor [data-slot="native-select-wrapper"], .user-editor select { width: 100%; min-width: 0; }
+.user-editor-account, .user-editor-pair { display: grid; gap: 10px 16px; align-items: start; }
+.user-editor-account { grid-template-columns: 1.4fr 1fr 1fr; }
+.user-editor-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.user-editor .user-enabled-field, .user-editor-fees label { display: flex; align-items: center; gap: 8px; }
+.user-editor small { color: #556776; font-size: 12px; line-height: 1.5; font-weight: 400; }
+.user-editor .note-box { margin: 8px 0 0; padding: 6px 10px; background: #f4f6f7; border: 0; }
+.user-editor .sector-choice-group { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; }
+.user-editor .sector-choice { min-width: 0; height: 30px; padding: 3px 10px; }
+.user-editor-projects, .user-editor-fees { display: grid; gap: 6px; margin-top: 12px; }
+.user-editor-project-heading { display: flex; gap: 8px; align-items: baseline; }
+.user-editor-projects details { min-width: 0; border: 1px solid #becbd4; border-radius: 6px; }
+.user-editor-projects summary { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 10px; cursor: pointer; }
+.user-editor-projects summary:focus-visible { outline: 2px solid #957600; outline-offset: 2px; }
+.user-editor-projects summary > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-editor-projects summary svg { flex-shrink: 0; }
+.user-editor-projects details[open] summary svg { transform: rotate(180deg); }
+.user-editor-options { border-top: 1px solid #dce3e8; padding: 8px; }
+.user-editor-option-list { max-height: 180px; overflow: auto; margin-top: 4px; }
+.user-editor-option { display: flex; align-items: center; justify-content: flex-start; gap: 9px; padding: 7px 4px; cursor: pointer; }
+.user-editor-option:hover { background: #f5f7f8; }
+.user-editor-option small { display: block; }
+.user-editor-transfer { margin-top: 4px; }
+.user-editor-dialog .user-editor-delete { margin-right: auto; color: #a02c23; }
+.user-editor-dialog [data-slot="dialog-footer"] { flex-direction: row; justify-content: flex-end; }
+@media (max-width: 600px) {
+  .user-editor-account, .user-editor-pair { grid-template-columns: minmax(0, 1fr); }
 }

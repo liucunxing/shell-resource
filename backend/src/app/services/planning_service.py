@@ -741,15 +741,33 @@ class PlanningService:
         from app.repositories.admin_repository import AdminRepository
 
         await AdminRepository(self.session).sync_allocation_metadata(budget)
+        await self.invalidate_project_confirmations(version, budget, payload.reason, previous_scope)
+        self.repository.add_log(
+            budget.id,
+            "VERSION_INITIATIVE_EDIT",
+            self.user.email,
+            None,
+            {"versionId": version_id, "enabled": budget.enabled},
+            payload.reason,
+        )
+        if commit:
+            await self.session.commit()
+        return {"id": str(budget.id), "version": version_view(version)}
+
+
+    async def invalidate_project_confirmations(
+        self, version: PlanningVersionDO, budget: BudgetDO, reason: str,
+        previous_scope: tuple[str, str] | None = None,
+    ) -> None:
         state = await self.ensure_state(budget.id)
         if state.publication_id:
             state.requires_resubmission = True
-            state.return_reason = payload.reason
+            state.return_reason = reason
         affected_scopes = {(budget.sector, budget.department)}
         if previous_scope is not None:
             affected_scopes.add(previous_scope)
         for sector, department in affected_scopes:
-            department_budgets = await self.department_budgets(version_id, sector, department)
+            department_budgets = await self.department_budgets(version.id, sector, department)
             department_states = await self.states_for(department_budgets, create_missing=True)
             for other_state in department_states.values():
                 other_state.owner_edit_locked = False
@@ -764,18 +782,6 @@ class PlanningService:
         # Project configuration changes invalidate only the affected workflow scopes.
         # Publishing/stopping a version remains an explicit administrator operation.
         version.revision += 1
-        self.repository.add_log(
-            budget.id,
-            "VERSION_INITIATIVE_EDIT",
-            self.user.email,
-            None,
-            {"versionId": version_id, "enabled": budget.enabled},
-            payload.reason,
-        )
-        if commit:
-            await self.session.commit()
-        return {"id": str(budget.id), "version": version_view(version)}
-
 
     async def import_initiatives(
         self, version_id: str, payload: VersionInitiativesImportDTO,

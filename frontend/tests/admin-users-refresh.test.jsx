@@ -4,6 +4,7 @@ const harness = vi.hoisted(() => ({ slots: [], cursor: 0, effects: [], context: 
   list: vi.fn(), update: vi.fn() }));
 vi.mock("react", async (original) => ({
   ...(await original()),
+  useRef(initial) { return (harness.slots[harness.cursor++] ??= { current: initial }); },
   useState(initial) {
     const index = harness.cursor++;
     if (!(index in harness.slots)) harness.slots[index] = typeof initial === "function" ? initial() : initial;
@@ -68,6 +69,7 @@ it("coalesces the user list reload until the saved workspace permissions finish 
   await flush();
   render();
   expect(harness.update).toHaveBeenCalledTimes(1);
+  expect(find(render(), node => node.props?.title === "修改人员").props.saving).toBe(true);
   expect(harness.context.refresh).toHaveBeenCalledWith({ preservePage: true });
   expect(harness.list).toHaveBeenCalledTimes(1);
   finish(); await saving;
@@ -84,4 +86,28 @@ it("retains list errors after a refresh rather than showing a successful empty l
   render(); await flush();
   const error = find(render(), node => Array.isArray(node.props?.children) && node.props.children.includes("人员权限查询失败"));
   expect(error).toBeTruthy();
+});
+
+it("saves only changed project assignments against the version opened for editing", async () => {
+  harness.context.state.planningVersion = { id: "202702", revision: 5 };
+  harness.context.state.initiatives = [
+    { id: "1", name: "原项目", ownerId: user.email },
+    { id: "2", name: "新项目", ownerId: "other@example.test" },
+  ];
+  render(); await flush();
+  find(render(), node => node.props?.children === "编辑").props.onClick();
+  const picker = find(render(), node => node.props?.owned instanceof Set);
+  expect([...picker.props.owned]).toEqual(["1"]);
+  picker.props.onChange({ 1: "", 2: true });
+  await find(render(), node => node.props?.title === "修改人员").props.onConfirm();
+  expect(harness.update).not.toHaveBeenCalled();
+  picker.props.onChange({ 1: "other@example.test", 2: true });
+  harness.context.state.planningVersion = { id: "202703", revision: 1 };
+  await find(render(), node => node.props?.title === "修改人员").props.onConfirm();
+  expect(harness.update).toHaveBeenCalledWith(user.id, expect.objectContaining({
+    assignments: { version_id: "202702", expected_revision: 5, transfers: [
+      { budget_id: 1, owner_email: "other@example.test" },
+      { budget_id: 2, owner_email: user.email },
+    ] },
+  }));
 });
