@@ -32,7 +32,9 @@ docs/       本期业务契约和协作说明
 
 2026-11-17 草稿恢复：各 Initiative 独立保留当前步骤、预算与预留核对勾选及已采用的快捷分配方案，切换项目继续原步骤和分配草稿；第一、二步点击“下一步”时自动覆盖保存，成功后进入下一步；失败保留当前步骤和编辑。只有第三步显示“保存草稿”和“提交”。自动或手动保存后，刷新或重新登录也可恢复。核对指纹按预算、预留金额／原因／说明及项目、Owner、版本绑定，不受预留行数据库 ID 或排序变化影响；实际内容变化需重新核对，已在本版提交过的项目仍沿用免重复核对规则。新版本不继承旧版编辑步骤和勾选。
 
-草稿 API 的可选 `editorState` 为 `{step: 1|2|3, reserveAcknowledgement: string, trial?: {metric, period, baselineRows, allocationFingerprint} | null}`，随草稿修订一起保存；旧调用省略字段时保留原值，显式 `null` 清除。部署本次代码前需执行 Alembic `20261117_01`（新增可空 `data.budgets.editor_state` JSON 列）；本轮只推送代码，不部署或执行远端数据库升级。
+草稿 API 的可选 `editorState` 为 `{step: 1|2|3, reserveAcknowledgement: string, trial?: {metric, period, baselineRows, allocationFingerprint} | null}`，随草稿修订一起保存；旧调用省略字段时保留原值，显式 `null` 清除。该字段由 Alembic `20261117_01` 引入。
+
+在管理员的「规划版本」页可创建空白版本，或复制来源版本。对指定版本执行「清空草稿」并再次确认后，所有项目保留原配置和预算，Owner 从第一步重新拆分。部署前须先升级至 Alembic `20261119_01`，该迁移为项目工作流增加可空的草稿重置修订号。
 
 ## 数据来源与接入限制
 

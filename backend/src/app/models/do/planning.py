@@ -32,6 +32,7 @@ class InitiativeWorkflowDO(BaseDO):
     budget_id: Mapped[int] = mapped_column(
         BigInteger().with_variant(Integer, "sqlite"), primary_key=True
     )
+    draft_reset_revision: Mapped[int | None] = mapped_column(Integer)
     publication_id: Mapped[int | None] = mapped_column(BigInteger)
     confirmed_publication_id: Mapped[int | None] = mapped_column(BigInteger)
     confirmed_by: Mapped[str | None] = mapped_column(String(255))

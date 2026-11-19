@@ -17,7 +17,7 @@ os.environ["APP_SETTINGS_FILE"] = str(ROOT / "config" / "settings.example.toml")
 
 from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from tests.local_preview import install_local_preview
+from tests.local_preview import ensure_draft_reset_column, install_local_preview
 
 from app.core.config import get_settings
 from app.db.session import get_db_session
@@ -209,6 +209,7 @@ async def seed(session) -> None:
 async def lifespan(_):
     async with engine.begin() as connection:
         await connection.run_sync(BaseDO.metadata.create_all)
+        await connection.run_sync(ensure_draft_reset_column)
     async with factory() as session:
         if await session.scalar(select(PlanningVersionDO.id).limit(1)) is None:
             await seed(session)

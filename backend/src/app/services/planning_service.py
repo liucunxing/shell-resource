@@ -19,6 +19,7 @@ from app.models.do.workspace import WorkspacePublicationDO
 from app.repositories.workspace_repository import WorkspaceRepository
 from app.schemas.dto.planning import (
     DepartmentActionDTO,
+    PlanningVersionClearDraftsDTO,
     PlanningVersionCreateDTO,
     PlanningVersionDeleteDTO,
     PlanningVersionReleaseDTO,
@@ -213,6 +214,7 @@ class PlanningService:
             "submitted": submitted,
             "confirmed": confirmed,
             "requiresResubmission": bool(state and state.requires_resubmission),
+            "draftResetRevision": state.draft_reset_revision if state else None,
             "ownerEditLocked": bool(state and state.confirmed_publication_id),
             "returnReason": state.return_reason if state else None,
             "publicationId": str(publication.id) if publication else None,
@@ -257,31 +259,7 @@ class PlanningService:
                     {"id": payload.id}, {"id": archive_id}, "保留已删除版本历史并释放编号")
             else:
                 raise HTTPException(409, "该版本号已存在，请刷新版本列表或使用其他版本号")
-        source = None
-        if payload.source_version_id:
-            source = await self.version(payload.source_version_id, lock=True)
-            if source.planning_year != payload.planning_year:
-                raise HTTPException(422, "复制来源必须属于同一规划年度")
-            if not source.published or payload.id <= source.id:
-                raise HTTPException(422, "新版本须晚于所选已发布来源版本")
-        elif await self.session.scalar(
-            select(PlanningVersionDO.id)
-            .where(
-                PlanningVersionDO.planning_year == payload.planning_year,
-                PlanningVersionDO.deleted_at.is_(None),
-            )
-            .limit(1)
-        ):
-            raise HTTPException(422, "已有规划版本，请明确选择复制来源")
-        query = (
-            select(BudgetDO)
-            .where(
-                BudgetDO.planning_year == payload.planning_year,
-                BudgetDO.planning_version_id == (source.id if source else None),
-            )
-            .order_by(BudgetDO.id)
-        )
-        originals = list((await self.session.scalars(query.with_for_update())).all())
+        originals = await self._creation_source_budgets(payload)
         latest = await self.repository.latest_submissions_for([item.id for item in originals])
         from app.core.dealer_identity import dealer_identity
         from app.core.distributor_status import distributor_status
@@ -381,10 +359,41 @@ class PlanningService:
             self.user.email,
             None,
             version_view(version),
-            "从最后已提交快照建立独立草稿；提交和确认状态不继承",
+            "创建空白版本，待配置 Initiative" if payload.creation_mode == "empty"
+            else "从最后已提交快照建立独立草稿；提交和确认状态不继承",
         )
         await self.session.commit()
         return version_view(version)
+
+    async def _creation_source_budgets(self, payload: PlanningVersionCreateDTO) -> list[BudgetDO]:
+        if payload.creation_mode == "empty":
+            return []
+        # Legacy clients omit the mode when initializing the year's first version.
+        source = None
+        if payload.source_version_id:
+            source = await self.version(payload.source_version_id, lock=True)
+            if source.planning_year != payload.planning_year:
+                raise HTTPException(422, "复制来源必须属于同一规划年度")
+            if not source.published or payload.id <= source.id:
+                raise HTTPException(422, "新版本须晚于所选已发布来源版本")
+        elif await self.session.scalar(
+            select(PlanningVersionDO.id)
+            .where(
+                PlanningVersionDO.planning_year == payload.planning_year,
+                PlanningVersionDO.deleted_at.is_(None),
+            )
+            .limit(1)
+        ):
+            raise HTTPException(422, "已有规划版本，请明确选择复制来源")
+        query = (
+            select(BudgetDO)
+            .where(
+                BudgetDO.planning_year == payload.planning_year,
+                BudgetDO.planning_version_id == (source.id if source else None),
+            )
+            .order_by(BudgetDO.id)
+        )
+        return list((await self.session.scalars(query.with_for_update())).all())
 
     async def _normalize_legacy_copy_rows(
         self, budget: BudgetDO, rows: list[dict], records: Sequence[Mapping] | None = None,
@@ -527,6 +536,44 @@ class PlanningService:
                                 version_view(version), payload.reason)
         await self.session.commit()
         return {"version": version_view(version), "releasedInitiatives": len(budgets)}
+
+    async def clear_drafts(self, version_id: str, payload: PlanningVersionClearDraftsDTO) -> dict:
+        self.admin()
+        if not payload.confirmed:
+            raise HTTPException(422, "请再次确认清空此版本全部草稿")
+        version = await self.version(version_id, lock=True)
+        self.check_revision(version, payload.expected_revision)
+        budgets = list(await self.session.scalars(
+            select(BudgetDO).where(BudgetDO.planning_version_id == version.id)
+            .order_by(BudgetDO.id).with_for_update().execution_options(populate_existing=True)
+        ))
+        before = version_view(version)
+        states = await self.states_for(budgets, create_missing=True)
+        await self.repository.clear_draft_rows([b.id for b in budgets])
+        for budget in budgets:
+            budget.allocate_budget_amount = Decimal(0)
+            budget.editor_state = None
+            budget.status = 0
+            # Advance even empty drafts so a tab opened before the reset cannot save over it.
+            budget.revision += 1
+            state = states[budget.id]
+            state.draft_reset_revision = budget.revision
+            state.publication_id = None
+            state.confirmed_publication_id = None
+            state.confirmed_by = None
+            state.confirmed_at = None
+            state.owner_edit_locked = False
+            state.requires_resubmission = False
+            state.change_reason = ""
+            state.return_reason = None
+        version.revision += 1
+        result = {"version": version_view(version), "clearedInitiatives": len(budgets)}
+        self.repository.add_log(
+            0, "VERSION_CLEAR_DRAFTS", self.user.email, before, result,
+            f"规划版本 {version.id} 已清空 {len(budgets)} 个 Initiative 的拆分草稿",
+        )
+        await self.session.commit()
+        return result
 
     async def deletion_info(self, version_id: str) -> dict:
         self.admin()
