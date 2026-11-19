@@ -443,6 +443,7 @@ def test_distributor_history_field_mapping_and_department_scope():
             distributor_sellin_resource_history.insert().values(
                 distributor_code="D-HISTORY",
                 distributor_name="History Dealer",
+                distributor_status="1",
                 volume_2024=1,
                 c3_2024=2,
                 volume_2025=3,

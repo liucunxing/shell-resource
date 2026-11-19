@@ -12,7 +12,7 @@ function navigate(query) {
 
 beforeEach(() => {
   const values = new Map([[DEV_EMAIL_KEY, "old@example.com"]]);
-  vi.stubGlobal("localStorage", {
+  vi.stubGlobal("sessionStorage", {
     getItem: (key) => values.get(key) ?? null,
     setItem: (key, value) => values.set(key, value),
     removeItem: (key) => values.delete(key),
@@ -47,6 +47,27 @@ describe("FineReport Portal email handoff", () => {
     acceptPortalEmail();
     expect(getDevelopmentEmail()).toBe("");
     expect(browser.history.replaceState).not.toHaveBeenCalled();
+  });
+
+  it("isolates independently opened tabs even when the previous release saved a shared email", () => {
+    const firstTab = sessionStorage;
+    navigate("");
+    setDevelopmentEmail("owner@example.test");
+    vi.stubGlobal("localStorage", { getItem: () => "legacy@example.test" });
+    const secondValues = new Map();
+    vi.stubGlobal("sessionStorage", {
+      getItem: key => secondValues.get(key) ?? null,
+      setItem: (key, value) => secondValues.set(key, value),
+      removeItem: key => secondValues.delete(key),
+    });
+    expect(getDevelopmentEmail()).toBe("");
+    setDevelopmentEmail("lead@example.test");
+    const secondTab = sessionStorage;
+    vi.stubGlobal("sessionStorage", firstTab);
+    expect(getDevelopmentEmail()).toBe("owner@example.test");
+    setDevelopmentEmail("");
+    vi.stubGlobal("sessionStorage", secondTab);
+    expect(getDevelopmentEmail()).toBe("lead@example.test");
   });
 
   it.each(["?user_email=", "?user_email=invalid", "?user_email=a%0D%0A@example.com", "?user_email=a@example.com&user_email=b@example.com", "?user_email=a@example.com&%20user_email=b@example.com"])("clears stale identity for invalid handoff %s", (query) => {

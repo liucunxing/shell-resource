@@ -225,7 +225,7 @@ async def test_owner_history_is_limited_to_authorized_sectors() -> None:
 
 
 @pytest.mark.asyncio
-async def test_closed_dealer_cannot_be_added_but_existing_allocation_is_preserved() -> None:
+async def test_closed_existing_allocation_is_excluded_from_workspace_and_save() -> None:
     session = await _session()
     service = WorkspaceService(session, _owner())
     await service.save_draft(
@@ -235,14 +235,13 @@ async def test_closed_dealer_cannot_be_added_but_existing_allocation_is_preserve
         distributor_sellin_resource_history.update().values(distributor_status="0")
     )
     await session.commit()
-    saved = await service.save_draft(
-        1, InitiativeDraftUpdateDTO(expected_revision=1, rows=[{"dealerId": "d1", "amount": 100}])
-    )
-    assert saved["rows"][0]["amount"] == 100
+    workspace = await service.get_workspace(2027)
+    assert workspace["data"]["dealers"] == []
+    assert all(not item["rows"] for item in workspace["state"]["initiatives"])
     with pytest.raises(HTTPException) as denied:
         await service.save_draft(
             1,
-            InitiativeDraftUpdateDTO(expected_revision=2, rows=[{"dealerId": "d2", "amount": 100}]),
+            InitiativeDraftUpdateDTO(expected_revision=1, rows=[{"dealerId": "d1", "amount": 100}]),
         )
     assert denied.value.status_code == 422
     assert "active" in denied.value.detail

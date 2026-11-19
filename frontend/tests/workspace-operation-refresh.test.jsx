@@ -30,6 +30,7 @@ const version = { id: "202701", revision: 4, published: true, open: true };
 const initiative = { id: "1", department: "MKT", sector: "B2B", revision: 7,
   rows: [{ dealerId: "D1", amount: 20 }], otherBudgets: [] };
 const payload = (current = version) => ({
+  data: { dealers: [{ id: "D1", sector: "B2B", status: "active" }] },
   identity: { role: "owner", department: ["MKT"], email: "owner@example.test" },
   state: { currentVersionId: current.id, planningVersion: current, planningVersions: [current], initiatives: [initiative] },
 });
@@ -274,6 +275,13 @@ it("keeps unsaved allocation state when navigating between initiatives", async (
   expect(harness.context.state.initiatives[0].rows[0].amount).toBe(31);
   expect(harness.context.dirtyIds.has("1")).toBe(true);
   expect(harness.save).not.toHaveBeenCalled();
+});
+
+it("rejects an amount import if another session changed the selected identities", async () => {
+  harness.getDraft.mockResolvedValueOnce({ ...initiative, revision: 13, rows: [] });
+  await expect(harness.context.saveDraft("1", { rows: initiative.rows }, undefined, true)).resolves.toBe(false);
+  expect(harness.save).not.toHaveBeenCalled();
+  expect(harness.context.state.initiatives[0].rows).toEqual(initiative.rows);
 });
 
 it("imports replacement rows using the current server revision instead of the local revision", async () => {

@@ -97,7 +97,7 @@ describe("dealer picker search", () => {
         rows: [{ dealerId: "D-NEW", amount: 0, note: "" }],
         otherBudgets: [],
       },
-      { dealers: [], distributorDirectory: [{ id: "D-NEW", name: "New Dealer" }] },
+      { dealers: [], distributorDirectory: [{ id: "D-NEW", name: "New Dealer", status: "active" }] },
     );
     expect(errors).toEqual([]);
   });

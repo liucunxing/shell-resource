@@ -78,7 +78,8 @@ async def test_roster_without_allocation_rows_uses_same_safe_projection():
         original = {"sector": "PCMO", "selected": ["d1"], "rows": []}
         result = (await service._project_legacy_items([original]))[0]
         assert result["selected"][0].startswith("history:")
-        assert result["rows"] == []
+        assert [r["dealerId"] for r in result["rows"]] == result["selected"]
+        assert result["rows"][0]["amount"] == 0
         assert original["selected"] == ["d1"]
     finally:
         await session.close()
@@ -86,7 +87,7 @@ async def test_roster_without_allocation_rows_uses_same_safe_projection():
 
 
 @pytest.mark.asyncio
-async def test_owner_can_save_existing_closed_legacy_dealer_using_projected_identity():
+async def test_closed_legacy_allocation_is_removed_without_modifying_submission():
     session = await _session()
     try:
         publication = await legacy_submission(session)
@@ -99,13 +100,10 @@ async def test_owner_can_save_existing_closed_legacy_dealer_using_projected_iden
         await session.commit()
         service = WorkspaceService(session, _owner())
         draft = await service.get_draft(1)
-        identity = draft["rows"][0]["dealerId"]
-        assert identity.startswith("history:")
+        assert draft["rows"] == []
         saved = await service.save_draft(1, InitiativeDraftUpdateDTO(
-            expected_revision=draft["revision"], rows=[{"dealerId": identity, "amount": 100}],
-        ))
-        assert saved["rows"][0]["dealerId"] == identity
-        assert saved["rows"][0]["dealerCode"] == "d1"
+            expected_revision=draft["revision"], rows=[]))
+        assert saved["rows"] == []
         assert publication.snapshot == original_snapshot
         assert publication.snapshot["initiative"]["rows"][0]["dealerId"] == "d1"
     finally:

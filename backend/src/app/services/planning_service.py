@@ -284,10 +284,14 @@ class PlanningService:
         originals = list((await self.session.scalars(query.with_for_update())).all())
         latest = await self.repository.latest_submissions_for([item.id for item in originals])
         from app.core.dealer_identity import dealer_identity
+        from app.core.distributor_status import distributor_status
         from app.repositories.reference_repository import ReferenceRepository
 
         # Resolve identity once across the copied sectors, without historical financial columns.
-        has_rows = any(item.snapshot.get("initiative", {}).get("rows") for item in latest.values())
+        has_rows = any(
+            item.snapshot.get("initiative", {}).get(key)
+            for item in latest.values() for key in ("rows", "selected")
+        )
         records = await ReferenceRepository(self.session).list_directory(
             sectors=tuple(sorted({item.sector for item in originals})),
         ) if has_rows else []
@@ -295,16 +299,28 @@ class PlanningService:
         for record in records:
             records_by_sector.setdefault(str(record["sector"]), []).append(record)
         directory_by_sector = {
-            sector: {dealer_identity(row): row for row in sector_records}
+            sector: {dealer_identity(row): row for row in sector_records
+                     if distributor_status(row["distributor_status"]) == "active"}
             for sector, sector_records in records_by_sector.items()
+        }
+        from app.services.workspace_service import WorkspaceService
+
+        dealers_by_sector = {
+            sector: WorkspaceService._directory_dealers(items)
+            for sector, items in records_by_sector.items()
         }
         copies = []
         for original in originals:
             # Copy only the last submitted snapshot, including a returned submission.
             publication = latest.get(original.id)
             snapshot = deepcopy(publication.snapshot.get("initiative", {})) if publication else {}
+            sector_records = records_by_sector.get(original.sector, [])
+            # Validate legacy collisions before projecting the detached copy.
             await self._normalize_legacy_copy_rows(
-                original, snapshot.get("rows", []), records_by_sector.get(original.sector, []),
+                original, [dict(r) for r in snapshot.get("rows", [])], sector_records,
+            )
+            snapshot = WorkspaceService._active_roster(
+                {**snapshot, "sector": original.sector}, dealers_by_sector.get(original.sector, []),
             )
             copies.append((original, snapshot))
         version = PlanningVersionDO(

@@ -107,5 +107,8 @@ class ReferenceRepository:
         )))
 
     async def count_dealers(self) -> int:
-        statement = select(func.count()).select_from(distributor_sellin_resource_history)
+        source = distributor_sellin_resource_history
+        statement = select(func.count()).select_from(source).where(
+            func.lower(func.trim(source.c.distributor_status.cast(Text))).in_(("1", "active"))
+        )
         return int((await self.session.scalar(statement)) or 0)

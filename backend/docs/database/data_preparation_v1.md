@@ -4,7 +4,7 @@
 
 预算业务键为 `planning_year + sector + department + resource_type + initiative_name`。`data.budgets.owner_email` 记录 Initiative 执行人；`data.user_permissions.sector` 记录人员被授权的业务线：Owner 恰好一条，部门负责人（Lead）一至四条，管理层和管理员不配置。经销商分配记录通过 `budget_id` 关联预算。
 
-Resource Studio V17 的经销商目录和历史表现统一读取已导入的 `data.distributor_sellin_resource_history`，不再依赖 Databricks 经销商维表。2026-11-13 确认：`distributor_status` 的源值 `1 = active`、`0 = closed`（客户称 close）；兼容数字和文本 1/0，接口统一返回英文状态。Initiative 选择列表只列 active；新增分配必须同时匹配项目业务线与 active 状态。closed 保留历史展示及已有分配，不因状态变更自动删行；未明确状态不可新选，不推导 newclose。
+Resource Studio V17 的经销商目录和历史表现统一读取已导入的 `data.distributor_sellin_resource_history`，不再依赖 Databricks 经销商维表。2026-11-13 确认：`distributor_status` 的源值 `1 = active`、`0 = closed`（客户称 close）；兼容数字和文本 1/0，接口统一返回英文状态。经销商业务口径仅包含所属业务线的 Active 经销商。拆分工作台以经销商范围的最终名单为准，试算、分配明细、保存及导出共用这份名单，保留已选零金额行。旧草稿或来源版本中已关闭经销商的金额退回待分配，其余经销商金额保持原值。 状态缺失的记录也排除。
 
 `history`提供年度Vol/C3、完整历史投资总额及按授权可见的费用明细。`btl_2025 / btl_2026`映射为SP&A。源Vol为L、C3为USD、历史费用当前为USD；API的Vol/C3保留原值，历史费用除以配置汇率归一为USD，页面除1000显示KL、千美元、千美元。Yield由C3美元÷同期间完整费用美元重算，仅两者均>0且期间可比时有效；历史费用按配置汇率除算至美元、不带x/倍、负值显示“—”，不能解释为未来回报或ROI。YoY按(2025−2024)/2024重算并乘100，基期≤0为无基期；不直接采用源Yield/YoY。受限费用明细不下发，公共完整总额独立返回，不能以部分授权明细求和冒充总额。2026Actual/费用业务截止月未知时不算YTD Yield。当前源未提供合同和PPP，保持缺失。
 

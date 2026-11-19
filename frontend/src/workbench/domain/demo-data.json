@@ -4318,6 +4318,7 @@
         },
         "yield": 6.769230769230769
       },
+      "status": "active",
       "sourceRow": 2
     },
     {
@@ -4338,6 +4339,7 @@
         },
         "yield": 8.25
       },
+      "status": "active",
       "sourceRow": 3
     },
     {
@@ -4358,6 +4360,7 @@
         },
         "yield": 13.2
       },
+      "status": "active",
       "sourceRow": 4
     },
     {
@@ -4378,6 +4381,7 @@
         },
         "yield": 7.857142857142857
       },
+      "status": "active",
       "sourceRow": 5
     },
     {
@@ -4398,6 +4402,7 @@
         },
         "yield": 24.2
       },
+      "status": "active",
       "sourceRow": 6
     },
     {
@@ -4418,6 +4423,7 @@
         },
         "yield": 25.3
       },
+      "status": "active",
       "sourceRow": 7
     },
     {
@@ -4438,6 +4444,7 @@
         },
         "yield": 11
       },
+      "status": "active",
       "sourceRow": 8
     },
     {
@@ -4458,6 +4465,7 @@
         },
         "yield": 25.666666666666668
       },
+      "status": "active",
       "sourceRow": 9
     },
     {
@@ -4478,6 +4486,7 @@
         },
         "yield": 9.9
       },
+      "status": "active",
       "sourceRow": 10
     },
     {
@@ -4498,6 +4507,7 @@
         },
         "yield": 7.333333333333333
       },
+      "status": "active",
       "sourceRow": 11
     },
     {
@@ -4518,6 +4528,7 @@
         },
         "yield": 6.285714285714286
       },
+      "status": "active",
       "sourceRow": 12
     },
     {
@@ -4538,6 +4549,7 @@
         },
         "yield": 7.930232558139535
       },
+      "status": "active",
       "sourceRow": 13
     },
     {
@@ -4558,6 +4570,7 @@
         },
         "yield": 8.53061224489796
       },
+      "status": "active",
       "sourceRow": 14
     },
     {
@@ -4578,6 +4591,7 @@
         },
         "yield": 6.914285714285715
       },
+      "status": "active",
       "sourceRow": 15
     },
     {
@@ -4598,6 +4612,7 @@
         },
         "yield": 8.056338028169014
       },
+      "status": "active",
       "sourceRow": 16
     },
     {
@@ -4618,6 +4633,7 @@
         },
         "yield": 7.746478873239437
       },
+      "status": "active",
       "sourceRow": 17
     },
     {
@@ -4638,6 +4654,7 @@
         },
         "yield": 7.72972972972973
       },
+      "status": "active",
       "sourceRow": 18
     },
     {
@@ -4658,6 +4675,7 @@
         },
         "yield": 10.476190476190476
       },
+      "status": "active",
       "sourceRow": 19
     },
     {
@@ -4678,6 +4696,7 @@
         },
         "yield": 6.569444444444445
       },
+      "status": "active",
       "sourceRow": 20
     },
     {
@@ -4698,6 +4717,7 @@
         },
         "yield": 7.957446808510638
       },
+      "status": "active",
       "sourceRow": 21
     },
     {
@@ -4718,6 +4738,7 @@
         },
         "yield": 15.466666666666667
       },
+      "status": "active",
       "sourceRow": 22
     },
     {
@@ -4738,6 +4759,7 @@
         },
         "yield": 10.142857142857142
       },
+      "status": "active",
       "sourceRow": 23
     },
     {
@@ -4758,6 +4780,7 @@
         },
         "yield": 8.32258064516129
       },
+      "status": "active",
       "sourceRow": 24
     },
     {
@@ -4778,6 +4801,7 @@
         },
         "yield": 7.526315789473684
       },
+      "status": "active",
       "sourceRow": 25
     },
     {
@@ -4798,6 +4822,7 @@
         },
         "yield": 7
       },
+      "status": "active",
       "sourceRow": 26
     },
     {
@@ -4818,6 +4843,7 @@
         },
         "yield": 14.123456790123457
       },
+      "status": "active",
       "sourceRow": 27
     },
     {
@@ -4838,6 +4864,7 @@
         },
         "yield": 10.306930693069306
       },
+      "status": "active",
       "sourceRow": 28
     },
     {
@@ -4858,6 +4885,7 @@
         },
         "yield": 8.557692307692308
       },
+      "status": "active",
       "sourceRow": 29
     },
     {
@@ -4878,6 +4906,7 @@
         },
         "yield": 7.898550724637682
       },
+      "status": "active",
       "sourceRow": 30
     },
     {
@@ -4898,6 +4927,7 @@
         },
         "yield": 7.212962962962963
       },
+      "status": "active",
       "sourceRow": 31
     },
     {
@@ -4918,6 +4948,7 @@
         },
         "yield": 14.25
       },
+      "status": "active",
       "sourceRow": 32
     },
     {
@@ -4938,6 +4969,7 @@
         },
         "yield": 8.775280898876405
       },
+      "status": "active",
       "sourceRow": 33
     },
     {
@@ -4958,6 +4990,7 @@
         },
         "yield": 9.852941176470589
       },
+      "status": "active",
       "sourceRow": 34
     },
     {
@@ -4978,6 +5011,7 @@
         },
         "yield": 7.946428571428571
       },
+      "status": "active",
       "sourceRow": 35
     },
     {
@@ -4998,6 +5032,7 @@
         },
         "yield": 6.754385964912281
       },
+      "status": "active",
       "sourceRow": 36
     },
     {
@@ -5018,6 +5053,7 @@
         },
         "yield": 13.738317757009346
       },
+      "status": "active",
       "sourceRow": 37
     },
     {
@@ -5038,6 +5074,7 @@
         },
         "yield": 9.938461538461539
       },
+      "status": "active",
       "sourceRow": 38
     },
     {
@@ -5058,6 +5095,7 @@
         },
         "yield": 8.08108108108108
       },
+      "status": "active",
       "sourceRow": 39
     },
     {
@@ -5078,6 +5116,7 @@
         },
         "yield": 8.104761904761904
       },
+      "status": "active",
       "sourceRow": 40
     },
     {
@@ -5098,6 +5137,7 @@
         },
         "yield": 6.865853658536586
       },
+      "status": "active",
       "sourceRow": 41
     },
     {
@@ -5118,6 +5158,7 @@
         },
         "yield": 14.72
       },
+      "status": "active",
       "sourceRow": 42
     },
     {
@@ -5138,6 +5179,7 @@
         },
         "yield": 9.97938144329897
       },
+      "status": "active",
       "sourceRow": 43
     },
     {
@@ -5158,6 +5200,7 @@
         },
         "yield": 8.203947368421053
       },
+      "status": "active",
       "sourceRow": 44
     },
     {
@@ -5178,6 +5221,7 @@
         },
         "yield": 6.908296943231441
       },
+      "status": "active",
       "sourceRow": 45
     },
     {
@@ -5198,6 +5242,7 @@
         },
         "yield": 7.835820895522388
       },
+      "status": "active",
       "sourceRow": 46
     },
     {
@@ -5218,6 +5263,7 @@
         },
         "yield": 14.62
       },
+      "status": "active",
       "sourceRow": 47
     },
     {
@@ -5238,6 +5284,7 @@
         },
         "yield": 9.495145631067961
       },
+      "status": "active",
       "sourceRow": 48
     },
     {
@@ -5258,6 +5305,7 @@
         },
         "yield": 8.352941176470589
       },
+      "status": "active",
       "sourceRow": 49
     },
     {
@@ -5278,6 +5326,7 @@
         },
         "yield": 7.739583333333333
       },
+      "status": "active",
       "sourceRow": 50
     },
     {
@@ -5298,6 +5347,7 @@
         },
         "yield": 6.534965034965035
       },
+      "status": "active",
       "sourceRow": 51
     },
     {
@@ -5318,6 +5368,7 @@
         },
         "yield": 14.196969696969697
       },
+      "status": "active",
       "sourceRow": 52
     },
     {
@@ -5338,6 +5389,7 @@
         },
         "yield": 9.725806451612904
       },
+      "status": "active",
       "sourceRow": 53
     },
     {
@@ -5358,6 +5410,7 @@
         },
         "yield": 8.926470588235293
       },
+      "status": "active",
       "sourceRow": 54
     },
     {
@@ -5378,6 +5431,7 @@
         },
         "yield": 7.80188679245283
       },
+      "status": "active",
       "sourceRow": 55
     },
     {
@@ -5398,6 +5452,7 @@
         },
         "yield": 6.608433734939759
       },
+      "status": "active",
       "sourceRow": 56
     },
     {
@@ -5418,6 +5473,7 @@
         },
         "yield": 13.101851851851851
       },
+      "status": "active",
       "sourceRow": 57
     },
     {
@@ -5438,6 +5494,7 @@
         },
         "yield": 11.028571428571428
       },
+      "status": "active",
       "sourceRow": 58
     },
     {
@@ -5458,6 +5515,7 @@
         },
         "yield": 9.042944785276074
       },
+      "status": "active",
       "sourceRow": 59
     },
     {
@@ -5478,6 +5536,7 @@
         },
         "yield": 7.508130081300813
       },
+      "status": "active",
       "sourceRow": 60
     },
     {
@@ -5498,6 +5557,7 @@
         },
         "yield": 6.728613569321534
       },
+      "status": "active",
       "sourceRow": 61
     }
   ]

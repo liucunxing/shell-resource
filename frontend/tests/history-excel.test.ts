@@ -55,7 +55,7 @@ it("roundtrips the same dealer code under two RSM records independently", async 
   );
   sheet.spliceRows(3, 1);
   const removed = await X.previewImport(await workbook.xlsx.writeBuffer(), state, "I", identity, data);
-  expect(removed.errors).toEqual([]);
+  expect(removed.errors.join(" ")).toContain("最终名单");
   expect(removed.rows).toHaveLength(1);
   expect(removed.otherBudgets).toEqual(item.otherBudgets);
   const wrongVersion = await X.previewImport(bytes, { ...state, planningVersion: { id: "another" } }, "I", identity, data);

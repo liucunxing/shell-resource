@@ -20,3 +20,15 @@ it("imports roster with identity, duplicate and amount validation", async () => 
  sheet.getCell("D3").value="missing"; sheet.getCell("F2").value={formula:"1+1",result:2}; result=await X.previewRosterImport(await book.xlsx.writeBuffer(),state,"I",identity,dealers); expect(result.errors.join()).toContain("无法唯一匹配"); expect(result.errors.join()).toContain("不支持公式");
  result=await X.previewRosterImport(await book.xlsx.writeBuffer(),state,"I",{...identity,ownerId:"other"},dealers); expect(result.errors.length).toBeGreaterThan(0);
 });
+it("previews unchanged dealers listed in the file and preserves unlisted draft rows", async () => {
+  const identity = { role: "owner", department: "MKT", ownerId: "owner", apiMode: true };
+  const dealers = ["A", "B"].map(id => ({ id, code: id, name: id, sector: "OEM", sd: "East", rsm: "One", status: "active" }));
+  const rows = dealers.map(dealer => ({ dealerId: dealer.id, amount: 0, note: "" }));
+  const item = { id: "I", ownerId: "owner", sector: "OEM", department: "MKT", budget: 100, revision: 1, rows, otherBudgets: [] };
+  const state = { departments: { MKT: { status: "collecting", versions: [] } }, initiatives: [item] };
+  const file = await X.exportSelectedRoster([rows[1]], dealers);
+  const preview = await X.previewRosterImport(file, state, item.id, identity, dealers);
+  expect(preview.errors).toEqual([]);
+  expect(preview.rosterEntries).toEqual([{ dealerId: "B", before: rows[1], after: rows[1] }]);
+  expect(preview.rows).toEqual(rows);
+});

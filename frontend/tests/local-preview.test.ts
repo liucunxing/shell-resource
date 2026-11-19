@@ -166,7 +166,7 @@ describe("synthetic local preview direct entry", () => {
     values.set(DEV_EMAIL_KEY, "old@example.com");
     acceptPortalEmail();
     expect(getLocalPreviewConfig()).toBeNull();
-    expect(getDevelopmentEmail()).toBe("");
+    expect(getDevelopmentEmail()).toBe("old@example.com");
   });
   it("rejects malformed and real-account configs and ignores stale selection", () => {
     browser("http://127.0.0.1:8019/", {

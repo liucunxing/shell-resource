@@ -156,12 +156,7 @@ function dealerDirectory(data = {}) {
   return [
     ...new Map(
       rows
-        .filter(
-          (dealer) =>
-            dealer.status == null ||
-            dealer.status === "active" ||
-            String(dealer.status) === "1",
-        )
+        .filter(isActiveDealer)
         .map((dealer) => [
           json([String(dealer.id), dealer.sector || ""]),
           dealer,
@@ -239,7 +234,7 @@ async function exportSelectedRoster(rows, dealers, data = { dealers }) {
   return book.xlsx.writeBuffer();
 }
 async function previewRosterImport(buffer, state, id, identity, dealers) {
-  const out = { initiativeId: id, revision: null, rows: [], otherBudgets: [], errors: [], changes: [], summary: { before: 0, after: 0, gap: 0 } };
+  const out = { initiativeId: id, revision: null, rows: [], otherBudgets: [], errors: [], rosterEntries: [], summary: { before: 0, after: 0, gap: 0 } };
   let initiative;
   try { initiative = editable(state, id, identity); }
   catch (error) { out.errors.push(error.message); return out; }
@@ -274,7 +269,7 @@ async function previewRosterImport(buffer, state, id, identity, dealers) {
     const before = index < 0 ? null : out.rows[index];
     const after = before ? { ...before, amount: value } : { dealerId, amount: value, note: "" };
     if (index < 0) out.rows.push(after); else out.rows[index] = after;
-    if (!before || before.amount !== after.amount) out.changes.push({ dealerId, before, after });
+    out.rosterEntries.push({ dealerId, before, after });
   }
   if (!count) out.errors.push("名单中没有可导入的经销商。");
   out.summary.after = round(out.rows.reduce((sum, row) => sum + row.amount, 0) + out.otherBudgets.reduce((sum, row) => sum + row.amount, 0));
@@ -594,6 +589,11 @@ function finishPreview(out, i, identity, scope) {
     );
   const before = new Map(i.rows.map((r) => [r.dealerId, r])),
     after = new Map(out.rows.map((r) => [r.dealerId, r]));
+  if (before.size !== after.size || [...after.keys()].some(id => !before.has(id))) {
+    out.errors.push("分配模板中的经销商须与当前最终名单一致，请在经销商范围调整名单。");
+  } else if (!out.errors.length) {
+    out.rows = i.rows.map(row => ({ ...row, ...after.get(row.dealerId) }));
+  }
   new Set([...before.keys(), ...after.keys()]).forEach((dealerId) => {
     const a = before.get(dealerId),
       b = after.get(dealerId);
