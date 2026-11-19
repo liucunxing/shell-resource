@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from sqlalchemy import Connection, inspect
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import HTMLResponse, Response
 
@@ -19,6 +20,15 @@ LOCAL_PREVIEW_USERS = [
         ("admin", "管理员"),
     ]
 ]
+
+
+def ensure_draft_reset_column(connection: Connection) -> None:
+    """Upgrade persisted SQLite previews, where create_all skips existing tables."""
+    columns = inspect(connection).get_columns("initiative_workflows", schema="data")
+    if not any(column["name"] == "draft_reset_revision" for column in columns):
+        connection.exec_driver_sql(
+            "ALTER TABLE data.initiative_workflows ADD COLUMN draft_reset_revision INTEGER"
+        )
 
 
 def install_local_preview(

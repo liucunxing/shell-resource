@@ -161,6 +161,10 @@ export function selectWorkspaceView(state, identity, page) {
   return { ...selected, initiatives: items };
 }
 
+function wasDraftCleared(local, remote) {
+  return (remote.workflow?.draftResetRevision ?? 0) > (local.workflow?.draftResetRevision ?? 0);
+}
+
 export function mergeSavedDraft(state, id, saved, requested) {
   const current = state.initiatives.find((item) => item.id === String(id));
   const edited = JSON.stringify(current) !== JSON.stringify(requested);
@@ -442,20 +446,34 @@ export function WorkbenchProvider({ children }) {
         if (!activeIds.has(dealer.sector)) activeIds.set(dealer.sector, new Set());
         activeIds.get(dealer.sector).add(String(dealer.id));
       }
-      const localDrafts = new Map(before.initiatives.filter(item => dirtyIds.has(item.id)).map(item => [item.id, item]));
+      const previous = new Map(before.initiatives.map(item => [item.id, item]));
+      const clearedIds = new Set();
+      const preservedIds = new Set();
       next.initiatives = next.initiatives.map(remote => {
-        const draft = localDrafts.get(remote.id);
+        const prior = previous.get(remote.id);
+        if (prior && wasDraftCleared(prior, remote)) {
+          clearedIds.add(remote.id);
+          return remote;
+        }
+        const draft = dirtyIds.has(remote.id) ? prior : null;
         if (!draft || draft.ownerId !== remote.ownerId || incoming.identity.role !== identity.role) return remote;
+        preservedIds.add(remote.id);
         const rows = draft.rows.filter(row => activeIds.get(remote.sector)?.has(String(row.dealerId)));
         const editorState = rows.length !== draft.rows.length && draft.editorState
           ? { ...draft.editorState, trial: null } : draft.editorState;
         return { ...remote, rows, otherBudgets: draft.otherBudgets, changeReason: draft.changeReason,
           editorState, revision: draft.revision };
       });
+      if (clearedIds.size) {
+        const withoutCleared = ids => new Set([...ids].filter(id => !clearedIds.has(id)));
+        setDirtyIds(withoutCleared);
+        setSavedForSyncIds(withoutCleared);
+        if ([...clearedIds].some(id => dirtyIds.has(id))) notify("管理员已清空本版草稿，已载入重置后的项目。");
+      }
       if (keepUnchanged(before, next) !== before) {
         replaceState(next);
         setServerRevisions(old => Object.fromEntries(next.initiatives.map(item =>
-          [item.id, localDrafts.has(item.id) ? old[item.id] : item.revision])));
+          [item.id, preservedIds.has(item.id) ? old[item.id] : item.revision])));
       }
       directoryRows.current = directoryRows.current.filter(dealer =>
         activeIds.get(dealer.sector)?.has(String(dealer.id)));
@@ -571,6 +589,7 @@ export function WorkbenchProvider({ children }) {
       const latest = useLatestRevision ? await api.getDraft(id) : null;
       if (epoch !== sessionEpoch.current) return false;
       if (latest) {
+        if (wasDraftCleared(current, latest)) throw new Error("管理员已清空本版草稿，请重新核对分配后导入。");
         const selected = new Set(draft.rows.map(row => String(row.dealerId)));
         if (selected.size !== latest.rows.length || latest.rows.some(row => !selected.has(String(row.dealerId)))) {
           throw new Error("服务器上的经销商最终名单已变化，请核对名单后重新导入金额。");
