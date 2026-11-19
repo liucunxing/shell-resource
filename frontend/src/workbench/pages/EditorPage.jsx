@@ -1197,11 +1197,8 @@ function EditorContent({
             >
               <span>{label}</span>
               <strong>
-                {(value / 10000).toLocaleString("zh-CN", {
-                  minimumFractionDigits: 1,
-                  maximumFractionDigits: 1,
-                })}
-                <small> 万元</small>
+                {wholeMetric(value)}
+                <small> 元</small>
               </strong>
               <p>{note}</p>
             </Card>
