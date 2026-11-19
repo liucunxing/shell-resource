@@ -473,7 +473,7 @@ function EditorContent({
     [allocationQuery, setAllocationQuery] = useState(""),
     [allocatedOnly, setAllocatedOnly] = useState(false),
     [allocationSort, setAllocationSort] = useState({
-      key: "amount",
+      key: null,
       direction: "desc",
     }),
     [allocationPage, setAllocationPage] = useState(1),
@@ -640,9 +640,8 @@ function EditorContent({
     errors,
     operation,
   });
-  const guard = (discardedRow = null) => {
-    const invalid = [...document.querySelectorAll('[data-unsaved-invalid="true"]')]
-      .find((input) => !discardedRow?.contains(input));
+  const guard = () => {
+    const [invalid] = document.querySelectorAll('[data-unsaved-invalid="true"]');
     if (invalid) {
       notify(
         invalid.dataset.invalidMessage || "有尚未保存的无效输入，请填写非负金额（最多两位小数）后继续。",
@@ -707,9 +706,7 @@ function EditorContent({
       i.rows.find((row) => row.dealerId === dealerId),
     );
   const activeScopeDealers = dealers.filter(isActiveDealer);
-  const selectedScopeRows = i.rows.filter((row) =>
-    isActiveDealer(dealerMeta(row.dealerId)),
-  );
+  const selectedScopeRows = i.rows;
   const scopeDealers = activeScopeDealers.filter((dealer) => {
     const term = scopeSearch.trim().toLowerCase();
     return (
@@ -1077,11 +1074,11 @@ function EditorContent({
           .toLocaleLowerCase()
           .includes(allocationQuery.trim().toLocaleLowerCase())),
   );
-  let allocationSorted = sortedAllocationRows(
+  let allocationSorted = allocationSort.key ? sortedAllocationRows(
     allocationFiltered,
     (row) => allocationValue(row, allocationSort.key),
     allocationSort.direction,
-  );
+  ) : allocationFiltered;
   if (allocationEditOrder.current) {
     const order = allocationEditOrder.current;
     allocationSorted = allocationSorted.map((row, index) => ({ row, index }))
@@ -2415,12 +2412,11 @@ function EditorContent({
                               variant="destructive"
                               size="sm"
                               aria-label={`移除第 ${n + 1} 项预算安排`}
-                              onClick={(event) => {
-                                if (!guard(event.currentTarget.closest("tr"))) return;
+                              onClick={() =>
                                 update({
                                   otherBudgets: i.otherBudgets.filter((budget) => budget.id !== r.id),
-                                });
-                              }}
+                                })
+                              }
                             >
                               移除
                             </Button>
@@ -2825,8 +2821,7 @@ function EditorContent({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {modal.preview.changes
-                        .filter((c) => !c.otherBudgets)
+                      {(modal.roster ? modal.preview.rosterEntries : modal.preview.changes.filter((c) => !c.otherBudgets))
                         .map((c) => (
                           <TableRow key={c.dealerId}>
                             <TableCell>{dealerName(c.dealerId)}</TableCell>
@@ -2838,7 +2833,7 @@ function EditorContent({
                               {c.after ? fmt(c.after.amount) : "—"}
                             </TableCell>
                             <TableCell>
-                              {!c.before ? "新增" : !c.after ? "删除" : "修改"}
+                              {!c.before ? "新增" : !c.after ? "删除" : modal.roster && c.before.amount === c.after.amount ? "未变化" : "修改"}
                             </TableCell>
                           </TableRow>
                         ))}

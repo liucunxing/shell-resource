@@ -299,7 +299,7 @@ sudo docker compose --env-file deploy/.env stop app
 sudo docker compose --env-file deploy/.env start app
 ```
 
-不要用 `docker compose down -v` 作为日常命令。当前 Compose 没有数据库卷，但该习惯在以后加入持久化组件时可能误删数据。
+`frontend-assets` 卷保存历次发布的带哈希文件，应用只读挂载。保留该卷，已打开的标签页才能继续加载对应版本的页面。容量随新增文件增长，相同文件只占一份。删除卷（含 `docker compose down -v`）会中断旧标签页的资源加载。
 
 ## 11. 升级
 
@@ -321,12 +321,14 @@ sudo docker compose --env-file deploy/.env build --pull app
 sudo docker compose --env-file deploy/.env run --rm --no-deps app \
   python scripts/check_database.py
 # 只有在发布说明明确要求且 DBA 已备份时，才执行 alembic upgrade head。
+sudo bash deploy/preserve_legacy_assets.sh
+sudo docker compose --env-file deploy/.env run --rm --no-deps -T frontend-assets
 sudo docker compose --env-file deploy/.env up -d --no-build app
 sudo docker compose --env-file deploy/.env ps
 sudo docker compose --env-file deploy/.env logs --tail=200 app
 ```
 
-再次执行第 9 节的验收。只修改 Python/前端源码后 `restart` 不会发布新代码，必须重新 build 并 `up -d`。
+一键部署已包含上述旧资源迁移。首次升级时，脚本会从被替换的容器取出资源；之后 Compose 会先发布本版资源，再启动提供新版入口的应用。可在升级前打开拆分工作台，修改调整依据，升级后切换页面再返回，核对输入仍在；新标签页应加载新版入口。再次执行第 9 节的验收。
 
 ## 12. 回滚
 

@@ -106,8 +106,6 @@ async def test_dealer_sector_scope_for_history_and_directory(api, role, sectors,
     assert response.status_code == 200
     dealers = response.json()["data"]["data"]["dealers"]
     expected_keys = {(code, "CRTO" if code == "d3" else "PCMO") for code in expected}
-    if role in {"admin", "management"} or "CRTO" in sectors:
-        expected_keys.add(("d1", "CRTO"))
     assert {(dealer["id"], dealer["sector"]) for dealer in dealers} == expected_keys
     response = await client.get("distributors?sector=OEM", headers=headers(email))
     if role in {"owner", "lead"} and not sectors:
@@ -116,7 +114,7 @@ async def test_dealer_sector_scope_for_history_and_directory(api, role, sectors,
         assert response.status_code == 200
         assert {
             (dealer["id"], dealer["sector"]) for dealer in response.json()["data"]
-        } == expected_keys - {("d1", "CRTO")}  # null status remains historical only
+        } == expected_keys  # unknown status is excluded from both endpoints
 
 
 @pytest.mark.asyncio

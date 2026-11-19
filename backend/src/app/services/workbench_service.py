@@ -106,7 +106,7 @@ class WorkbenchService:
         budget_id: int,
     ) -> list[DistributorAllocationVO]:
         budget = await self._get_scoped_budget(budget_id)
-        rows = await self.distributor_repository.list_for_budget(budget)
+        rows = await self._active_allocations(budget)
         return [self._allocation_vo(row, budget.plan_budget_amount) for row in rows]
 
     async def get_budget_summary(self, budget_id: int) -> InitiativeBudgetSummaryVO:
@@ -120,9 +120,22 @@ class WorkbenchService:
             unexplained_difference=budget.plan_budget_amount - allocated_amount,
         )
 
+    async def _active_allocations(self, budget: BudgetDO) -> list[BudgetDistributorDO]:
+        rows = await self.distributor_repository.list_for_budget(budget)
+        service = WorkspaceService(self.budget_repository.session, self.user)
+        item = {"sector": budget.sector, "rows": [
+            {"dealerId": row.history_key or row.distributor_code,
+             "dealerCode": row.distributor_code, "sd": row.sd, "rsm": row.rsm,
+             "allocationId": row.id} for row in rows
+        ]}
+        visible = (await service._project_legacy_items([item]))[0]
+        ids = {row["allocationId"] for row in visible["rows"]}
+        return [row for row in rows if row.id in ids]
+
     async def _total(self, budget: BudgetDO) -> Decimal:
         rows = await WorkspaceRepository(self.budget_repository.session).other_for(budget.id)
-        return await self.distributor_repository.get_total_for_budget(budget) + sum(
+        active = await self._active_allocations(budget)
+        return sum((row.distributor_budget_amount for row in active), Decimal("0")) + sum(
             (row.amount for row in rows), Decimal("0")
         )
 
@@ -180,7 +193,7 @@ class WorkbenchService:
         session = self.budget_repository.session
         budget = await self._get_scoped_budget(budget_id, writable=True)
         row = await self.distributor_repository.get_for_budget(budget, allocation_id)
-        if row is None:
+        if row is None or row not in await self._active_allocations(budget):
             raise HTTPException(status_code=404, detail="经销商预算记录不存在")
         async with session.begin_nested():
             for name, value in updates.items():

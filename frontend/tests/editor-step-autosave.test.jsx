@@ -136,28 +136,23 @@ it("invalid input blocks next-step autosave and keeps focus on the error", async
 });
 
 
-it("removes a reserve with an empty amount while still guarding other rows", () => {
+it("removes an empty reserve without committing or discarding another incomplete row", async () => {
   item().otherBudgets = [
     { id: "r1", reasonId: "reserve", amount: 0 },
     { id: "r2", reasonId: "reserve", amount: 250 },
   ];
   const emptyAmount = { dataset: {}, focus: vi.fn() };
   const otherInvalidAmount = { dataset: {}, focus: vi.fn() };
-  const removedRow = { contains: (input) => input === emptyAmount };
-  const event = { currentTarget: { closest: () => removedRow } };
   const remove = elements(render()).find(node => node.props["aria-label"] === "移除第 1 项预算安排");
-
   vi.stubGlobal("document", { querySelectorAll: () => [emptyAmount, otherInvalidAmount] });
-  remove.props.onClick(event);
-  expect(item().otherBudgets.map(row => row.id)).toEqual(["r1", "r2"]);
-  expect(otherInvalidAmount.focus).toHaveBeenCalledOnce();
-  expect(emptyAmount.focus).not.toHaveBeenCalled();
-
-  vi.stubGlobal("document", { querySelectorAll: () => [emptyAmount] });
-  harness.context.notify.mockClear();
-  remove.props.onClick(event);
+  remove.props.onClick();
   expect(item().otherBudgets.map(row => [row.id, row.amount])).toEqual([["r2", 250]]);
+  expect(harness.context.saveDraft).not.toHaveBeenCalled();
   expect(harness.context.notify).not.toHaveBeenCalled();
+  vi.stubGlobal("document", { querySelectorAll: () => [otherInvalidAmount] });
+  await steps(render()).props.onValueChange("2");
+  expect(otherInvalidAmount.focus).toHaveBeenCalledOnce();
+  expect(harness.context.saveDraft).not.toHaveBeenCalled();
 });
 
 it("shows the live project balance next to the dealer total, including reserve", () => {
@@ -172,6 +167,39 @@ it("shows the live project balance next to the dealer total, including reserve",
   expect(gap()).toBe("（+50.0 元）");
   item().rows[0].amount = 750;
   expect(gap()).toBeUndefined();
+});
+
+it("keeps exactly the 300 selected identities across all allocation pages, save and return", async () => {
+  const dealers = Array.from({ length: 301 }, (_, n) => ({
+    ...data.dealers[0], id: `dealer-${n}`, sector: item().sector, status: "active",
+  }));
+  harness.context.data = { ...data, dealers };
+  const selected = dealers.slice(1).reverse().map(d => d.id);
+  item().rows = selected.map((dealerId, n) => ({ dealerId, amount: n === 1 ? 50 : 0 }));
+  item().editorState.step = 2;
+  const bodyKeys = panel => elements(panel).find(n => n.type === TableBody).props.children.flat().filter(Boolean).map(n => n.key);
+  const scope = () => elements(render()).find(n => n.props["aria-labelledby"] === "selected-roster-title");
+  const allocation = () => elements(render()).find(n => n.props.className === "panel v19-allocation-panel");
+  expect(bodyKeys(scope())).toEqual(selected);
+  await steps(render()).props.onValueChange("3");
+  const displayed = [];
+  for (let page = 0; page < 15; page++) {
+    displayed.push(...bodyKeys(allocation()));
+    if (page < 14) button(allocation(), "下一页").props.onClick();
+  }
+  expect(displayed).toEqual(selected);
+  await button(render(), "保存草稿").props.onClick();
+  expect(item().rows.map(r => r.dealerId)).toEqual(selected);
+  const remove = elements(allocation()).find(n => n.props.className === "v19-allocation-remove");
+  remove.props.onClick();
+  const modal = elements(render()).find(n => n.props.action?.props.children === "确认移除");
+  modal.props.action.props.onClick();
+  const remaining = selected.filter(id => id !== displayed[280]);
+  await steps(render()).props.onValueChange("2");
+  expect(bodyKeys(scope())).toEqual(remaining);
+  await steps(render()).props.onValueChange("3");
+  expect(item().rows.map(r => r.dealerId)).toEqual(remaining);
+  expect(item().rows[1].amount).toBe(50);
 });
 
 function prepareTrial() {

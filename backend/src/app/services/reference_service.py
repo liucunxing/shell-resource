@@ -35,6 +35,7 @@ class ReferenceService:
         sectors: tuple[str, ...] | None = None,
         *,
         user: WorkbenchUser | None = None,
+        include_inactive: bool = False,
     ) -> list[dict]:
         del planning_year  # The source table contains fixed historical years, not planning years.
         if user is not None:
@@ -87,6 +88,8 @@ class ReferenceService:
         )
         visible = set(access["resources"])
         for row in rows:
+            if not include_inactive and distributor_status(row["distributor_status"]) != "active":
+                continue
             code = str(row["distributor_code"])
             resources = {
                 "MRD": row["mrd_2025"],

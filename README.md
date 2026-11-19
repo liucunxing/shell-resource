@@ -88,6 +88,8 @@ shadcn 统一调整需运行 `npm test`、`npm run build`、`npm run check:bundl
 
 首次执行 `sudo bash deploy/deploy.sh --init` 并填写 `deploy/settings.toml`，之后执行 `sudo bash deploy/deploy.sh --port 18080` 一键构建和启动。脚本实时输出 8 个阶段，失败立即停止；完整日志保存在 `logs/deploy/`。本项目仅监听服务器本机地址，公网 HTTPS 由共享网关处理。
 
+发版时会把新旧页面引用的脚本和样式保存在 `frontend-assets` 卷中。旧标签页可继续切页和编辑，新打开的页面使用本次构建。手工升级步骤见[部署说明](docs/DOCKER_DEPLOYMENT.md#11-升级)。
+
 同一台服务器的多个平台通过 [共享 HTTPS 网关操作手册](docs/SHARED_GATEWAY.md) 接入；网关独占 80/443，证书保留在服务器 `/opt/digitalshell-gateway/certs/`，不进入 Git 或镜像。
 
 本轮组件统一结果与验证边界见 [shadcn 验收记录](docs/SHADCN_VALIDATION.md)；该记录为此前V19历史证据；本轮V20结果见[V20同步说明](docs/V20_IMPLEMENTATION.md)。

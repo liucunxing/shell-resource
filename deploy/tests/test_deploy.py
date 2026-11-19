@@ -26,14 +26,18 @@ p = pathlib.Path("calls.log")
 with p.open("a") as f: f.write(" ".join(a) + "\n")
 values = dict(line.split("=", 1) for line in pathlib.Path("deploy/.env").read_text().splitlines()
               if "=" in line and not line.startswith("#"))
+has_old_app = scenario in {"upgrade", "archive-failure", "blob-failure", "asset-failure", "volume-upgrade"}
 if command == "ps" and not is_compose:
     print("other-container" if scenario == "docker-conflict" else
-          "abcdef1234567890" if scenario in {"upgrade", "archive-failure", "blob-failure"} or pathlib.Path("started").exists() else "")
+          "abcdef1234567890" if has_old_app or pathlib.Path("started").exists() else "")
     sys.exit(0)
 if command == "logs":
     print("2026-10-21T01:00:00Z PRIVATE_RUNTIME_SENTINEL")
     sys.exit(44 if scenario == "archive-failure" else 0)
 if command == "inspect":
+    if any(".Mounts" in arg for arg in a):
+        if scenario == "volume-upgrade": print("shell-forecast_frontend-assets")
+        sys.exit(0)
     print("running starting" if scenario == "timeout" else "running healthy")
     sys.exit(0)
 if command == "config" and "--format" in a:
@@ -43,9 +47,11 @@ if command == "config" and "--format" in a:
 elif command == "build" and scenario == "build-failure": sys.exit(42)
 elif command == "run" and scenario == "db-failure" and "scripts/check_database.py" in a: sys.exit(43)
 elif command == "run" and scenario == "blob-failure" and "scripts/check_blob.py" in a: sys.exit(45)
+elif command == "run" and scenario == "asset-failure" and "frontend-assets" in a: sys.exit(46)
+elif command == "run" and scenario == "publish-failure" and a[-1] == "frontend-assets": sys.exit(47)
 elif command == "up": pathlib.Path("started").touch()
 elif command == "ps":
-    print("abcdef1234567890" if scenario in {"upgrade", "archive-failure", "blob-failure"} or pathlib.Path("started").exists() else "")
+    print("abcdef1234567890" if has_old_app or pathlib.Path("started").exists() else "")
 '''
 
 
@@ -56,7 +62,7 @@ class DeployTests(unittest.TestCase):
         self.root = Path(self.tmp.name)
         (self.root / "deploy").mkdir()
         (self.root / "bin").mkdir()
-        for name in ("deploy.sh", ".env.example", "settings.example.toml"):
+        for name in ("deploy.sh", "preserve_legacy_assets.sh", ".env.example", "settings.example.toml"):
             shutil.copyfile(ROOT / "deploy" / name, self.root / "deploy" / name)
         shutil.copyfile(ROOT / "compose.yaml", self.root / "compose.yaml")
         shutil.copyfile(self.root / "deploy/.env.example", self.root / "deploy/.env")
@@ -83,6 +89,8 @@ class DeployTests(unittest.TestCase):
         for key in ("APP_PORT", "APP_SETTINGS_SOURCE", "COMPOSE_FILE"):
             env.pop(key, None)
         env.update(SCENARIO=scenario, **(extra_env or {}))
+        if os.name == "nt":
+            env["MSYS2_ARG_CONV_EXCL"] = "*"
         # Bash sets PATH so Git Bash and Linux both resolve the same shims.
         return subprocess.run(
             [BASH, "-c", 'export PATH="$PWD/bin:$PATH"; bash deploy/deploy.sh "$@"',
@@ -118,6 +126,25 @@ class DeployTests(unittest.TestCase):
         result = self.run_deploy("upgrade")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("允许原地更新", result.stdout)
+        calls = self.calls()
+        self.assertLess(calls.index("cp abcdef1234567890:/app/frontend/dist/assets/."),
+                        calls.index("frontend-assets /previous-assets"))
+        self.assertLess(calls.index("frontend-assets /previous-assets"), calls.index("up -d"))
+
+    def test_failed_asset_import_leaves_old_app_running(self):
+        result = self.run_deploy("asset-failure")
+        self.assertEqual(result.returncode, 46, result.stdout + result.stderr)
+        self.assertNotIn("up -d", self.calls())
+
+    def test_volume_backed_app_already_has_its_assets_published(self):
+        result = self.run_deploy("volume-upgrade")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn("frontend-assets /previous-assets", self.calls())
+
+    def test_failed_new_bundle_stops_before_replacement(self):
+        result = self.run_deploy("publish-failure")
+        self.assertEqual(result.returncode, 47, result.stdout + result.stderr)
+        self.assertNotIn("up -d", self.calls())
 
     def test_upgrade_archives_retained_logs_without_printing_them(self):
         result = self.run_deploy("upgrade")

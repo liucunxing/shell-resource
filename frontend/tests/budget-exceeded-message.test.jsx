@@ -8,7 +8,7 @@ const item = (reserve, allocated = 0) => ({
   rows: allocated ? [{ dealerId: "D1", amount: allocated, note: "" }] : [],
   otherBudgets: [{ id: "r1", reasonId: "reserve", amount: reserve, note: "预留" }],
 });
-const data = { dealers: [{ id: "D1" }] };
+const data = { dealers: [{ id: "D1", status: "active" }] };
 const reasons = [{ id: "reserve", enabled: true }];
 
 describe("budget exceeded messages", () => {

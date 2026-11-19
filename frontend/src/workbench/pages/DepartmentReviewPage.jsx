@@ -249,7 +249,7 @@ export function DepartmentReviewPage() {
                     : allScopes ? `${result?.submitted || 0} / ${result?.total || 0} 项已提交` : `${result?.submitted || 0} / ${result?.total || 0} 项已提交 · ${result?.confirmed ? "部门已提交管理层" : "部门未提交管理层"}`}
                 </p>
               </div>
-              <div className="actions">
+              <div className="actions department-review-actions">
                 {identity.role === "admin" ? (
                   <Button variant="outline"
                     disabled={previewMode || !apiMode || busy || loading || !current.published}
