@@ -17,7 +17,12 @@ export function ToastNotice({ toast, onDismiss }) {
   const layer = useRef(null);
   useLayoutEffect(() => {
     // Escape the dialog's transformed, clipped box while retaining its focus scope.
-    layer.current?.showPopover?.();
+    const currentHost = toastHost(document);
+    if (host !== currentHost) {
+      setHost(currentHost);
+      return;
+    }
+    if (layer.current?.isConnected) layer.current.showPopover?.();
   }, [host]);
   useLayoutEffect(() => {
     const update = () => setHost(toastHost(document));

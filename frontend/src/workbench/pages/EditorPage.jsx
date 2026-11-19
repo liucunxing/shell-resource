@@ -2823,8 +2823,7 @@ function EditorContent({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {modal.preview.changes
-                        .filter((c) => !c.otherBudgets)
+                      {(modal.roster ? modal.preview.rosterEntries : modal.preview.changes.filter((c) => !c.otherBudgets))
                         .map((c) => (
                           <TableRow key={c.dealerId}>
                             <TableCell>{dealerName(c.dealerId)}</TableCell>
@@ -2836,7 +2835,7 @@ function EditorContent({
                               {c.after ? fmt(c.after.amount) : "—"}
                             </TableCell>
                             <TableCell>
-                              {!c.before ? "新增" : !c.after ? "删除" : "修改"}
+                              {!c.before ? "新增" : !c.after ? "删除" : modal.roster && c.before.amount === c.after.amount ? "未变化" : "修改"}
                             </TableCell>
                           </TableRow>
                         ))}
