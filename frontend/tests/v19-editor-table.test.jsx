@@ -35,10 +35,10 @@ describe("V19 allocation table reference and ordering", () => {
 
 
 describe("allocation balance indicator", () => {
-  it("shows shortages and excesses in yuan and hides a balanced amount", () => {
-    expect(allocationBalanceLabel(1234.56)).toBe("（-1,234.6 元）");
-    expect(allocationBalanceLabel(-0.01)).toBe("（+0.0 元）");
-    expect(allocationBalanceLabel(-1234567.89)).toBe("（+1,234,567.9 元）");
-    expect(allocationBalanceLabel(0)).toBe("");
+  it("shows remaining, excess and balanced budgets in whole yuan", () => {
+    expect(allocationBalanceLabel(1234.56)).toBe("剩余预算 1,235 元");
+    expect(allocationBalanceLabel(-0.01)).toBe("超出预算 不足 1 元");
+    expect(allocationBalanceLabel(-1234567.89)).toBe("超出预算 1,234,568 元");
+    expect(allocationBalanceLabel(0)).toBe("预算已配平");
   });
 });

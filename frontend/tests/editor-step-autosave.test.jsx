@@ -162,11 +162,11 @@ it("shows the live project balance next to the dealer total, including reserve",
   item().otherBudgets = [{ id: "r1", reasonId: "reserve", amount: 250 }];
   item().editorState.reserveAcknowledgement = reserveAcknowledgementFingerprint(item());
   const gap = () => elements(render()).find(node => node.props.className === "allocation-balance-gap")?.props.children;
-  expect(gap()).toBe("（-150.0 元）");
+  expect(gap()).toBe("剩余预算 150 元");
   item().rows[0].amount = 800;
-  expect(gap()).toBe("（+50.0 元）");
+  expect(gap()).toBe("超出预算 50 元");
   item().rows[0].amount = 750;
-  expect(gap()).toBeUndefined();
+  expect(gap()).toBe("预算已配平");
 });
 
 it("keeps exactly the 300 selected identities across all allocation pages, save and return", async () => {

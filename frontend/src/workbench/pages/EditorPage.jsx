@@ -8,6 +8,7 @@ import { InitiativeSwitcher } from "./InitiativeSwitcher";
 import { SdAnalysis } from "./SdAnalysis.jsx";
 import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
 import {
+  compactColumnLabel,
   allocationColumnGroups,
   awardedInitiativesByDealer,
   EXPENSE_COLUMN_ORDER,
@@ -80,8 +81,10 @@ const fmt = (n) =>
   Number(n || 0).toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 export function allocationBalanceLabel(gap) {
   const cents = Math.round(Number(gap) * 100);
-  if (!Number.isFinite(cents) || cents === 0) return "";
-  return `（${cents > 0 ? "-" : "+"}${fmt(Math.abs(cents) / 100)} 元）`;
+  if (!Number.isFinite(cents)) return "—";
+  if (cents === 0) return "预算已配平";
+  const amount = Math.abs(cents) < 100 ? "不足 1" : wholeMetric(Math.abs(cents) / 100);
+  return `${cents > 0 ? "剩余预算" : "超出预算"} ${amount} 元`;
 }
 const histFmt = (value) =>
   historyDisplayValue(value) === null ? "—" : fmt(historyDisplayValue(value));
@@ -1663,7 +1666,7 @@ function EditorContent({
                                 Active
                               </TableCell>
                               <TableCell className="num">
-                                {fmt(row.amount)}
+                                {wholeMetric(row.amount)}
                               </TableCell>
                               <TableCell>
                                 <Button
@@ -1708,7 +1711,7 @@ function EditorContent({
                           合计 · {selectedScopeRows.length} 家
                         </TableCell>
                         <TableCell className="num">
-                          {fmt(
+                          {wholeMetric(
                             selectedScopeRows.reduce(
                               (sum, row) => sum + Number(row.amount || 0),
                               0,
@@ -1876,7 +1879,7 @@ function EditorContent({
                             <p>{note}</p>
                             <strong>
                               {i.rows.length} 家 ·{" "}
-                              {fmt(Math.max(0, i.budget - totals.otherBudget))} 元
+                              {wholeMetric(Math.max(0, i.budget - totals.otherBudget))} 元
                             </strong>
                             <p>
                               {trial?.hasHistory
@@ -2104,7 +2107,7 @@ function EditorContent({
                               : "num"
                           }
                         >
-                          {title}
+                          <span className="compact-column-label">{compactColumnLabel(title)}</span>
                         </SortHead>
                       ))}
                       {editable && <TableHead scope="col" data-column="actions">操作</TableHead>}
@@ -2179,7 +2182,7 @@ function EditorContent({
                                     }}
                                   />
                                 ) : (
-                                  fmt(r.amount)
+                                  wholeMetric(r.amount)
                                 )
                               ) : key === "yield" ? (
                                 <RatioIndicator
@@ -2268,10 +2271,10 @@ function EditorContent({
                             ? "范围合计 / 加权值"
                             : key === "amount" ? (
                               <>
-                                {fmt(totals.allocated)}
-                                {allocationBalanceLabel(totals.gap) && (
-                                  <span className="allocation-balance-gap">{allocationBalanceLabel(totals.gap)}</span>
-                                )}
+                                <strong>已分配 {wholeMetric(totals.allocated)} 元</strong>
+                                <span className="allocation-balance-gap" data-balance={
+                                  totals.gap < 0 ? "over" : totals.gap > 0 ? "remaining" : "balanced"
+                                }>{allocationBalanceLabel(totals.gap)}</span>
                               </>
                             )
                             : ["code", "status", "sd", "rsm", "support", "note"].includes(key)
@@ -2403,7 +2406,7 @@ function EditorContent({
                               save={(v) => changeOther(n, "amount", v)}
                             />
                           ) : (
-                            fmt(r.amount)
+                            wholeMetric(r.amount)
                           )}
                         </TableCell>
                         {editable && (
@@ -2711,7 +2714,7 @@ function EditorContent({
                             </TableCell>
                             <TableCell>{item.resourceType}</TableCell>
                             <TableCell sortValue={row.amount}>
-                              {fmt(row.amount)}
+                              {wholeMetric(row.amount)}
                             </TableCell>
                             <TableCell>
                               {pct(row.amount, E.totals([item]).allocated)}
@@ -2729,14 +2732,14 @@ function EditorContent({
             )}
             {modal.type === "remove" && (
               <p>
-                移除 {dealerLabel(modal.dealerId)} 的 {fmt(modal.amount)}{" "}
+                移除 {dealerLabel(modal.dealerId)} 的 {wholeMetric(modal.amount)}{" "}
                 分配后，金额将成为未解释差额，不会自动移到其他行。
               </p>
             )}
             {modal.type === "balance" && (
               <>
                 <p>
-                  待分配 {fmt(modal.pending)} 元将在已勾选的 {balanceIds.length}{" "}
+                  待分配 {wholeMetric(modal.pending)} 元将在已勾选的 {balanceIds.length}{" "}
                   家经销商之间均摊；余数按当前金额降序、编码升序逐家分配。
                 </p>
                 <div className="table-scroll">
@@ -2762,17 +2765,17 @@ function EditorContent({
                               <TableCell>{dealerName(row.dealerId)}</TableCell>
                               <TableCell>{dealerCode(row.dealerId)}</TableCell>
                               <TableCell className="num" sortValue={row.amount}>
-                                {fmt(row.amount)}
+                                {wholeMetric(row.amount)}
                               </TableCell>
                               <TableCell
                                 className="num"
                                 sortValue={after.amount}
                               >
-                                {fmt(after.amount)}
+                                {wholeMetric(after.amount)}
                               </TableCell>
                               <TableCell className="num">
                                 {after.amount - row.amount >= 0 ? "+" : ""}
-                                {fmt(after.amount - row.amount)}
+                                {wholeMetric(after.amount - row.amount)}
                               </TableCell>
                             </TableRow>
                           );
@@ -2804,9 +2807,9 @@ function EditorContent({
                 )}
                 <Alert className="note-box">
                   <AlertDescription>
-                    导入前安排 {fmt(modal.preview.summary.before)} · 导入后安排{" "}
-                    {fmt(modal.preview.summary.after)} · 导入后差额{" "}
-                    {fmt(modal.preview.summary.gap)}
+                    导入前安排 {wholeMetric(modal.preview.summary.before)} · 导入后安排{" "}
+                    {wholeMetric(modal.preview.summary.after)} · 导入后差额{" "}
+                    {wholeMetric(modal.preview.summary.gap)}
                   </AlertDescription>
                 </Alert>
                 <div className="table-scroll">
@@ -2827,10 +2830,10 @@ function EditorContent({
                             <TableCell>{dealerName(c.dealerId)}</TableCell>
                             <TableCell>{dealerCode(c.dealerId)}</TableCell>
                             <TableCell>
-                              {c.before ? fmt(c.before.amount) : "—"}
+                              {c.before ? wholeMetric(c.before.amount) : "—"}
                             </TableCell>
                             <TableCell>
-                              {c.after ? fmt(c.after.amount) : "—"}
+                              {c.after ? wholeMetric(c.after.amount) : "—"}
                             </TableCell>
                             <TableCell>
                               {!c.before ? "新增" : !c.after ? "删除" : modal.roster && c.before.amount === c.after.amount ? "未变化" : "修改"}
@@ -2861,7 +2864,7 @@ function EditorContent({
                             )?.label || r.reasonId}
                           </TableCell>
                           <TableCell sortValue={r.amount}>
-                            {fmt(r.amount)}
+                            {wholeMetric(r.amount)}
                           </TableCell>
                           <TableCell>{r.note || "—"}</TableCell>
                         </TableRow>
