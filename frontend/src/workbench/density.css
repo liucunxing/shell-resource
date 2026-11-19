@@ -94,3 +94,43 @@
     grid-auto-flow: row;
   }
 }
+
+/* Keep unit labels and sorting controls together without sizing the data column to one long line. */
+.v19-fidelity-shell :is(.v20-organization-summary, .v19-allocation-table) .compact-column-label {
+  display: inline-block;
+  white-space: pre;
+  text-align: center;
+  line-height: 1.15;
+}
+.v19-fidelity-shell :is(.v20-organization-summary, .v19-allocation-table) thead th [data-slot="button"] {
+  height: auto;
+  min-height: 24px;
+  padding: 0;
+  gap: 4px;
+}
+.v19-fidelity-shell :is(.v20-organization-summary, .v19-allocation-table) :is(th, td)[data-slot] {
+  padding-block: 3px;
+  line-height: 1.2;
+}
+.v19-fidelity-shell .v20-organization-summary [data-slot="table-head"] small {
+  margin-top: 1px;
+}
+.v19-fidelity-shell .v20-organization-summary .v20-history-bars {
+  gap: 2px;
+}
+.v19-fidelity-shell .v19-editor .v19-allocation-table tbody td {
+  height: 34px;
+  padding-block: 2px;
+}
+.v19-fidelity-shell .v19-editor .v19-allocation-table thead .compact-column-label {
+  color: inherit;
+  font-size: inherit;
+}
+.v19-editor .v19-allocation-table tfoot .allocation-balance-gap {
+  display: block;
+  margin-top: 2px;
+  color: #805500;
+  white-space: normal;
+}
+.v19-editor .v19-allocation-table tfoot [data-balance="over"] { color: #a52e20; }
+.v19-editor .v19-allocation-table tfoot [data-balance="balanced"] { color: #166448; }

@@ -113,3 +113,11 @@ export function allocationColumnGroups(
     },
   ];
 }
+
+/** Prefer business terms and units as wrap points in narrow, sortable columns. */
+export function compactColumnLabel(title: string): string {
+  if (title.includes(" · ")) return title.replace(" · ", "\n");
+  if (title.includes("−")) return title.replace("−", "\n−");
+  if (title.length >= 9) return title.replace("（", "\n（");
+  return title;
+}

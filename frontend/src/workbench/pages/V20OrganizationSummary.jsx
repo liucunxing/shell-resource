@@ -1,3 +1,4 @@
+import { compactColumnLabel } from "../domain/allocation-detail";
 import { useMemo, useState } from "react";
 import {
   useReactTable,
@@ -153,7 +154,7 @@ export function V20OrganizationSummary({
           aria-label={`按${title}排序`}
           onClick={column.getToggleSortingHandler()}
         >
-          {title}
+          <span className="compact-column-label">{compactColumnLabel(title)}</span>
           <span aria-hidden="true">
             {direction === "asc" ? "↑" : direction === "desc" ? "↓" : "↕"}
           </span>
