@@ -1,3 +1,4 @@
+import { WorkbenchContentSkeleton, WorkbenchLoadingShell, WorkbenchWordmark } from "./WorkbenchLoading";
 import { navigationFor } from "./navigation";
 export { navigationFor };
 import { DealerDetailAccessProvider } from "./DealerDetailAccess";
@@ -160,6 +161,8 @@ export default function WorkbenchApp() {
         </div>
       </main>
     );
+  if (!identity && loading && (devEmail || localPreview || portalMode))
+    return <WorkbenchLoadingShell label={localPreview ? "正在加载本地测试工作台…" : undefined} />;
   if (!identity && portalMode)
     return <PortalAccessNotice loading={loading} message={storageWarning} />;
   if (!identity && localPreview)
@@ -175,8 +178,6 @@ export default function WorkbenchApp() {
         )}
       </main>
     );
-  if (!identity && apiMode && devEmail && loading)
-    return <main className="page"><div className="empty" role="status">正在加载工作台…</div></main>;
   if (!identity && apiMode)
     return (
       <PortalLogin
@@ -186,14 +187,7 @@ export default function WorkbenchApp() {
         error={storageWarning}
       />
     );
-  if (!identity)
-    return (
-      <main className="page">
-        <div className="empty" role="status">
-          正在加载工作台数据…
-        </div>
-      </main>
-    );
+  if (!identity) return <WorkbenchLoadingShell />;
   const nav = navigationFor(identity, identity.role === "lead" &&
     ownInitiatives(state.initiatives || [], identity).some((item) => item.enabled !== false));
   const Page = pages[page] || pages[nav[0]?.[0]] || HomePage;
@@ -218,12 +212,7 @@ export default function WorkbenchApp() {
       <div className="app-shell studio-shell v19-shell v19-fidelity-shell">
         <div className="workspace">
           <header className="v19-appnav" ref={navigationRef}>
-            <div className="v19-wordmark">
-              <span className="v19-brand-icon">
-                <img src="/resource-studio-icon.svg" alt="" />
-              </span>
-              <strong>Resource Studio</strong>
-            </div>
+            <WorkbenchWordmark />
             <nav className="v19-primary-nav" aria-label="工作台导航">
               {nav.map(([id, , label, , disabled]) => (
                 <Button
@@ -283,13 +272,7 @@ export default function WorkbenchApp() {
                 </AlertDescription>
               </Alert>
             )}
-            <Suspense
-              fallback={
-                <div className="empty" role="status">
-                  正在加载工作区…
-                </div>
-              }
-            >
+            <Suspense fallback={<WorkbenchContentSkeleton />}>
               <DealerDetailAccessProvider role={identity.role}>
                 <Page key={`${identity.key}:${page}:${scenarioEpoch}`} />
               </DealerDetailAccessProvider>
