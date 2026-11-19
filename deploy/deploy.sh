@@ -236,6 +236,9 @@ if [[ -n "$OLD_APPS" ]]; then
 else
     log "无旧应用容器，跳过运行日志归档"
 fi
+bash deploy/preserve_legacy_assets.sh
+# Validate the new bundle while the old container still serves its users.
+"${COMPOSE[@]}" run --rm --no-deps -T frontend-assets
 "${COMPOSE[@]}" up -d --no-build app
 done_step
 
