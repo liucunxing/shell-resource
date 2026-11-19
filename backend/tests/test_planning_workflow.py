@@ -734,7 +734,7 @@ async def test_dirty_cross_sector_roster_is_blocked_on_save_and_publish():
 
 
 @pytest.mark.asyncio
-async def test_existing_closed_dealer_in_same_sector_can_save_and_submit():
+async def test_closed_amount_returns_to_unallocated_and_cannot_be_submitted():
     from app.models.do.distributor_history import distributor_sellin_resource_history
 
     session, _, budgets = await prepare()
@@ -750,14 +750,18 @@ async def test_existing_closed_dealer_in_same_sector_can_save_and_submit():
             .values(distributor_status="0")
         )
         await session.commit()
-        saved = await owner.save_draft(
-            budgets[0].id,
-            InitiativeDraftUpdateDTO(
-                expected_revision=saved["revision"], rows=[{"dealerId": "d1", "amount": 100}]
-            ),
-        )
-        result = await owner.publish(budgets[0].id, PublishDTO(expected_revision=saved["revision"]))
-        assert result["initiative"]["workflow"]["submitted"]
+        draft = await owner.get_draft(budgets[0].id)
+        assert draft["rows"] == []
+        assert draft["budget"] == 100
+        with pytest.raises(HTTPException, match="active"):
+            await owner.publish(budgets[0].id, PublishDTO(expected_revision=saved["revision"]))
+        with pytest.raises(HTTPException, match="active"):
+            await owner.save_draft(budgets[0].id, InitiativeDraftUpdateDTO(
+                expected_revision=saved["revision"], rows=[{"dealerId": "d1", "amount": 100}]))
+        saved = await owner.save_draft(budgets[0].id, InitiativeDraftUpdateDTO(
+            expected_revision=saved["revision"], rows=[]))
+        assert saved["rows"] == []
+        assert await WorkspaceRepository(session).rows_for(budgets[0].id) == []
     finally:
         await session.close()
 

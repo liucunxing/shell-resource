@@ -9,8 +9,8 @@ vitestTest(
     const data = {
       metadata: { unit: "原表单位" },
       dealers: [
-        { id: "D1", name: null },
-        { id: "D2", name: null },
+        { id: "D1", name: null, status: "active" },
+        { id: "D2", name: null, status: "active" },
       ],
       initiatives: [
         {

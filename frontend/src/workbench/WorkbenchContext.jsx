@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { isActiveDealer } from "./domain/dealer-history";
 import E from "./domain/engine.js";
 import DATA from "./domain/demo-data.json";
 import * as api from "./api.js";
@@ -436,20 +437,29 @@ export function WorkbenchProvider({ children }) {
       }
       const next = incoming.state;
       if (String(next.currentVersionId || next.planningVersion?.id) !== String(versionId)) return;
+      const activeIds = new Map();
+      for (const dealer of incoming.data.dealers.filter(isActiveDealer)) {
+        if (!activeIds.has(dealer.sector)) activeIds.set(dealer.sector, new Set());
+        activeIds.get(dealer.sector).add(String(dealer.id));
+      }
       const localDrafts = new Map(before.initiatives.filter(item => dirtyIds.has(item.id)).map(item => [item.id, item]));
       next.initiatives = next.initiatives.map(remote => {
         const draft = localDrafts.get(remote.id);
-        return draft && draft.ownerId === remote.ownerId && incoming.identity.role === identity.role
-          ? { ...remote, rows: draft.rows, otherBudgets: draft.otherBudgets, changeReason: draft.changeReason,
-              editorState: draft.editorState, revision: draft.revision }
-          : remote;
+        if (!draft || draft.ownerId !== remote.ownerId || incoming.identity.role !== identity.role) return remote;
+        const rows = draft.rows.filter(row => activeIds.get(remote.sector)?.has(String(row.dealerId)));
+        const editorState = rows.length !== draft.rows.length && draft.editorState
+          ? { ...draft.editorState, trial: null } : draft.editorState;
+        return { ...remote, rows, otherBudgets: draft.otherBudgets, changeReason: draft.changeReason,
+          editorState, revision: draft.revision };
       });
       if (keepUnchanged(before, next) !== before) {
         replaceState(next);
         setServerRevisions(old => Object.fromEntries(next.initiatives.map(item =>
           [item.id, localDrafts.has(item.id) ? old[item.id] : item.revision])));
       }
-      setData(old => keepUnchanged(old, { ...incoming.data, distributorDirectory: old.distributorDirectory }));
+      directoryRows.current = directoryRows.current.filter(dealer =>
+        activeIds.get(dealer.sector)?.has(String(dealer.id)));
+      setData(old => keepUnchanged(old, { ...incoming.data, distributorDirectory: directoryRows.current }));
       setUsers(old => keepUnchanged(old, incoming.users));
       setIdentityState(old => keepUnchanged(old, incoming.identity));
       const allowed = navigationFor(incoming.identity, ownInitiatives(next.initiatives, incoming.identity).length > 0);
@@ -560,6 +570,12 @@ export function WorkbenchProvider({ children }) {
       }
       const latest = useLatestRevision ? await api.getDraft(id) : null;
       if (epoch !== sessionEpoch.current) return false;
+      if (latest) {
+        const selected = new Set(draft.rows.map(row => String(row.dealerId)));
+        if (selected.size !== latest.rows.length || latest.rows.some(row => !selected.has(String(row.dealerId)))) {
+          throw new Error("服务器上的经销商最终名单已变化，请核对名单后重新导入金额。");
+        }
+      }
       const result = await api.saveDraft(
         id,
         draft,

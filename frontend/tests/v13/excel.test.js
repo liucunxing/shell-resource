@@ -7,7 +7,7 @@ vitestTest(
   "V1.4 simplified allocation template regression contract",
   async () => {
     const identity = { role: "owner", department: "MKT", ownerId: "MKT-1" };
-    const data = { dealers: [{ id: "D001", name: "Dealer One", sector: "PCMO" }, { id: "D001", name: "Dealer One", sector: "CRTO" }, { id: "D002" }, { id: "D003" }] };
+    const data = { dealers: [{ id: "D001", status: "active", name: "Dealer One", sector: "PCMO" }, { id: "D001", status: "active", name: "Dealer One", sector: "CRTO" }, { id: "D002", status: "active" }, { id: "D003", status: "active" }] };
     const base = () => ({
       departments: {
         MKT: { status: "collecting", versions: [], comments: [] },
@@ -94,8 +94,8 @@ vitestTest(
       await directory.xlsx.load(await X.exportDealerDirectory({
         ...data, distributorDirectory: [
           { id: "NEW", name: "New Dealer", sector: "OEM", sd: "SD-N", rsm: "RSM-N", status: "active" },
-          { id: "NEW", name: "New Dealer", sector: "CRTO" },
-          { id: "NEW", name: "New Dealer", sector: "CRTO" },
+          { id: "NEW", name: "New Dealer", sector: "CRTO", status: "active" },
+          { id: "NEW", name: "New Dealer", sector: "CRTO", status: "active" },
         ],
       }));
       assert.equal(directory.worksheets.length, 1);
@@ -123,10 +123,10 @@ vitestTest(
         b.getWorksheet("经销商分配").addRow(["D003", 0, ""]);
       });
       const selected = await X.previewImport(withNewDealer, state, "I001", identity, data);
-      assert.deepEqual(selected.errors, []);
+      assert.match(selected.errors.join(" "), /最终名单/);
       const importedState = copy(state);
-      X.confirmImport(selected, importedState, identity, data);
-      assert.ok(importedState.initiatives[0].rows.some((row) => row.dealerId === "D003" && row.amount === 0));
+      assert.throws(() => X.confirmImport(selected, importedState, identity, data));
+      assert.deepEqual(importedState, state);
 
       const before = JSON.stringify(state),
         writeBefore = state.initiatives[0].revision;

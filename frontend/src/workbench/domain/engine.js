@@ -1,3 +1,4 @@
+import { isActiveDealer } from "./dealer-history";
 "use strict";
 const departments = (value) => {
   const raw = value && typeof value === "object" && !Array.isArray(value) ? value.department : value;
@@ -197,18 +198,11 @@ function validateInitiative(i, data, reasons) {
         errors.push(prefix + "原因说明必须是文字。");
     });
   }
-  const directoryDealers =
-    data && Object.hasOwn(data, "distributorDirectory")
-      ? data.distributorDirectory
-      : data?.dealers;
-  const ids = new Set((directoryDealers || [])
+  const directoryDealers = [...(data?.dealers || []), ...(data?.distributorDirectory || [])];
+  const ids = new Set(directoryDealers
     .filter((dealer) => !i.sector || !dealer.sector || dealer.sector === i.sector)
-    .filter((dealer) => dealer.status == null || dealer.status === "active" || String(dealer.status) === "1")
+    .filter(isActiveDealer)
     .map((dealer) => String(dealer.id)));
-  // Preserve source allocations when a dealer later closes; only new choices
-  // must come from the active directory. The API enforces the same rule.
-  const saved = data?.initiatives?.find((item) => String(item.id) === String(i.id));
-  for (const row of saved?.rows || []) ids.add(String(row.dealerId));
   const seen = new Set();
   if (!Array.isArray(i.rows)) errors.push("分配明细必须是数组。");
   else

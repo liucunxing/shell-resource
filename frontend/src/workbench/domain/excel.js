@@ -156,12 +156,7 @@ function dealerDirectory(data = {}) {
   return [
     ...new Map(
       rows
-        .filter(
-          (dealer) =>
-            dealer.status == null ||
-            dealer.status === "active" ||
-            String(dealer.status) === "1",
-        )
+        .filter(isActiveDealer)
         .map((dealer) => [
           json([String(dealer.id), dealer.sector || ""]),
           dealer,
@@ -594,6 +589,11 @@ function finishPreview(out, i, identity, scope) {
     );
   const before = new Map(i.rows.map((r) => [r.dealerId, r])),
     after = new Map(out.rows.map((r) => [r.dealerId, r]));
+  if (before.size !== after.size || [...after.keys()].some(id => !before.has(id))) {
+    out.errors.push("分配模板中的经销商须与当前最终名单一致，请在经销商范围调整名单。");
+  } else if (!out.errors.length) {
+    out.rows = i.rows.map(row => ({ ...row, ...after.get(row.dealerId) }));
+  }
   new Set([...before.keys(), ...after.keys()]).forEach((dealerId) => {
     const a = before.get(dealerId),
       b = after.get(dealerId);

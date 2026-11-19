@@ -169,7 +169,7 @@ describe("imported distributor history", () => {
     expect(historyInvestment({ resources2025: resources(0) }, "2025")).toBe(0);
   });
 
-  it("only offers active dealers while allowing existing closed allocations", () => {
+  it("rejects existing allocations outside the active roster", () => {
     expect(
       ["active", 1, "1", "closed", 0, "newclose", null].filter((status) =>
         isActiveDealer({ id: "A", status }),
@@ -186,7 +186,7 @@ describe("imported distributor history", () => {
       distributorDirectory: [{ id: "A", sector: "PCMO", status: "active" }],
       initiatives: [item],
     };
-    expect(E.validateInitiative(item, data)).toEqual([]);
+    expect(E.validateInitiative(item, data)).not.toEqual([]);
     expect(
       E.validateInitiative(
         { ...item, rows: [{ dealerId: "D", amount: 100 }] },

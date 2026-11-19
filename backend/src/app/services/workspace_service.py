@@ -1,4 +1,5 @@
 from collections import Counter
+from collections.abc import Iterable, Mapping
 from decimal import Decimal
 from typing import Protocol
 
@@ -8,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dealer_identity import dealer_identity
 from app.core.departments import departments
+from app.core.distributor_status import distributor_status
 from app.core.history_policy import configured_investment_exchange_rate, configured_ytd_cutoff
 from app.core.resource_access import default_department_resources
 from app.core.timestamps import iso_timestamp
@@ -93,6 +95,7 @@ class WorkspaceService:
                     )
                     own_drafts.append(item)
             initiatives, publications = [], []
+            summaries = []
             for budget in budgets:
                 workflow = workflows[budget.id]
                 history = history_by_budget.get(budget.id, [])
@@ -103,9 +106,13 @@ class WorkspaceService:
                     or workflow["confirmed"]
                 )
                 if comparison_summary:
-                    initiatives.append(self._comparison_summary(
-                        budget, publication if visible else None, workflow["confirmed"],
-                    ))
+                    visible_publication = publication if visible else None
+                    item = (
+                        visible_publication.snapshot.get("initiative", {}) if visible_publication
+                        else self._budget_projection(budget, [], [])
+                    )
+                    summaries.append((budget, visible_publication, workflow["confirmed"]))
+                    initiatives.append(item)
                     continue
                 # Upper levels receive only submitted / confirmed immutable snapshots.
                 if self.user.role in {"lead", "management"} or synced_only:
@@ -147,7 +154,11 @@ class WorkspaceService:
                 elif visible and publication:
                     publications.append(publication)
             if comparison_summary:
-                return {"initiatives": initiatives}
+                projected = await self._project_legacy_items(initiatives)
+                return {"initiatives": [
+                    self._comparison_summary(b, pub, confirmed, item)
+                    for (b, pub, confirmed), item in zip(summaries, projected, strict=True)
+                ]}
         elif self.user.role == "management" or synced_only:
             publications = await self.repository.latest_publications(
                 planning_year, department, sector, owner
@@ -176,13 +187,13 @@ class WorkspaceService:
             planning_year,
             self.user.departments if self.user.role in {"owner", "lead"} else None,
             sectors=self.user.dealer_sectors,
-            user=self.user,
+            user=self.user, include_inactive=True,
         )
         # Old allocations/publications stored plain distributor codes. Resolve
         # detached API copies against this sector's current history identities;
         # the persisted allocations and immutable snapshots remain unchanged.
-        initiatives = [self._project_dealer_identities(item, dealers) for item in initiatives]
-        own_drafts = [self._project_dealer_identities(item, dealers) for item in own_drafts]
+        initiatives = [self._active_roster(item, dealers) for item in initiatives]
+        own_drafts = [self._active_roster(item, dealers) for item in own_drafts]
         if self.user.role != "owner":
             for item in initiatives:
                 # A review fingerprint can contain draft reserve amounts and notes.
@@ -190,9 +201,10 @@ class WorkspaceService:
         publication_map = self._publication_map(publications)
         for versions in publication_map.values():
             for publication in versions:
-                publication["initiative"] = self._project_dealer_identities(
+                publication["initiative"] = self._active_roster(
                     publication["initiative"], dealers,
                 )
+        dealers = [dealer for dealer in dealers if dealer["status"] == "active"]
         ytd_cutoff_month = configured_ytd_cutoff(config.reference if config else None)
         exchange_rate = configured_investment_exchange_rate(config.reference if config else None)
         snapshot = history_snapshot(
@@ -264,10 +276,9 @@ class WorkspaceService:
         }
 
     def _comparison_summary(
-        self, budget: BudgetDO, publication: WorkspacePublicationDO | None, confirmed: bool,
+        self, budget: BudgetDO, publication: WorkspacePublicationDO | None,
+        confirmed: bool, item: dict,
     ) -> dict:
-        item = (publication.snapshot.get("initiative", {}) if publication
-                else self._budget_projection(budget, [], []))
         summary = {k: item.get(k) for k in (
             "name", "ownerId", "ownerName", "department", "resourceType", "sector", "budget",
         )}
@@ -339,8 +350,10 @@ class WorkspaceService:
         budget = await self._scoped_budget(budget_id, writable=True, for_update=True)
         records = await ReferenceRepository(self.session).list_directory(sectors=(budget.sector,))
         directory = {dealer_identity(record): record for record in records}
+        active = {key for key, record in directory.items()
+                  if distributor_status(record["distributor_status"]) == "active"}
         existing = await self._validate_rows(
-            payload.rows, payload.otherBudgets, budget, directory_ids=set(directory),
+            payload.rows, payload.otherBudgets, budget, directory_ids=active,
         )
         if budget.revision != payload.expected_revision:
             raise HTTPException(
@@ -393,10 +406,10 @@ class WorkspaceService:
             await self.repository.rows_for(budget_id),
             await self.repository.other_for(budget_id),
         )
+        await self._validate_version_dealer_scope(
+            budget, {item.history_key or item.distributor_code for item in rows}
+        )
         if budget.planning_version_id:
-            await self._validate_version_dealer_scope(
-                budget, {item.history_key or item.distributor_code for item in rows}
-            )
             if any(
                 item.sector != budget.sector or item.department != budget.department
                 for item in rows
@@ -519,23 +532,42 @@ class WorkspaceService:
 
     async def _project_legacy_items(self, initiatives: list[dict]) -> list[dict]:
         sectors = tuple({str(item.get("sector")) for item in initiatives if item.get("sector")})
-        if not sectors or not any(
-            not str(identity).startswith("history:")
-            for item in initiatives
-            for identity in [
-                *(row.get("dealerId", "") for row in item.get("rows", [])),
-                *(item["selected"] if isinstance(item.get("selected"), list) else []),
-            ]
-        ):
+        if not sectors or not any(item.get("rows") or item.get("selected") for item in initiatives):
             return initiatives
         # The caller has already checked the initiative's visibility and scope.
         records = await ReferenceRepository(self.session).list_directory(sectors=sectors)
-        dealers = [
+        dealers = self._directory_dealers(records)
+        return [self._active_roster(item, dealers) for item in initiatives]
+
+    @staticmethod
+    def _directory_dealers(records: Iterable[Mapping]) -> list[dict]:
+        return [
             {"id": dealer_identity(row), "code": str(row["distributor_code"]),
-             "sector": row["sector"], "sd": row["sd"], "rsm": row["rsm"]}
+             "sector": row["sector"], "sd": row["sd"], "rsm": row["rsm"],
+             "status": distributor_status(row["distributor_status"])}
             for row in records
         ]
-        return [self._project_dealer_identities(item, dealers) for item in initiatives]
+
+    @classmethod
+    def _active_roster(cls, initiative: dict, dealers: list[dict]) -> dict:
+        result = cls._project_dealer_identities(initiative, dealers)
+        active = {d["id"]: d for d in dealers
+                  if d["sector"] == initiative.get("sector") and d.get("status") == "active"}
+        by_id = {r["dealerId"]: r for r in result["rows"]}
+        ordered = result.get("selected")
+        ids = [key for key in dict.fromkeys(ordered if isinstance(ordered, list) else by_id)
+               if key in active]
+        if set(ids) != set(by_id) and result.get("editorState"):
+            result["editorState"] = {**result["editorState"], "trial": None}
+        result["rows"] = [
+            by_id[key] if key in by_id else {
+                "dealerId": key, "dealerCode": active[key]["code"], "sd": active[key].get("sd"),
+                "rsm": active[key].get("rsm"), "amount": 0, "note": "",
+            } for key in ids
+        ]
+        if isinstance(ordered, list):
+            result["selected"] = ids
+        return result
 
     @staticmethod
     def _project_dealer_identities(initiative: dict, dealers: list[dict]) -> dict:
@@ -796,8 +828,7 @@ class WorkspaceService:
             ]))[0]
             existing_ids.update(row["dealerId"] for row in projected["rows"])
         requested_ids = {item.dealerId for item in rows}
-        if budget.planning_version_id:
-            await self._validate_version_dealer_scope(budget, requested_ids, directory_ids)
+        await self._validate_version_dealer_scope(budget, requested_ids, directory_ids)
         new_ids = requested_ids - existing_ids
         active_directory_ids = (
             await self.directory_service.distributor_codes((budget.sector,)) if new_ids else set()
@@ -830,7 +861,7 @@ class WorkspaceService:
     async def _validate_version_dealer_scope(
         self, budget: BudgetDO, dealer_ids: set[str], permitted_ids: set[str] | None = None,
     ) -> None:
-        """Recheck the complete roster, retaining existing closed dealers in the same sector."""
+        """Recheck the complete roster, including previously saved rows."""
         if not dealer_ids:
             return
         from app.core.dealer_identity import dealer_identity
@@ -840,9 +871,10 @@ class WorkspaceService:
             records = await ReferenceRepository(self.session).list_directory(
                 sectors=(budget.sector,),
             )
-            permitted_ids = {dealer_identity(record) for record in records}
+            permitted_ids = {dealer_identity(record) for record in records
+                             if distributor_status(record["distributor_status"]) == "active"}
         if not dealer_ids.issubset(permitted_ids):
-            raise HTTPException(422, "经销商名单包含当前业务线以外或已不存在的经销商，请核对名单")
+            raise HTTPException(422, "经销商名单仅允许当前业务线的 active 经销商，请核对名单")
 
     @staticmethod
     def _publication_map(publications: list[WorkspacePublicationDO]) -> dict:

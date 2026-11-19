@@ -80,6 +80,43 @@ async def test_first_version_maps_unique_code_keeps_source_and_allows_admin_with
 
 
 @pytest.mark.asyncio
+async def test_copy_and_read_honor_final_selection_and_release_only_removed_allocations():
+    session = await _session()
+    try:
+        publication = await legacy_submission(session)
+        await session.execute(distributor_sellin_resource_history.insert().values(
+            distributor_code="closed", sector="PCMO", distributor_status="0",
+        ))
+        await session.execute(distributor_sellin_resource_history.insert().values(
+            distributor_code="unselected", sector="PCMO", distributor_status="1",
+        ))
+        publication.snapshot = {**publication.snapshot, "initiative": {
+            **publication.snapshot["initiative"], "selected": ["d2", "d1", "closed"],
+            "rows": [{"dealerId": "d1", "amount": 60}, {"dealerId": "closed", "amount": 25},
+                     {"dealerId": "unselected", "amount": 15}],
+        }}
+        await session.commit()
+        original = deepcopy(publication.snapshot)
+        owner = WorkspaceService(session, _owner())
+        visible = (await owner.publications(1))[-1]["initiative"]
+        assert [(r["dealerCode"], r["amount"]) for r in visible["rows"]] == [("d2", 0), ("d1", 60)]
+        admin = PlanningService(session, WorkbenchUser("admin@example.com", "admin", None, "Admin"))
+        await admin.create(PlanningVersionCreateDTO(id="202701", name="First", planning_year=2027))
+        copied = (await session.scalars(select(BudgetDO).where(
+            BudgetDO.planning_version_id == "202701", BudgetDO.initiative_key == "1",
+        ))).one()
+        rows = await WorkspaceRepository(session).rows_for(copied.id)
+        assert [(r.distributor_code, r.distributor_budget_amount) for r in rows] == [
+            ("d2", 0), ("d1", 60),
+        ]
+        assert copied.plan_budget_amount - copied.allocate_budget_amount == 40
+        assert publication.snapshot == original
+    finally:
+        await session.close()
+        await session.bind.dispose()
+
+
+@pytest.mark.asyncio
 async def test_ambiguous_legacy_code_requires_reselection_before_creating_any_version():
     session = await _session()
     try:
@@ -116,15 +153,14 @@ async def test_copy_does_not_merge_legacy_and_current_rows_for_the_same_identity
         await legacy_submission(session)
         record = (await ReferenceRepository(session).list_dealers(["d1"], ("PCMO",)))[0]
         owner = WorkspaceService(session, _owner())
-        saved = await owner.save_draft(1, InitiativeDraftUpdateDTO(
-            expected_revision=1,
-            rows=[
+        # Historical snapshots can contain identities a new save would reject.
+        publication = (await owner.repository.publications_for(1))[-1]
+        publication.snapshot = {**publication.snapshot, "initiative": {
+            **publication.snapshot["initiative"], "rows": [
                 {"dealerId": "d1", "amount": 40},
                 {"dealerId": dealer_identity(record), "amount": 60},
-            ],
-        ))
-        await owner.publish(1, PublishDTO(expected_revision=saved["revision"]))
-        publication = (await WorkspaceRepository(session).publications_for(1))[-1]
+            ]}}
+        await session.commit()
         original_snapshot = deepcopy(publication.snapshot)
         planning = PlanningService(
             session, WorkbenchUser("admin@example.com", "admin", None, "Admin"),

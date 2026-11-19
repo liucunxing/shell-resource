@@ -169,6 +169,39 @@ it("shows the live project balance next to the dealer total, including reserve",
   expect(gap()).toBeUndefined();
 });
 
+it("keeps exactly the 300 selected identities across all allocation pages, save and return", async () => {
+  const dealers = Array.from({ length: 301 }, (_, n) => ({
+    ...data.dealers[0], id: `dealer-${n}`, sector: item().sector, status: "active",
+  }));
+  harness.context.data = { ...data, dealers };
+  const selected = dealers.slice(1).reverse().map(d => d.id);
+  item().rows = selected.map((dealerId, n) => ({ dealerId, amount: n === 1 ? 50 : 0 }));
+  item().editorState.step = 2;
+  const bodyKeys = panel => elements(panel).find(n => n.type === TableBody).props.children.flat().filter(Boolean).map(n => n.key);
+  const scope = () => elements(render()).find(n => n.props["aria-labelledby"] === "selected-roster-title");
+  const allocation = () => elements(render()).find(n => n.props.className === "panel v19-allocation-panel");
+  expect(bodyKeys(scope())).toEqual(selected);
+  await steps(render()).props.onValueChange("3");
+  const displayed = [];
+  for (let page = 0; page < 15; page++) {
+    displayed.push(...bodyKeys(allocation()));
+    if (page < 14) button(allocation(), "下一页").props.onClick();
+  }
+  expect(displayed).toEqual(selected);
+  await button(render(), "保存草稿").props.onClick();
+  expect(item().rows.map(r => r.dealerId)).toEqual(selected);
+  const remove = elements(allocation()).find(n => n.props.className === "v19-allocation-remove");
+  remove.props.onClick();
+  const modal = elements(render()).find(n => n.props.action?.props.children === "确认移除");
+  modal.props.action.props.onClick();
+  const remaining = selected.filter(id => id !== displayed[280]);
+  await steps(render()).props.onValueChange("2");
+  expect(bodyKeys(scope())).toEqual(remaining);
+  await steps(render()).props.onValueChange("3");
+  expect(item().rows.map(r => r.dealerId)).toEqual(remaining);
+  expect(item().rows[1].amount).toBe(50);
+});
+
 function prepareTrial() {
   item().rows = data.dealers.slice(0, 2).map((dealer, index) => ({ dealerId: dealer.id, amount: index + 10, note: "原分配", dealerCode: `code-${index}`, sd: "SD", rsm: "RSM" }));
   item().editorState.step = 3;
