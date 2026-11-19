@@ -154,7 +154,7 @@ async function pick(page, index) {
   );
   const cells = row.locator("td");
   const headers = await table.locator("thead tr").first().locator("th").allTextContents();
-  const statusIndex = headers.findIndex((label) => label.trim() === "状态");
+  const statusIndex = headers.findIndex((label) => /^状态\s*[↑↓↕]?$/u.test(label.trim()));
   need(statusIndex >= 0, "候选表中没有可识别的经销商状态列。");
   verify(
     /^(active|1|启用|有效|激活)$/i.test((await cells.nth(statusIndex).innerText()).trim()),
