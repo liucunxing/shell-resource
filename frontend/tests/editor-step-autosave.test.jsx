@@ -155,6 +155,19 @@ it("removes an empty reserve without committing or discarding another incomplete
   expect(harness.context.saveDraft).not.toHaveBeenCalled();
 });
 
+it.each([1, 2, 3])("shows the four budget cards in whole yuan on step %s", step => {
+  item().budget = 11_303_278;
+  item().rows = [{ dealerId: data.dealers[0].id, amount: 6_303_278 }];
+  item().otherBudgets = [{ id: "r1", reasonId: "reserve", amount: 5_000_000 }];
+  item().editorState = { step, reserveAcknowledgement: reserveAcknowledgementFingerprint(item()) };
+  const cards = elements(render()).find(node => node.props["aria-label"] === "项目预算概况");
+  const amounts = elements(cards).filter(node => node.type === "strong").map(node => {
+    const [amount, unit] = node.props.children;
+    return amount + unit.props.children;
+  });
+  expect(amounts).toEqual(["11,303,278 元", "5,000,000 元", "6,303,278 元", "0 元"]);
+});
+
 it("shows the live project balance next to the dealer total, including reserve", () => {
   item().editorState.step = 3;
   item().budget = 1000;
