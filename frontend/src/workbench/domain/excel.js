@@ -240,7 +240,7 @@ async function previewRosterImport(buffer, state, id, identity, dealers) {
   catch (error) { out.errors.push(error.message); return out; }
   out.revision = initiative.revision;
   out.summary.before = total(initiative);
-  out.rows = clone(initiative.rows);
+  const previousRows = new Map(initiative.rows.map(row => [String(row.dealerId), row]));
   out.otherBudgets = clone(currentOther(initiative));
   const book = new (await excelLibrary()).Workbook();
   try { await book.xlsx.load(buffer); }
@@ -252,11 +252,9 @@ async function previewRosterImport(buffer, state, id, identity, dealers) {
   checkHeaders(read, out, sheet, ["经销商编码", "经销商名称", "SD", "RSM", "状态", "已分配（元）"]);
   checkWidth(out, sheet, 6);
   const seen = new Set();
-  let count = 0;
   for (let n = 2; n <= sheet.rowCount; n++) {
     const cells = [1, 2, 3, 4, 5, 6].map((column) => read(sheet, n, column));
     if (cells.every((value) => value === "")) continue;
-    count++;
     const [code, , sd, rsm, , amount] = cells;
     const matches = dealers.filter((dealer) => isActiveDealer(dealer) && (!dealer.sector || dealer.sector === initiative.sector) &&
       String(dealer.code || dealer.id) === String(code).trim() && String(dealer.sd || "") === String(sd).trim() && String(dealer.rsm || "") === String(rsm).trim());
@@ -265,14 +263,16 @@ async function previewRosterImport(buffer, state, id, identity, dealers) {
     if (seen.has(String(dealerId))) { out.errors.push(`第${n}行经销商重复。`); continue; }
     seen.add(String(dealerId));
     const value = money(amount, out, `第${n}行金额`);
-    const index = out.rows.findIndex((row) => String(row.dealerId) === String(dealerId));
-    const before = index < 0 ? null : out.rows[index];
+    const before = previousRows.get(String(dealerId)) ?? null;
     const after = before ? { ...before, amount: value } : { dealerId, amount: value, note: "" };
-    if (index < 0) out.rows.push(after); else out.rows[index] = after;
+    out.rows.push(after);
     out.rosterEntries.push({ dealerId, before, after });
   }
-  if (!count) out.errors.push("名单中没有可导入的经销商。");
-  out.summary.after = round(out.rows.reduce((sum, row) => sum + row.amount, 0) + out.otherBudgets.reduce((sum, row) => sum + row.amount, 0));
+  if (out.errors.length) return out;
+  for (const [id, before] of previousRows) {
+    if (!seen.has(id)) out.rosterEntries.push({ dealerId: before.dealerId, before, after: null });
+  }
+  out.summary.after = total(out);
   out.summary.gap = round(initiative.budget - out.summary.after);
   return out;
 }
