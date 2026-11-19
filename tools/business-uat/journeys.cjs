@@ -3,6 +3,7 @@
 const crypto = require("node:crypto");
 const fs = require("node:fs/promises");
 const path = require("node:path");
+const { verifyDisabledUser } = require("./disabled-user.cjs");
 const {
   Mismatch,
   Blocked,
@@ -177,7 +178,7 @@ async function runJourneys({
     async "identity-scope"() {
       for (const u of roster)
         await run("identity-scope", u, "个人工作台", async () => {
-          need(u.enabled, "此账号已停用，不能建立合成用户会话。");
+          if (!u.enabled) return verifyDisabledUser(browser, sandbox, u);
           const s = await newSession(browser, baseURL, u);
           session.set(u.email, s);
           return identityScope(s.page, u, sandbox.versionId);

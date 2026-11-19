@@ -137,7 +137,10 @@ function writeReport(dir, run, inputs) {
     "</code> · " +
     esc(run.release?.provided ? "与输入的部署提交核对" : "本地检出") +
     " · " +
-    esc(run.started) +
+    esc(
+      new Date(run.started).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false }),
+    ) +
+    " 北京时间" +
     "</p><p>" +
     esc(run.deployment || "线上站点本轮未核验") +
     "。本轮业务操作使用临时 SQLite 和测试身份。真实登录另行核验。</p>";

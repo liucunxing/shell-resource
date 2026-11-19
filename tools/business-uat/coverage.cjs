@@ -82,7 +82,6 @@ function fillMissingCoverage(run, inputs) {
     for (const p of sample(area.projects, count, run.seed ?? 1)) {
       expect("owner-backtrack", p.person, projectLabel(p));
       expect("owner-submit-feedback", p.person, projectLabel(p));
-      expect("owner-submit-feedback", p.person, projectLabel(p));
       expect("dealer-export", p.person, projectLabel(p));
     }
     for (const lead of leads) {

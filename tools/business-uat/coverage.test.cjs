@@ -23,6 +23,20 @@ const suite = {
 };
 const pass = (caseId, user, scope) => ({ caseId, user, scope, status: "passed" });
 
+test("a failed feedback check is still evidence for its one sampled project", () => {
+  const person = { ...roster[0], projects: [projects[0]] };
+  const run = {
+    roster: [person],
+    results: [{ ...pass("feedback", "o", "A A"), status: "failed" }],
+  };
+  const inputs = { cases: [{ id: "feedback", action: "owner-submit-feedback" }] };
+  fillMissingCoverage(run, inputs);
+  assert.deepEqual(
+    run.results.map((r) => r.status),
+    ["failed"],
+  );
+});
+
 test("one completed project cannot cover two, and two leads require two manager observations", () => {
   const run = {
     roster,
