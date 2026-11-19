@@ -2656,7 +2656,7 @@ function EditorContent({
                   className="button primary"
                   disabled={modal.preview.errors.length > 0}
                   onClick={async () => {
-                    if (modal.roster && (!editable || modal.versionId !== state.planningVersion?.id || modal.identityKey !== JSON.stringify(identity) || modal.originalRows !== JSON.stringify(i.rows) || modal.originalOther !== JSON.stringify(i.otherBudgets))) {
+                    if (modal.roster && (!editable || modal.preview.initiativeId !== i.id || modal.preview.revision !== i.revision || modal.versionId !== state.planningVersion?.id || modal.identityKey !== JSON.stringify(identity) || modal.originalRows !== JSON.stringify(i.rows) || modal.originalOther !== JSON.stringify(i.otherBudgets))) {
                       notify("身份、版本或草稿已变化，请重新上传预览。", true);
                       close();
                       return;
@@ -2795,7 +2795,7 @@ function EditorContent({
                   {modal.name} ·{" "}
                   {modal.preview.errors.length
                     ? "存在错误，不能写入"
-                    : modal.roster ? "校验通过：确认后新增名单并更新文件中的金额，未列出的经销商和其他预算保持不变。" : "校验通过，确认后完整替换分配明细及其他预算安排"}
+                    : modal.roster ? `确认后按「已选经销商」工作表更新最终名单，共 ${modal.preview.rows.length} 家，将移除 ${modal.preview.rosterEntries.filter(row => !row.after).length} 家。移除释放的金额返回待分配，预留及其他预算按原金额保留。` : "校验通过，确认后完整替换分配明细及其他预算安排"}
                 </p>
                 {modal.preview.errors.length > 0 && (
                   <ul className="import-errors">
@@ -2804,21 +2804,23 @@ function EditorContent({
                     ))}
                   </ul>
                 )}
-                <Alert className="note-box">
+                {!modal.preview.errors.length && <Alert className="note-box">
                   <AlertDescription>
-                    导入前安排 {wholeMetric(modal.preview.summary.before)} · 导入后安排{" "}
-                    {wholeMetric(modal.preview.summary.after)} · 导入后差额{" "}
-                    {wholeMetric(modal.preview.summary.gap)}
+                    {modal.roster ? "经销商分配总额导入前" : "经销商分配与其他预算（含预留）合计导入前"} {wholeMetric(modal.preview.summary.before)} 元 · 导入后{" "}
+                    {wholeMetric(modal.preview.summary.after)} 元
+                    {modal.roster && ` · 其他预算（含预留） ${wholeMetric(modal.preview.summary.otherBudget)} 元`}
+                    {" · "}{modal.preview.summary.gap < 0 ? "导入后超出预算" : "导入后待分配"}{" "}
+                    {wholeMetric(Math.abs(modal.preview.summary.gap))} 元
                   </AlertDescription>
-                </Alert>
+                </Alert>}
                 <div className="table-scroll">
                   <Table containerClassName="overflow-visible">
                     <TableHeader>
                       <TableRow>
                         <TableHead>经销商名称</TableHead>
                         <TableHead>经销商编码</TableHead>
-                        <TableHead>导入前</TableHead>
-                        <TableHead>导入后</TableHead>
+                        <TableHead>导入前金额（元）</TableHead>
+                        <TableHead>导入后金额（元）</TableHead>
                         <TableHead>变化</TableHead>
                       </TableRow>
                     </TableHeader>
