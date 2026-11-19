@@ -62,7 +62,7 @@ export function profileFields(identity: ProfileIdentity) {
       "所属部门",
       identity.affiliation_sector && identity.affiliation_department
         ? `${identity.affiliation_sector} / ${identity.affiliation_department}`
-        : "未配置 · 历史费用明细不可见",
+        : "-",
     ],
   ];
 }
