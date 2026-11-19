@@ -2806,7 +2806,7 @@ function EditorContent({
                 )}
                 {!modal.preview.errors.length && <Alert className="note-box">
                   <AlertDescription>
-                    {modal.roster ? "经销商分配合计" : "经销商分配与其他预算（含预留）合计"} · 导入前 {wholeMetric(modal.preview.summary.before)} 元 · 导入后{" "}
+                    {modal.roster ? "经销商分配总额导入前" : "经销商分配与其他预算（含预留）合计导入前"} {wholeMetric(modal.preview.summary.before)} 元 · 导入后{" "}
                     {wholeMetric(modal.preview.summary.after)} 元
                     {modal.roster && ` · 其他预算（含预留） ${wholeMetric(modal.preview.summary.otherBudget)} 元`}
                     {" · "}{modal.preview.summary.gap < 0 ? "导入后超出预算" : "导入后待分配"}{" "}
