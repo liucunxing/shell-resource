@@ -221,6 +221,26 @@ function prepareTrial() {
   return structuredClone(item().rows);
 }
 
+it("clears a dealer amount to zero and accepts the first remove click after blur", () => {
+  prepareTrial();
+  const amountInput = () => {
+    const field = elements(render()).find(node => node.props.label?.endsWith(" 分配金额"));
+    return field.type(field.props);
+  };
+  amountInput().props.onValueChange("");
+  const editing = amountInput();
+  expect(editing.props.value).toBe("");
+  expect(editing.props["aria-invalid"]).toBe(false);
+  editing.props.onBlur();
+  expect(amountInput().props.value).toBe(0);
+  const rowCount = item().rows.length;
+  elements(render()).find(node => node.props.className === "v19-allocation-remove").props.onClick();
+  const modal = elements(render()).find(node => node.props.action?.props.children === "确认移除");
+  modal.props.action.props.onClick();
+  expect(item().rows).toHaveLength(rowCount - 1);
+  expect(harness.context.notify).not.toHaveBeenCalled();
+});
+
 it("keeps each allocation remove button available and confirms before removing", () => {
   const before = prepareTrial();
   const remove = elements(render()).find(node => node.props.className === "v19-allocation-remove");

@@ -352,9 +352,10 @@ export function amountInputError(raw, budgetLimit) {
 function AmountInput({ value, label, save, disabled = false, budgetLimit = null }) {
   const [raw, setRaw] = useState(null);
   const [failed, setFailed] = useState(false);
-  const valid =
-    raw === null ||
-    (/^\d+(\.\d{0,2})?$/.test(raw) && E.validMoney(Number(raw)));
+  // Keep the focused text editable while actions and totals use its numeric value.
+  const validAmount = (text) =>
+    text === "" || (/^\d+(\.\d{0,2})?$/.test(text) && E.validMoney(Number(text)));
+  const valid = raw === null || validAmount(raw);
   return (
     <MoneyInput
       disabled={disabled}
@@ -366,8 +367,10 @@ function AmountInput({ value, label, save, disabled = false, budgetLimit = null 
       value={raw ?? value}
       onValueChange={(next) => {
         setRaw(next);
-        if (/^\d+(\.\d{0,2})?$/.test(next) && E.validMoney(Number(next)))
-          setFailed(save(Number(next)) === false);
+        if (validAmount(next)) {
+          const amount = Number(next);
+          setFailed(amount !== value && save(amount) === false);
+        }
       }}
       onBlur={() => {
         if (valid && !failed) setRaw(null);
