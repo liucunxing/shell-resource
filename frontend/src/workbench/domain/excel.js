@@ -239,7 +239,7 @@ async function exportSelectedRoster(rows, dealers, data = { dealers }) {
   return book.xlsx.writeBuffer();
 }
 async function previewRosterImport(buffer, state, id, identity, dealers) {
-  const out = { initiativeId: id, revision: null, rows: [], otherBudgets: [], errors: [], changes: [], summary: { before: 0, after: 0, gap: 0 } };
+  const out = { initiativeId: id, revision: null, rows: [], otherBudgets: [], errors: [], rosterEntries: [], summary: { before: 0, after: 0, gap: 0 } };
   let initiative;
   try { initiative = editable(state, id, identity); }
   catch (error) { out.errors.push(error.message); return out; }
@@ -274,7 +274,7 @@ async function previewRosterImport(buffer, state, id, identity, dealers) {
     const before = index < 0 ? null : out.rows[index];
     const after = before ? { ...before, amount: value } : { dealerId, amount: value, note: "" };
     if (index < 0) out.rows.push(after); else out.rows[index] = after;
-    if (!before || before.amount !== after.amount) out.changes.push({ dealerId, before, after });
+    out.rosterEntries.push({ dealerId, before, after });
   }
   if (!count) out.errors.push("名单中没有可导入的经销商。");
   out.summary.after = round(out.rows.reduce((sum, row) => sum + row.amount, 0) + out.otherBudgets.reduce((sum, row) => sum + row.amount, 0));
