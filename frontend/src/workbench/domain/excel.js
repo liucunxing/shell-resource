@@ -239,7 +239,7 @@ async function previewRosterImport(buffer, state, id, identity, dealers) {
   try { initiative = editable(state, id, identity); }
   catch (error) { out.errors.push(error.message); return out; }
   out.revision = initiative.revision;
-  out.summary.before = total(initiative);
+  out.summary.before = engine.totals([initiative]).allocated;
   const previousRows = new Map(initiative.rows.map(row => [String(row.dealerId), row]));
   out.otherBudgets = clone(currentOther(initiative));
   const book = new (await excelLibrary()).Workbook();
@@ -272,8 +272,10 @@ async function previewRosterImport(buffer, state, id, identity, dealers) {
   for (const [id, before] of previousRows) {
     if (!seen.has(id)) out.rosterEntries.push({ dealerId: before.dealerId, before, after: null });
   }
-  out.summary.after = total(out);
-  out.summary.gap = round(initiative.budget - out.summary.after);
+  const totals = engine.totals([{ ...initiative, rows: out.rows, otherBudgets: out.otherBudgets }]);
+  out.summary.after = totals.allocated;
+  out.summary.otherBudget = totals.otherBudget;
+  out.summary.gap = totals.gap;
   return out;
 }
 function parseOtherV14(sheet, state, out, read) {

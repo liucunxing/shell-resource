@@ -36,8 +36,13 @@ it("replaces the selected roster, releasing removed amounts while keeping reserv
     { dealerId: "A", before: rows[0], after: null },
   ]);
   expect(preview.rows).toEqual([rows[1]]);
-  expect(preview.summary).toEqual({ before: 35, after: 10, gap: 90 });
+  expect(preview.summary).toEqual({ before: 25, after: 0, otherBudget: 10, gap: 90 });
   expect(preview.otherBudgets).toEqual(otherBudgets);
+
+  const unchangedFile = await X.exportSelectedRoster(rows, dealers);
+  const unchanged = await X.previewRosterImport(unchangedFile, state, item.id, identity, dealers);
+  expect(unchanged.errors).toEqual([]);
+  expect(unchanged.summary).toEqual({ before: 25, after: 25, otherBudget: 10, gap: 65 });
 
   const emptyFile = await X.exportSelectedRoster([], dealers);
   const empty = await X.previewRosterImport(emptyFile, state, item.id, identity, dealers);
