@@ -52,3 +52,45 @@
   min-width: 0;
   max-width: 100%;
 }
+
+/* Size a status for the longest label in its own view, using that view's font and padding. */
+.v19-fidelity-shell :is(.resource-status, .v19-initiative-heading [data-slot="badge"],
+  .v19-enabled-status, .v19-disabled-status, .v19-user-table .badge,
+  .v20-organization-summary [data-slot="badge"][data-level]) {
+  box-sizing: content-box;
+  min-inline-size: var(--status-label-width, 3em);
+  justify-content: center;
+  white-space: nowrap;
+}
+.v20-review-scroll { --status-label-width: 5em; }
+.v19-initiative-heading { --status-label-width: 7.5em; }
+.v19-enabled-status, .v19-disabled-status { --status-label-width: 4em; }
+.v19-user-table { --status-label-width: 2em; }
+.v20-organization-summary { --status-label-width: 6em; }
+
+/* Match peer actions even when one row omits or disables a button. */
+.v19-fidelity-shell :is(.version-row-actions, .department-review-actions, .v19-user-table .actions) > [data-slot="button"],
+.v19-fidelity-shell .v19-trial-quick-options > button[aria-pressed] {
+  min-inline-size: var(--action-width);
+  justify-content: center;
+}
+.version-row-actions { --action-width: calc(2em + 1.5rem + 2px); }
+.v19-user-table .actions { --action-width: calc(4em + 1.5rem + 2px); }
+.department-review-actions { --action-width: calc(9em + 2rem + 2px); }
+.v19-trial-quick-options { --action-width: calc(12em + 1.5rem); }
+
+/* Button-only toolbars fit their longest action. Keep mixed toolbars and icon controls independent. */
+.v19-fidelity-shell .actions:has(> button ~ button):not(:has(> :not(button, [hidden]), > button[data-size^="icon"])),
+[data-slot="dialog-footer"]:has(> button ~ button):not(:has(> :not(button))) {
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  align-items: stretch;
+  max-inline-size: 100%;
+}
+@media (max-width: 640px) {
+  .v19-fidelity-shell .actions:has(> button ~ button):not(:has(> :not(button, [hidden]), > button[data-size^="icon"])),
+  [data-slot="dialog-footer"]:has(> button ~ button):not(:has(> :not(button))) {
+    grid-auto-flow: row;
+  }
+}

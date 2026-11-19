@@ -209,7 +209,7 @@ export function PlanningVersionsPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-nowrap items-center gap-2">
+                    <div className="version-row-actions flex flex-nowrap items-center gap-2">
                       <Button variant="outline" size="sm" type="button"
                         disabled={previewMode || !apiMode || busy}
                         onClick={() => {
