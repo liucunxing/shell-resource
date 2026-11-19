@@ -1,6 +1,7 @@
 """Planning version commands use explicit optimistic revisions."""
 
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -13,6 +14,15 @@ class PlanningVersionCreateDTO(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     planning_year: int = Field(ge=2020, le=2100)
     source_version_id: str | None = Field(default=None, max_length=32)
+    creation_mode: Literal["empty", "copy"] | None = None
+
+    @model_validator(mode="after")
+    def validate_creation_source(self) -> "PlanningVersionCreateDTO":
+        if self.creation_mode == "empty" and self.source_version_id is not None:
+            raise ValueError("全新版本不能指定复制来源")
+        if self.creation_mode == "copy" and not self.source_version_id:
+            raise ValueError("请为复制版本选择来源")
+        return self
 
 
 class PlanningVersionUpdateDTO(BaseModel):
@@ -29,6 +39,11 @@ class PlanningVersionReleaseDTO(BaseModel):
     expected_revision: int = Field(ge=0)
     reason: str = Field(min_length=1, max_length=160)
 
+
+class PlanningVersionClearDraftsDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_revision: int = Field(ge=0)
+    confirmed: bool = Field(strict=True)
 
 
 class PlanningVersionDeleteDTO(BaseModel):

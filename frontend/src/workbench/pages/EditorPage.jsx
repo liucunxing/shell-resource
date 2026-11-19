@@ -415,6 +415,7 @@ function EditorDialog({ title, children, action, close, compact = false, wide = 
 }
 export function EditorPage() {
   const context = useWorkbench();
+  const active = context.view.initiatives.find(item => item.id === context.initiativeId);
   return (
     <EditorContent
       key={
@@ -422,7 +423,8 @@ export function EditorPage() {
         ":" +
         context.initiativeId +
         ":" +
-        JSON.stringify(context.identity)
+        JSON.stringify(context.identity) +
+        ":" + (active?.workflow?.draftResetRevision ?? 0)
       }
       {...context}
     />

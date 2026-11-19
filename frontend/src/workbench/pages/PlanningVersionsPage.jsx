@@ -68,11 +68,12 @@ export function PlanningVersionsPage() {
   const [actionError, setActionError] = useState("");
   const [deleteAcknowledged, setDeleteAcknowledged] = useState(false);
   const pending = useRef(false);
-  const [form, setForm] = useState({
-    id: "",
-    name: "",
-    source_version_id: state.currentVersionId || "",
-  });
+  const [form, setForm] = useState({ id: "", name: "", source: "empty" });
+  const publishedSources = versions.filter(version => version.published);
+  const invalidCopySource = form.source && !["empty", "legacy"].includes(form.source) && (
+    !publishedSources.some(version => version.id === form.source) ||
+    (form.id.length === 6 && form.source >= form.id)
+  );
   const open = (value) => {
     setError("");
     setActionError("");
@@ -80,6 +81,7 @@ export function PlanningVersionsPage() {
   };
   const persist = async () => {
     if (previewMode || !apiMode || busy || pending.current || !dialog) return;
+    if (dialog.kind === "create" && invalidCopySource) return;
     if (dialog.kind === "delete-confirm" && dialog.info.submittedCount > 0 && !deleteAcknowledged) return;
     pending.current = true;
     setBusy(true);
@@ -91,9 +93,8 @@ export function PlanningVersionsPage() {
         await api.createPlanningVersion({
           id: form.id.trim(),
           name: form.name.trim(),
-          ...(form.source_version_id
-            ? { source_version_id: form.source_version_id }
-            : {}),
+          ...(form.source === "empty" ? { creation_mode: "empty" } :
+            form.source === "legacy" ? {} : { creation_mode: "copy", source_version_id: form.source }),
         });
         api.setPlanningVersion(form.id.trim());
       } else if (dialog.kind === "edit-confirm") {
@@ -103,6 +104,10 @@ export function PlanningVersionsPage() {
         });
         if ((state.currentVersionId || state.planningVersion?.id) === dialog.version.id)
           api.setPlanningVersion(form.id.trim());
+      } else if (dialog.kind === "clear-drafts") {
+        await api.clearPlanningVersionDrafts(dialog.version.id, {
+          expected_revision: dialog.version.revision, confirmed: true,
+        });
       } else if (dialog.kind === "delete-confirm") {
         await api.deletePlanningVersion(dialog.version.id, {
           expected_revision: dialog.info.revision,
@@ -119,14 +124,13 @@ export function PlanningVersionsPage() {
         });
       }
       setDialog(null);
-      const refreshed = changesCurrent
-        ? await refresh({ preservePage: true })
-        : await refreshPlanningVersions();
-      if (!refreshed) {
-        notify("规划版本已保存，但刷新失败，请重新加载后继续。", true);
+      const result = dialog.kind === "clear-drafts" ? `版本 ${dialog.version.id} 的全部草稿已清空` : "规划版本已保存";
+      const reload = changesCurrent ? refresh({ preservePage: true }) : refreshPlanningVersions();
+      if (!await reload.catch(() => false)) {
+        notify(`${result}，但刷新失败，请重新加载后继续。`, true);
         return;
       }
-      notify("规划版本已保存。");
+      notify(`${result}。`);
     } catch (failure) {
       setError(failure.message);
       setActionError(failure.message);
@@ -156,14 +160,17 @@ export function PlanningVersionsPage() {
           <div>
             <h2>规划版本</h2>
             <p>
-              复制来源版本最后已提交的方案为草稿；不继承提交、确认及退回状态，预算变化不自动缩放金额。
+              全新版本从空白项目列表开始；复制已有版本时，来源版本最后提交的方案将成为新草稿。
             </p>
           </div>
           <Button
             variant="default"
             type="button"
             disabled={previewMode || !apiMode || busy}
-            onClick={() => open({ kind: "create" })}
+            onClick={() => {
+              setForm({ id: "", name: "", source: "empty" });
+              open({ kind: "create" });
+            }}
           >
             ＋ 创建规划版本
           </Button>
@@ -186,7 +193,7 @@ export function PlanningVersionsPage() {
                 <TableRow key={version.id}>
                   <TableCell>
                     <strong>{version.id}</strong>
-                    <small>来源 {version.sourceVersionId || "历史预算"}</small>
+                    <small>来源版本 {version.sourceVersionId || "—"}</small>
                   </TableCell>
                   <TableCell>{version.name}</TableCell>
                   <TableCell>{version.createdBy || "—"}</TableCell>
@@ -226,6 +233,9 @@ export function PlanningVersionsPage() {
                       <Button variant="outline" size="sm" type="button"
                         disabled={previewMode || !apiMode || busy || !(version.published && version.open)}
                         onClick={() => open({ kind: "deactivate", version })}>停用</Button>
+                      <Button variant="outline" size="sm" type="button"
+                        disabled={previewMode || !apiMode || busy}
+                        onClick={() => open({ kind: "clear-drafts", version })}>清空草稿</Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -234,7 +244,7 @@ export function PlanningVersionsPage() {
                 <TableRow>
                   <TableCell colSpan="7">
                     <div className="empty">
-                      尚未创建规划版本。首次创建将从历史年度预算与最后提交快照建立独立版本。
+                      尚未创建规划版本。
                     </div>
                   </TableCell>
                 </TableRow>
@@ -260,18 +270,20 @@ export function PlanningVersionsPage() {
             dialog.kind === "edit-confirm" ? "确认修改规划版本" :
             dialog.kind === "delete-warning" ? "移除前请确认" :
             dialog.kind === "delete-confirm" ? "确认移除规划版本" :
+            dialog.kind === "clear-drafts" ? `清空全部草稿 · ${dialog.version.id} · ${dialog.version.name}` :
             `${dialog.kind === "deactivate" ? "停用版本" : "启用版本"} · ${dialog.version.name}`
           }
           busy={busy}
           onClose={() => setDialog(null)}
           onConfirm={dialog.kind === "edit" ? () => open({ ...dialog, kind: "edit-confirm" }) :
             dialog.kind === "delete-warning" ? () => open({ ...dialog, kind: "delete-confirm" }) : persist}
-          confirmLabel={dialog.kind === "edit" || dialog.kind === "delete-warning" ? "继续" : dialog.kind === "delete-confirm" ? "确认移除" : "确认"}
-          confirmVariant={dialog.kind === "delete-confirm" ? "destructive" : "default"}
+          confirmLabel={dialog.kind === "edit" || dialog.kind === "delete-warning" ? "继续" : dialog.kind === "delete-confirm" ? "确认移除" : dialog.kind === "clear-drafts" ? "确认清空全部草稿" : "确认"}
+          confirmVariant={["delete-confirm", "clear-drafts"].includes(dialog.kind) ? "destructive" : "default"}
           disabled={
             previewMode || !apiMode ||
             (["create", "edit"].includes(dialog.kind) &&
               (!/^20\d{2}(0[1-9]|1[0-2])$/.test(form.id) || !form.name.trim())) ||
+            (dialog.kind === "create" && invalidCopySource) ||
             (dialog.kind === "delete-warning" && !deleteAcknowledged)
           }
         >
@@ -302,26 +314,36 @@ export function PlanningVersionsPage() {
                 />
               </Label>
               <Label className="sm:col-span-2">
-                复制来源
+                创建方式
                 <NativeSelect
-                  value={form.source_version_id}
-                  onChange={(event) =>
-                    setForm({ ...form, source_version_id: event.target.value })
-                  }
+                  value={form.source}
+                  onChange={(event) => setForm({ ...form, source: event.target.value })}
                 >
-                  <NativeSelectOption value="">历史年度预算</NativeSelectOption>
-                  {versions.map((version) => (
-                    <NativeSelectOption key={version.id} value={version.id}>
-                      {version.id} · {version.name}
+                  <NativeSelectOption value="empty">创建全新版本</NativeSelectOption>
+                  {!versions.length && <NativeSelectOption value="legacy">从历史年度预算创建</NativeSelectOption>}
+                  {publishedSources.map((version) => (
+                    <NativeSelectOption key={version.id} value={version.id}
+                      disabled={form.id.length === 6 && version.id >= form.id}>
+                      复制版本 {version.id} · {version.name}
                     </NativeSelectOption>
                   ))}
                 </NativeSelect>
               </Label>
+              <p className="tiny sm:col-span-2">
+                {invalidCopySource ? "请选择编码早于新版本的已发布来源版本。" :
+                  form.source === "empty" ? "创建后，可在「项目配置」中添加或导入 Initiative。" :
+                  "将复制项目配置，并以最后提交的分配方案作为草稿。"}
+              </p>
             </div>
           ) : dialog.kind === "edit" ? (
             <div className="grid gap-4">
               <Label>版本编码（YYYYMM）<Input value={form.id} maxLength="6" onChange={(event) => setForm({ ...form, id: event.target.value.replace(/\D/g, "") })} /></Label>
               <Label>版本名称<Input value={form.name} maxLength="100" onChange={(event) => setForm({ ...form, name: event.target.value })} /></Label>
+            </div>
+          ) : dialog.kind === "clear-drafts" ? (
+            <div className="grid gap-2">
+              <p>将清空此版本所有 Initiative（含停用项目）的经销商名单、分配金额、预留及其他预算安排和试算草稿。每个项目的全部预算将回到待分配。</p>
+              <p>项目配置、预算和 Owner 保留。当前提交和部门确认将重置，Owner 需要重新拆分并提交。此操作无法撤销。</p>
             </div>
           ) : dialog.kind === "delete-warning" ? (
             <div className="grid gap-4">

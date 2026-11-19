@@ -107,6 +107,27 @@ it("keeps the edited amount and original save precondition after another user's 
   expect(harness.save).toHaveBeenCalledWith("1", expect.objectContaining({ rows: [{ dealerId: "D1", amount: 45 }] }), 7);
 });
 
+it("replaces unsaved edits after an admin reset and saves against the new revision", async () => {
+  harness.context.mutate(state => { state.initiatives[0].rows[0].amount = 45; });
+  render();
+  const reset = payload({ ...version, revision: 5 });
+  reset.state.initiatives = [{ ...initiative, revision: 8, rows: [], workflow: { draftResetRevision: 8 } }];
+  harness.versions.mockResolvedValue([reset.state.planningVersion]);
+  harness.workspace.mockResolvedValue(reset);
+  startLiveView();
+  await vi.advanceTimersByTimeAsync(10000);
+  expect(render().state.initiatives[0].rows).toEqual([]);
+  expect(harness.context.dirtyIds.has("1")).toBe(false);
+  await harness.context.saveDraft("1");
+  expect(harness.save).toHaveBeenCalledWith("1", expect.objectContaining({ rows: [] }), 8);
+});
+
+it("rejects an amount import from before an admin reset even when the roster matches", async () => {
+  harness.getDraft.mockResolvedValueOnce({ ...initiative, revision: 11, workflow: { draftResetRevision: 10 } });
+  await expect(harness.context.saveDraft("1", { rows: initiative.rows }, undefined, true)).resolves.toBe(false);
+  expect(harness.save).not.toHaveBeenCalled();
+});
+
 it("submits a clean loaded draft in one request with its server revision", async () => {
   await expect(harness.context.publish("1", "本版说明")).resolves.toMatchObject({ publishedRevision: 7 });
   expect(harness.save).not.toHaveBeenCalled();

@@ -212,6 +212,41 @@ async def test_all_submit_confirm_withdraw_unlocks_all_and_reconfirm():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("has_previous_version", [False, True])
+async def test_empty_version_starts_without_initiatives_and_accepts_new_configuration(
+    has_previous_version,
+):
+    from app.schemas.dto.planning import VersionInitiativeDTO
+
+    session = await _session()
+    try:
+        admin = PlanningService(session, user("admin@example.com", "admin"))
+        if has_previous_version:
+            await admin.create(PlanningVersionCreateDTO(
+                id="202701", name="原版本", planning_year=2027,
+            ))
+        version = await admin.create(PlanningVersionCreateDTO(
+            id="202702", name="全新版本", planning_year=2027, creation_mode="empty",
+        ))
+        assert version["sourceVersionId"] is None
+        assert not version["published"] and not version["open"]
+        budgets = select(BudgetDO).where(BudgetDO.planning_version_id == "202702")
+        assert list(await session.scalars(budgets)) == []
+        await admin.edit_initiative("202702", None, VersionInitiativeDTO(
+            name="全新项目", resourceType="MRD", sector="PCMO", department="MKT",
+            ownerId="a@example.com", budget=450, expected_revision=0, reason="配置",
+        ))
+        budget = (await session.scalars(budgets)).one()
+        assert budget.plan_budget_amount == 450 and budget.allocate_budget_amount == 0
+        assert await admin.repository.rows_for(budget.id) == []
+        assert await admin.repository.other_for(budget.id) == []
+        assert await admin.repository.publications_for(budget.id) == []
+    finally:
+        await session.close()
+        await session.bind.dispose()
+
+
+@pytest.mark.asyncio
 async def test_source_copy_only_last_submission_and_version_isolation():
     session, admin, budgets = await prepare()
     try:
@@ -483,6 +518,12 @@ async def test_http_version_routes_validate_scope_and_preview_read_only():
         assert (
             await client.post("planning-versions", headers=owner, json=payload)
         ).status_code == 403
+        for invalid in (
+            {"creation_mode": "copy"},
+            {"creation_mode": "empty", "source_version_id": "202612"},
+        ):
+            response = await client.post("planning-versions", headers=admin, json=payload | invalid)
+            assert response.status_code == 422
         created = await client.post("planning-versions", headers=admin, json=payload)
         assert created.status_code == 200
         assert created.json()["data"]["createdBy"] == "admin@example.com"

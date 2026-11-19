@@ -2,8 +2,9 @@ from collections.abc import Mapping, Sequence
 from decimal import Decimal
 from typing import cast
 
-from sqlalchemy import Table, delete, func, insert, select
+from sqlalchemy import Table, delete, exists, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.departments import departments
 from app.models.do.budget import BudgetDO
@@ -113,10 +114,23 @@ class WorkspaceRepository:
             ).all()
         )
 
+    async def clear_draft_rows(self, budget_ids: list[int]) -> None:
+        if budget_ids:
+            for model in (BudgetDistributorDO, OtherBudgetDO):
+                await self.session.execute(delete(model).where(model.budget_id.in_(budget_ids)))
+
+    @staticmethod
+    def _publication_since_reset() -> ColumnElement[bool]:
+        # Snapshots predating a reset remain immutable for audit and publication numbering.
+        return ~exists().where(
+            InitiativeWorkflowDO.budget_id == WorkspacePublicationDO.budget_id,
+            InitiativeWorkflowDO.draft_reset_revision > WorkspacePublicationDO.published_revision,
+        )
+
     async def publications_for(self, budget_id: int) -> list[WorkspacePublicationDO]:
         statement = (
             select(WorkspacePublicationDO)
-            .where(WorkspacePublicationDO.budget_id == budget_id)
+            .where(WorkspacePublicationDO.budget_id == budget_id, self._publication_since_reset())
             .order_by(WorkspacePublicationDO.publication_number.asc())
         )
         return list((await self.session.scalars(statement)).all())
@@ -134,7 +148,9 @@ class WorkspaceRepository:
                 order_by=(WorkspacePublicationDO.publication_number.desc(),
                           WorkspacePublicationDO.id.desc()),
             ).label("position"),
-        ).where(WorkspacePublicationDO.budget_id.in_(budget_ids)).subquery()
+        ).where(
+            WorkspacePublicationDO.budget_id.in_(budget_ids), self._publication_since_reset(),
+        ).subquery()
         return {item.budget_id: item for item in await self.session.scalars(
             select(WorkspacePublicationDO).join(ranked, ranked.c.id == WorkspacePublicationDO.id)
             .where(ranked.c.position == 1)
@@ -179,7 +195,9 @@ class WorkspaceRepository:
             ):
                 other.setdefault(reserve.budget_id, []).append(reserve)
         for publication in await self.session.scalars(
-            select(WorkspacePublicationDO).where(WorkspacePublicationDO.budget_id.in_(budget_ids))
+            select(WorkspacePublicationDO).where(
+                WorkspacePublicationDO.budget_id.in_(budget_ids), self._publication_since_reset(),
+            )
             .order_by(WorkspacePublicationDO.publication_number)
         ):
             publications.setdefault(publication.budget_id, []).append(publication)
@@ -224,7 +242,7 @@ class WorkspaceRepository:
             ids = ids.where(BudgetDO.owner_email == owner)
         latest = (
             select(func.max(WorkspacePublicationDO.id))
-            .where(WorkspacePublicationDO.budget_id.in_(ids))
+            .where(WorkspacePublicationDO.budget_id.in_(ids), self._publication_since_reset())
             .group_by(WorkspacePublicationDO.budget_id)
         )
         statement = select(WorkspacePublicationDO).where(WorkspacePublicationDO.id.in_(latest))

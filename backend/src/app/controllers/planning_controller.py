@@ -11,6 +11,7 @@ from app.dependencies.workbench_preview import get_effective_workbench_user
 from app.dependencies.workbench_user import WorkbenchUser
 from app.schemas.dto.planning import (
     DepartmentActionDTO,
+    PlanningVersionClearDraftsDTO,
     PlanningVersionCreateDTO,
     PlanningVersionDeleteDTO,
     PlanningVersionReleaseDTO,
@@ -53,6 +54,13 @@ async def release_version(
     version_id: str, payload: PlanningVersionReleaseDTO, session: Session, user: User
 ) -> ApiResponse[dict]:
     return success(await PlanningService(session, user).release(version_id, payload))
+
+
+@router.post("/planning-versions/{version_id}/clear-drafts", response_model=ApiResponse[dict])
+async def clear_drafts(
+    version_id: str, payload: PlanningVersionClearDraftsDTO, session: Session, user: User
+) -> ApiResponse[dict]:
+    return success(await PlanningService(session, user).clear_drafts(version_id, payload))
 
 
 @router.get("/planning-versions/{version_id}/deletion-info", response_model=ApiResponse[dict])

@@ -129,3 +129,5 @@ node backend/scripts/export_v19_prototype.cjs --source <V19.html> --playwright-m
 导出执行全部最终脚本覆盖，保留 `historySnapshot.manifest`，不会访问数据库或读取应用凭据；默认输出 `backend/tests/fixtures/v19_prototype_demo.json`。202612/202701 均属于2027规划年，项目键为 `versionId|initiativeId`；原型全局经销商池没有Sector，映射时必须说明本地组织身份展开，不能当作真实组织归属。导出原值的 Vol/合同为KL、历史金额为美元基本单位，进入现有模型时 Vol/合同需转L；规划金额为CNY。源JSON保留10月快照和两版0确认；本地seed另以 `derivedLocalPreparation` 记录通过正常PlanningService确认202612齐交部门的测试准备，202701保留22提交0确认。派生准备不改变纯源导出，也不进入远端PG。
 
 真实外部验收仍需应用身份、PG/Databricks 连接、授权数据与部署环境。历史 V19 的 696 项后端测试和 31 项 PG 隔离检查仅是当时版本证据，后续变更需重新选择验证范围；不能据此声称本次 shadcn 界面、真实 SSO 或 UAT 已通过。
+
+规划版本创建接口 `POST /planning-versions` 接受 `creation_mode: "empty"`，或 `creation_mode: "copy"` 并指定 `source_version_id`。管理员清空某个版本的全部草稿时调用 `POST /planning-versions/{version_id}/clear-drafts`，请求需包含 `expected_revision` 和 `confirmed: true`。部署前执行 Alembic `20261119_01`。该迁移添加可空 `data.initiative_workflows.draft_reset_revision`，记录最近一次清空时的项目修订号。升级本身不会清空草稿。已有版本执行过清空时，迁移会拒绝删除重置标记，以免旧提交重新进入当前方案。
