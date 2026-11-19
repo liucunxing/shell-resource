@@ -35,7 +35,7 @@ describe("V20 user profile", () => {
   ])("shows the %s scope without inventing an affiliation", (role, scope) => {
     const fields = Object.fromEntries(profileFields({ role }));
     expect(fields["授权范围"]).toBe(scope);
-    expect(fields["所属部门"]).toBe("未配置 · 历史费用明细不可见");
+    expect(fields["所属部门"]).toBe("-");
     expect(fields).not.toHaveProperty("用户 ID");
   });
   it("shows configured contacts, escapes account text and preserves missing states", () => {
