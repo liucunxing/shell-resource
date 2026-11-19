@@ -640,9 +640,8 @@ function EditorContent({
     errors,
     operation,
   });
-  const guard = (discardedRow = null) => {
-    const invalid = [...document.querySelectorAll('[data-unsaved-invalid="true"]')]
-      .find((input) => !discardedRow?.contains(input));
+  const guard = () => {
+    const [invalid] = document.querySelectorAll('[data-unsaved-invalid="true"]');
     if (invalid) {
       notify(
         invalid.dataset.invalidMessage || "有尚未保存的无效输入，请填写非负金额（最多两位小数）后继续。",
@@ -2415,12 +2414,11 @@ function EditorContent({
                               variant="destructive"
                               size="sm"
                               aria-label={`移除第 ${n + 1} 项预算安排`}
-                              onClick={(event) => {
-                                if (!guard(event.currentTarget.closest("tr"))) return;
+                              onClick={() =>
                                 update({
                                   otherBudgets: i.otherBudgets.filter((budget) => budget.id !== r.id),
-                                });
-                              }}
+                                })
+                              }
                             >
                               移除
                             </Button>
