@@ -170,7 +170,6 @@ export function SdAnalysis({
   showOwner = false,
   threshold = 3,
   redThreshold = 10,
-  metadata = {},
   sourceVersionId = "",
   sourceRevision,
   comparisonIdentity = "",
@@ -322,14 +321,7 @@ export function SdAnalysis({
           </TabsList>
         </Tabs>
         <span>历史参考</span>
-        <HistoryPeriodTabs value={period} onValueChange={setPeriod} ytdCutoffMonth={ytdCutoffMonth}>
-              <p>
-                Actual 最新月：
-                {metadata.actual?.latestMonth || "未提供"} · 历史费用最新月：
-                {metadata.investment?.latestMonth || "未提供"}。Sellin
-                按季度更新，实际覆盖以数据快照为准；更新频率不代表数据截止月。
-              </p>
-        </HistoryPeriodTabs>
+        <HistoryPeriodTabs value={period} onValueChange={setPeriod} showHelp={false} />
         <Tabs value={basis} onValueChange={setBasis}>
           <TabsList>
             <TabsTrigger value="vol">Vol</TabsTrigger>
