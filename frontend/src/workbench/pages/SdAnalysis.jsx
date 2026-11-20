@@ -321,7 +321,7 @@ export function SdAnalysis({
           </TabsList>
         </Tabs>
         <span>历史参考</span>
-        <HistoryPeriodTabs value={period} onValueChange={setPeriod} showHelp={false} />
+        <HistoryPeriodTabs value={period} onValueChange={setPeriod} />
         <Tabs value={basis} onValueChange={setBasis}>
           <TabsList>
             <TabsTrigger value="vol">Vol</TabsTrigger>

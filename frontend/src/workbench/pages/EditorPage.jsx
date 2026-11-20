@@ -314,19 +314,12 @@ function HistoryControls({
   onPeriodChange,
   metric,
   onMetricChange,
-  ytdCutoffMonth = 10,
   children,
 }) {
   return (
     <div className="v19-editor-history">
       <span>历史参考</span>
-      <HistoryPeriodTabs
-        value={period}
-        onValueChange={onPeriodChange}
-        ytdCutoffMonth={ytdCutoffMonth}
-      >
-        经销商 target 以 KL 展示；Phasing 直接读取源表对应年份的结果，1 表示 100%；源值缺失时显示 —。
-      </HistoryPeriodTabs>
+      <HistoryPeriodTabs value={period} onValueChange={onPeriodChange} />
       {onMetricChange && (
         <Tabs
           value={metric === "vol" ? "vol" : "c3"}
@@ -1195,14 +1188,14 @@ function EditorContent({
             [
               "预留不分配",
               totals.otherBudget,
-              "暂不分给经销商的钱；每笔需说明原因",
+              "暂不分配给经销商的预算，每笔需说明原因",
             ],
             [
               "当前已分配",
               totals.allocated,
-              "草稿中已分给经销商的钱，部门提交后管理层可见",
+              "草稿中已分配给经销商的预算，部门提交后管理层可见",
             ],
-            ["待分配", totals.gap, "还没安排的钱，可继续分配或填写原因后预留"],
+            ["待分配", totals.gap, "尚未安排的预算，可继续分配或填写原因后预留"],
           ].map(([label, value, note], index) => (
             <Card
               key={label}
@@ -1770,7 +1763,6 @@ function EditorContent({
                 </div>
                 {fillNotice && <MissingHistoryNotice {...fillNotice} />}
                 <HistoryControls
-                  ytdCutoffMonth={state.ytdCutoffMonth}
                   period={historyPeriod}
                   onPeriodChange={changeHistoryPeriod}
                   metric={historyMetric}
@@ -1847,7 +1839,6 @@ function EditorContent({
                     action={null}
                   >
                     <HistoryControls
-                      ytdCutoffMonth={state.ytdCutoffMonth}
                       period={historyPeriod}
                       onPeriodChange={changeHistoryPeriod}
                       metric={historyMetric}
