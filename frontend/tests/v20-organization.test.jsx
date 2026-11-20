@@ -1,7 +1,6 @@
 import { expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-// Tooltip portals are not mounted by SSR; expose their content to verify that
-// source coverage is propagated into the explanation, not the compact tab label.
+// Expose tooltip content in the server-rendered markup.
 vi.mock("../src/workbench/pages/MetricHelp", () => ({
   MetricHelp: ({ children }) => <aside data-testid="metric-explanation">{children}</aside>,
 }));
@@ -61,14 +60,12 @@ const items = [
   },
 ];
 
-it("preserves a confirmed or expired source period in organization controls", () => {
-  for (const month of [9, null]) {
-    const html = renderToStaticMarkup(<SdAnalysis items={items} dealers={dealers} ytdCutoffMonth={month} />);
-    expect(html).toContain(month === null ? "截止月待确认" : "1–9月");
-    expect(html).not.toContain("1–10月");
-    expect(html).toContain(">2026 YTD</button>");
-    expect(html).not.toMatch(/>2026 YTD（[^<]*<\/button>/);
-  }
+it.each([9, null])("keeps both period and metric choices without the organization period explanation (%s)", month => {
+  const html = renderToStaticMarkup(<SdAnalysis items={items} dealers={dealers} ytdCutoffMonth={month} />);
+  const controls = html.split('class="studio-inline-controls"')[1].split('class="studio-table-note"')[0];
+  for (const label of ["2025 全年", "2026 YTD", "Vol", "C3"])
+    expect(controls).toContain(`>${label}</button>`);
+  expect(controls).not.toContain("metric-explanation");
 });
 const read = (input = items, previous = null, groupBy = "sd") =>
   sdPresentationGroups(

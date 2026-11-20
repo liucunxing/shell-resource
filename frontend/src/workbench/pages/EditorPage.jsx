@@ -1748,7 +1748,6 @@ function EditorContent({
               ytdCutoffMonth={state.ytdCutoffMonth}
               items={[i]}
               dealers={dealers}
-              metadata={state.reference}
               threshold={state.healthThresholds?.dealerYellow ?? 3}
               sourceVersionId={state.planningVersion?.sourceVersionId}
               sourceRevision={state.planningVersions?.find(version => version.id === state.planningVersion?.sourceVersionId)?.revision}

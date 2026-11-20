@@ -549,7 +549,6 @@ function PortfolioDashboard({ mode }) {
             ytdCutoffMonth={state.ytdCutoffMonth}
             dealers={data.dealers}
             showOwner={mode === "department"}
-            metadata={state.reference}
             threshold={state.healthThresholds?.concentrationYellow ?? 5}
             redThreshold={state.healthThresholds?.concentrationRed ?? 10}
             sourceVersionId={state.planningVersion?.sourceVersionId}
