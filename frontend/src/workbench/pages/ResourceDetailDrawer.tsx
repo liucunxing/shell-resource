@@ -303,7 +303,6 @@ function ResourceDetailContent({
   items,
   dealers,
   sourceItems,
-  ytdCutoffMonth = 10,
   budgetReasons = [],
   onClose,
 }: Props) {
@@ -1114,7 +1113,6 @@ function ResourceDetailContent({
             <HistoryPeriodTabs
               value={period}
               onValueChange={setPeriod}
-              ytdCutoffMonth={ytdCutoffMonth}
             />
             <Tabs
               value={basis}

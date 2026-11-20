@@ -69,11 +69,10 @@ export const HistoryControls = ({
   setPeriod,
   basis,
   setBasis,
-  ytdCutoffMonth = 10,
 }) => (
   <div className="v19-local-history">
     <span>历史参考</span>
-    <HistoryPeriodTabs value={period} onValueChange={setPeriod} ytdCutoffMonth={ytdCutoffMonth} />
+    <HistoryPeriodTabs value={period} onValueChange={setPeriod} />
     <Tabs value={basis} onValueChange={setBasis}>
       <TabsList>
         <TabsTrigger value="vol">Vol</TabsTrigger>
@@ -715,7 +714,7 @@ export function V19Health({
         />
         <div className="v19-board-body">
           <HistoryControls
-            {...{ period, setPeriod, basis, setBasis, ytdCutoffMonth }}
+            {...{ period, setPeriod, basis, setBasis }}
           />
           <div className="v19-subpanel">
             <div className="v19-subpanel-heading">
@@ -1020,7 +1019,7 @@ export function V19Stack({
       </Heading>}
       <div className={embedded ? "v20-stack-module-body" : "v19-board-body"}>
         <HistoryControls
-          {...{ period, basis, ytdCutoffMonth }}
+          {...{ period, basis }}
           setPeriod={(value) => { setPeriod(value); setPage(1); }}
           setBasis={(value) => { setBasis(value); setSort(null); setPage(1); }}
         />

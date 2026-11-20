@@ -8,6 +8,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import engine from "./domain/engine.js";
 import "./user-profile.css";
 
 type ProfileIdentity = {
@@ -32,11 +33,12 @@ const roleNames: Record<string, string> = {
 };
 
 export function profileFields(identity: ProfileIdentity) {
-  const departments = Array.isArray(identity.department)
-    ? identity.department
-    : identity.department
-      ? [identity.department]
-      : [];
+  const departments: string[] = engine.departments(identity.department);
+  const homeDepartment = identity.affiliation_department?.trim();
+  const homeSector = identity.affiliation_sector?.trim();
+  const departmentLabel = homeDepartment
+    ? [homeSector, homeDepartment].filter(Boolean).join(" / ")
+    : departments.join("、");
   const assigned = identity.roles?.length ? identity.roles : [identity.role];
   const scope = assigned.map((role) => {
     if (role === "owner") return "本人负责的 Initiative";
@@ -58,12 +60,7 @@ export function profileFields(identity: ProfileIdentity) {
     ["当前身份", roleNames[identity.role] || identity.role],
     ["拥有角色", assigned.map((role) => roleNames[role] || role).join("、")],
     ["授权范围", scope.join("、")],
-    [
-      "所属部门",
-      identity.affiliation_sector && identity.affiliation_department
-        ? `${identity.affiliation_sector} / ${identity.affiliation_department}`
-        : "-",
-    ],
+    ["所属部门", departmentLabel || "-"],
   ];
 }
 
@@ -76,7 +73,7 @@ export function UserProfileDetails({
     <>
       <dl className="user-profile-details">
         {profileFields(identity).map(([label, value]) => (
-          <div key={label}>
+          <div key={label} className={label === "所属部门" && value === "-" ? "user-profile-empty-department" : undefined}>
             <dt>{label}</dt>
             <dd>{value}</dd>
           </div>

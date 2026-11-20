@@ -38,6 +38,10 @@
 .user-profile-details > div {
   min-width: 0;
 }
+.user-profile-empty-department {
+  justify-self: start;
+  text-align: center;
+}
 .user-profile-details dt {
   color: #657987;
   font-size: 13px;

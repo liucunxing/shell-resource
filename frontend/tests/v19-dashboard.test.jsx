@@ -55,7 +55,7 @@ const healthDealers = [
   },
 ];
 
-it("keeps confirmed or unknown coverage through the health and stacked views", () => {
+it("shows compact period choices without a coverage tooltip in the health and stacked views", () => {
   for (const month of [9, null]) {
     const html = renderToStaticMarkup(
       <V19Health
@@ -64,8 +64,8 @@ it("keeps confirmed or unknown coverage through the health and stacked views", (
         ytdCutoffMonth={month}
       />,
     );
-    const label = month === null ? "截止月待确认" : "1–9月";
-    expect(html.split(label).length - 1).toBeGreaterThanOrEqual(2);
+    expect(html).not.toContain("不自动年化");
+    expect(html.split(">2025 全年</button>").length - 1).toBeGreaterThanOrEqual(2);
     expect(html).not.toContain("1–10月");
     expect(html).toContain(">2026 YTD</button>");
     expect(html).not.toMatch(/>2026 YTD（[^<]*<\/button>/);
