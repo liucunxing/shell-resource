@@ -2535,7 +2535,7 @@ function EditorContent({
                   ? hasUnsavedChanges
                     ? "本页修改尚未保存"
                     : savedForSync
-                      ? "草稿已保存，可以提交"
+                      ? "草稿已保存"
                       : synchronizedRevision
                         ? "当前修订已提交"
                         : activeStep < 3 ? "下一步自动保存草稿" : "提交时自动保存草稿"
