@@ -306,13 +306,14 @@ it("rejects an amount import if another session changed the selected identities"
 });
 
 it("imports replacement rows using the current server revision instead of the local revision", async () => {
-  const rows = [{ dealerId: "D1", amount: 30 }];
+  const rows = [{ dealerId: "D2", amount: 0 }];
+  harness.getDraft.mockResolvedValueOnce(initiative);
   harness.context.mutate((state) => { state.initiatives[0].revision = 10; });
   render();
   harness.save.mockResolvedValueOnce({ ...initiative, rows, revision: 13 });
   await expect(harness.context.saveDraft("1", { rows, otherBudgets: [] }, undefined, true)).resolves.toBe(true);
   expect(harness.getDraft).toHaveBeenCalledWith("1");
-  expect(harness.save).toHaveBeenCalledWith("1", expect.objectContaining({ rows }), 12);
+  expect(harness.save).toHaveBeenCalledWith("1", expect.objectContaining({ rows }), initiative.revision);
   expect(render().state.initiatives[0]).toMatchObject({ revision: 13, rows });
 });
 

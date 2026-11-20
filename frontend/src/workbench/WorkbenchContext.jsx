@@ -590,9 +590,8 @@ export function WorkbenchProvider({ children }) {
       if (epoch !== sessionEpoch.current) return false;
       if (latest) {
         if (wasDraftCleared(current, latest)) throw new Error("管理员已清空本版草稿，请重新核对分配后导入。");
-        const selected = new Set(draft.rows.map(row => String(row.dealerId)));
-        if (selected.size !== latest.rows.length || latest.rows.some(row => !selected.has(String(row.dealerId)))) {
-          throw new Error("服务器上的经销商最终名单已变化，请核对名单后重新导入金额。");
+        if (latest.revision !== serverRevisions[id]) {
+          throw new Error("服务器上的草稿已变化，请刷新核对后重新导入方案。");
         }
       }
       const result = await api.saveDraft(
