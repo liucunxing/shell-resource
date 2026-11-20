@@ -601,16 +601,20 @@ function finishPreview(out, i, identity, scope) {
   const before = new Map(i.rows.map((r) => [r.dealerId, r])),
     after = new Map(out.rows.map((r) => [r.dealerId, r]));
   out.rows = out.rows.map(row => ({ ...before.get(row.dealerId), ...row }));
-  new Set([...before.keys(), ...after.keys()]).forEach((dealerId) => {
-    const a = before.get(dealerId),
-      b = after.get(dealerId);
-    if (!a || !b || a.amount !== b.amount || (a.note || "") !== (b.note || ""))
-      out.changes.push({
-        dealerId,
-        before: a ? { ...a } : null,
-        after: b ? { ...b } : null,
-      });
-  });
+  out.rosterEntries = [...new Set([...after.keys(), ...before.keys()])].map(dealerId => ({
+    dealerId,
+    before: before.get(dealerId) ?? null,
+    after: after.get(dealerId) ?? null,
+  }));
+  out.changes = out.rosterEntries.filter(({ before, after }) =>
+    !before || !after || before.amount !== after.amount || (before.note || "") !== (after.note || ""),
+  );
+  if (out.dealerOnly) {
+    out.summary.dealerBefore = engine.totals([i]).allocated;
+    const totals = engine.totals([{ ...i, rows: out.rows, otherBudgets: out.otherBudgets }]);
+    out.summary.dealerAfter = totals.allocated;
+    out.summary.otherBudget = totals.otherBudget;
+  }
   if (json(currentOther(i)) !== json(out.otherBudgets))
     out.changes.push({
       otherBudgets: true,
