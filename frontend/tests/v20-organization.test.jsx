@@ -149,7 +149,7 @@ it("RSM facts aggregate RSM membership and do not reuse SD names", () => {
   expect(groups.map((g) => g.key)).toEqual(["RSM-1", "RSM-2", "RSM-3"]);
 });
 
-it("renders the Step 3 summary in four groups with a project-list denominator and no missing baseline defaults", () => {
+it("renders the Step 3 summary without judgment or previous-version columns", () => {
   const html = renderToStaticMarkup(
     <SdAnalysis variant="editor" items={items} dealers={dealers} />,
   );
@@ -157,12 +157,12 @@ it("renders the Step 3 summary in four groups with a project-list denominator an
   expect([...heading.matchAll(/colSpan="(\d)"[^>]*>([^<]+)</gi)].map((m) => m.slice(1))).toEqual([
     ["4", "本次投资"],
     ["3", "历史 Actual · 2025 全年"],
-    ["3", "投资金额占比"],
+    ["2", "投资金额占比"],
   ]);
-  expect(heading).toContain(">较上版</th>");
+  expect(heading).not.toContain("较上版");
   expect(html).toContain("分配 / 名单");
   expect(html).toMatch(/data-column="count"[^>]*>2 \/ 2</);
-  expect(html).toMatch(/data-column="delta"[^>]*>—</);
+  expect(html).not.toMatch(/data-column="(?:delta|judgment)"|较上版|来源版本|判断（按偏离程度）/);
   expect(html).toContain("投资金额占比极差 80.0 pp");
   expect(html).toContain('data-series="investment" data-value="90"');
   expect(html).toContain('class="v20-share-value">90.0');

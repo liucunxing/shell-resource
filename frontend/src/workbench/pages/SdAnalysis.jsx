@@ -342,13 +342,13 @@ export function SdAnalysis({
         </Tabs>
 
       </div>
-      <p className="studio-table-note">
+      {!isEditor && <p className="studio-table-note">
         来源版本：{sourceVersionId || "无来源版本"}
         {sourceLoading ? " · 正在读取最后已提交快照…" : ""}。较上版 = 本版投资 −
         来源版最后已提交投资（万元）； 只比较同一 Initiative
-        集合，{isEditor ? "只对本版显示的组织比较。" : "保留本版已移除组织的上版投入。"}
-      </p>
-      {sourceError && (
+        集合，保留本版已移除组织的上版投入。
+      </p>}
+      {!isEditor && sourceError && (
         <Alert variant="destructive" className="note-box warn" role="alert">
           <AlertDescription>
             来源快照读取失败：{sourceError}；较上版金额暂不可比较。
