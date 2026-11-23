@@ -115,6 +115,7 @@ export function sdGroupsWithComparison(
   basis,
   period,
   masterDealers = dealers,
+  { includeSourceOnly = true } = {},
 ) {
   const sectors = new Set(items.map((item) => item.sector));
   const scopeDealers = masterDealers.filter((dealer) =>
@@ -136,6 +137,7 @@ export function sdGroupsWithComparison(
   );
   const byKey = new Map(groups.map((group) => [group.key, group]));
   for (const comparison of comparisons) {
+    if (!byKey.has(comparison.key) && !includeSourceOnly) continue;
     if (!byKey.has(comparison.key))
       byKey.set(comparison.key, {
         key: comparison.key,
@@ -167,6 +169,7 @@ export function SdAnalysis({
   items: allItems,
   variant = "portfolio",
   dealers,
+  masterDealers = dealers,
   showOwner = false,
   threshold = 3,
   redThreshold = 10,
@@ -177,11 +180,23 @@ export function SdAnalysis({
   budgetReasons = [],
 }) {
   const isEditor = variant === "editor";
-  const items = showOwner
+  const visibleItems = showOwner
     ? allItems.filter(
         (item) => item.workflow?.submitted ?? item.allocationVisible !== false,
       )
     : allItems;
+  // The editor's scope cards use the current active directory and current rows.
+  // Resolve the current organization the same way; source snapshots retain their
+  // own attribution for the optional comparison column.
+  const activeByIdentity = new Map(masterDealers.map((dealer) => [`${dealer.sector}:${dealer.id}`, dealer]));
+  const items = isEditor ? visibleItems.map((item) => ({
+    ...item,
+    selected: (item.rows || []).map((row) => row.dealerId),
+    rows: (item.rows || []).map((row) => {
+      const dealer = activeByIdentity.get(`${item.sector}:${row.dealerId}`);
+      return dealer ? { ...row, sd: dealer.sd || null, rsm: dealer.rsm || null } : row;
+    }),
+  })) : visibleItems;
   const id = useId().replaceAll(":", "");
   const [period, setPeriod] = useState("2025"),
     [basis, setBasis] = useState("c3"),
@@ -239,13 +254,10 @@ export function SdAnalysis({
     groupBy,
     basis,
     period,
-    dealers,
+    masterDealers,
+    { includeSourceOnly: !isEditor },
   );
-  const { groups, totals } = sdPresentationGroups(
-    isEditor
-      ? grouped.filter((group) => group.selectedCount || group.comparison?.previousAmount > 0)
-      : grouped,
-  );
+  const { groups, totals } = sdPresentationGroups(grouped);
   const facts = initiativeOrganizationFacts(
     items,
     dealers,
@@ -334,7 +346,7 @@ export function SdAnalysis({
         来源版本：{sourceVersionId || "无来源版本"}
         {sourceLoading ? " · 正在读取最后已提交快照…" : ""}。较上版 = 本版投资 −
         来源版最后已提交投资（万元）； 只比较同一 Initiative
-        集合，保留本版已移除组织的上版投入。
+        集合，{isEditor ? "只对本版显示的组织比较。" : "保留本版已移除组织的上版投入。"}
       </p>
       {sourceError && (
         <Alert variant="destructive" className="note-box warn" role="alert">
