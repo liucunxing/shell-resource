@@ -13,6 +13,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { DonutSegment } from "./BudgetDonut";
 
 export const RESOURCE_DETAIL_COLORS = DEFAULT_RESOURCE_COLORS;
 export const detailInitiativeColor = resolveInitiativeColor;
@@ -35,7 +36,7 @@ export function ResourceMixDonut({
   return (
     <figure className="resource-detail-donut">
       <figcaption>{title}</figcaption>
-      <svg
+      <TooltipProvider><svg
         viewBox="0 0 132 132"
         width="132"
         height="132"
@@ -55,21 +56,12 @@ export function ResourceMixDonut({
           const start = offset;
           offset += length;
           return (
-            <circle
+            <DonutSegment
               key={part.type}
-              cx="66"
-              cy="66"
-              r="51"
-              fill="none"
-              stroke={resourceColor(part.type)}
-              strokeWidth="20"
-              pathLength="100"
-              strokeDasharray={`${length} ${100 - length}`}
-              strokeDashoffset={-start}
-              transform="rotate(-90 66 66)"
-            >
-              <title>{`${part.type}：${((part.amount / total) * 100).toFixed(1)}%`}</title>
-            </circle>
+              center={66} radius={51} strokeWidth={20}
+              part={{ label: part.type, value: part.amount, color: resourceColor(part.type) }}
+              percent={length} start={start} text={`${part.type}：${length.toFixed(1)}%`}
+            />
           );
         })}
         <text
@@ -83,7 +75,7 @@ export function ResourceMixDonut({
         <text x="66" y="82" textAnchor="middle" className="resource-donut-unit">
           {unit}
         </text>
-      </svg>
+      </svg></TooltipProvider>
       {!total && <p className="resource-detail-note">暂无正向投资构成</p>}
     </figure>
   );
