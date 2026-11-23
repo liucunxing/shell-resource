@@ -58,7 +58,7 @@ class WorkspaceRepository:
         self,
         year: int,
         department: str | list[str] | tuple[str, ...] | None,
-        sector: str | None,
+        sector: str | tuple[str, ...] | None,
         owner: str | None,
         version_id: str | None = None,
     ) -> list[BudgetDO]:
@@ -67,8 +67,10 @@ class WorkspaceRepository:
         )
         if department is not None:
             statement = statement.where(BudgetDO.department.in_(departments(department)))
-        if sector:
-            statement = statement.where(BudgetDO.sector == sector)
+        if sector is not None:
+            statement = statement.where(
+                BudgetDO.sector.in_((sector,) if isinstance(sector, str) else sector)
+            )
         if owner:
             statement = statement.where(BudgetDO.owner_email == owner)
         return list((await self.session.scalars(statement.order_by(BudgetDO.id))).all())
@@ -78,7 +80,7 @@ class WorkspaceRepository:
         budget_id: int,
         planning_year: int | None,
         department: str | list[str] | tuple[str, ...] | None,
-        sector: str | None,
+        sector: str | tuple[str, ...] | None,
         owner_email: str | None,
         for_update: bool = False,
     ) -> BudgetDO | None:
@@ -87,8 +89,10 @@ class WorkspaceRepository:
             statement = statement.where(BudgetDO.planning_year == planning_year)
         if department is not None:
             statement = statement.where(BudgetDO.department.in_(departments(department)))
-        if sector:
-            statement = statement.where(BudgetDO.sector == sector)
+        if sector is not None:
+            statement = statement.where(
+                BudgetDO.sector.in_((sector,) if isinstance(sector, str) else sector)
+            )
         if owner_email:
             statement = statement.where(BudgetDO.owner_email == owner_email)
         if for_update:
@@ -207,7 +211,7 @@ class WorkspaceRepository:
         self,
         year: int,
         department: str | list[str] | tuple[str, ...] | None,
-        sector: str | None,
+        sector: str | tuple[str, ...] | None,
         owner: str | None,
         version_id: str | None = None,
     ) -> list[WorkspacePublicationDO]:
@@ -236,8 +240,8 @@ class WorkspaceRepository:
             ids = ids.where(BudgetDO.enabled.is_(True))
         if department is not None:
             ids = ids.where(BudgetDO.department.in_(departments(department)))
-        if sector:
-            ids = ids.where(BudgetDO.sector == sector)
+        if sector is not None:
+            ids = ids.where(BudgetDO.sector.in_((sector,) if isinstance(sector, str) else sector))
         if owner:
             ids = ids.where(BudgetDO.owner_email == owner)
         latest = (

@@ -57,3 +57,10 @@ it("requires explicit valid home affiliation for every role without using busine
   }
   expect(hasValidAffiliation({ affiliation_sector: "UNKNOWN", affiliation_department: "MKT" })).toBe(false);
 });
+
+
+it("keeps management Sector grants independent of the home department", () => {
+  expect(departmentAfterRoleChange("management", ["MKT"])).toEqual([]);
+  expect(sectorAfterRoleChange("management", ["PCMO", "OEM"])).toEqual(["PCMO", "OEM"]);
+  expect(toggleSectorSelection("management", ["PCMO"], "OEM")).toEqual(["PCMO", "OEM"]);
+});

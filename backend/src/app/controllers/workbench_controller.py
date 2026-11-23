@@ -1,7 +1,7 @@
 from typing import Annotated, Literal
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -56,6 +56,16 @@ def _workspace_service(session: AsyncSession, user: WorkbenchUser) -> WorkspaceS
 
 def _admin_service(session: AsyncSession, user: WorkbenchUser) -> AdminService:
     return AdminService(session, user)
+
+
+@router.get("/identity", response_model=ApiResponse[dict], summary="获取当前有效身份与授权范围")
+async def get_identity(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[WorkbenchUser, Depends(get_effective_workbench_user)],
+    response: Response,
+) -> ApiResponse[dict]:
+    response.headers["Cache-Control"] = "no-store"
+    return success(await _workspace_service(session, user).identity())
 
 
 @router.get("/workspace", response_model=ApiResponse[dict], summary="获取 V1.4 工作台投影")

@@ -143,7 +143,7 @@
 .v19-fidelity-shell .v20-organization-summary thead tr:nth-child(2) th { background:#fff4cd; }
 .v19-fidelity-shell .v20-organization-summary thead tr:nth-child(2) th.v20-actual { background:#dceff6 !important; }
 .v19-fidelity-shell .v20-organization-summary thead tr:nth-child(2) th:nth-child(n+8):nth-child(-n+10) { background:#e8f2e7; }
-.v19-fidelity-shell .v20-organization-summary thead tr:nth-child(2) th:last-child { background:#eee8f4; }
+.v19-fidelity-shell .v20-organization-summary thead tr:nth-child(2) th.v20-previous { background:#eee8f4; }
 .v19-fidelity-shell .v19-sd-analysis table:not(.v20-organization-summary) thead th { background:#d9e6ef; border-bottom:2px solid #9bb3c6; }
 .v19-sd-facts > section { display:grid; grid-template-columns:125px minmax(0,1fr); gap:14px; padding:14px; margin-bottom:12px; border:1px solid #dcccae; border-radius:6px; background:#fff; }
 .v20-fact-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }

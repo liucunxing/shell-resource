@@ -66,7 +66,7 @@ def test_every_role_and_explicit_override_stay_inside_home_department(role, depa
 def test_user_changes_require_explicit_home_affiliation_without_changing_authorized_scope(role):
     body = dict(email="new@example.com", display_name="New", role=role,
                 department=["ICE"] if role in {"owner", "lead"} else [],
-                sector=["PCMO"] if role in {"owner", "lead"} else [])
+                sector=["PCMO"] if role in {"owner", "lead", "management"} else [])
     with pytest.raises(ValidationError):
         AdminUserDTO(**body)
     payload = AdminUserDTO(**body, affiliation_sector="b2b", affiliation_department="mkt")

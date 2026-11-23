@@ -1,0 +1,8 @@
+{
+  "name": "resource-studio-business-uat",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Isolated browser acceptance journeys for Resource Studio",
+  "scripts": { "uat": "node cli.cjs" },
+  "dependencies": { "playwright": "1.64.1" }
+}

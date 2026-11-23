@@ -6,7 +6,8 @@ import { NativeSelect, NativeSelectOption } from "../../components/ui/native-sel
 import { DealerDetailButton } from "../DealerDetailAccess";
 import { useLegendColors, resolveInitiativeColor, resolveResourceColor } from "../LegendColors";
 export { InitiativeChip } from "../InitiativeChip";
-import { BudgetDonut } from "./BudgetDonut";
+import { BudgetDonut, DonutSegment } from "./BudgetDonut";
+import { TooltipProvider } from "../../components/ui/tooltip";
 import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
 import { MetricHelp } from "./MetricHelp";
 import { useState } from "react";
@@ -69,11 +70,10 @@ export const HistoryControls = ({
   setPeriod,
   basis,
   setBasis,
-  ytdCutoffMonth = 10,
 }) => (
   <div className="v19-local-history">
     <span>历史参考</span>
-    <HistoryPeriodTabs value={period} onValueChange={setPeriod} ytdCutoffMonth={ytdCutoffMonth} />
+    <HistoryPeriodTabs value={period} onValueChange={setPeriod} />
     <Tabs value={basis} onValueChange={setBasis}>
       <TabsList>
         <TabsTrigger value="vol">Vol</TabsTrigger>
@@ -715,7 +715,7 @@ export function V19Health({
         />
         <div className="v19-board-body">
           <HistoryControls
-            {...{ period, setPeriod, basis, setBasis, ytdCutoffMonth }}
+            {...{ period, setPeriod, basis, setBasis }}
           />
           <div className="v19-subpanel">
             <div className="v19-subpanel-heading">
@@ -1020,7 +1020,7 @@ export function V19Stack({
       </Heading>}
       <div className={embedded ? "v20-stack-module-body" : "v19-board-body"}>
         <HistoryControls
-          {...{ period, basis, ytdCutoffMonth }}
+          {...{ period, basis }}
           setPeriod={(value) => { setPeriod(value); setPage(1); }}
           setBasis={(value) => { setBasis(value); setSort(null); setPage(1); }}
         />
@@ -1034,8 +1034,8 @@ export function V19Stack({
           <div className="v20-stack-distributions" aria-label="投资资源大类构成对比">
             {[ [over, overTotal, over.length, "超配部分"], [rows, total, rows.length, "全部名单"] ].map(([set, sum, count, title]) => {
               let cursor = 0;
-              const segments = types.map(type => { const start=cursor; cursor += sum > 0 ? distribution(set,type)/sum*100 : 0; return `${resourceColor(type)} ${start}% ${cursor}%`; });
-              return <div className="v20-stack-donut-wrap" key={title}><div className="v20-stack-donut" style={{background: sum > 0 ? `conic-gradient(${segments.join(",")})` : "#dce5eb"}} role="img" aria-label={`${title} ${count} 家，按投资金额展示资源大类构成`}><div><strong>{count} 家</strong><small>{title}</small></div></div></div>;
+              const segments = types.map(type => { const amount = distribution(set, type), percent = sum > 0 ? amount / sum * 100 : 0, start = cursor; cursor += percent; return { type, amount, percent, start }; });
+              return <div className="v20-stack-donut-wrap" key={title}><div className="v20-stack-donut" role="img" aria-label={`${title} ${count} 家，按投资金额展示资源大类构成`}><TooltipProvider><svg viewBox="0 0 112 112" width="112" height="112" style={{position: "absolute", inset: 0}}><circle cx="56" cy="56" r="47" fill="none" stroke="#dce5eb" strokeWidth="18" />{segments.filter(segment => segment.percent > 0).map(segment => <DonutSegment key={segment.type} center={56} radius={47} strokeWidth={18} part={{label: segment.type, value: segment.amount, color: resourceColor(segment.type)}} percent={segment.percent} start={segment.start} text={`${segment.type}：${n(segment.amount / 10000)} 万元 · ${segment.percent.toFixed(1)}%`} />)}</svg></TooltipProvider><div><strong>{count} 家</strong><small>{title}</small></div></div></div>;
             })}
             <div className="v20-stack-legend">{types.map(type=><div key={type}><Dot color={resourceColor(type)} /><Button variant="link" onClick={()=>setSelected({type:"resource",resourceType:type,period,basis})}>{type}</Button><span>{pct(overTotal ? distribution(over,type)/overTotal*100 : null)} vs {pct(total ? distribution(rows,type)/total*100 : null)}</span></div>)}<small>超配部分 vs 全部名单</small></div>
           </div>

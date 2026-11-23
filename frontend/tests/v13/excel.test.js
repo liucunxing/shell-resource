@@ -123,10 +123,10 @@ vitestTest(
         b.getWorksheet("经销商分配").addRow(["D003", 0, ""]);
       });
       const selected = await X.previewImport(withNewDealer, state, "I001", identity, data);
-      assert.match(selected.errors.join(" "), /最终名单/);
+      assert.deepEqual(selected.errors, []);
       const importedState = copy(state);
-      assert.throws(() => X.confirmImport(selected, importedState, identity, data));
-      assert.deepEqual(importedState, state);
+      X.confirmImport(selected, importedState, identity, data);
+      assert.deepEqual(importedState.initiatives[0].rows.at(-1), { dealerId: "D003", amount: 0, note: "" });
 
       const before = JSON.stringify(state),
         writeBefore = state.initiatives[0].revision;

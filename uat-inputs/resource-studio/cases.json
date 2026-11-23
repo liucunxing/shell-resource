@@ -1,0 +1,215 @@
+{
+  "schemaVersion": 1,
+  "project": "resource-studio",
+  "suiteVersion": 2,
+  "title": "资源投资工具全员业务验收",
+  "journeys": [
+    {
+      "id": "user-entry",
+      "title": "每个人进入自己的工作台",
+      "roles": ["owner", "lead", "management", "admin"],
+      "steps": ["identity-scope", "admin-scope"]
+    },
+    {
+      "id": "prepare-and-submit",
+      "title": "各部门从项目草稿走到 Owner 提交",
+      "roles": ["owner", "lead"],
+      "steps": ["department-incomplete", "owner-allocation", "owner-backtrack", "owner-submit-feedback", "owner-resubmit", "dealer-export"]
+    },
+    {
+      "id": "department-handoff",
+      "title": "负责人确认，Owner 锁定，管理层看已确认投入",
+      "roles": ["lead", "owner", "management"],
+      "steps": ["department-confirm", "owner-lock", "management-confirmed"]
+    },
+    {
+      "id": "withdraw-and-reconfirm",
+      "title": "各部门依次撤回、修改并重新确认",
+      "roles": ["lead", "owner", "management"],
+      "steps": ["department-withdraw", "management-withdrawn", "owner-reopen", "department-reconfirm", "management-restored"]
+    }
+  ],
+  "cases": [
+    {
+      "id": "identity-scope",
+      "action": "identity-scope",
+      "impact": "用户可能进入错误的工作入口、漏看本人项目或看到其他人的项目。",
+      "title": "逐人核对身份与工作入口",
+      "actors": ["owner", "lead", "management", "admin"],
+      "priority": "critical",
+      "steps": ["对当轮名单逐人打开工作台。", "核对页面显示的用户及该身份的业务入口。"],
+      "expected": "每位启用用户进入本人对应的工作台，无项目的 Owner 看到空项目范围。停用测试身份不出现在选择清单，工作台的只读请求应被拒绝。不能完成的账号逐个说明原因。"
+    },
+    {
+      "id": "admin-scope",
+      "action": "admin-scope",
+      "impact": "管理员无法核对当前版本或用户配置，部门问题难以定位。",
+      "title": "管理员进入管理后台查看配置",
+      "actors": ["admin"],
+      "priority": "standard",
+      "steps": ["以本轮每位管理员身份打开管理后台。", "查看配置入口。"],
+      "expected": "管理员可以辨认并进入管理界面。此旅程只需查看。"
+    },
+    {
+      "id": "department-incomplete",
+      "action": "department-incomplete",
+      "impact": "负责人可能把缺少项目的部门方案提前提交给管理层。",
+      "title": "项目还未齐交，负责人检查部门进度",
+      "actors": ["lead"],
+      "priority": "critical",
+      "steps": ["在仍有项目待提交时，负责人打开部门方案。", "检查此时是否可以向管理层确认部门方案。"],
+      "expected": "部门有应交项目尚未提交时，负责人无法确认该部门。"
+    },
+    {
+      "id": "owner-allocation",
+      "action": "owner-allocation",
+      "impact": "Owner 无法完成分配，或未配平的项目金额进入部门方案。",
+      "title": "Owner 核对预算与预留、选择经销商、拆分并提交",
+      "actors": ["owner", "lead"],
+      "priority": "critical",
+      "steps": ["逐一进入本人负责的启用项目，核对预算并设置一笔预留。", "在所属业务线选择两家 Active 经销商，金额分配给其中一家，另一家保留零元。", "先输入部分金额，查看提交入口及原因提示，再配平并提交。"],
+      "expected": "预算未配平时，提交入口禁用且提供原因。配平后提交成功，零元经销商仍在最终名单内。兼任 Owner 的负责人也按项目归属参加。"
+    },
+    {
+      "id": "owner-backtrack",
+      "action": "owner-backtrack",
+      "impact": "Owner 折返修改后可能丢失草稿，或按过期的名单和预留继续拆分。",
+      "title": "拆分中途折返，调整预留与经销商",
+      "actors": ["owner", "lead"],
+      "priority": "critical",
+      "parameters": {"samplePerScope": 1},
+      "steps": ["在各业务线与部门组合抽取项目，先填一部分分配并保存草稿。", "折返第一步，新增、修改、删除预留。进入第二步，增加并移除经销商。", "回到拆分步骤，保存后刷新，核对实际保留的名单、预留和分配。"],
+      "expected": "未配平时可保存草稿，折返和刷新后仍保留调整结果。剩余金额等于项目预算减去最终预留和经销商分配。"
+    },
+    {
+      "id": "owner-submit-feedback",
+      "action": "owner-submit-feedback",
+      "title": "半额草稿保存后，提示与提交按钮一致",
+      "actors": ["owner", "lead"],
+      "priority": "critical",
+      "impact": "Owner 可能把尚未配平的草稿误认为已经可以提交，停止分配后耽误部门齐交。",
+      "steps": ["在每个抽中项目只拆分部分预算，保留待分配余额，点击保存草稿。", "在同一页面核对待分配金额、提交按钮状态和按钮附近的状态文字。"],
+      "expected": "有剩余预算时可以保存草稿，提交按钮禁用，页面能说明暂不可提交。草稿保存成功的提示不能同时声称该项目可以提交。"
+    },
+    {
+      "id": "owner-resubmit",
+      "action": "owner-resubmit",
+      "impact": "Owner 修改后，部门负责人可能收到旧方案或误以为项目已经齐交。",
+      "title": "部门确认前，Owner 修改已提交的项目并重提",
+      "actors": ["owner", "lead"],
+      "priority": "critical",
+      "steps": ["在部门确认之前重新打开已提交项目。", "修改分配并保存，再次配平并提交。"],
+      "expected": "Owner 可在部门确认前编辑并重新提交。新提交成为部门评审依据。"
+    },
+    {
+      "id": "dealer-export",
+      "action": "dealer-export",
+      "impact": "Owner 下载的经销商清单或金额可能与系统不同，影响线下核对和交接。",
+      "title": "名单、试算、刷新与两份 Excel 逐行核对",
+      "actors": ["owner", "lead"],
+      "priority": "critical",
+      "steps": ["抽取已配平的两家经销商，一家保留零元。在第二步下载名单 Excel，核对编码、名称、状态与金额。", "在第三步采用 Vol 试算，核对名单和可分配预算，保存后刷新并重开项目。", "逐行核对恢复的试算结果。撤销试算恢复原金额，下载完整金额 Excel，与最终名单逐行核对并重新提交。"],
+      "expected": "试算、保存后重开、名单导出及金额导出中的经销商与最终名单一致。采用试算后金额配平，撤销后恢复原金额，原有零元行保留在两个文件中。"
+    },
+    {
+      "id": "department-confirm",
+      "action": "department-confirm",
+      "impact": "齐交的方案可能无法提交，或负责人确认的金额与 Owner 最新提交不一致。",
+      "title": "各部门负责人确认齐交的项目",
+      "actors": ["lead"],
+      "priority": "critical",
+      "steps": ["核对本部门适用项目的提交状态。", "齐交后，由有权限的负责人将部门方案提交至管理层。"],
+      "expected": "提交成功的部门进入已确认状态。"
+    },
+    {
+      "id": "owner-lock",
+      "action": "owner-lock",
+      "impact": "部门确认后 Owner 仍可能改动方案，使部门评审与后续执行依据不同。",
+      "title": "部门提交后，Owner 查看已锁定的方案",
+      "actors": ["owner", "lead"],
+      "priority": "critical",
+      "steps": ["用负责该项目的身份重新进入已确认部门的工作台。", "检查该项目的编辑和提交入口。"],
+      "expected": "已确认部门的项目仍可查看，Owner 不能继续编辑提交。"
+    },
+    {
+      "id": "management-confirmed",
+      "action": "management-confirmed",
+      "impact": "管理层可能依据漏计、多计的投入或错误的预算做决策。",
+      "title": "管理层第一次核对部门确认后的投入",
+      "actors": ["management"],
+      "priority": "critical",
+      "steps": ["在管理层工作台查看预算与已确认投入。", "按可见范围分别汇总全部项目预算及已确认部门的经销商分配，核对看板金额。"],
+      "expected": "管理层预算等于可见范围内的项目预算合计。已确认投入等于其中已获部门确认的经销商分配合计。"
+    },
+    {
+      "id": "department-withdraw",
+      "action": "department-withdraw",
+      "impact": "负责人不能撤回需要修改的方案，或撤回时影响其他部门。",
+      "title": "负责人撤回本部门方案",
+      "actors": ["lead"],
+      "priority": "critical",
+      "steps": ["依次由各部门负责人撤回已确认的本部门方案。", "每次只撤回当前部门，保留其他已确认部门作为对照。"],
+      "expected": "目标部门退出已确认状态，其他部门原有确认状态保留。"
+    },
+    {
+      "id": "management-withdrawn",
+      "action": "management-withdrawn",
+      "impact": "管理层可能把已撤回的方案继续计入投入，或漏看其他已确认部门。",
+      "title": "管理层核对撤回期间的投入",
+      "actors": ["management"],
+      "priority": "critical",
+      "steps": ["重新读取管理层看板。", "核对总预算，再仅汇总仍处于确认状态的部门，核对已确认投入。"],
+      "expected": "总预算保持原数。撤回部门的经销商分配退出管理层已确认投入，其余已确认部门的投入继续计入。"
+    },
+    {
+      "id": "owner-reopen",
+      "action": "owner-reopen",
+      "impact": "部门撤回后 Owner 仍无法改投，或原有项目需要重复填报。",
+      "title": "撤回后，Owner 修改项目并重新提交",
+      "actors": ["owner", "lead"],
+      "priority": "critical",
+      "steps": ["由撤回部门的项目 Owner 返回工作台。", "修改方案，保存草稿，配平后再次提交。"],
+      "expected": "撤回后项目恢复编辑，Owner 能把修改后的分配重新交给部门负责人。"
+    },
+    {
+      "id": "department-reconfirm",
+      "action": "department-reconfirm",
+      "impact": "修改后的方案无法重新提交，或负责人沿用撤回前的旧金额。",
+      "title": "负责人再次确认部门方案",
+      "actors": ["lead"],
+      "priority": "critical",
+      "steps": ["负责人重新核对本部门齐交状态。", "将本轮更新后的部门方案再次确认。"],
+      "expected": "负责人可在齐交后再次确认，使用本次最新的项目提交。"
+    },
+    {
+      "id": "management-restored",
+      "action": "management-restored",
+      "impact": "管理层可能看不到最新投入，或把同一部门新旧两次提交重复计算。",
+      "title": "管理层核对部门重提后的最终投入",
+      "actors": ["management"],
+      "priority": "critical",
+      "steps": ["重新打开管理层看板。", "核对总预算，用该部门修改后的分配和其他已确认部门的分配重新计算合计。"],
+      "expected": "总预算保持原数。最终已确认投入等于最新确认快照的合计，每个部门只计一次。"
+    }
+  ],
+  "reviewCases": [
+    {
+      "id": "deployed-identity",
+      "title": "部署环境的真实身份与授权",
+      "steps": ["从授权目录取得本轮应验人员清单。", "逐个在已获准使用的真实会话中打开工作台，核对所属部门、可见项目和角色。"],
+      "expected": "用获授权的真实会话核对本人身份、部门和可见范围，并对照该环境完整用户清单记录未验证的账号。"
+    },
+    {
+      "id": "legacy-closed",
+      "title": "历史草稿中已关闭经销商的金额回到待分配",
+      "steps": ["载入含 Closed 经销商既有分配的隔离样本，记录该金额和其他经销商原金额。", "以项目 Owner 重新打开项目，对比最终名单、待分配余额及其余分配。"],
+      "expected": "旧版 Closed 经销商退出名单时，其原金额回到待分配，其他经销商金额保持原值。"
+    },
+    {
+      "id": "ux-feedback",
+      "title": "业务人员能否凭页面提示完成下一步",
+      "steps": ["Owner 预算尚未配平时，记录用户可见的原因文字和差额。", "项目未齐交时，以负责人身份查看部门页面，记录寻找待提交项目和相应人员的实际路径。", "依据截图或可复现动作说明具体障碍及影响。"],
+      "expected": "记录具体用户、页面、执行动作、实际提示及影响。例如负责人在部门未齐交时应能找到待提交项目和负责人，Owner 看到预算未配平时应能判断差额。"
+    }
+  ]
+}

@@ -181,7 +181,7 @@ export function V19DealerDetails({
       </div>
       <div className="v19-board-body">
         <HistoryControls
-          {...{ period, setPeriod, basis, setBasis, ytdCutoffMonth }}
+          {...{ period, setPeriod, basis, setBasis }}
         />
         <div className="studio-table-toolbar">
           {showColumnJumps && <div className="v19-dealer-jumps">

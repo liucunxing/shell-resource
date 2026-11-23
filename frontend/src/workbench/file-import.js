@@ -1,3 +1,5 @@
+import { assertAuthorizedRead, authorizedReadEpoch } from "./identity-scope";
+
 function runFileWorker(payload, transfer = []) {
   return new Promise((resolve, reject) => {
     if (typeof Worker === "undefined") {
@@ -35,5 +37,9 @@ function runFileWorker(payload, transfer = []) {
 export const previewExcelInWorker = (kind, buffer, ...args) =>
   runFileWorker({ kind, buffer, args }, [buffer]);
 
-export const exportExcelInWorker = (kind, ...args) =>
-  runFileWorker({ operation: "export", kind, args });
+export const exportExcelInWorker = async (kind, ...args) => {
+  const epoch = authorizedReadEpoch();
+  const result = await runFileWorker({ operation: "export", kind, args });
+  assertAuthorizedRead(epoch);
+  return result;
+};

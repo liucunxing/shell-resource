@@ -23,6 +23,7 @@ import { useEffect, useMemo, useState } from "react";
 import * as api from "../api.js";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import { compareVersionGroups } from "../domain/portfolio-analytics.js";
+import { identityScopeKey } from "../identity-scope";
 import { submittedVersionItems } from "../domain/version-baseline.js";
 
 const money = (value) =>
@@ -57,7 +58,7 @@ export function VersionComparison({ executive }) {
     setLoading(false);
     if (!left || !right || left === right) return;
     setLoading(true);
-  }, [left, right, identity.email, identity.role]);
+  }, [left, right, identityScopeKey(identity)]);
   useEffect(() => {
     if (!left || !right || left === right) return;
     return readWhileMounted(async active => {
@@ -72,7 +73,7 @@ export function VersionComparison({ executive }) {
       if ([401, 403, 404].includes(failure.status)) setResult(null);
       setLoading(false);
     } });
-  }, [left, right, identity.email, identity.role, leftRevision, rightRevision]);
+  }, [left, right, identityScopeKey(identity), leftRevision, rightRevision]);
   const rows = useMemo(
     () =>
       result

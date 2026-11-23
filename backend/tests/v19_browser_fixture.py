@@ -81,7 +81,7 @@ async def seed(session) -> None:
                 display_name=f"本地验收 {name}",
                 role=role,
                 department=[department] if role in {"owner", "lead"} else [],
-                sector=["PCMO"] if role in {"owner", "lead"} else [],
+                sector=["PCMO"] if role in {"owner", "lead", "management"} else [],
                 enabled=True,
                 affiliation_sector="PCMO",
                 affiliation_department=department,

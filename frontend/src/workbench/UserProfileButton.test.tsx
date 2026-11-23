@@ -30,7 +30,7 @@ describe("V20 user profile", () => {
   it.each([
     ["owner", "本人负责的 Initiative"],
     ["admin", "系统配置"],
-    ["management", "全部 Sector / 部门"],
+    ["management", "业务线范围未配置"],
     ["lead", "部门范围未配置"],
   ])("shows the %s scope without inventing an affiliation", (role, scope) => {
     const fields = Object.fromEntries(profileFields({ role }));
@@ -38,10 +38,20 @@ describe("V20 user profile", () => {
     expect(fields["所属部门"]).toBe("-");
     expect(fields).not.toHaveProperty("用户 ID");
   });
+  it("reads account departments when home affiliation is missing", () => {
+    expect(Object.fromEntries(profileFields({ role: "owner", department: ["ICE"] }))["所属部门"]).toBe("ICE");
+    expect(Object.fromEntries(profileFields({
+      role: "lead", sectors: ["PCMO", "OEM"], department: ["MKT", "", "ICE", "MKT"],
+    }))["所属部门"]).toBe("MKT、ICE");
+    expect(Object.fromEntries(profileFields({
+      role: "admin", affiliation_department: "CAPEX",
+    }))["所属部门"]).toBe("CAPEX");
+  });
   it("shows configured contacts, escapes account text and preserves missing states", () => {
     const missing = renderToStaticMarkup(
       <UserProfileDetails identity={{ role: "owner" }} />,
     );
+    expect(missing).toContain('class="user-profile-empty-department"><dt>所属部门</dt><dd>-</dd>');
     expect(missing).toContain("管理员联系方式尚未配置");
     const rendered = renderToStaticMarkup(
       <UserProfileDetails
@@ -62,4 +72,11 @@ describe("V20 user profile", () => {
       'aria-label="测试，Initiative Owner，查看个人信息"',
     );
   });
+});
+
+
+it("shows explicit management grants even when home affiliation differs", () => {
+  const fields = Object.fromEntries(profileFields({ role: "management", sectors: ["PCMO", "OEM"], affiliation_sector: "B2B", affiliation_department: "ICE" }));
+  expect(fields["授权范围"]).toBe("PCMO、OEM / 全部部门");
+  expect(fields["所属部门"]).toBe("B2B / ICE");
 });

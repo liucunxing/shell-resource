@@ -48,6 +48,7 @@ def version_view(version: PlanningVersionDO) -> dict:
 
 class PlanningService:
     def __init__(self, session: AsyncSession, user: WorkbenchUser) -> None:
+        user.require_data_scope()
         self.session, self.user = session, user
         self.repository = WorkspaceRepository(session)
 
@@ -131,8 +132,10 @@ class PlanningService:
         return states
 
     def permitted(self, budget: BudgetDO) -> bool:
-        if self.user.role in {"admin", "management"}:
+        if self.user.role == "admin":
             return True
+        if self.user.role == "management":
+            return budget.sector in self.user.sectors
         return (
             budget.department in self.user.departments
             and budget.sector in self.user.sectors

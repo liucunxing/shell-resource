@@ -41,6 +41,7 @@ async def preview_api(request, harness: Harness):
         ),
         UserPermissionDO(
             email="management@example.com", role="management", display_name="管理层", enabled=True,
+            sector=["PCMO"],
         ),
     ])
     await harness.db.commit()
@@ -188,6 +189,7 @@ async def test_every_request_rechecks_actor_and_target_permissions(preview_api, 
         permission.enabled = False
     elif change == "demoted":
         permission.role = "management"
+        permission.sector = ["PCMO"]
     else:
         await api.db.delete(permission)
     await api.db.commit()
@@ -265,3 +267,23 @@ async def test_preview_cannot_launch_data_agent(preview_api):
     response = await api.client.post(api.prefix + "/data-agent/launch", headers=api.headers())
     # Neither V20 entry mounts the retired embedded Data Agent controller.
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_identity_preview_checks_target_sector_grants(preview_api):
+    api = preview_api
+    response = await api.client.get(
+        api.prefix + "/identity", headers=api.headers("management@example.com"),
+    )
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json()["data"]["sectors"] == ["PCMO"]
+    permission = await api.db.scalar(select(UserPermissionDO).where(
+        UserPermissionDO.email == "management@example.com",
+    ))
+    permission.sector = []
+    await api.db.commit()
+    response = await api.client.get(
+        api.prefix + "/identity", headers=api.headers("management@example.com"),
+    )
+    assert response.status_code == 403
