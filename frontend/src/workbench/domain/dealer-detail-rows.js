@@ -1,5 +1,5 @@
 import { portfolioRows } from "./portfolio-analytics.js";
-import { historyPhasing, historyInvestment, historyYield } from "./dealer-history";
+import { historyInvestment, historyYield, historyPhasing } from "./dealer-history";
 
 const ratio = (value, total) =>
   value != null && total > 0 ? (value / total) * 100 : null;

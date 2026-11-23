@@ -1,3 +1,4 @@
+import { wholeMetric } from "../domain/metric-precision";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -153,10 +154,10 @@ export function AdminImportPanel({ kind }) {
       // The refreshed roles reload the users list; a second invalidation here
       // would repeat that request after the full workspace refresh.
       if (!await refresh({ preservePage: true })) {
-        notify(`已导入 ${preview.items.length} 条${title}，但刷新失败，请重新加载后继续。`, true);
+        notify(`已导入 ${wholeMetric(preview.items.length)} 条${title}，但刷新失败，请重新加载后继续。`, true);
         return;
       }
-      notify(`已导入 ${preview.items.length} 条${title}。`);
+      notify(`已导入 ${wholeMetric(preview.items.length)} 条${title}。`);
     } catch (failure) {
       if (request === sequence.current)
         setError(importErrorMessage(failure, preview.rowNumbers));
@@ -206,10 +207,10 @@ export function AdminImportPanel({ kind }) {
           }}
           onConfirm={confirm}
           disabled={!preview.checked || Boolean(preview.errors.length)}
-          confirmLabel={`确认导入 ${preview.items.length} 条`}
+          confirmLabel={`确认导入 ${wholeMetric(preview.items.length)} 条`}
         >
           <p>
-            {preview.filename} · {preview.total}{" "}
+            {preview.filename} · {wholeMetric(preview.total)}{" "}
             条记录。确认后整批写入；未列出的现有记录保持不变。
           </p>
           {kind === "initiatives" && (
@@ -233,7 +234,7 @@ export function AdminImportPanel({ kind }) {
                   </p>
                 ))}
                 {preview.errors.length > 100 && (
-                  <p>共{preview.errors.length}处错误，显示前100处。</p>
+                  <p>共{wholeMetric(preview.errors.length)}处错误，显示前100处。</p>
                 )}
               </AlertDescription>
             </Alert>
@@ -242,7 +243,7 @@ export function AdminImportPanel({ kind }) {
             <p role="status">
               服务端整批校验通过。
               {kind === "users" &&
-                `新增 ${preview.summary.created} 人，更新 ${preview.summary.updated} 人。`}
+                `新增 ${wholeMetric(preview.summary.created)} 人，更新 ${wholeMetric(preview.summary.updated)} 人。`}
               点击确认后保存。
             </p>
           )}
@@ -290,7 +291,7 @@ export function AdminImportPanel({ kind }) {
             </TableBody>
           </Table>
           {preview.items.length > 100 && (
-            <p>预览显示前100条，确认会导入全部{preview.items.length}条。</p>
+            <p>预览显示前100条，确认会导入全部{wholeMetric(preview.items.length)}条。</p>
           )}
         </WorkflowDialog>
       )}

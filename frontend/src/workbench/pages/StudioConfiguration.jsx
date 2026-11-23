@@ -1,6 +1,7 @@
 import { AdminLegendColors } from "./AdminLegendColors";
 import { DepartmentLabel, useLegendColors } from "../LegendColors";
 import { Card } from "../../components/ui/card";
+import { wholeMetric } from "../domain/metric-precision";
 import {
   Table,
   TableHeader,
@@ -323,7 +324,7 @@ function OrganizationReferencePanels({ metadata, items, dealers }) {
                 <div key={value}>
                   <span>{key === "department" ? <DepartmentLabel name={value} /> : key === "resourceType" ? <span className="legend-department-label"><i aria-hidden="true" style={{ background: resourceColor(value) }} />{value}</span> : value}</span>
                   <small>
-                    {items.filter((item) => item[key] === value).length} 个项目
+                    {wholeMetric(items.filter((item) => item[key] === value).length)} 个项目
                   </small>
                 </div>
               ))}
@@ -370,12 +371,12 @@ function OrganizationReferencePanels({ metadata, items, dealers }) {
           {[...sdCounts].map(([sd, count]) => (
             <div key={sd}>
               <span>{sd}</span>
-              <small>{count} 家</small>
+              <small>{wholeMetric(count)} 家</small>
             </div>
           ))}
         </div>
         <p className="small-text muted">
-          当前已加载数据范围，共 {dealerKeys.size} 家；不代表完整主数据覆盖。
+          当前已加载数据范围，共 {wholeMetric(dealerKeys.size)} 家；不代表完整主数据覆盖。
         </p>
       </Card>
     </>

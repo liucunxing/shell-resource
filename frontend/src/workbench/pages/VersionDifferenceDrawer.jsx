@@ -1,3 +1,4 @@
+import { wholeMetric } from "../domain/metric-precision";
 import { DealerDetailButton } from "../DealerDetailAccess";
 import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
 import { useEffect, useRef, useState } from "react";
@@ -27,13 +28,7 @@ import "../resource-detail.css";
 const keyOf = (item) => String(item.initiativeKey || item.id);
 const sum = (values) =>
   values.reduce((total, value) => total + (Number(value) || 0), 0);
-const money = (value) =>
-  value == null
-    ? "不可比较"
-    : (Number(value) / 10000).toLocaleString("zh-CN", {
-        minimumFractionDigits: 1,
-        maximumFractionDigits: 1,
-      });
+const money = (value) => value == null ? "不可比较" : wholeMetric(Number(value));
 const change = (value) =>
   value == null
     ? "不可比较"
@@ -199,7 +194,7 @@ export function VersionDifferenceDrawer({
           <SheetTitle>{current.name || current.key} · 版本差异</SheetTitle>
           <SheetDescription>
             {previousVersion} → {currentVersion} ·
-            两个版本各自最后已提交快照；金额单位为万元。
+            两个版本各自最后已提交快照；金额单位为元。
           </SheetDescription>
         </header>
         <div className="resource-detail-content">
@@ -222,7 +217,7 @@ export function VersionDifferenceDrawer({
                   <TableHead>项目</TableHead>
                   <TableHead>{previousVersion}</TableHead>
                   <TableHead>{currentVersion}</TableHead>
-                  <TableHead>变化（万元）</TableHead>
+                  <TableHead>变化（元）</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -244,7 +239,7 @@ export function VersionDifferenceDrawer({
                   ["预留", data.left.reserve, data.right.reserve],
                 ].map(([label, a, b]) => (
                   <TableRow key={label}>
-                    <TableHead>{label}（万元）</TableHead>
+                    <TableHead>{label}（元）</TableHead>
                     <TableCell sortValue={a}>{money(a)}</TableCell>
                     <TableCell sortValue={b}>{money(b)}</TableCell>
                     <TableCell sortValue={a == null || b == null ? null : b - a}>
@@ -264,7 +259,7 @@ export function VersionDifferenceDrawer({
                     <TableHead>Initiative</TableHead>
                     <TableHead>{previousVersion} 投资</TableHead>
                     <TableHead>{currentVersion} 投资</TableHead>
-                    <TableHead>变化（万元）</TableHead>
+                    <TableHead>变化（元）</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -308,7 +303,7 @@ export function VersionDifferenceDrawer({
                   <TableHead>版本</TableHead>
                   <TableHead>Initiative</TableHead>
                   <TableHead>原因 / 说明</TableHead>
-                  <TableHead>金额（万元）</TableHead>
+                  <TableHead>金额（元）</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -350,7 +345,7 @@ export function VersionDifferenceDrawer({
           </section>
           <section className="resource-detail-section">
             <div className="resource-detail-heading">
-              <h3>经销商前后投入（{data.dealers.length} 家）</h3>
+              <h3>经销商前后投入（{wholeMetric(data.dealers.length)} 家）</h3>
               <Input
                 aria-label="查找版本差异经销商"
                 value={query}
@@ -367,9 +362,9 @@ export function VersionDifferenceDrawer({
                     <TableHead>Sector</TableHead>
                     <TableHead>{previousVersion} SD / RSM</TableHead>
                     <TableHead>{currentVersion} SD / RSM</TableHead>
-                    <TableHead>来源投资（万元）</TableHead>
-                    <TableHead>本版投资（万元）</TableHead>
-                    <TableHead>变化（万元）</TableHead>
+                    <TableHead>来源投资（元）</TableHead>
+                    <TableHead>本版投资（元）</TableHead>
+                    <TableHead>变化（元）</TableHead>
                     <TableHead>说明前后</TableHead>
                   </TableRow>
                 </TableHeader>

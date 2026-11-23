@@ -191,7 +191,7 @@ export function MissingHistoryNotice({ metricLabel, unavailable, hasHistory }) {
         </ul>
         {unavailable.length > 1 && (
           <Button type="button" variant="link" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
-            {expanded ? "收起" : `展示全部（${unavailable.length} 家）`}
+            {expanded ? "收起" : `展示全部（${wholeMetric(unavailable.length)} 家）`}
           </Button>
         )}
         {!hasHistory && <p>全部经销商均无量，可分配预算保留为未分配差额。</p>}
@@ -976,8 +976,7 @@ function EditorContent({
         ? [{ ...i, rows: detail.previewRows }]
         : [i];
   const weightedPhasing = aggregateHistoryPhasing(
-    i.rows.map((row) => dealerMeta(row.dealerId).history),
-    historyPeriod,
+    i.rows.map((row) => dealerMeta(row.dealerId).history), historyPeriod,
   ).ratio;
   const allocationValue = (row, key) => {
     const dealer = dealerMeta(row.dealerId),
@@ -1031,9 +1030,7 @@ function EditorContent({
         ? "—"
         : fmt(value)
       : key === "phasing"
-        ? value == null
-          ? "—"
-          : wholeMetric(value * 100)
+        ? value == null ? "—" : wholeMetric(value * 100)
         : key === "gapVol" || key === "gapC3"
           ? value == null
             ? "—"
@@ -1256,14 +1253,14 @@ function EditorContent({
                         0,
                       );
                       return total > 0
-                        ? `${((picked.reduce((sum, dealer) => sum + Number(dealer.history[key]), 0) / total) * 100).toFixed(1)}%`
+                        ? `${fmt((picked.reduce((sum, dealer) => sum + Number(dealer.history[key]), 0) / total) * 100)}%`
                         : "—";
                     };
                     return (
                       <div key={sd}>
                         <b>{sd}</b>
                         <p>
-                          已选 {picked.length} / {all.length} 家
+                          已选 {wholeMetric(picked.length)} / {wholeMetric(all.length)} 家
                         </p>
                         <small>
                           2025 · Vol 覆盖 {coverage("vol2025")} · C3 覆盖{" "}
@@ -1337,7 +1334,7 @@ function EditorContent({
                           <span className="inline-flex items-center gap-2">
                             <Checkbox
                               className="scope-select-all"
-                              aria-label={`全选筛选结果（${scopeDealers.length} 家，含所有页）`}
+                              aria-label={`全选筛选结果（${wholeMetric(scopeDealers.length)} 家，含所有页）`}
                               disabled={!editable || !scopeDealers.length}
                               checked={(() => {
                                 const selectedIds = new Set(i.rows.map((row) => String(row.dealerId)));
@@ -1383,7 +1380,7 @@ function EditorContent({
                       </TableRow>
                       <TableRow>
                         {["2025", "2026Ytd"].map((period) =>
-                          ["Vol（KL）", "C3（K$）", "Phasing（%）", "Yield"].map(
+                          ["Vol（KL）", "C3（K$）", "Vol Phasing（%）", "Yield"].map(
                             (label) => (
                               <TableHead className="num" key={period + label}>
                                 {label}
@@ -1499,14 +1496,8 @@ function EditorContent({
                                     ], 1000,
                                   )}
                                 </TableCell>
-                                <TableCell
-                                  className="num"
-                                  sortValue={historyPhasing(h, period)}
-                                  title="Phasing 直接读取源表对应年份的结果，1 表示 100%；不因 target 确认状态隐藏源值"
-                                >
-                                  {historyPhasing(h, period) == null
-                                    ? "—"
-                                    : wholeMetric(historyPhasing(h, period) * 100)}
+                                <TableCell className="num" sortValue={historyPhasing(h, period)}>
+                                  {historyPhasing(h, period) == null ? "—" : wholeMetric(historyPhasing(h, period) * 100)}
                                 </TableCell>
                                 <TableCell
                                   className="num"
@@ -1563,7 +1554,7 @@ function EditorContent({
                                 }
                               >
                                 {otherInitiatives(dealer.id).length
-                                  ? `${otherInitiatives(dealer.id).length} 项 · ${fmt(otherInitiatives(dealer.id).reduce((sum, entry) => sum + entry.row.amount, 0) / 10000)} 万`
+                                  ? `${wholeMetric(otherInitiatives(dealer.id).length)} 项 · ${wholeMetric(otherInitiatives(dealer.id).reduce((sum, entry) => sum + entry.row.amount, 0))} 元`
                                   : "—"}
                               </DealerDetailButton>
                             </TableCell>
@@ -1574,7 +1565,7 @@ function EditorContent({
                   </Table>
                 </div>
                 <div className="table-footer">
-                  <span>显示 {scopeDealers.length} 家 · 每页 20 行</span>
+                  <span>显示 {wholeMetric(scopeDealers.length)} 家 · 每页 20 行</span>
                   <div className="actions">
                     <Button
                       variant="outline"
@@ -1608,7 +1599,7 @@ function EditorContent({
                 <div className="panel-header">
                   <div>
                     <h2 id="selected-roster-title">
-                      最终名单 · {selectedScopeRows.length} 家
+                      最终名单 · {wholeMetric(selectedScopeRows.length)} 家
                     </h2>
                     <p className="small-text muted">
                       已选经销商（仅 Active），不受上方搜索、SD / RSM
@@ -1713,7 +1704,7 @@ function EditorContent({
                     <TableFooter>
                       <TableRow>
                         <TableCell colSpan={5}>
-                          合计 · {selectedScopeRows.length} 家
+                          合计 · {wholeMetric(selectedScopeRows.length)} 家
                         </TableCell>
                         <TableCell className="num">
                           {wholeMetric(
@@ -1881,19 +1872,19 @@ function EditorContent({
                             <h3>{label}</h3>
                             <p>{note}</p>
                             <strong>
-                              {i.rows.length} 家 ·{" "}
+                              {wholeMetric(i.rows.length)} 家 ·{" "}
                               {wholeMetric(Math.max(0, i.budget - totals.otherBudget))} 元
                             </strong>
                             <p>
                               {trial?.hasHistory
-                                ? `${trial.rows.filter((row) => row.amount > 0).length} 家获配 · ${trial.unavailable.length} 家无有效历史`
+                                ? `${wholeMetric(trial.rows.filter((row) => row.amount > 0).length)} 家获配 · ${wholeMetric(trial.unavailable.length)} 家无有效历史`
                                 : "缺少有效历史，暂不可采用"}
                             </p>
                             <p>
                               Top 20% 投资 /{" "}
                               {historyMetric === "vol" ? "Delivery Vol" : "C3"}{" "}
                               偏离：
-                              {impact ? `${impact.gap.toFixed(1)} pp` : "—"}
+                              {impact ? `${fmt(impact.gap)} pp` : "—"}
                             </p>
                             <Button
                               variant="outline"
@@ -1950,15 +1941,7 @@ function EditorContent({
               </section>
               <div className="v19-allocation-toolbar">
               <div className="v19-ratio-legend">
-                <span title="Phasing 仅对同年源 target 大于 0 且源 Phasing 有值的经销商加权；缺失或非正权重不参与，结果仅代表有效数据范围。无有效数据时显示 —；单家直接展示源值。">
-                  加权平均 Phasing{" "}
-                  <b>
-                    {weightedPhasing == null
-                      ? "—"
-                      : `${wholeMetric(weightedPhasing * 100)}%`}{" "}
-                    ↑
-                  </b>
-                </span>
+                <span>加权平均 Vol Phasing <b>{weightedPhasing == null ? "—" : `${wholeMetric(weightedPhasing * 100)}%`}</b></span>
                 <span title="Yield = 名单 C3（美元）合计 ÷ 同期间历史投资（美元）合计，历史投资已按配置汇率统一为美元；不平均各家比率，数据不完整或 YTD 覆盖未知时显示 —。">
                   加权平均 Yield{" "}
                   <b>
@@ -2079,7 +2062,7 @@ function EditorContent({
                           <span className="inline-flex items-center gap-2">
                             <Checkbox
                               className="scope-select-all"
-                              aria-label={`全选配平筛选结果（${allocationFiltered.length} 家，含所有页）`}
+                              aria-label={`全选配平筛选结果（${wholeMetric(allocationFiltered.length)} 家，含所有页）`}
                               disabled={!allocationFiltered.length}
                               checked={(() => {
                                 const count = allocationFiltered.filter((row) => balanceIds.includes(row.dealerId)).length;
@@ -2295,7 +2278,7 @@ function EditorContent({
               </div>
               <div className="v19-allocation-pagination">
                 <span>
-                  显示 {allocationFiltered.length} / {i.rows.length} 家 ·
+                  显示 {wholeMetric(allocationFiltered.length)} / {wholeMetric(i.rows.length)} 家 ·
                   占比分母按完整名单中的有效值合计，缺失行不视为零；加权值按完整名单计算
                 </span>
                 <div>
@@ -2699,7 +2682,7 @@ function EditorContent({
                       <TableRow>
                         <TableHead>Initiative</TableHead>
                         <TableHead>资源大类</TableHead>
-                        <TableHead>金额</TableHead>
+                        <TableHead>金额（元）</TableHead>
                         <TableHead>本项目投资占比（%）</TableHead>
                         <TableHead>说明</TableHead>
                       </TableRow>
@@ -2748,7 +2731,7 @@ function EditorContent({
             {modal.type === "balance" && (
               <>
                 <p>
-                  待分配 {wholeMetric(modal.pending)} 元将在已勾选的 {balanceIds.length}{" "}
+                  待分配 {wholeMetric(modal.pending)} 元将在已勾选的 {wholeMetric(balanceIds.length)}{" "}
                   家经销商之间均摊；余数按当前金额降序、编码升序逐家分配。
                 </p>
                 <div className="table-scroll">
@@ -2805,7 +2788,7 @@ function EditorContent({
                   {modal.name} ·{" "}
                   {modal.preview.errors.length
                     ? "存在错误，不能写入"
-                    : `导入后共 ${modal.preview.rows.length} 家，新增 ${importCounts.新增} 家、修改 ${importCounts.修改} 家、删除 ${importCounts.删除} 家。${modal.roster || modal.preview.dealerOnly ? "预留及其他预算保持原金额。" : "其他预算按文件更新。"}`}
+                    : `导入后共 ${wholeMetric(modal.preview.rows.length)} 家，新增 ${wholeMetric(importCounts.新增)} 家、修改 ${wholeMetric(importCounts.修改)} 家、删除 ${wholeMetric(importCounts.删除)} 家。${modal.roster || modal.preview.dealerOnly ? "预留及其他预算保持原金额。" : "其他预算按文件更新。"}`}
                 </p>
                 {modal.preview.errors.length > 0 && (
                   <ul className="import-errors">

@@ -38,6 +38,11 @@ it("keeps pp bars, full-roster denominators, units, signed expenses and zero ver
  expect(text(cells(tree,"phasing")[0])).toBe("0");
  expect(text(cells(tree,"phasing")[1])).toBe("—");
 });
+it.each([true, false])("shows Vol Phasing in the stack table in embedded mode %s", embedded => {
+ const tree = render({items, dealers, embedded});
+ expect(text(headers(tree).find(node => node.props["data-column"] === "phasing"))).toContain("Vol Phasing（%）");
+ expect(cells(tree, "phasing")).toHaveLength(3);
+});
 it("rounds displayed volume to whole KL without changing their source",()=>{
  const history=dealers[0].history;
  const previous=history.vol2025;

@@ -71,7 +71,6 @@ describe("V19 SD presentation", () => {
       historicalVol: 4000,
       historicalC3: 1000,
       historicalInvestment: 500,
-      phasing: 0.5,
       historicalYield: 2,
     });
   });
@@ -97,16 +96,11 @@ describe("V19 SD presentation", () => {
         ...dealer, history: { ...dealer.history, contract2025: target },
       } : dealer);
       const { groups, totals } = summary(source);
-      expect(groups.find((group) => group.key === "西区").phasing).toBe(0.5);
       expect(totals.historicalVol).toBe(4000);
       if (target === null) {
         expect(totals.contractVolume).toBeNull();
-        expect(totals.phasing).toBeNull();
       } else {
         expect(totals.contractVolume).toBe(6000 + target);
-        expect(totals.phasingVolume).toBe(3000);
-        expect(totals.phasingTarget).toBe(6000);
-        expect(totals.phasing).toBe(0.5);
       }
     }
   });
@@ -129,22 +123,21 @@ describe("V19 SD presentation", () => {
     );
     for (const label of [
       "分配 / 全部",
-      "投资金额（万元）",
-      "客均（万元）",
+      "投资金额（元）",
+      "客均（元）",
       "Delivery Vol 占比",
       "C3 占比",
       "占比对照图",
-      "较上版",
-      "增减金额（万元）",
       "参照：本部门叠加",
       "最大偏离",
       "合计",
     ])
       expect(html).toContain(label);
-    expect(html).toContain(">4.5</b>");
+    expect(html).toContain(">45,000</b>");
     expect(html).not.toContain("PPP");
     expect(html).not.toContain("待配置");
     expect(html).not.toContain("未提交草稿");
+    expect(html).not.toMatch(/较上版|判断（按偏离程度）|增减金额（万元）/);
     expect(html).not.toMatch(/>\d+(?:\.\d+)?x</);
     expect(html).toContain("仅改金额不会改变历史 Actual");
     expect(html).not.toContain("名单覆盖率");

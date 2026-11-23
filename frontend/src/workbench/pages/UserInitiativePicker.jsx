@@ -1,3 +1,4 @@
+import { wholeMetric } from "../domain/metric-precision";
 import { useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Checkbox } from "../../components/ui/checkbox";
@@ -93,7 +94,7 @@ export function UserInitiativePicker({
         <summary aria-label="选择负责 Initiative">
           <span>
             {chosen.length
-              ? `已选 ${chosen.length} 项 · ${chosen.map((item) => item.name).join("、")}`
+              ? `已选 ${wholeMetric(chosen.length)} 项 · ${chosen.map((item) => item.name).join("、")}`
               : "选择负责的 Initiative"}
           </span>
           <ChevronDown size={16} aria-hidden="true" />

@@ -51,7 +51,7 @@ export function allocationColumnGroups(
         ...(splitDealerIdentity
           ? [["code", "经销商编码"], ["name", "经销商名称"], ["status", "状态"]] as [string, string][]
           : [["name", "经销商 / 编码"]] as [string, string][]),
-        ["amount", editable ? "分配金额（元）" : "累计投资金额（万元）"],
+        ["amount", editable ? "分配金额（元）" : "累计投资金额（元）"],
       ],
     },
     {
@@ -87,7 +87,7 @@ export function allocationColumnGroups(
       columns: [
         ["vol", "Delivery Vol（KL）"],
         ["c3", "Actual C3（K$）"],
-        ["phasing", "Phasing（%）"],
+        ["phasing", "Vol Phasing（%）"],
       ],
     },
     {

@@ -91,10 +91,6 @@ def history_manifest(
         "当前范围没有可用的经销商target源值。"
         if target["sourceFieldsPresent"] else "经销商同期target（合同量）待接入。"
     )
-    target_note += (
-        "经销商Phasing直接读取源表phasing_2025/phasing_2026；"
-        "源值缺失时不重算；汇总按同年源target正值加权。"
-    )
     effective_month = (
         actual_month if coverage else None if coverage_confirmation_status == "expired"
         else ytd_cutoff_month

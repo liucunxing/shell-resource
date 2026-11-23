@@ -1,4 +1,5 @@
 import { compactColumnLabel } from "../domain/allocation-detail";
+import { wholeMetric } from "../domain/metric-precision";
 import { useMemo, useState } from "react";
 import {
   useReactTable,
@@ -6,7 +7,6 @@ import {
   getSortedRowModel,
 } from "@tanstack/react-table";
 import { Button } from "../../components/ui/button";
-import { Badge } from "../../components/ui/badge";
 import {
   Table,
   TableHeader,
@@ -28,15 +28,6 @@ const value = (n, scale = 1) =>
 const percent = (n) => (n == null ? "—" : `${value(n)}%`);
 const difference = (n) =>
   n == null ? "—" : `${n > 0 ? "+" : n < 0 ? "−" : ""}${value(Math.abs(n))} pp`;
-const moneyChange = (n) => {
-  if (n == null) return "—";
-  const amount = Math.abs(n) / 10000;
-  const sign = n > 0 ? "+" : n < 0 ? "−" : "";
-  return `${sign}${amount.toLocaleString("zh-CN", {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  })}`;
-};
 
 export function HistoricalShareChart({ vol, c3, scale, investment }) {
   const series = [
@@ -82,17 +73,16 @@ export function V20OrganizationSummary({
   groupBy,
   period,
   ytdCutoffMonth = 10,
-  basis,
   threshold,
   redThreshold,
-  sourceVersionId,
   rowId,
   highlight,
   onOpen,
 }) {
   const isSelectedScope = countScope === "selected";
+  const planningAmount = (amount) => wholeMetric(amount);
   const formatCount = (group) =>
-    `${group.allocatedCount} / ${isSelectedScope ? group.selectedCount : group.totalCount}`;
+    `${wholeMetric(group.allocatedCount)} / ${wholeMetric(isSelectedScope ? group.selectedCount : group.totalCount)}`;
   const [sorting, setSorting] = useState([]);
   const columns = useMemo(
     () => [
@@ -118,10 +108,8 @@ export function V20OrganizationSummary({
             : undefined,
       },
       { id: "history-chart", accessorFn: (g) => g.amountShare ?? undefined },
-      { id: "judgment", accessorFn: (g) => g.amountShare != null && (basis === "vol" ? g.volShare : g.c3Share) != null ? Math.abs(g.amountShare - (basis === "vol" ? g.volShare : g.c3Share)) : undefined },
-      { id: "delta", accessorFn: (g) => g.comparison?.delta ?? undefined },
     ],
-    [basis],
+    [],
   );
   const table = useReactTable({
     data: groups,
@@ -215,14 +203,13 @@ export function V20OrganizationSummary({
               <TableHead colSpan={3} scope="colgroup" className="v20-actual">
                 历史 Actual · {period === "2025" ? "2025 全年" : "2026 YTD"}
               </TableHead>
-              <TableHead colSpan={isSelectedScope ? 2 : 3} scope="colgroup">投资金额占比</TableHead>
-              {!isSelectedScope && <TableHead className="v20-previous">较上版</TableHead>}
+              <TableHead colSpan={2} scope="colgroup">投资金额占比</TableHead>
             </TableRow>
             <TableRow>
               {[
                 ["count", isSelectedScope ? "分配 / 名单" : "分配 / 全部"],
-                ["amount", "投资金额（万元）"],
-                ["average", "客均（万元） · 偏离均值（%）"],
+                ["amount", "投资金额（元）"],
+                ["average", "客均（元） · 偏离均值（%）"],
                 ["investment-share", "投资金额占比（%）"],
               ].map(([field, title]) => head(field, title, "num"))}
               {head("vol-share", "Delivery Vol 占比（%）", "num v20-actual")}
@@ -230,8 +217,6 @@ export function V20OrganizationSummary({
               {head("history-chart", "占比对照图（%）", "v20-actual", undefined, `刻度 0–${scale}%`)}
               {head("vs-vol", "vs Delivery Vol（pp）", "num")}
               {head("vs-c3", "vs C3（pp）", "num")}
-              {!isSelectedScope && head("judgment", "判断（按偏离程度）")}
-              {!isSelectedScope && head("delta", "增减金额（万元）", "num v20-previous")}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -244,7 +229,6 @@ export function V20OrganizationSummary({
                 g.amountShare != null && g.c3Share != null
                   ? g.amountShare - g.c3Share
                   : null;
-              const gap = basis === "vol" ? gapVol : gapC3;
               const averageDeviation =
                 g.average != null && totals.average > 0
                   ? (g.average / totals.average - 1) * 100
@@ -265,11 +249,11 @@ export function V20OrganizationSummary({
                     </Button>
                   </TableHead>
                   {cell("count", formatCount(g))}
-                  {cell("amount", <b>{value(g.amount, 10000)}</b>)}
+                  {cell("amount", <b>{planningAmount(g.amount)}</b>)}
                   {cell(
                     "average",
                     <>
-                      {value(g.average, 10000)}
+                      {planningAmount(g.average)}
                       <small>
                         {averageDeviation == null
                           ? "—"
@@ -296,35 +280,12 @@ export function V20OrganizationSummary({
                     "vs-c3",
                     <b data-level={level(gapC3)}>{difference(gapC3).replace(/ pp$/, "")}</b>,
                   )}
-                  {!isSelectedScope && <TableCell data-column="judgment">
-                    <Badge
-                      data-level={level(gap)}
-                      variant={
-                        level(gap) === "bad" ? "destructive" : "secondary"
-                      }
-                    >
-                      {gap == null
-                        ? g.rows?.length
-                          ? "暂无可比产出"
-                          : "本版未覆盖"
-                        : Math.abs(gap) <= threshold
-                          ? "匹配"
-                          : gap > 0
-                            ? "投资偏多"
-                            : "投资偏少"}
-                    </Badge>
-                  </TableCell>}
-                  {!isSelectedScope && cell(
-                    "delta",
-                    moneyChange(g.comparison?.delta),
-                    "v20-previous",
-                  )}
                 </TableRow>
               );
             })}
             {!groups.length && (
               <TableRow>
-                <TableCell colSpan={isSelectedScope ? 10 : 12} className="empty">
+                <TableCell colSpan={10} className="empty">
                   当前范围暂无经销商名单。
                 </TableCell>
               </TableRow>
@@ -334,8 +295,8 @@ export function V20OrganizationSummary({
             <TableRow>
               <TableHead>合计</TableHead>
               {cell("count", formatCount(totals))}
-              {cell("amount", value(totals.amount, 10000))}
-              {cell("average", value(totals.average, 10000))}
+              {cell("amount", planningAmount(totals.amount))}
+              {cell("average", planningAmount(totals.average))}
               {cell("investment-share", totals.amount > 0 ? "100.0" : "—")}
               {cell(
                 "vol-share",
@@ -352,12 +313,7 @@ export function V20OrganizationSummary({
                   <small>投资金额占比极差 {investmentRange == null ? "—" : `${value(investmentRange)} pp`}</small>
                 )}
               </TableCell>
-              <TableCell colSpan={isSelectedScope ? 2 : 3} />
-              {!isSelectedScope && cell(
-                "delta",
-                moneyChange(totals.comparison.delta),
-                "v20-previous",
-              )}
+              <TableCell colSpan={2} />
             </TableRow>
           </TableFooter>
         </Table>
@@ -385,9 +341,6 @@ export function V20OrganizationSummary({
           : "全部 = 当前授权 Sector 范围内该组织的全部经销商。"}
         历史产出按当前名单去重，包含零投资经销商；仅改金额不会改变历史 Actual 的数值。
         {"三条柱均显示实际占比，全表使用统一刻度，按投资、Vol、C3 的最大占比向上取整至 10% 调整上限。"}
-        {!isSelectedScope && <>较上版按同一 Initiative 集合比较，保留移除组织的上版投入；
-          {sourceVersionId ? `来源版本 ${sourceVersionId}` : "没有来源版本时显示 —"}。
-        </>}
       </p>
     </>
   );

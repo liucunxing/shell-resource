@@ -258,7 +258,7 @@ it("renders the executive budget composition ring and the complete resource cate
   );
   expect(html).toContain("资源大类预算构成");
   expect(html).toContain("各资源大类预算占比");
-  expect(html).toContain("未确认（万元）");
+  expect(html).toContain("未确认（元）");
   expect(html).toContain("分配进度");
   expect(html).toContain("获配经销商");
   expect(html).not.toContain("拆分依据");
