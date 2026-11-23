@@ -5,6 +5,14 @@ from typing import Any
 
 RESOURCE_TYPES = ("MRD", "SP&A", "ICE Rebate", "Capex")
 SECTORS = ("PCMO", "CRTO", "B2B", "OEM")
+def valid_management_sectors(value: object) -> bool:
+    return (
+        isinstance(value, (list, tuple)) and 1 <= len(value) <= len(SECTORS)
+        and all(isinstance(item, str) and item in SECTORS for item in value)
+        and len(value) == len(set(value))
+    )
+
+
 AFFILIATION_DEPARTMENTS = ("MKT", "ICE", "CAPEX")
 
 

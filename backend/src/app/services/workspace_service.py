@@ -45,6 +45,7 @@ class WorkspaceService:
         user: WorkbenchUser,
         directory_service: DistributorDirectory | None = None,
     ) -> None:
+        user.require_data_scope()
         self.session = session
         self.user = user
         self.repository = WorkspaceRepository(session)
@@ -99,6 +100,7 @@ class WorkspaceService:
             for budget in budgets:
                 workflow = workflows[budget.id]
                 history = history_by_budget.get(budget.id, [])
+                history = [p for p in history if self._publication_in_scope(p)]
                 publication = history[-1] if history else None
                 visible = (
                     self.user.role in {"owner", "admin"}
@@ -163,6 +165,7 @@ class WorkspaceService:
             publications = await self.repository.latest_publications(
                 planning_year, department, sector, owner
             )
+            publications = [p for p in publications if self._publication_in_scope(p)]
             initiatives = [self._publication(item)["initiative"] for item in publications]
         else:
             budgets = await self.repository.list_budgets(planning_year, department, sector, owner)
@@ -508,7 +511,10 @@ class WorkspaceService:
             if not workflow["submitted"]:
                 return []
             item = await self.session.get(WorkspacePublicationDO, int(workflow["publicationId"]))
-            result = [self._publication(item)] if item is not None else []
+            result = (
+                [self._publication(item)]
+                if item is not None and self._publication_in_scope(item) else []
+            )
             return await self._project_legacy_publications(result)
         if self.user.role == "management" and not budget.planning_version_id:
             exists = await self.session.scalar(
@@ -520,7 +526,13 @@ class WorkspaceService:
                 return []
         return await self._project_legacy_publications([
             self._publication(item) for item in await self.repository.publications_for(budget_id)
+            if self._publication_in_scope(item)
         ])
+
+    def _publication_in_scope(self, publication: WorkspacePublicationDO) -> bool:
+        return self.user.role != "management" or (
+            publication.snapshot.get("initiative", {}).get("sector") in self.user.sectors
+        )
 
     async def _project_legacy_publications(self, publications: list[dict]) -> list[dict]:
         initiatives = await self._project_legacy_items([
@@ -683,14 +695,19 @@ class WorkspaceService:
             )
         return budget.department in self.user.departments
 
-    def _scope(self) -> tuple[tuple[str, ...] | None, str | None, str | None]:
+    def _scope(
+        self,
+    ) -> tuple[tuple[str, ...] | None, tuple[str, ...] | None, str | None]:
         if self.user.role == "owner":
             return self.user.departments, None, self.user.email
         if self.user.role == "lead":
             return self.user.departments, None, None
         if self.user.role == "management":
-            return None, None, None
+            return None, self.user.sectors, None
         return None, None, None
+
+    async def identity(self) -> dict:
+        return await self._profile_identity()
 
     async def _profile_identity(self) -> dict:
         permission = await self.repository.get_permission(self.user.email)

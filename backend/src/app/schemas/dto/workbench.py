@@ -112,8 +112,10 @@ class AdminUserDTO(BaseModel):
             raise ValueError("Owner 必须配置一条业务线")
         if self.role == "lead" and not 1 <= len(self.sector) <= 4:
             raise ValueError("部门负责人必须配置一至四条业务线")
-        if self.role in {"management", "admin"} and self.sector:
-            raise ValueError("管理层和管理员不配置业务线")
+        if self.role == "management" and not 1 <= len(self.sector) <= 4:
+            raise ValueError("管理层必须配置一至四条业务线")
+        if self.role == "admin" and self.sector:
+            raise ValueError("管理员不配置业务线")
         return self
 
 

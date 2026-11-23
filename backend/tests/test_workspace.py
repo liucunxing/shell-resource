@@ -181,7 +181,9 @@ async def test_role_read_boundaries() -> None:
         await lead.save_draft(1, InitiativeDraftUpdateDTO(expected_revision=0))
     assert denied.value.status_code == 403
     for role in ("management", "admin"):
-        service = _workspace_service(session, WorkbenchUser("x@example.com", role, "MKT", "X"))
+        service = _workspace_service(
+            session, WorkbenchUser("x@example.com", role, "MKT", "X", ("PCMO",)),
+        )
         if role == "admin":
             assert (await service.get_draft(1))["id"] == "1"
         else:
@@ -199,6 +201,7 @@ async def test_admin_and_management_keep_all_dealers_but_only_home_department_fe
             session,
             WorkbenchUser(
                 f"{role}@example.com", role, "MKT", role.title(),
+                sectors=("PCMO", "CRTO", "B2B", "OEM"),
                 affiliation_sector="PCMO", affiliation_department="MKT",
                 history_resources=("MRD", "SP&A", "ICE Rebate", "Capex"),
             ),

@@ -10,7 +10,7 @@ const user = [
   "模板测试用户",
   "management",
   "",
-  "",
+  "PCMO,OEM",
   "启用",
   "PCMO",
   "MKT",
@@ -60,7 +60,7 @@ describe("administrator batch templates", () => {
     const row = { rowNumber: 2, cells: user };
     expect(parseAdminRows("users", [row]).items[0]).toMatchObject({
       role: "management",
-      sector: [],
+      sector: ["PCMO", "OEM"],
       history_resources: null,
     });
     expect(
@@ -143,4 +143,12 @@ describe("administrator batch templates", () => {
       vi.unstubAllGlobals();
     }
   });
+});
+
+
+it("requires management Sector grants and leaves departments empty", () => {
+  const empty = [...user]; empty[4] = "";
+  expect(parseAdminRows("users", [{ rowNumber: 2, cells: empty }]).errors[0].message).toContain("管理层");
+  const department = [...user]; department[3] = "MKT";
+  expect(parseAdminRows("users", [{ rowNumber: 2, cells: department }]).errors[0].message).toContain("部门");
 });

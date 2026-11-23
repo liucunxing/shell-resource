@@ -452,7 +452,7 @@ function PortfolioDashboard({ mode }) {
           fixed={mode === "owner"}
           scope={
             executive
-              ? ""
+              ? `${(identity.sectors || []).join(" / ")} · 全部部门`
               : `${[...new Set(source.map((i) => i.sector))].join(" / ")} · ${[...new Set(source.map((i) => i.department))].join(" / ")}`
           }
         >

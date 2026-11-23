@@ -14,6 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dealer_identity import dealer_identity
+from app.core.resource_access import SECTORS
 from app.dependencies.workbench_user import WorkbenchUser
 from app.models.do.budget import BudgetDO
 from app.models.do.budget_distributor import BudgetDistributorDO
@@ -138,7 +139,8 @@ def _users(prototype: dict) -> list[UserPermissionDO]:
                 display_name=user["name"],
                 role=ROLES[user["role"]],
                 department=sorted({scope["dept"].upper() for scope in scopes}),
-                sector=sorted({scope["sector"] for scope in scopes}),
+                sector=(list(SECTORS) if user["role"] == "exec"
+                        else sorted({scope["sector"] for scope in scopes})),
                 enabled=user["active"],
                 affiliation_sector=home["sector"],
                 affiliation_department=home["dept"].upper(),

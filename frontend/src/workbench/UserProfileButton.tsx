@@ -43,7 +43,8 @@ export function profileFields(identity: ProfileIdentity) {
   const scope = assigned.map((role) => {
     if (role === "owner") return "本人负责的 Initiative";
     if (role === "admin") return "系统配置";
-    if (role === "management") return "全部 Sector / 部门";
+    if (role === "management") return identity.sectors?.length
+      ? `${identity.sectors.join("、")} / 全部部门` : "业务线范围未配置";
     if (role === "lead")
       return departments.length && identity.sectors?.length
         ? identity.sectors

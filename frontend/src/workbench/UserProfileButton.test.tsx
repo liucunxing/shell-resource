@@ -30,7 +30,7 @@ describe("V20 user profile", () => {
   it.each([
     ["owner", "本人负责的 Initiative"],
     ["admin", "系统配置"],
-    ["management", "全部 Sector / 部门"],
+    ["management", "业务线范围未配置"],
     ["lead", "部门范围未配置"],
   ])("shows the %s scope without inventing an affiliation", (role, scope) => {
     const fields = Object.fromEntries(profileFields({ role }));
@@ -72,4 +72,11 @@ describe("V20 user profile", () => {
       'aria-label="测试，Initiative Owner，查看个人信息"',
     );
   });
+});
+
+
+it("shows explicit management grants even when home affiliation differs", () => {
+  const fields = Object.fromEntries(profileFields({ role: "management", sectors: ["PCMO", "OEM"], affiliation_sector: "B2B", affiliation_department: "ICE" }));
+  expect(fields["授权范围"]).toBe("PCMO、OEM / 全部部门");
+  expect(fields["所属部门"]).toBe("B2B / ICE");
 });

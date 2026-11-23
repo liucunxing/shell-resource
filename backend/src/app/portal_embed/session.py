@@ -12,6 +12,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.departments import departments
+from app.core.resource_access import valid_management_sectors
 from app.db.session import get_db_session
 from app.dependencies.workbench_user import WorkbenchUser
 from app.models.do.portal_embed import PortalContextDO, PortalSessionDO
@@ -54,6 +55,8 @@ async def permission_for_email(db: AsyncSession, email: str) -> UserPermissionDO
     if permission.role not in {"owner", "lead", "management", "admin"} or (
         permission.role in {"owner", "lead"} and not departments(permission.department)
     ):
+        raise fail(403, "RESOURCE_FORBIDDEN")
+    if permission.role == "management" and not valid_management_sectors(permission.sector):
         raise fail(403, "RESOURCE_FORBIDDEN")
     return permission
 
