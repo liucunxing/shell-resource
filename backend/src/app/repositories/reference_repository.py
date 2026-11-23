@@ -25,7 +25,7 @@ class ReferenceRepository:
         source_json = func.row_to_json(
             distributor_sellin_resource_history.table_valued(),
         ).cast(JSONB)
-        for name in ("target_2025", "target_2026", "phasing_2025", "phasing_2026"):
+        for name in ("target_2025", "target_2026"):
             value = (
                 source_json.op("->>")(literal(name)).cast(Numeric)
                 if is_postgres else literal(None)

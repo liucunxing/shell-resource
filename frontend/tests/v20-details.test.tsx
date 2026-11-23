@@ -346,7 +346,6 @@ describe("V20 details keep their invocation scope and sector identities", () => 
       c3: 1000,
       investment: 500,
       yield: 2,
-      phasing: 0.4,
     });
     expect(
       historicalDetailTotals(
@@ -381,18 +380,17 @@ describe("V20 details keep their invocation scope and sector identities", () => 
 });
 
 describe("V20 V17 allocation table contract", () => {
-  it("renders each source Phasing in dealer rows and a single-dealer drawer without target gates", () => {
+  it("keeps source Phasing in history data while omitting it from dealer details", () => {
     const source = dealers.slice(0, 2).map((dealer, index) => ({
       ...dealer, history: { ...dealer.history, phasing2025: index === 0 ? 1 : 1.17,
         contract2025: null, sourceTarget2025: index === 0 ? 160000 : 700000 },
     }));
     const rows = dealerDetailRows(items.slice(0, 1), source, "c3", "2025");
-    expect(rows.map(row => row.phasing)).toEqual([100, 117]);
-    expect(historicalDetailTotals([rows[1]], "2025").phasing).toBe(1.17);
+    expect(rows.every(row => !("phasing" in row))).toBe(true);
+    expect(historicalDetailTotals([rows[1]], "2025")).not.toHaveProperty("phasing");
     const html = renderToStaticMarkup(<V19DealerDetails items={items.slice(0, 1)} dealers={source} />);
-    expect(html).toMatch(/data-column="phasing"[^>]*>100<\/td>/);
-    expect(html).toMatch(/data-column="phasing"[^>]*>117<\/td>/);
-    expect(historicalDetailTotals(rows, "2025").phasing).toBeCloseTo((160000 + 1.17 * 700000) / 860000);
+    expect(html).not.toMatch(/data-column="phasing"|Actual \/ Phasing/);
+    expect(historicalDetailTotals(rows, "2025")).not.toHaveProperty("phasing");
   });
 
 
@@ -407,7 +405,7 @@ describe("V20 V17 allocation table contract", () => {
     const footer = html.match(/<tfoot[\s\S]*?<\/tfoot>/)?.[0];
     expect(footer).toMatch(/data-column="contract"[^>]*>4\.0<\/td>/);
     expect(footer).toMatch(/data-column="vol"[^>]*>4<\/td>/);
-    expect(footer).toMatch(/data-column="phasing"[^>]*>25<\/td>/);
+    expect(footer).not.toContain('data-column="phasing"');
   });
 
   it("keeps YTD target values and percentage Phasing consistent in the shared dealer table and drawer", () => {
@@ -421,13 +419,10 @@ describe("V20 V17 allocation table contract", () => {
       },
     }));
     const rows = dealerDetailRows(items.slice(0, 1), source, "c3", "2026Ytd");
-    expect(rows.map(({ contract, phasing }) => [contract, phasing])).toEqual([
-      [2000, 50], [8000, 75],
-    ]);
+    expect(rows.map(({ contract }) => contract)).toEqual([2000, 8000]);
     expect(historicalDetailTotals(rows, "2026Ytd")).toMatchObject({
-      contract: 10000, vol: 7000, phasing: 0.7,
+      contract: 10000, vol: 7000,
     });
-    // Source Phasing remains visible even when the target is unavailable.
     for (const target of [0, -1000, null, undefined]) {
       const incomplete = source.map((dealer, index) => index === 0 ? {
         ...dealer,
@@ -435,15 +430,12 @@ describe("V20 V17 allocation table contract", () => {
       } : dealer);
       const detailRows = dealerDetailRows(items.slice(0, 1), incomplete, "c3", "2026Ytd");
       expect(detailRows[0].contract).toBe(target ?? null);
-      expect(detailRows[0].phasing).toBe(50);
       const totals = historicalDetailTotals(detailRows, "2026Ytd");
       if (target != null) {
-        // Raw totals keep the source target; only positive-target rows enter Phasing.
-        expect(totals).toMatchObject({ contract: 8000 + target, vol: 7000, phasing: 0.75 });
+        expect(totals).toMatchObject({ contract: 8000 + target, vol: 7000 });
       } else {
         expect(totals.contract).toBe(8000);
         expect(totals.targetCoverage).toMatchObject({ known: 1, total: 2, missing: 1 });
-        expect(totals.phasing).toBe(0.75);
       }
     }
     const allZero = source.map((dealer) => ({
@@ -451,7 +443,7 @@ describe("V20 V17 allocation table contract", () => {
     }));
     expect(historicalDetailTotals(
       dealerDetailRows(items.slice(0, 1), allZero, "c3", "2026Ytd"), "2026Ytd",
-    )).toMatchObject({ contract: 0, phasing: null });
+    )).toMatchObject({ contract: 0 });
   });
 
   it("lists current and other positive allocations within the visible owner and Sector", () => {

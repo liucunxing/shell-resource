@@ -18,8 +18,6 @@ export interface DealerHistory {
   c32026Ytd?: number | null;
   yield?: number | null;
   yield2026Ytd?: number | null;
-  phasing2025?: number | null;
-  phasing2026Ytd?: number | null;
   sourceTarget2025?: number | null;
   sourceTarget2026Ytd?: number | null;
   contract2025?: number | null;
@@ -120,52 +118,6 @@ export function historyYield(
   return c3 !== null && c3 > 0 && investment !== null && investment > 0
     ? c3 / investment
     : null;
-}
-
-// Source Phasing is already a ratio: 1 means 100%. Never recalculate a missing
-// source cell from rounded Actual/target values or gate it on target confirmation.
-export function historyPhasing(
-  history: DealerHistory | undefined,
-  period: HistoryPeriod,
-): number | null {
-  return finiteHistoryValue(
-    period === "2025" ? history?.phasing2025 : history?.phasing2026Ytd,
-  );
-}
-
-function phasingWeight(history: DealerHistory | undefined, period: HistoryPeriod) {
-  const key = period === "2025" ? "sourceTarget2025" : "sourceTarget2026Ytd";
-  if (history && Object.hasOwn(history, key)) return finiteHistoryValue(history[key]);
-  // Older local fixtures have normalized targets but no sourceTarget field.
-  return finiteHistoryValue(period === "2025" ? history?.contract2025 : history?.contract2026Ytd);
-}
-
-/** Source-target weighted ratios over complete valid pairs only; missing is not zero.
- * `volume` is the legacy result key for the weighted numerator, not Actual Vol.
- */
-export function aggregateHistoryPhasing(
-  histories: (DealerHistory | undefined)[],
-  period: HistoryPeriod,
-): { volume: number | null; target: number | null; ratio: number | null } {
-  const unavailable = { volume: null, target: null, ratio: null };
-  if (!histories.length) return unavailable;
-  if (histories.length === 1) {
-    const ratio = historyPhasing(histories[0], period);
-    const weight = phasingWeight(histories[0], period);
-    const target = weight === null ? null : Math.max(0, weight);
-    return { ratio, target, volume: target === 0 ? 0 : ratio !== null && target !== null ? ratio * target : null };
-  }
-  let volume = 0;
-  let target = 0;
-  for (const history of histories) {
-    const weight = phasingWeight(history, period);
-    if (weight === null || weight <= 0) continue;
-    const ratio = historyPhasing(history, period);
-    if (ratio === null) continue;
-    volume += ratio * weight;
-    target += weight;
-  }
-  return { volume, target, ratio: target > 0 ? volume / target : null };
 }
 
 export function historyYoyLabel(

@@ -1,5 +1,5 @@
 import { portfolioRows } from "./portfolio-analytics.js";
-import { historyPhasing, historyInvestment, historyYield } from "./dealer-history";
+import { historyInvestment, historyYield } from "./dealer-history";
 
 const ratio = (value, total) =>
   value != null && total > 0 ? (value / total) * 100 : null;
@@ -31,7 +31,6 @@ export function dealerDetailRows(items, dealers, basis, period) {
       contractShare: ratio(h[`contract${suffix}`], contract),
       vol: h[`vol${suffix}`] ?? null,
       c3: h[`c3${suffix}`] ?? null,
-      phasing: historyPhasing(h, period) == null ? null : historyPhasing(h, period) * 100,
       amountShare,
       volShare,
       c3Share,

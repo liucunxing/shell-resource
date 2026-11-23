@@ -986,7 +986,6 @@ export function V19Stack({
   const format = (value, field) => {
     if (value == null || (field === "yield" && value <= 0)) return "—";
     if (field === "vol" || field === "c3") return wholeMetric(value, 1000);
-    if (field === "phasing") return wholeMetric(value);
     if (["amountShare", "volShare", "c3Share", "contractShare", "investmentShare"].includes(field)) return n(value);
     if (field === "amount") return n(value / 10000, 1);
     if (["contract", "investment"].includes(field) || field.startsWith("expense:")) return n(value / 1000, 1);

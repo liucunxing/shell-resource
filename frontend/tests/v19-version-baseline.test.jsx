@@ -33,9 +33,7 @@ describe("V19 submitted comparison baseline", () => {
       period="2025" basis="c3" threshold={5} redThreshold={10}
       sourceVersionId="202701" rowId={(key) => key} onOpen={() => {}}
     />);
-    expect(html).toMatch(/data-column="delta"[^>]*>−0\.0</);
-    expect(html).toMatch(/data-column="delta"[^>]*>\+0\.0</);
-    expect(html).not.toContain("-100.0%");
+    expect(html).not.toMatch(/data-column="(?:delta|judgment)"|较上版/);
   });
   it("keeps an inaccessible source allocation unavailable despite a stale snapshot", () => {
     const payload = source({ "1": [{ initiative: snapshot }] }); payload.state.initiatives[0].allocationVisible = false;
