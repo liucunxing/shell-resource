@@ -386,7 +386,7 @@ export function V20OrganizationSummary({
         历史产出按当前名单去重，包含零投资经销商；仅改金额不会改变历史 Actual 的数值。
         {"三条柱均显示实际占比，全表使用统一刻度，按投资、Vol、C3 的最大占比向上取整至 10% 调整上限。"}
         较上版按同一
-        Initiative 集合比较，保留移除组织的上版投入；
+        Initiative 集合比较，{isSelectedScope ? "只汇总本版显示的组织；" : "保留移除组织的上版投入；"}
         {sourceVersionId
           ? `来源版本 ${sourceVersionId}`
           : "没有来源版本时显示 —"}
