@@ -380,17 +380,19 @@ describe("V20 details keep their invocation scope and sector identities", () => 
 });
 
 describe("V20 V17 allocation table contract", () => {
-  it("keeps source Phasing in history data while omitting it from dealer details", () => {
+  it("shows source Vol Phasing in dealer details and history aggregates", () => {
     const source = dealers.slice(0, 2).map((dealer, index) => ({
       ...dealer, history: { ...dealer.history, phasing2025: index === 0 ? 1 : 1.17,
         contract2025: null, sourceTarget2025: index === 0 ? 160000 : 700000 },
     }));
     const rows = dealerDetailRows(items.slice(0, 1), source, "c3", "2025");
-    expect(rows.every(row => !("phasing" in row))).toBe(true);
-    expect(historicalDetailTotals([rows[1]], "2025")).not.toHaveProperty("phasing");
+    expect(rows.map(row => row.phasing)).toEqual([100, 117]);
+    expect(historicalDetailTotals([rows[1]], "2025").phasing).toBe(1.17);
     const html = renderToStaticMarkup(<V19DealerDetails items={items.slice(0, 1)} dealers={source} />);
-    expect(html).not.toMatch(/data-column="phasing"|Actual \/ Phasing/);
-    expect(historicalDetailTotals(rows, "2025")).not.toHaveProperty("phasing");
+    expect(html).toContain("Vol Phasing");
+    expect(html).toMatch(/data-column="phasing"[^>]*>100<\/td>/);
+    expect(html).toMatch(/data-column="phasing"[^>]*>117<\/td>/);
+    expect(historicalDetailTotals(rows, "2025").phasing).toBeCloseTo((160000 + 1.17 * 700000) / 860000);
   });
 
 
@@ -405,7 +407,7 @@ describe("V20 V17 allocation table contract", () => {
     const footer = html.match(/<tfoot[\s\S]*?<\/tfoot>/)?.[0];
     expect(footer).toMatch(/data-column="contract"[^>]*>4\.0<\/td>/);
     expect(footer).toMatch(/data-column="vol"[^>]*>4<\/td>/);
-    expect(footer).not.toContain('data-column="phasing"');
+    expect(footer).toContain('data-column="phasing"');
   });
 
   it("keeps YTD target values and percentage Phasing consistent in the shared dealer table and drawer", () => {

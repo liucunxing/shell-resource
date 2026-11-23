@@ -62,11 +62,27 @@ async def project(row_changes=None, target_changes=None, *, actual=True, confirm
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("source,expected", [
+    (0, 0), (1.17, 1.17), (None, None), (float("inf"), None),
+])
+async def test_vol_phasing_uses_source_without_target_or_period_confirmation(source, expected):
+    _, records = await project(
+        {"phasing_2025": source, "phasing_2026": source,
+         "target_2025": None, "target_2026": None},
+        actual=False, confirmed=False,
+    )
+    history = records[0]["history"]
+    assert history["phasing2025"] == expected
+    assert history["phasing2026Ytd"] == expected
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("unit", ["L", "KL"])
 async def test_target_projection_uses_fixed_source_l_despite_legacy_unit_metadata(unit):
     service, records = await project(target_changes={"sourceUnit": unit})
     h = records[0]["history"]
-    assert not any("phasing" in key.lower() for key in h)
+    assert h["phasing2025"] == 999
+    assert h["phasing2026Ytd"] == 999
     assert h["contract2025"] == 20
     assert h["contract2026Ytd"] == 30
     assert h["sourceTarget2026Ytd"] == 30
@@ -77,8 +93,8 @@ async def test_target_projection_uses_fixed_source_l_despite_legacy_unit_metadat
         target_confirmation_status=service.target_confirmation_status,
     )["manifest"]
     assert manifest["target"]["sourceFieldsPresent"] is True
-    assert "phasing" not in manifest["metricRules"]
-    assert all("sourcePhasingField" not in p for p in manifest["target"]["periods"].values())
+    assert manifest["metricRules"]["phasing"]["sourcePhasingUsed"] is True
+    assert manifest["target"]["periods"]["2025"]["sourcePhasingField"] == "phasing_2025"
     assert "contractVolume" not in manifest["missingFields"]
 
 
@@ -179,8 +195,8 @@ async def test_optional_source_projection_does_not_require_physical_target_colum
     session = Session()
     assert await ReferenceRepository(session).list_dealers() == []
     sql = str(session.statement.compile(dialect=dialect, compile_kwargs={"literal_binds": True}))
-    assert "phasing_2025" not in sql
-    assert "phasing_2026" not in sql
+    assert "phasing_2025" in sql
+    assert "phasing_2026" in sql
     assert "distributor_sellin_resource_history.target_2025" not in sql
     if dialect.name == "postgresql":
         assert "row_to_json(distributor_sellin_resource_history)" in sql

@@ -213,9 +213,11 @@ class ReferenceService:
         result: dict[str, Any] = {
             "targetSourceUnit": "L",
             "targetSourceFields": {},
+            "phasingSourceFields": {},
         }
         for year, suffix in (("2025", "2025"), ("2026", "2026Ytd")):
             raw_target = row.get(f"target_{year}")
+            raw_phasing = row.get(f"phasing_{year}")
             present = bool(row.get(f"_has_target_{year}", raw_target is not None))
             result["targetSourceFields"][suffix] = present
             target = float(raw_target) if raw_target is not None else None
@@ -229,6 +231,18 @@ class ReferenceService:
             result[f"sourceTarget{suffix}"] = target
             result[f"contract{suffix}"] = target if present else None
             result[f"target{suffix}UnavailableReason"] = target_reason
+            # Source ratios are the business-authoritative Phasing values. They
+            # do not depend on independently confirmed target units or periods.
+            result["phasingSourceFields"][suffix] = bool(
+                row.get(f"_has_phasing_{year}", raw_phasing is not None)
+            )
+            phasing = float(raw_phasing) if raw_phasing is not None else None
+            phasing_reason = "missing_source_phasing" if phasing is None else None
+            if phasing is not None and not isfinite(phasing):
+                phasing, phasing_reason = None, "invalid_source_phasing"
+            result[f"sourcePhasing{suffix}"] = phasing
+            result[f"phasing{suffix}"] = phasing
+            result[f"phasing{suffix}UnavailableReason"] = phasing_reason
         return result
 
     async def metadata(self, planning_year: int) -> dict:

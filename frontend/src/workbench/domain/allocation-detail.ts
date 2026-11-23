@@ -87,6 +87,7 @@ export function allocationColumnGroups(
       columns: [
         ["vol", "Delivery Vol（KL）"],
         ["c3", "Actual C3（K$）"],
+        ["phasing", "Vol Phasing（%）"],
       ],
     },
     {

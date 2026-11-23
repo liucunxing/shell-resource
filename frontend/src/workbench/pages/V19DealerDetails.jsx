@@ -20,6 +20,7 @@ import {
 import { HistoryControls } from "./V19PortfolioVisuals.jsx";
 import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
 import { dealerDetailRows } from "../domain/dealer-detail-rows.js";
+import { aggregateHistoryPhasing } from "../domain/dealer-history";
 export { dealerDetailRows } from "../domain/dealer-detail-rows.js";
 import {
   allocationColumnGroups,
@@ -102,6 +103,7 @@ export function V19DealerDetails({
     setDetail({ type: "dealer", dealerKey: row.key, period, basis });
   const format = (value, key) => {
     if (key === "vol" || key === "c3") return wholeMetric(value, 1000);
+    if (key === "phasing") return wholeMetric(value);
     return [
       "amountShare",
       "investmentShare",
@@ -148,6 +150,7 @@ export function V19DealerDetails({
   const aligned =
     period === "2025" ||
     rows.every((row) => !row.history.ytdYieldUnavailableReason);
+  const totalPhasing = aggregateHistoryPhasing(rows.map((row) => row.history), period).ratio;
   const totalFor = (key) =>
     ({
       amount: totalAmount,
@@ -160,6 +163,7 @@ export function V19DealerDetails({
       c3Share: totalC3 > 0 ? 100 : null,
       contractShare: totalContract > 0 ? 100 : null,
       investmentShare: totalInvestment > 0 ? 100 : null,
+      phasing: totalPhasing == null ? null : totalPhasing * 100,
       yield:
         aligned && totalC3 > 0 && totalInvestment > 0
           ? totalC3 / totalInvestment
@@ -185,7 +189,7 @@ export function V19DealerDetails({
             {[
               ["amountShare", "占比与差值"],
               ["contract", "① 经销商 target"],
-              ["vol", "② Actual"],
+              ["vol", "② Actual / Vol Phasing"],
               ["investment", "③ 投资 / Yield"],
             ].map(([key, title]) => (
               <Button
