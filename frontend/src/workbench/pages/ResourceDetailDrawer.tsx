@@ -48,7 +48,6 @@ import {
 } from "@/components/ui/table";
 import {
   historyInvestment,
-  aggregateHistoryPhasing,
   historyYield,
   finiteHistoryValue,
   type HistoryDealer,
@@ -270,10 +269,6 @@ export function historicalDetailTotals(
       missing: rows.length - knownTargets.length,
       knownSubtotal: knownTargets.length ? sum(knownTargets) : null,
     },
-    phasing: aggregateHistoryPhasing(
-      rows.map((row) => row.history),
-      period,
-    ).ratio,
     yield:
       aligned && c3 != null && c3 > 0 && investment != null && investment > 0
         ? c3 / investment
@@ -567,10 +562,6 @@ function ResourceDetailContent({
           ["经销商 target（KL）", n(historical.contract, 1000)],
           ["Delivery Vol（KL）", wholeMetric(historical.vol, 1000)],
           ["Actual C3（K$）", wholeMetric(historical.c3, 1000)],
-          [
-            "Phasing",
-            historical.phasing == null ? "—" : `${wholeMetric(historical.phasing * 100)}%`,
-          ],
           ["历史投资总额（K$）", n(historical.investment, 1000)],
           ["Yield（C3 ÷ 历史投资）", n(historical.yield)],
           ...allowedExpenses.map((type) => [

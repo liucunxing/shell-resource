@@ -5,8 +5,6 @@ import {
   historyShareDenominators,
   historyShare,
   historyYield,
-  historyPhasing,
-  aggregateHistoryPhasing,
   historyYoyLabel,
   configuredYtdLabel,
   initiativeDealers,
@@ -91,63 +89,12 @@ describe("imported distributor history", () => {
   });
 
   it("applies V2 contract, YoY and display-month rules without assuming coverage", () => {
-    expect(historyPhasing({ phasing2025: 0.5, vol2025: 2500, contract2025: 5000 }, "2025")).toBe(
-      0.5,
-    );
-    expect(
-      historyPhasing({ vol2025: 2500, contract2025: 0 }, "2025"),
-    ).toBeNull();
-    expect(historyPhasing({ vol2025: 2500 }, "2025")).toBeNull();
     expect(historyYoyLabel({ vol2024: 0, vol2025: 100 }, "vol")).toBe("无基期");
     expect(historyYoyLabel({ c32024: -1, c32025: 100 }, "c3")).toBe("无基期");
     expect(historyYoyLabel({ vol2024: 100, vol2025: 125 }, "vol")).toBe("25.0%");
     expect(historyYoyLabel({ vol2025: 125 }, "vol")).toBe("—");
     expect(configuredYtdLabel(9)).toBe("2026 YTD（1–9月）");
     expect(configuredYtdLabel()).toBe("2026 YTD（1–10月）");
-  });
-
-  it("reads source Phasing independently of Actual, target and their confirmation", () => {
-    expect(historyPhasing({ phasing2025: 1 }, "2025")).toBe(1);
-    expect(historyPhasing({ phasing2025: 1.17, vol2025: 0, contract2025: null }, "2025")).toBe(1.17);
-    expect(historyPhasing({ phasing2026Ytd: 0, vol2026Ytd: null }, "2026Ytd")).toBe(0);
-    for (const source of [null, undefined, NaN, Infinity]) {
-      expect(historyPhasing({ phasing2026Ytd: source, vol2026Ytd: 3750, contract2026Ytd: 5000 }, "2026Ytd")).toBeNull();
-    }
-    expect(historyPhasing({ vol2026Ytd: 3750, contract2026Ytd: 5000 }, "2026Ytd")).toBeNull();
-  });
-
-  it("weights source ratios by same-year source targets without requiring normalized target confirmation", () => {
-    const eligible = [
-      { phasing2026Ytd: 0.5, sourceTarget2026Ytd: 2000, vol2026Ytd: 123, contract2026Ytd: null },
-      { phasing2026Ytd: 0.75, sourceTarget2026Ytd: 8000, vol2026Ytd: null, contract2026Ytd: null },
-    ];
-    expect(aggregateHistoryPhasing(eligible, "2026Ytd")).toEqual({ volume: 7000, target: 10000, ratio: 0.7 });
-    expect(aggregateHistoryPhasing([...eligible,
-      { phasing2026Ytd: 99, sourceTarget2026Ytd: 0 },
-      { phasing2026Ytd: 99, sourceTarget2026Ytd: -1000 },
-    ], "2026Ytd")).toEqual({ volume: 7000, target: 10000, ratio: 0.7 });
-    for (const unknown of [
-      { phasing2026Ytd: 0.5, sourceTarget2026Ytd: null, contract2026Ytd: 5000 },
-      { phasing2026Ytd: null, sourceTarget2026Ytd: 5000 },
-    ]) {
-      expect(aggregateHistoryPhasing([...eligible, unknown], "2026Ytd")).toEqual({ volume: 7000, target: 10000, ratio: 0.7 });
-    }
-    expect(aggregateHistoryPhasing([{ phasing2026Ytd: 1.17 }], "2026Ytd").ratio).toBe(1.17);
-    expect(aggregateHistoryPhasing([], "2026Ytd").ratio).toBeNull();
-    expect(aggregateHistoryPhasing([
-      { phasing2025: null, sourceTarget2025: 500 },
-      { phasing2025: 1, sourceTarget2025: null },
-      { phasing2025: 2, sourceTarget2025: 0 },
-    ], "2025").ratio).toBeNull();
-    expect(aggregateHistoryPhasing([
-      { phasing2025: 0, sourceTarget2025: 100 },
-      { phasing2025: Infinity, sourceTarget2025: 500 },
-      { phasing2025: 1, sourceTarget2025: NaN },
-    ], "2025").ratio).toBe(0);
-    expect(aggregateHistoryPhasing([
-      { phasing2025: 0, sourceTarget2025: 100 },
-      { phasing2025: 1, sourceTarget2025: 100 },
-    ], "2025").ratio).toBe(0.5);
   });
 
   it("allocates YTD investment using all four complete source resource values", () => {

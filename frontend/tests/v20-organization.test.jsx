@@ -62,7 +62,7 @@ const items = [
 
 it.each([9, null])("keeps both period and metric choices without the organization period explanation (%s)", month => {
   const html = renderToStaticMarkup(<SdAnalysis items={items} dealers={dealers} ytdCutoffMonth={month} />);
-  const controls = html.split('class="studio-inline-controls"')[1].split('class="studio-table-note"')[0];
+  const controls = html.split('class="studio-inline-controls"')[1].split('class="v19-sd-facts"')[0];
   for (const label of ["2025 全年", "2026 YTD", "Vol", "C3"])
     expect(controls).toContain(`>${label}</button>`);
   expect(controls).not.toContain("metric-explanation");
@@ -129,9 +129,7 @@ it("retains removed organization allocations and produces signed money deltas", 
   );
   expect(result.totals.comparison.delta).toBe(20000);
   const html = draw(result);
-  expect(html).toContain("−3.0");
-  expect(html).toContain("+2.0");
-  expect(html).not.toContain("−100%");
+  expect(html).not.toMatch(/data-column="(?:delta|judgment)"|较上版/);
 });
 
 it("RSM facts aggregate RSM membership and do not reuse SD names", () => {

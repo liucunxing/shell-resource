@@ -48,7 +48,7 @@ Databricks 仅允许应用 Service Principal 访问被分配且授权的 schema�
 
 已获得业务确认后使用 `scripts/confirm_history_coverage.py --source-fingerprint <本批指纹> --actual-month 9 --investment-month 9 --report <本地报告路径>` 先dry-run；正式应用再加 `--apply --expected-revision <dry-run返回值>`。脚本只更新配置及审计，不改历史源表；指纹或revision变化会阻止应用。本次配置revision已由6升为7，不能重用旧revision参数。
 
-指标公式、源章节与缺口见 [V2.0 指标定义](../docs/METRIC_DEFINITIONS.md)。Phasing 要求合同>0；Yield 要求 C3 和完整历史投资都>0；YoY 按年度值重算，基期≤0返回无基期。PG 原值保留用于对账；派生比率的应用值不能伪装为源字段。
+指标公式、源章节与缺口见 [V2.0 指标定义](../docs/METRIC_DEFINITIONS.md)。Phasing已从应用历史API和展示中移除，源表原值保留；Yield 要求 C3 和完整历史投资都>0；YoY 按年度值重算，基期≤0返回无基期。
 
 管理配置 `ytdCutoffMonth` 为1–12整数、默认10，作为工作台显示设置；Actual/费用真实覆盖月份仍由独立来源元数据声明。修改管理配置不补写历史表业务日期，也不代表真实 YTD Yield 已可比。配置变更沿用修订冲突检查和审计。
 

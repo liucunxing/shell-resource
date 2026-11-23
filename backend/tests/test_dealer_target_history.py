@@ -66,12 +66,10 @@ async def project(row_changes=None, target_changes=None, *, actual=True, confirm
 async def test_target_projection_uses_fixed_source_l_despite_legacy_unit_metadata(unit):
     service, records = await project(target_changes={"sourceUnit": unit})
     h = records[0]["history"]
+    assert not any("phasing" in key.lower() for key in h)
     assert h["contract2025"] == 20
     assert h["contract2026Ytd"] == 30
     assert h["sourceTarget2026Ytd"] == 30
-    assert h["sourcePhasing2026Ytd"] == 999
-    assert h["phasing2026Ytd"] == 999
-    assert h["phasing2025"] == 999
     assert h["target2026YtdUnavailableReason"] is None
     manifest = history_snapshot(
         2027, records, coverage=service.coverage,
@@ -79,22 +77,18 @@ async def test_target_projection_uses_fixed_source_l_despite_legacy_unit_metadat
         target_confirmation_status=service.target_confirmation_status,
     )["manifest"]
     assert manifest["target"]["sourceFieldsPresent"] is True
-    assert manifest["metricRules"]["phasing"]["availableRecordCounts"] == {
-        "2025": 1, "2026Ytd": 1,
-    }
-    assert manifest["metricRules"]["phasing"]["sourcePhasingUsed"] is True
+    assert "phasing" not in manifest["metricRules"]
+    assert all("sourcePhasingField" not in p for p in manifest["target"]["periods"].values())
     assert "contractVolume" not in manifest["missingFields"]
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("amount", [None, 0, -5])
-async def test_missing_zero_and_negative_targets_do_not_mask_source_phasing(amount):
+async def test_missing_zero_and_negative_targets_remain_distinct(amount):
     _, records = await project({"target_2026": amount})
     h = records[0]["history"]
     assert h["sourceTarget2026Ytd"] == amount
     assert h["contract2026Ytd"] == amount
-    assert h["phasing2026Ytd"] == 999
-    assert h["phasing2026YtdUnavailableReason"] is None
 
 
 @pytest.mark.asyncio
@@ -108,10 +102,6 @@ async def test_signed_targets_remain_distinct_from_missing_in_fixed_source_l(uni
     assert h["sourceTarget2026Ytd"] == -30
     assert h["contract2025"] == -20
     assert h["contract2026Ytd"] == -30
-    assert h["phasing2025"] == 999
-    assert h["phasing2026Ytd"] == 999
-    assert h["phasing2025UnavailableReason"] is None
-    assert h["phasing2026YtdUnavailableReason"] is None
 
 
 @pytest.mark.asyncio
@@ -128,8 +118,6 @@ async def test_signed_source_target_remains_visible_when_confirmation_expires(
     assert h["sourceTarget2026Ytd"] == -30
     assert h["contract2025"] == -20
     assert h["contract2026Ytd"] == -30
-    assert h["phasing2025"] == 999
-    assert h["phasing2026Ytd"] == 999
 
 
 @pytest.mark.asyncio
@@ -150,8 +138,6 @@ async def test_new_source_or_missing_confirmation_does_not_hide_target_values():
         )["manifest"]
         assert manifest["target"]["available"] is True
         assert manifest["target"]["sourceUnit"] == "L"
-        assert manifest["metricRules"]["phasing"]["available"] is True
-        assert manifest["metricRules"]["phasing"]["unavailableReason"] is None
         assert "targetUnit" not in manifest["missingFields"]
 
 
@@ -170,12 +156,11 @@ async def test_ytd_target_value_is_independent_of_actual_period_metadata():
 
 
 @pytest.mark.asyncio
-async def test_missing_or_zero_actual_does_not_override_source_phasing():
+async def test_missing_or_zero_actual_does_not_override_target():
     for actual in (None, 0, -3):
         _, records = await project({"volume_2026": actual})
         h = records[0]["history"]
         assert h["contract2026Ytd"] == 30
-        assert h["phasing2026Ytd"] == 999
 
 
 @pytest.mark.asyncio
@@ -194,6 +179,8 @@ async def test_optional_source_projection_does_not_require_physical_target_colum
     session = Session()
     assert await ReferenceRepository(session).list_dealers() == []
     sql = str(session.statement.compile(dialect=dialect, compile_kwargs={"literal_binds": True}))
+    assert "phasing_2025" not in sql
+    assert "phasing_2026" not in sql
     assert "distributor_sellin_resource_history.target_2025" not in sql
     if dialect.name == "postgresql":
         assert "row_to_json(distributor_sellin_resource_history)" in sql
@@ -202,42 +189,6 @@ async def test_optional_source_projection_does_not_require_physical_target_colum
     else:
         assert "NULL AS target_2025" in sql
         assert "row_to_json" not in sql
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("source,expected,reason", [
-    (None, None, "missing_source_phasing"), (0, 0, None), (1, 1, None),
-    (1.17, 1.17, None), (-0.25, -0.25, None),
-    (float("nan"), None, "invalid_source_phasing"),
-    (float("inf"), None, "invalid_source_phasing"),
-    (float("-inf"), None, "invalid_source_phasing"),
-])
-async def test_source_phasing_is_authoritative_and_json_safe_without_confirmation(
-    source, expected, reason,
-):
-    import json
-
-    _, records = await project(
-        {"phasing_2025": source, "phasing_2026": source}, actual=False, confirmed=False,
-    )
-    h = records[0]["history"]
-    for suffix in ("2025", "2026Ytd"):
-        assert h[f"phasing{suffix}"] == expected
-        assert h[f"sourcePhasing{suffix}"] == expected
-        assert h[f"phasing{suffix}UnavailableReason"] == reason
-    json.dumps(records, allow_nan=False)
-    manifest = history_snapshot(2027, records)["manifest"]
-    assert manifest["metricRules"]["phasing"]["available"] is (expected is not None)
-    assert manifest["metricRules"]["phasing"]["sourcePhasingUsed"] is True
-
-
-@pytest.mark.asyncio
-async def test_source_phasing_preserves_same_code_distinct_sector_values():
-    _, crto = await project({"sector": "CRTO", "phasing_2025": 1.00})
-    _, pcmo = await project({"sector": "PCMO", "phasing_2025": 1.17})
-    assert crto[0]["id"] != pcmo[0]["id"]
-    assert crto[0]["history"]["phasing2025"] == 1.00
-    assert pcmo[0]["history"]["phasing2025"] == 1.17
 
 
 @pytest.mark.asyncio

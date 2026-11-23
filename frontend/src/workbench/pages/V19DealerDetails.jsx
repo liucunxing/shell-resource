@@ -21,7 +21,6 @@ import { HistoryControls } from "./V19PortfolioVisuals.jsx";
 import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
 import { dealerDetailRows } from "../domain/dealer-detail-rows.js";
 export { dealerDetailRows } from "../domain/dealer-detail-rows.js";
-import { aggregateHistoryPhasing } from "../domain/dealer-history";
 import {
   allocationColumnGroups,
   EXPENSE_COLUMN_ORDER,
@@ -103,7 +102,6 @@ export function V19DealerDetails({
     setDetail({ type: "dealer", dealerKey: row.key, period, basis });
   const format = (value, key) => {
     if (key === "vol" || key === "c3") return wholeMetric(value, 1000);
-    if (key === "phasing") return wholeMetric(value);
     return [
       "amountShare",
       "investmentShare",
@@ -150,7 +148,6 @@ export function V19DealerDetails({
   const aligned =
     period === "2025" ||
     rows.every((row) => !row.history.ytdYieldUnavailableReason);
-  const totalPhasing = aggregateHistoryPhasing(rows.map((row) => row.history), period).ratio;
   const totalFor = (key) =>
     ({
       amount: totalAmount,
@@ -163,7 +160,6 @@ export function V19DealerDetails({
       c3Share: totalC3 > 0 ? 100 : null,
       contractShare: totalContract > 0 ? 100 : null,
       investmentShare: totalInvestment > 0 ? 100 : null,
-      phasing: totalPhasing == null ? null : totalPhasing * 100,
       yield:
         aligned && totalC3 > 0 && totalInvestment > 0
           ? totalC3 / totalInvestment
@@ -176,7 +172,7 @@ export function V19DealerDetails({
     <Card className="v19-board-section v19-dealer-details">
       <div className="v19-section-heading">
         <div>
-          <h2>经销商明细 · 资源叠加与历史对照 <MetricHelp>跨 Initiative 按经销商与 Sector 业务身份汇总；搜索、排序和分页不改变投资及历史产出的占比分母。历史费用明细按用户授权范围显示。各历史占比按当前名单中该指标有效值合计计算，缺失项不视作零。经销商 target 以 KL 展示；Phasing 直接读取源表对应年份的结果，1 表示 100%；源值缺失时显示 —。多经销商汇总仅对同年源 target 大于 0 且源 Phasing 有值的经销商加权，结果仅代表有效数据范围；无有效数据时显示 —。点击经销商查看资源构成、投资来源与历史明细。</MetricHelp></h2>
+          <h2>经销商明细 · 资源叠加与历史对照 <MetricHelp>跨 Initiative 按经销商与 Sector 业务身份汇总；搜索、排序和分页不改变投资及历史产出的占比分母。历史费用明细按用户授权范围显示。各历史占比按当前名单中该指标有效值合计计算，缺失项不视作零。经销商 target 以 KL 展示。点击经销商查看资源构成、投资来源与历史明细。</MetricHelp></h2>
         </div>
       </div>
       <div className="v19-board-body">
@@ -189,7 +185,7 @@ export function V19DealerDetails({
             {[
               ["amountShare", "占比与差值"],
               ["contract", "① 经销商 target"],
-              ["vol", "② Actual / Phasing"],
+              ["vol", "② Actual"],
               ["investment", "③ 投资 / Yield"],
             ].map(([key, title]) => (
               <Button
