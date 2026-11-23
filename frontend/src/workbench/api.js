@@ -1,3 +1,4 @@
+import { assertAuthorizedRead, authorizedReadEpoch } from "./identity-scope";
 import { getLocalPreviewConfig, getLocalPreviewEmail, setLocalPreviewEmail } from "./localPreview";
 import { assertPreviewResponseCurrent, getPreviewEpoch, getPreviewUserEmail } from "./userPreview";
 
@@ -51,6 +52,7 @@ function emailHeader() {
 }
 
 export async function request(path, options = {}) {
+  const scopeEpoch = authorizedReadEpoch();
   const previewEmail = getPreviewUserEmail();
   const previewEpoch = getPreviewEpoch();
   if (previewEmail && !["GET", "HEAD", "OPTIONS"].includes((options.method || "GET").toUpperCase()))
@@ -58,6 +60,7 @@ export async function request(path, options = {}) {
   let response;
   try {
     const requestOptions = {
+      cache: "no-store",
       ...options,
       ...(previewEmail ? { cache: "no-store" } : {}),
       headers: {
@@ -71,6 +74,7 @@ export async function request(path, options = {}) {
     response = await fetch((isPortalEntry() ? PORTAL_API_BASE : API_BASE) + path,
       isPortalEntry() ? portalRequestOptions(requestOptions) : requestOptions);
   } catch (_) {
+    assertAuthorizedRead(scopeEpoch);
     assertPreviewResponseCurrent(previewEpoch);
     throw new ApiError("无法连接工作台服务，请检查网络后重试。", 0);
   }
@@ -78,9 +82,11 @@ export async function request(path, options = {}) {
   try {
     body = await response.json();
   } catch (_) {
+    assertAuthorizedRead(scopeEpoch);
     assertPreviewResponseCurrent(previewEpoch);
     throw new ApiError("服务返回格式无效，请稍后重试。", response.status);
   }
+  assertAuthorizedRead(scopeEpoch);
   assertPreviewResponseCurrent(previewEpoch);
   if (!response.ok || body.code !== 200) {
     if (isPortalEntry()) handlePortalRejection(response.status, body.msg);
@@ -93,6 +99,7 @@ export async function request(path, options = {}) {
 
 let selectedVersionId = "";
 export const setPlanningVersion = (id) => { selectedVersionId = String(id || ""); };
+export const currentIdentity = () => request("/identity");
 export const workspace = (versionId = selectedVersionId) => request(`/workspace?planning_year=${planningYear}${versionId ? `&version_id=${encodeURIComponent(versionId)}` : ""}`);
 export const versionComparisonSummary = (id) => request(`/version-comparison/summary?planning_year=${planningYear}&version_id=${encodeURIComponent(id)}`);
 export const planningVersions = () => request(`/planning-versions?planning_year=${planningYear}`, { cache: "no-store" });

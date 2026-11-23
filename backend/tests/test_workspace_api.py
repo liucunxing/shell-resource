@@ -27,7 +27,7 @@ async def api():
         [
             ("b@example.com", "owner", "MKT", ["PCMO"]),
             ("lead@example.com", "lead", "MKT", ["PCMO"]),
-            ("management@example.com", "management", None, None),
+            ("management@example.com", "management", None, ["PCMO", "CRTO", "B2B", "OEM"]),
             ("admin@example.com", "admin", None, None),
             ("bad@example.com", "unknown", None, None),
             ("missing@example.com", "owner", None, None),
@@ -77,7 +77,7 @@ def headers(email="a@example.com"):
         ("owner", [], []),
         ("lead", [], []),
         ("admin", [], ["d1", "d2", "d3"]),
-        ("management", [], ["d1", "d2", "d3"]),
+        ("management", ["PCMO", "CRTO"], ["d1", "d2", "d3"]),
     ],
 )
 async def test_dealer_sector_scope_for_history_and_directory(api, role, sectors, expected):

@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "users": [
+    {
+      "id": "U01", "name": "测试 Owner 甲", "role": "owner", "enabled": true,
+      "home": {"sector": "PCMO", "department": "MKT"},
+      "scopes": []
+    },
+    {
+      "id": "U02", "name": "测试 Owner 乙", "role": "owner", "enabled": true,
+      "home": {"sector": "PCMO", "department": "ICE"},
+      "scopes": []
+    },
+    {
+      "id": "U03", "name": "测试 Owner 丙", "role": "owner", "enabled": true,
+      "home": {"sector": "B2B", "department": "MKT"},
+      "scopes": []
+    },
+    {
+      "id": "U04", "name": "测试 Owner 丁", "role": "owner", "enabled": true,
+      "home": {"sector": "B2B", "department": "ICE"},
+      "scopes": []
+    },
+    {
+      "id": "U05", "name": "测试 Owner 戊", "role": "owner", "enabled": true,
+      "home": {"sector": "PCMO", "department": "CAPEX"},
+      "scopes": []
+    },
+    {
+      "id": "U11", "name": "测试负责人甲", "role": "lead", "enabled": true,
+      "home": {"sector": "PCMO", "department": "MKT"},
+      "scopes": [
+        {"sector": "PCMO", "department": "MKT"},
+        {"sector": "CRTO", "department": "MKT"}
+      ]
+    },
+    {
+      "id": "U12", "name": "测试负责人乙", "role": "lead", "enabled": true,
+      "home": {"sector": "PCMO", "department": "ICE"},
+      "scopes": [
+        {"sector": "PCMO", "department": "ICE"},
+        {"sector": "PCMO", "department": "CAPEX"},
+        {"sector": "CRTO", "department": "ICE"},
+        {"sector": "OEM", "department": "CAPEX"}
+      ]
+    },
+    {
+      "id": "U13", "name": "测试负责人丙", "role": "lead", "enabled": true,
+      "home": {"sector": "B2B", "department": "MKT"},
+      "scopes": [
+        {"sector": "B2B", "department": "MKT"},
+        {"sector": "B2B", "department": "ICE"}
+      ]
+    },
+    {
+      "id": "U21", "name": "测试管理层", "role": "management", "enabled": true,
+      "home": {"sector": "PCMO", "department": "MKT"},
+      "scopes": []
+    },
+    {
+      "id": "U31", "name": "测试管理员", "role": "admin", "enabled": true,
+      "home": {"sector": "PCMO", "department": "MKT"},
+      "scopes": []
+    }
+  ],
+  "projectOwners": {
+    "INI-001": "U01", "INI-002": "U11", "INI-003": "U02",
+    "INI-004": "U02", "INI-005": "U04", "INI-006": "U01",
+    "INI-007": "U02", "INI-008": "U04", "INI-009": "U01",
+    "INI-010": "U01", "INI-011": "U04", "INI-012": "U04",
+    "INI-013": "U02", "INI-014": "U02", "INI-015": "U04",
+    "INI-016": "U03", "INI-017": "U03", "INI-018": "U03",
+    "INI-019": "U03", "INI-020": "U05", "INI-021": "U05",
+    "INI-022": "U05", "INI-023": "U05", "INI-024": "U05",
+    "INI-033": "U01"
+  }
+}

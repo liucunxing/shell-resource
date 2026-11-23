@@ -115,11 +115,14 @@ export function parseAdminRows(kind, rows, context = {}) {
         fail("Owner须配置一条授权Sector");
       if (role === "lead" && (!user.sector.length || user.sector.length > 4))
         fail("部门负责人须配置1至4条授权Sector");
+      if (role === "management" && (!user.sector.length || user.sector.length > 4))
+        fail("管理层必须选择一至四条业务线");
+      if (role === "management" && user.department.length) fail("管理层授权部门请留空");
       if (
-        ["admin", "management"].includes(role) &&
+        role === "admin" &&
         (user.department.length || user.sector.length)
       )
-        fail("管理员和管理层的授权部门/Sector请留空；所属组织仍必填");
+        fail("管理员的授权部门/Sector请留空；所属组织仍必填");
       if (user.history_resources?.some((item) => !resources.includes(item)))
         fail("历史费用权限包含未知资源大类");
       if (seen.has(user.email)) fail("文件中登录邮箱重复");
@@ -255,7 +258,7 @@ export async function exportWorkbook(kind, context = {}) {
     ],
     [
       "所属组织",
-      "所有角色必填所属Sector和所属部门，与授权范围独立；管理员/管理层授权范围两列留空。",
+      "所有角色必填所属Sector和所属部门，与授权范围独立；管理员授权范围两列留空；管理层授权部门留空，授权Sector必填1–4条。",
     ],
     [
       "历史费用权限",

@@ -100,7 +100,7 @@ async def test_users_import_tolerates_unrelated_legacy_gaps_but_rejects_new_gaps
     revision = await service.users_revision()
     unrelated = dict(
         expected_revision=revision,
-        items=[person("manager@example.com", "management", department=[], sector=[])],
+        items=[person("manager@example.com", "management", department=[], sector=["PCMO"])],
     )
     assert (await service.import_users(AdminUsersImportDTO(**unrelated)))["created"] == 1
     assert await service.users_revision() == revision

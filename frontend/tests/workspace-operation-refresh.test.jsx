@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const harness = vi.hoisted(() => ({ slots: [], cursor: 0, context: null,
-  workspace: vi.fn(), versions: vi.fn(), save: vi.fn(), publish: vi.fn(), getDraft: vi.fn() }));
+  workspace: vi.fn(), versions: vi.fn(), identity: vi.fn(), save: vi.fn(), publish: vi.fn(), getDraft: vi.fn() }));
 vi.mock("react", async (original) => ({
   ...(await original()),
   useState(initial) {
@@ -19,7 +19,7 @@ vi.mock("react", async (original) => ({
 }));
 vi.mock("../src/workbench/api.js", () => ({
   acceptPortalEmail: vi.fn(), getDevelopmentEmail: () => "owner@example.test", setPlanningVersion: vi.fn(),
-  workspace: harness.workspace, planningVersions: harness.versions,
+  workspace: harness.workspace, planningVersions: harness.versions, currentIdentity: harness.identity,
   saveDraft: harness.save, publish: harness.publish, getDraft: harness.getDraft,
 }));
 import { WorkbenchProvider, useWorkbench } from "../src/workbench/WorkbenchContext.jsx";
@@ -50,6 +50,7 @@ beforeEach(async () => {
   vi.stubGlobal("document", { querySelector: () => null });
   render(); await harness.context.refresh(); render();
   harness.workspace.mockClear();
+  harness.identity.mockReset().mockImplementation(async () => harness.context.identity);
 });
 afterEach(() => {
   for (const cleanup of harness.cleanups || []) cleanup?.();
@@ -306,13 +307,14 @@ it("rejects an amount import if another session changed the selected identities"
 });
 
 it("imports replacement rows using the current server revision instead of the local revision", async () => {
-  const rows = [{ dealerId: "D1", amount: 30 }];
+  const rows = [{ dealerId: "D2", amount: 0 }];
+  harness.getDraft.mockResolvedValueOnce(initiative);
   harness.context.mutate((state) => { state.initiatives[0].revision = 10; });
   render();
   harness.save.mockResolvedValueOnce({ ...initiative, rows, revision: 13 });
   await expect(harness.context.saveDraft("1", { rows, otherBudgets: [] }, undefined, true)).resolves.toBe(true);
   expect(harness.getDraft).toHaveBeenCalledWith("1");
-  expect(harness.save).toHaveBeenCalledWith("1", expect.objectContaining({ rows }), 12);
+  expect(harness.save).toHaveBeenCalledWith("1", expect.objectContaining({ rows }), initiative.revision);
   expect(render().state.initiatives[0]).toMatchObject({ revision: 13, rows });
 });
 
@@ -405,4 +407,36 @@ it("exposes next-step autosave as pending and overwrites the same draft on each 
   expect(context.state.initiatives[0]).toMatchObject({ id: "1", revision: 9, editorState: { step: 3 } });
   expect(harness.save.mock.calls.map(([id, , expectedRevision]) => [id, expectedRevision])).toEqual([["1", 7], ["1", 8]]);
   expect(harness.publish).not.toHaveBeenCalled();
+});
+
+
+it("clears caches and reloads after a Sector change without a version revision", async () => {
+  const initial = payload();
+  initial.identity = { ...initial.identity, role: "management", sectors: ["PCMO", "OEM"] };
+  harness.workspace.mockResolvedValue(initial);
+  await harness.context.refresh(); render();
+  harness.workspace.mockClear();
+  const narrowed = structuredClone(initial);
+  narrowed.identity.sectors = ["PCMO"];
+  narrowed.state.initiatives = [];
+  narrowed.data.dealers = [];
+  harness.identity.mockResolvedValue(narrowed.identity);
+  harness.workspace.mockResolvedValue(narrowed);
+  startLiveView();
+  await vi.advanceTimersByTimeAsync(10000);
+  expect(harness.workspace).toHaveBeenCalled();
+  const current = render();
+  expect(current.identity.sectors).toEqual(["PCMO"]);
+  expect(current.state.initiatives).toEqual([]);
+  expect(current.data.dealers).toEqual([]);
+});
+
+it("removes business data when a management grant is revoked", async () => {
+  harness.identity.mockRejectedValue(Object.assign(new Error("业务线范围未配置"), { status: 403 }));
+  startLiveView();
+  await vi.advanceTimersByTimeAsync(10000);
+  const current = render();
+  expect(current.identity).toBeNull();
+  expect(current.data.dealers).toEqual([]);
+  expect(current.state.initiatives).toEqual([]);
 });

@@ -71,7 +71,7 @@ export const departmentAfterRoleChange = (role, current) =>
       : [DEPARTMENTS[0]]
     : [];
 export const sectorAfterRoleChange = (role, current) => {
-  if (!["owner", "lead"].includes(role)) return [];
+  if (!["owner", "lead", "management"].includes(role)) return [];
   return role === "owner" ? current.slice(0, 1) : current;
 };
 export const toggleSectorSelection = (role, current, sector) => {
@@ -322,6 +322,10 @@ export function AdminUsersPanel() {
         return;
       }
     }
+    if (form.role === "management" && !form.sector.length && dialog.kind !== "delete") {
+      setFormError("管理层必须选择一至四条业务线。");
+      return;
+    }
     setSaving(true);
     setFormError("");
     try {
@@ -335,7 +339,7 @@ export function AdminUsersPanel() {
           department: ["owner", "lead"].includes(form.role)
             ? form.department
             : [],
-          sector: ["owner", "lead"].includes(form.role) ? form.sector : [],
+          sector: ["owner", "lead", "management"].includes(form.role) ? form.sector : [],
           enabled: form.enabled,
           affiliation_sector: form.affiliation_sector,
           affiliation_department: form.affiliation_department,
@@ -557,7 +561,7 @@ export function AdminUsersPanel() {
                     {user.role === "owner"
                       ? "本人负责的 Initiative"
                       : user.role === "management"
-                        ? "全部 Sector / 部门"
+                        ? user.sector?.length ? `${user.sector.join("、")} / 全部部门` : "业务线范围未配置"
                         : user.role === "admin"
                           ? "系统配置"
                           : (user.sector || []).flatMap((sector) =>
@@ -784,11 +788,11 @@ export function AdminUsersPanel() {
                   </Alert>
                 )}
               </section>
-              {["owner", "lead"].includes(form.role) && (
+              {["owner", "lead", "management"].includes(form.role) && (
                 <section>
                   <h3>业务授权</h3>
                   <div className="user-editor-pair">
-                    <div className="form-field">
+                    {form.role !== "management" && <div className="form-field">
                       部门（可多选）
                       <div
                         className="sector-choice-group"
@@ -830,7 +834,7 @@ export function AdminUsersPanel() {
                           </Button>
                         ))}
                       </div>
-                    </div>
+                    </div>}
                     <div className="form-field">
                       业务线
                       <div
@@ -874,11 +878,11 @@ export function AdminUsersPanel() {
                           ? ownerAllowedSectors.length
                             ? `Owner 仅可选择所有所选部门负责人共同覆盖的业务线：${ownerAllowedSectors.join("、")}。`
                             : "请先为该部门配置启用的部门负责人及其业务线。"
-                          : "部门负责人可选择一至四条业务线。"}
+                          : form.role === "management" ? "管理层仅可查看所选业务线的全部部门；未配置时不能查看数据。" : "部门负责人可选择一至四条业务线。"}
                       </small>
                     </div>
                   </div>
-                  {dialog.kind === "edit" && dialog.version && (
+                  {["owner", "lead"].includes(form.role) && dialog.kind === "edit" && dialog.version && (
                     <UserInitiativePicker
                       user={dialog.user}
                       form={form}

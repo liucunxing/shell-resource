@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-const harness = vi.hoisted(() => ({ slots: [], cursor: 0, context: null }));
+const harness = vi.hoisted(() => ({ slots: [], cursor: 0, context: null, previewExcel: vi.fn() }));
 vi.mock("react", async (original) => ({
   ...(await original()),
   useState(initial) {
@@ -15,6 +15,7 @@ vi.mock("react", async (original) => ({
   useLayoutEffect: () => {},
 }));
 vi.mock("../src/workbench/WorkbenchContext.jsx", () => ({ useWorkbench: () => harness.context }));
+vi.mock("../src/workbench/file-import.js", () => ({ previewExcelInWorker: harness.previewExcel, exportExcelInWorker: vi.fn() }));
 import { TableBody } from "../src/components/ui/table";
 import { EditorPage } from "../src/workbench/pages/EditorPage.jsx";
 import E from "../src/workbench/domain/engine.js";
@@ -59,6 +60,33 @@ beforeEach(() => {
   vi.stubGlobal("document", { querySelectorAll: () => [] });
 });
 afterEach(() => vi.unstubAllGlobals());
+
+it("previews a full plan and writes only on confirmation", async () => {
+  item().editorState.step = 3;
+  const rows = [{ dealerId: data.dealers[0].id, amount: 25, note: "" }];
+  const preview = {
+    initiativeId: item().id, revision: item().revision, dealerOnly: true, errors: [],
+    rows, otherBudgets: [], summary: { dealerBefore: 0, dealerAfter: 25, otherBudget: 0, gap: 0 },
+    rosterEntries: [{ dealerId: rows[0].dealerId, before: null, after: rows[0] }],
+  };
+  harness.previewExcel.mockResolvedValue(preview);
+  const dialog = () => elements(render()).find(node => node.props.title === "Excel 导入预览");
+  async function upload() {
+    const input = elements(render()).find(node => node.props["aria-label"] === "上传分配 Excel");
+    input.props.onChange({ target: { files: [{ name: "plan.xlsx", arrayBuffer: async () => new ArrayBuffer(0) }] } });
+    await vi.waitFor(() => expect(dialog()).toBeDefined());
+  }
+  await upload();
+  dialog().props.close();
+  expect(dialog()).toBeUndefined();
+  expect(harness.context.saveDraft).not.toHaveBeenCalled();
+  await upload();
+  await dialog().props.action.props.onClick();
+  expect(harness.context.saveDraft).toHaveBeenCalledExactlyOnceWith(
+    item().id, expect.objectContaining({ rows, otherBudgets: [] }), undefined, true,
+  );
+  expect(dialog()).toBeUndefined();
+});
 
 it.each([1, 2, 3])("shows manual save only in step 3 (current step %s)", step => {
   item().editorState.step = step;
@@ -220,6 +248,26 @@ function prepareTrial() {
   item().editorState.step = 3;
   return structuredClone(item().rows);
 }
+
+it("clears a dealer amount to zero and accepts the first remove click after blur", () => {
+  prepareTrial();
+  const amountInput = () => {
+    const field = elements(render()).find(node => node.props.label?.endsWith(" 分配金额"));
+    return field.type(field.props);
+  };
+  amountInput().props.onValueChange("");
+  const editing = amountInput();
+  expect(editing.props.value).toBe("");
+  expect(editing.props["aria-invalid"]).toBe(false);
+  editing.props.onBlur();
+  expect(amountInput().props.value).toBe(0);
+  const rowCount = item().rows.length;
+  elements(render()).find(node => node.props.className === "v19-allocation-remove").props.onClick();
+  const modal = elements(render()).find(node => node.props.action?.props.children === "确认移除");
+  modal.props.action.props.onClick();
+  expect(item().rows).toHaveLength(rowCount - 1);
+  expect(harness.context.notify).not.toHaveBeenCalled();
+});
 
 it("keeps each allocation remove button available and confirms before removing", () => {
   const before = prepareTrial();

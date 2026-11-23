@@ -88,7 +88,7 @@ async def seed_synthetic_data(connection: AsyncConnection) -> dict[str, str]:
             ("lead", "lead", ["MKT", "ICE"], ["PCMO"], "PCMO", "MKT", None),
             ("lead-crto", "lead", ["MKT"], ["CRTO"], "CRTO", "MKT", None),
             ("admin", "admin", [], [], "PCMO", "MKT", None),
-            ("management", "management", [], [], "PCMO", "MKT", None),
+            ("management", "management", [], ["PCMO", "CRTO"], "PCMO", "MKT", None),
             ("unaffiliated", "owner", ["MKT"], ["PCMO"], None, None, ["Capex"]),
         ]
         for name, role, departments, sectors, home_sector, home_department, expenses in people:

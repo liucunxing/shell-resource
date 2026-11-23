@@ -1,7 +1,6 @@
 import { expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-// Tooltip portals are not mounted by SSR; expose their content to verify that
-// source coverage is propagated into the explanation, not the compact tab label.
+// Expose tooltip content in the server-rendered markup.
 vi.mock("../src/workbench/pages/MetricHelp", () => ({
   MetricHelp: ({ children }) => <aside data-testid="metric-explanation">{children}</aside>,
 }));
@@ -61,14 +60,12 @@ const items = [
   },
 ];
 
-it("preserves a confirmed or expired source period in organization controls", () => {
-  for (const month of [9, null]) {
-    const html = renderToStaticMarkup(<SdAnalysis items={items} dealers={dealers} ytdCutoffMonth={month} />);
-    expect(html).toContain(month === null ? "截止月待确认" : "1–9月");
-    expect(html).not.toContain("1–10月");
-    expect(html).toContain(">2026 YTD</button>");
-    expect(html).not.toMatch(/>2026 YTD（[^<]*<\/button>/);
-  }
+it.each([9, null])("keeps both period and metric choices without the organization period explanation (%s)", month => {
+  const html = renderToStaticMarkup(<SdAnalysis items={items} dealers={dealers} ytdCutoffMonth={month} />);
+  const controls = html.split('class="studio-inline-controls"')[1].split('class="studio-table-note"')[0];
+  for (const label of ["2025 全年", "2026 YTD", "Vol", "C3"])
+    expect(controls).toContain(`>${label}</button>`);
+  expect(controls).not.toContain("metric-explanation");
 });
 const read = (input = items, previous = null, groupBy = "sd") =>
   sdPresentationGroups(
@@ -152,7 +149,7 @@ it("RSM facts aggregate RSM membership and do not reuse SD names", () => {
   expect(groups.map((g) => g.key)).toEqual(["RSM-1", "RSM-2", "RSM-3"]);
 });
 
-it("renders the Step 3 summary in four groups with a project-list denominator and no missing baseline defaults", () => {
+it("renders the Step 3 summary without judgment or previous-version columns", () => {
   const html = renderToStaticMarkup(
     <SdAnalysis variant="editor" items={items} dealers={dealers} />,
   );
@@ -160,16 +157,62 @@ it("renders the Step 3 summary in four groups with a project-list denominator an
   expect([...heading.matchAll(/colSpan="(\d)"[^>]*>([^<]+)</gi)].map((m) => m.slice(1))).toEqual([
     ["4", "本次投资"],
     ["3", "历史 Actual · 2025 全年"],
-    ["3", "投资金额占比"],
+    ["2", "投资金额占比"],
   ]);
-  expect(heading).toContain(">较上版</th>");
+  expect(heading).not.toContain("较上版");
   expect(html).toContain("分配 / 名单");
   expect(html).toMatch(/data-column="count"[^>]*>2 \/ 2</);
-  expect(html).toMatch(/data-column="delta"[^>]*>—</);
+  expect(html).not.toMatch(/data-column="(?:delta|judgment)"|较上版|来源版本|判断（按偏离程度）/);
   expect(html).toContain("投资金额占比极差 80.0 pp");
   expect(html).toContain('data-series="investment" data-value="90"');
   expect(html).toContain('class="v20-share-value">90.0');
-  expect(html).not.toMatch(/SD-C|分配 \/ 全部|合同量|Phasing|波动率|PPP/);
+  expect(html).toContain('data-organization="SD-C"');
+  expect(html).not.toMatch(/分配 \/ 全部|合同量|Phasing|波动率|PPP/);
+});
+
+it.each(["sd", "rsm"])("shows every active organization in the editor, including unselected %s groups", (dimension) => {
+  const directory = Array.from({ length: 6 }, (_, index) => ({
+    id: `D${index}`, sector: "PCMO", status: "active",
+    sd: `SD-${index}`, rsm: `RSM-${index}`,
+    history: { vol2025: 10, c32025: 20 },
+  }));
+  const current = [{ id: "current", initiativeKey: "stable", sector: "PCMO", selected: ["D0"], rows: [{ dealerId: "D0", amount: 0 }] }];
+  const previous = [{ ...current[0], selected: ["D1"], rows: [{ dealerId: "D1", amount: 50000 }] }];
+  const groups = sdGroupsWithComparison(current, previous, directory, dimension, "c3", "2025", directory, { includeSourceOnly: false });
+  const result = sdPresentationGroups(groups);
+  expect(groups).toHaveLength(6);
+  expect(groups.find((group) => group.key.endsWith("-0"))).toMatchObject({ selectedCount: 1, allocatedCount: 0, amount: 0 });
+  expect(groups.find((group) => group.key.endsWith("-1"))).toMatchObject({ selectedCount: 0, allocatedCount: 0, amount: 0, comparison: { delta: -50000 } });
+  expect(groups.find((group) => group.key.endsWith("-2"))).toMatchObject({ selectedCount: 0, allocatedCount: 0, amount: 0, comparison: { delta: 0 } });
+  expect(result.totals).toMatchObject({ selectedCount: 1, allocatedCount: 0, amount: 0, comparison: { delta: -50000 } });
+  expect(result.totals.analyticalVol).toBe(10);
+  expect(result.totals.analyticalC3).toBe(20);
+  const html = draw(result, "selected");
+  for (const group of groups) expect(html).toContain(`data-organization="${group.key}"`);
+});
+
+it("uses the current active directory for editor rows without introducing previous-only groups", () => {
+  const master = [{ id: "a", sector: "PCMO", status: "active", sd: "ACTIVE", rsm: "R1" }];
+  const all = [...master, { id: "b", sector: "PCMO", status: "closed", sd: "CLOSED", rsm: "R2" }];
+  const current = [{ id: "current", initiativeKey: "stable", sector: "PCMO", selected: [], rows: [] }];
+  const previous = [{ ...current[0], selected: ["b"], rows: [{ dealerId: "b", amount: 100 }] }];
+  expect(sdGroupsWithComparison(current, null, all, "sd", "c3", "2025", master).map((g) => g.key)).toEqual(["ACTIVE"]);
+  expect(sdGroupsWithComparison(current, previous, all, "sd", "c3", "2025", master).map((g) => g.key)).toEqual(["ACTIVE", "CLOSED"]);
+  const editorGroups = sdGroupsWithComparison(current, previous, all, "sd", "c3", "2025", master, { includeSourceOnly: false });
+  expect(editorGroups.map((g) => g.key)).toEqual(["ACTIVE"]);
+  expect(sdPresentationGroups(editorGroups).totals.comparison.delta).toBe(0);
+  const html = renderToStaticMarkup(<SdAnalysis variant="editor" items={current} dealers={all} masterDealers={master} />);
+  expect(html).toContain('data-organization="ACTIVE"');
+  expect(html).not.toContain('data-organization="CLOSED"');
+});
+
+it("uses the same current dealer organization and rows as the editor scope cards", () => {
+  const directory = [{ id: "a", sector: "PCMO", status: "active", sd: "CURRENT", rsm: "NOW" }];
+  const current = [{ id: "current", sector: "PCMO", selected: [], rows: [{ dealerId: "a", sd: "OLD", rsm: "OLD-RSM", amount: 100 }] }];
+  const html = renderToStaticMarkup(<SdAnalysis variant="editor" items={current} dealers={directory} masterDealers={directory} />);
+  expect(html).toContain('data-organization="CURRENT"');
+  expect(html).not.toContain('data-organization="OLD"');
+  expect(html).toMatch(/data-column="count"[^>]*>1 \/ 1</);
 });
 
 it("preserves historical values and expands the shared scale when investment grows", () => {

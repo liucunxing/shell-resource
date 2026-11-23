@@ -1,5 +1,5 @@
 import engine from "./engine.js";
-import { isActiveDealer } from "./dealer-history";
+import { initiativeDealers, isActiveDealer } from "./dealer-history";
 const excelLibrary = async () => (await import("exceljs")).default;
 ("use strict");
 const LEGACY_FORMAT = "资源投资分配模板 V1.3",
@@ -233,14 +233,26 @@ async function exportSelectedRoster(rows, dealers, data = { dealers }) {
   addDealerDirectory(book, data);
   return book.xlsx.writeBuffer();
 }
+function dealerMatchKey(code, sd, rsm) {
+  return json([code, sd, rsm].map(value => String(value ?? "").trim()));
+}
+function activeDealerIndex(dealers, sector) {
+  const matches = new Map();
+  for (const dealer of dealers) {
+    if (!isActiveDealer(dealer) || (dealer.sector && dealer.sector !== sector)) continue;
+    const key = dealerMatchKey(dealer.code || dealer.id, dealer.sd, dealer.rsm);
+    matches.set(key, matches.has(key) ? null : dealer);
+  }
+  return matches;
+}
 async function previewRosterImport(buffer, state, id, identity, dealers) {
   const out = { initiativeId: id, revision: null, rows: [], otherBudgets: [], errors: [], rosterEntries: [], summary: { before: 0, after: 0, gap: 0 } };
   let initiative;
   try { initiative = editable(state, id, identity); }
   catch (error) { out.errors.push(error.message); return out; }
   out.revision = initiative.revision;
-  out.summary.before = total(initiative);
-  out.rows = clone(initiative.rows);
+  out.summary.before = engine.totals([initiative]).allocated;
+  const previousRows = new Map(initiative.rows.map(row => [String(row.dealerId), row]));
   out.otherBudgets = clone(currentOther(initiative));
   const book = new (await excelLibrary()).Workbook();
   try { await book.xlsx.load(buffer); }
@@ -251,29 +263,31 @@ async function previewRosterImport(buffer, state, id, identity, dealers) {
   const read = readFactory(out);
   checkHeaders(read, out, sheet, ["经销商编码", "经销商名称", "SD", "RSM", "状态", "已分配（元）"]);
   checkWidth(out, sheet, 6);
+  const activeDealers = activeDealerIndex(dealers, initiative.sector);
   const seen = new Set();
-  let count = 0;
   for (let n = 2; n <= sheet.rowCount; n++) {
     const cells = [1, 2, 3, 4, 5, 6].map((column) => read(sheet, n, column));
     if (cells.every((value) => value === "")) continue;
-    count++;
     const [code, , sd, rsm, , amount] = cells;
-    const matches = dealers.filter((dealer) => isActiveDealer(dealer) && (!dealer.sector || dealer.sector === initiative.sector) &&
-      String(dealer.code || dealer.id) === String(code).trim() && String(dealer.sd || "") === String(sd).trim() && String(dealer.rsm || "") === String(rsm).trim());
-    if (matches.length !== 1) { out.errors.push(`第${n}行编码、SD、RSM 无法唯一匹配当前业务线的 Active 经销商。`); continue; }
-    const dealerId = matches[0].id;
+    const dealer = activeDealers.get(dealerMatchKey(code, sd, rsm));
+    if (!dealer) { out.errors.push(`第${n}行编码、SD、RSM 无法唯一匹配当前业务线的 Active 经销商。`); continue; }
+    const dealerId = dealer.id;
     if (seen.has(String(dealerId))) { out.errors.push(`第${n}行经销商重复。`); continue; }
     seen.add(String(dealerId));
     const value = money(amount, out, `第${n}行金额`);
-    const index = out.rows.findIndex((row) => String(row.dealerId) === String(dealerId));
-    const before = index < 0 ? null : out.rows[index];
+    const before = previousRows.get(String(dealerId)) ?? null;
     const after = before ? { ...before, amount: value } : { dealerId, amount: value, note: "" };
-    if (index < 0) out.rows.push(after); else out.rows[index] = after;
+    out.rows.push(after);
     out.rosterEntries.push({ dealerId, before, after });
   }
-  if (!count) out.errors.push("名单中没有可导入的经销商。");
-  out.summary.after = round(out.rows.reduce((sum, row) => sum + row.amount, 0) + out.otherBudgets.reduce((sum, row) => sum + row.amount, 0));
-  out.summary.gap = round(initiative.budget - out.summary.after);
+  if (out.errors.length) return out;
+  for (const [id, before] of previousRows) {
+    if (!seen.has(id)) out.rosterEntries.push({ dealerId: before.dealerId, before, after: null });
+  }
+  const totals = engine.totals([{ ...initiative, rows: out.rows, otherBudgets: out.otherBudgets }]);
+  out.summary.after = totals.allocated;
+  out.summary.otherBudget = totals.otherBudget;
+  out.summary.gap = totals.gap;
   return out;
 }
 function parseOtherV14(sheet, state, out, read) {
@@ -410,18 +424,20 @@ async function previewImport(buffer, state, id, identity, data) {
       out.errors.push("模板所属方案或版本与当前方案不一致，请重新下载模板。");
     checkHeaders(read, out, sheet, ALLOCATION_HEAD);
     checkWidth(out, sheet, 9);
-    const source = [...(data.dealers || []), ...dealerDirectory(data)];
-    const allowed = new Set([...dealerDirectory(data).filter((d) => !d.sector || d.sector === i.sector).map((d) => String(d.id)), ...i.rows.map((row) => String(row.dealerId))]);
+    const activeDealers = activeDealerIndex(
+      initiativeDealers(data.dealers || [], data.distributorDirectory || [], i.sector), i.sector,
+    );
     const ids = new Set();
     for (let n = 2; n <= sheet.rowCount; n++) {
       const row = ALLOCATION_HEAD.map((_, column) => read(sheet, n, column + 1));
       if (row.every((value) => value === "")) continue;
-      const [code, , , sd, rsm, amount, note, recordId] = row;
-      const matches = [...new Map(source.filter((record) => (!record.sector || record.sector === i.sector) && String(record.code || record.id) === String(code).trim() && String(record.sd || "") === String(sd).trim() && String(record.rsm || "") === String(rsm).trim()).map((record) => [String(record.id), record])).values()];
-      const dealer = matches.length === 1 ? String(matches[0].id) : String(recordId || "");
-      if (matches.length !== 1 && !i.rows.some((old) => String(old.dealerId) === dealer && String(old.dealerCode || old.dealerId) === String(code)))
-        out.errors.push(`经销商分配 第${n}行编码、SD、RSM 无法唯一匹配历史记录。`);
-      if (!allowed.has(dealer)) out.errors.push(`经销商分配 第${n}行经销商编码不存在或格式不正确。`);
+      const [code, , , sd, rsm, amount, note] = row;
+      const match = activeDealers.get(dealerMatchKey(code, sd, rsm));
+      if (!match) {
+        out.errors.push(`经销商分配 第${n}行编码、SD、RSM 无法唯一匹配当前业务线的 Active 经销商。`);
+        continue;
+      }
+      const dealer = match.id;
       if (ids.has(dealer)) out.errors.push(`经销商分配 第${n}行经销商重复。`);
       if (typeof note !== "string") out.errors.push(`经销商分配 第${n}行说明必须为文本。`);
       ids.add(dealer);
@@ -502,13 +518,8 @@ async function previewImport(buffer, state, id, identity, data) {
   checkHeaders(read, out, ds, isV14 ? HEAD : LEGACY_HEAD);
   const detailed = isV14 && read(ds, 1, 6) === "记录标识";
   checkWidth(out, ds, detailed ? 6 : isV14 ? 3 : 4);
-  const sourceRecords = [...(data.dealers || []), ...dealerDirectory(data)];
-  const dealers = new Set([
-      ...dealerDirectory(data)
-        .filter((d) => !d.sector || d.sector === i.sector)
-        .map((d) => String(d.id)),
-      ...i.rows.map((row) => String(row.dealerId)),
-    ]),
+  const sourceRecords = initiativeDealers(data.dealers || [], data.distributorDirectory || [], i.sector).filter(isActiveDealer);
+  const dealers = new Set(sourceRecords.map(dealer => dealer.id)),
     keys = new Set(),
     ids = new Set();
   for (let n = 2; n <= ds.rowCount; n++) {
@@ -581,7 +592,7 @@ async function previewImport(buffer, state, id, identity, data) {
 }
 function finishPreview(out, i, identity, scope) {
   if (
-    !out.rows.length &&
+    !out.dealerOnly && !out.rows.length &&
     !out.otherBudgets.some((r) => r.amount > 0 && r.note.trim())
   )
     out.errors.push(
@@ -589,21 +600,21 @@ function finishPreview(out, i, identity, scope) {
     );
   const before = new Map(i.rows.map((r) => [r.dealerId, r])),
     after = new Map(out.rows.map((r) => [r.dealerId, r]));
-  if (before.size !== after.size || [...after.keys()].some(id => !before.has(id))) {
-    out.errors.push("分配模板中的经销商须与当前最终名单一致，请在经销商范围调整名单。");
-  } else if (!out.errors.length) {
-    out.rows = i.rows.map(row => ({ ...row, ...after.get(row.dealerId) }));
+  out.rows = out.rows.map(row => ({ ...before.get(row.dealerId), ...row }));
+  out.rosterEntries = [...new Set([...after.keys(), ...before.keys()])].map(dealerId => ({
+    dealerId,
+    before: before.get(dealerId) ?? null,
+    after: after.get(dealerId) ?? null,
+  }));
+  out.changes = out.rosterEntries.filter(({ before, after }) =>
+    !before || !after || before.amount !== after.amount || (before.note || "") !== (after.note || ""),
+  );
+  if (out.dealerOnly) {
+    out.summary.dealerBefore = engine.totals([i]).allocated;
+    const totals = engine.totals([{ ...i, rows: out.rows, otherBudgets: out.otherBudgets }]);
+    out.summary.dealerAfter = totals.allocated;
+    out.summary.otherBudget = totals.otherBudget;
   }
-  new Set([...before.keys(), ...after.keys()]).forEach((dealerId) => {
-    const a = before.get(dealerId),
-      b = after.get(dealerId);
-    if (!a || !b || a.amount !== b.amount || (a.note || "") !== (b.note || ""))
-      out.changes.push({
-        dealerId,
-        before: a ? { ...a } : null,
-        after: b ? { ...b } : null,
-      });
-  });
   if (json(currentOther(i)) !== json(out.otherBudgets))
     out.changes.push({
       otherBudgets: true,

@@ -186,7 +186,7 @@ export function V19ExecutiveHealth({
       </div>
       <div className="v19-board-body">
         <HistoryControls
-          {...{ period, setPeriod, basis, setBasis, ytdCutoffMonth }}
+          {...{ period, setPeriod, basis, setBasis }}
         />
         <div className="v19-exec-concentration-overview">
           <section>

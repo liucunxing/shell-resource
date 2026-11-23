@@ -55,7 +55,7 @@ const healthDealers = [
   },
 ];
 
-it("keeps confirmed or unknown coverage through the health and stacked views", () => {
+it("shows compact period choices without a coverage tooltip in the health and stacked views", () => {
   for (const month of [9, null]) {
     const html = renderToStaticMarkup(
       <V19Health
@@ -64,8 +64,8 @@ it("keeps confirmed or unknown coverage through the health and stacked views", (
         ytdCutoffMonth={month}
       />,
     );
-    const label = month === null ? "截止月待确认" : "1–9月";
-    expect(html.split(label).length - 1).toBeGreaterThanOrEqual(2);
+    expect(html).not.toContain("不自动年化");
+    expect(html.split(">2025 全年</button>").length - 1).toBeGreaterThanOrEqual(2);
     expect(html).not.toContain("1–10月");
     expect(html).toContain(">2026 YTD</button>");
     expect(html).not.toMatch(/>2026 YTD（[^<]*<\/button>/);
@@ -239,9 +239,12 @@ it("includes all configured reserve reasons in the Owner budget summary", () => 
     apiMode: true,
   };
   const html = renderToStaticMarkup(<HomePage />);
-  expect(html).toMatch(/4\.0(?:\s|<[^>]*>)*万/);
+  expect(html).toMatch(/100,000(?:\s|<[^>]*>)*元/);
+  expect(html).toMatch(/60,000(?:\s|<[^>]*>)*元/);
+  expect(html).toMatch(/40,000(?:\s|<[^>]*>)*元预留/);
   expect(html).toContain("预留 / 待分配");
-  expect(html).toContain("4.0 / 0.0 万");
+  expect(html).toContain("40,000 / 0 元");
+  expect(html).not.toContain("万元");
   expect(html).not.toContain("202701 · 业务目标校准");
 });
 

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.departments import departments
+from app.core.resource_access import valid_management_sectors
 from app.db.session import get_db_session
 from app.repositories.workspace_repository import WorkspaceRepository
 
@@ -33,7 +34,12 @@ class WorkbenchUser:
     @property
     def dealer_sectors(self) -> tuple[str, ...] | None:
         """None allows all dealer sectors; an empty tuple allows none."""
-        return None if self.role in {"admin", "management"} else self.sectors
+        self.require_data_scope()
+        return None if self.role == "admin" else self.sectors
+
+    def require_data_scope(self) -> None:
+        if self.role == "management" and not valid_management_sectors(self.sectors):
+            raise HTTPException(403, "管理层业务线范围未配置或无效，请联系管理员")
 
     @property
     def owner_id(self) -> str:
@@ -80,6 +86,8 @@ async def resolve_workbench_permission(session: AsyncSession, email: str) -> Wor
         permission.role in {"owner", "lead"} and not departments(permission.department)
     ):
         raise HTTPException(status_code=403, detail="用户权限配置无效")
+    if permission.role == "management" and not valid_management_sectors(permission.sector):
+        raise HTTPException(403, "管理层业务线范围未配置或无效，请联系管理员")
     history_resources: list[str] | None = getattr(permission, "history_resources", None)
     return WorkbenchUser(
         email=permission.email,

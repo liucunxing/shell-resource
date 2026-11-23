@@ -1,3 +1,5 @@
+import { assertAuthorizedRead, authorizedReadEpoch, identityScopeKey } from "../identity-scope";
+import { currentIdentity } from "../api";
 import { wholeMetric, isHistoricalOutput } from "../domain/metric-precision";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Card } from "../../components/ui/card";
@@ -76,9 +78,13 @@ export function RawPage() {
     pages = Math.max(1, Math.ceil(rows.length / 15)),
     current = Math.min(page, pages);
   const exportCsv = async () => {
+    const scopeEpoch = authorizedReadEpoch();
     const previewEpoch = getPreviewEpoch();
     try {
       await validatePortalSession();
+      if (identity.apiMode && identityScopeKey(await currentIdentity()) !== identityScopeKey(identity))
+        throw Error("授权范围已变化，请重新加载。");
+      assertAuthorizedRead(scopeEpoch);
       assertPreviewResponseCurrent(previewEpoch);
       const url = URL.createObjectURL(
         new Blob([A.csv(model, filters)], { type: "text/csv;charset=utf-8" }),

@@ -46,7 +46,7 @@ function scope(state, identity) {
     basisLabel,
     scopeLabel:
       identity.role === "management"
-        ? "全公司最新发布范围"
+        ? `${(identity.sectors || []).join(" / ")} 已授权业务线`
         : identity.role === "admin"
           ? "全公司当前分配"
           : identity.role === "owner"

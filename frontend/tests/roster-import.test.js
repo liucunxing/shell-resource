@@ -20,15 +20,34 @@ it("imports roster with identity, duplicate and amount validation", async () => 
  sheet.getCell("D3").value="missing"; sheet.getCell("F2").value={formula:"1+1",result:2}; result=await X.previewRosterImport(await book.xlsx.writeBuffer(),state,"I",identity,dealers); expect(result.errors.join()).toContain("无法唯一匹配"); expect(result.errors.join()).toContain("不支持公式");
  result=await X.previewRosterImport(await book.xlsx.writeBuffer(),state,"I",{...identity,ownerId:"other"},dealers); expect(result.errors.length).toBeGreaterThan(0);
 });
-it("previews unchanged dealers listed in the file and preserves unlisted draft rows", async () => {
+it("replaces the selected roster, releasing removed amounts while keeping reserves and selected zero rows", async () => {
   const identity = { role: "owner", department: "MKT", ownerId: "owner", apiMode: true };
   const dealers = ["A", "B"].map(id => ({ id, code: id, name: id, sector: "OEM", sd: "East", rsm: "One", status: "active" }));
   const rows = dealers.map(dealer => ({ dealerId: dealer.id, amount: 0, note: "" }));
-  const item = { id: "I", ownerId: "owner", sector: "OEM", department: "MKT", budget: 100, revision: 1, rows, otherBudgets: [] };
+  rows[0].amount = 25;
+  const otherBudgets = [{ id: "r", amount: 10, note: "reserve" }];
+  const item = { id: "I", ownerId: "owner", sector: "OEM", department: "MKT", budget: 100, revision: 1, rows, otherBudgets };
   const state = { departments: { MKT: { status: "collecting", versions: [] } }, initiatives: [item] };
   const file = await X.exportSelectedRoster([rows[1]], dealers);
   const preview = await X.previewRosterImport(file, state, item.id, identity, dealers);
   expect(preview.errors).toEqual([]);
-  expect(preview.rosterEntries).toEqual([{ dealerId: "B", before: rows[1], after: rows[1] }]);
-  expect(preview.rows).toEqual(rows);
+  expect(preview.rosterEntries).toEqual([
+    { dealerId: "B", before: rows[1], after: rows[1] },
+    { dealerId: "A", before: rows[0], after: null },
+  ]);
+  expect(preview.rows).toEqual([rows[1]]);
+  expect(preview.summary).toEqual({ before: 25, after: 0, otherBudget: 10, gap: 90 });
+  expect(preview.otherBudgets).toEqual(otherBudgets);
+
+  const unchangedFile = await X.exportSelectedRoster(rows, dealers);
+  const unchanged = await X.previewRosterImport(unchangedFile, state, item.id, identity, dealers);
+  expect(unchanged.errors).toEqual([]);
+  expect(unchanged.summary).toEqual({ before: 25, after: 25, otherBudget: 10, gap: 65 });
+
+  const emptyFile = await X.exportSelectedRoster([], dealers);
+  const empty = await X.previewRosterImport(emptyFile, state, item.id, identity, dealers);
+  expect(empty.errors).toEqual([]);
+  expect(empty.rows).toEqual([]);
+  expect(empty.rosterEntries).toEqual(rows.map(before => ({ dealerId: before.dealerId, before, after: null })));
+  expect(item.rows).toHaveLength(2);
 });

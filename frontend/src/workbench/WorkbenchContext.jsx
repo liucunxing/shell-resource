@@ -1,3 +1,4 @@
+import { identityScopeKey, invalidateAuthorizedReads } from "./identity-scope";
 import { navigationFor } from "./navigation";
 import { keepUnchanged, watchLiveRead } from "./live-read";
 import { LegendColorProvider } from "./LegendColors";
@@ -57,7 +58,7 @@ export const roles = E.DEPARTMENTS.flatMap((department) => [
     label: `${department} · 部门负责人`,
   },
 ]).concat([
-  { key: "management", role: "management", label: "管理层 · 只读统览" },
+  { key: "management", role: "management", sectors: ["PCMO", "CRTO", "B2B", "OEM"], label: "管理层 · 只读统览" },
   { key: "admin", role: "admin", label: "管理员 · 数据与配置" },
 ]);
 
@@ -235,6 +236,7 @@ export function WorkbenchProvider({ children }) {
   const view = useMemo(() => selectWorkspaceView(state, identity, page), [identity, state, page]);
 
   const clearApiWorkspace = () => {
+    invalidateAuthorizedReads();
     sessionEpoch.current += 1;
     pendingDrafts.current.clear();
     replaceState(blankState());
@@ -404,6 +406,25 @@ export function WorkbenchProvider({ children }) {
     const timer = setTimeout(() => setToast(null), 4000);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  // Permission changes are independent of planning-version revisions.
+  useEffect(() => {
+    if (demoMode || loading || !identity) return;
+    const epoch = sessionEpoch.current;
+    return watchLiveRead(async active => {
+      const incoming = await api.currentIdentity();
+      if (!active() || epoch !== sessionEpoch.current) return;
+      if (identityScopeKey(incoming) !== identityScopeKey(identity)) {
+        clearApiWorkspace();
+        await refresh({ preservePage: true });
+      }
+    }, { onError: error => {
+      if (epoch === sessionEpoch.current && [401, 403, 404].includes(error.status)) {
+        clearApiWorkspace();
+        setStorageWarning(error.message || "权限已变化，请重新登录。");
+      }
+    } });
+  }, [identity, loading]);
 
   const versionId = state.currentVersionId || state.planningVersion?.id;
   useEffect(() => {
@@ -590,9 +611,8 @@ export function WorkbenchProvider({ children }) {
       if (epoch !== sessionEpoch.current) return false;
       if (latest) {
         if (wasDraftCleared(current, latest)) throw new Error("管理员已清空本版草稿，请重新核对分配后导入。");
-        const selected = new Set(draft.rows.map(row => String(row.dealerId)));
-        if (selected.size !== latest.rows.length || latest.rows.some(row => !selected.has(String(row.dealerId)))) {
-          throw new Error("服务器上的经销商最终名单已变化，请核对名单后重新导入金额。");
+        if (latest.revision !== serverRevisions[id]) {
+          throw new Error("服务器上的草稿已变化，请刷新核对后重新导入方案。");
         }
       }
       const result = await api.saveDraft(

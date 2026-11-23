@@ -314,19 +314,12 @@ function HistoryControls({
   onPeriodChange,
   metric,
   onMetricChange,
-  ytdCutoffMonth = 10,
   children,
 }) {
   return (
     <div className="v19-editor-history">
       <span>历史参考</span>
-      <HistoryPeriodTabs
-        value={period}
-        onValueChange={onPeriodChange}
-        ytdCutoffMonth={ytdCutoffMonth}
-      >
-        经销商 target 以 KL 展示；Phasing 直接读取源表对应年份的结果，1 表示 100%；源值缺失时显示 —。
-      </HistoryPeriodTabs>
+      <HistoryPeriodTabs value={period} onValueChange={onPeriodChange} />
       {onMetricChange && (
         <Tabs
           value={metric === "vol" ? "vol" : "c3"}
@@ -352,9 +345,10 @@ export function amountInputError(raw, budgetLimit) {
 function AmountInput({ value, label, save, disabled = false, budgetLimit = null }) {
   const [raw, setRaw] = useState(null);
   const [failed, setFailed] = useState(false);
-  const valid =
-    raw === null ||
-    (/^\d+(\.\d{0,2})?$/.test(raw) && E.validMoney(Number(raw)));
+  // Keep the focused text editable while actions and totals use its numeric value.
+  const validAmount = (text) =>
+    text === "" || (/^\d+(\.\d{0,2})?$/.test(text) && E.validMoney(Number(text)));
+  const valid = raw === null || validAmount(raw);
   return (
     <MoneyInput
       disabled={disabled}
@@ -366,8 +360,10 @@ function AmountInput({ value, label, save, disabled = false, budgetLimit = null 
       value={raw ?? value}
       onValueChange={(next) => {
         setRaw(next);
-        if (/^\d+(\.\d{0,2})?$/.test(next) && E.validMoney(Number(next)))
-          setFailed(save(Number(next)) === false);
+        if (validAmount(next)) {
+          const amount = Number(next);
+          setFailed(amount !== value && save(amount) === false);
+        }
       }}
       onBlur={() => {
         if (valid && !failed) setRaw(null);
@@ -375,7 +371,13 @@ function AmountInput({ value, label, save, disabled = false, budgetLimit = null 
     />
   );
 }
-function EditorDialog({ title, children, action, close, compact = false, wide = false }) {
+function importChange({ before, after }) {
+  if (!before) return "新增";
+  if (!after) return "删除";
+  return before.amount !== after.amount || (before.note || "") !== (after.note || "") ? "修改" : "未变化";
+}
+
+function EditorDialog({ title, children, action, close, pending = false, compact = false, wide = false }) {
   const previous = useRef(
     typeof document === "undefined" ? null : document.activeElement,
   );
@@ -383,7 +385,7 @@ function EditorDialog({ title, children, action, close, compact = false, wide = 
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open) close();
+        if (!open && !pending) close();
       }}
     >
       <DialogContent
@@ -398,13 +400,13 @@ function EditorDialog({ title, children, action, close, compact = false, wide = 
       >
         <DialogHeader className="flex-row items-center justify-between gap-4">
           <DialogTitle>{title}</DialogTitle>
-          <Button variant="ghost" onClick={close} aria-label="关闭弹窗">
+          <Button variant="ghost" disabled={pending} onClick={close} aria-label="关闭弹窗">
             关闭
           </Button>
         </DialogHeader>
         <DialogBody>{children}</DialogBody>
         <DialogFooter>
-          <Button variant="outline" onClick={close}>
+          <Button variant="outline" disabled={pending} onClick={close}>
             取消 / 返回
           </Button>
           {action}
@@ -826,13 +828,11 @@ function EditorContent({
         roster ? dealers : data,
       );
       if (!alive.current) return;
-      if (!roster && !preview.errors.length) {
-        if (await saveDraft(i.id, { rows: preview.rows, otherBudgets: preview.otherBudgets, editorState: { ...i.editorState, trial: null } }, undefined, true)) {
-          setFillNotice(null);
-        }
-      } else {
-        setModal({ type: "import", preview, name: file.name, roster, identityKey: JSON.stringify(identity), versionId: state.planningVersion?.id, originalRows: JSON.stringify(i.rows), originalOther: JSON.stringify(i.otherBudgets) });
-      }
+      setModal({
+        type: "import", preview, name: file.name, roster,
+        identityKey: JSON.stringify(identity), versionId: state.planningVersion?.id,
+        originalRows: JSON.stringify(i.rows), originalOther: JSON.stringify(i.otherBudgets),
+      });
     } catch (e) {
       notify(e.message, true);
     } finally {
@@ -1111,6 +1111,12 @@ function EditorContent({
     }));
     setAllocationPage(1);
   };
+  const importRows = modal?.preview?.rosterEntries ?? [];
+  const importCounts = { 新增: 0, 修改: 0, 删除: 0 };
+  for (const row of importRows) {
+    const change = importChange(row);
+    if (change !== "未变化") importCounts[change]++;
+  }
   return (
     <>
       {operation && (
@@ -1182,14 +1188,14 @@ function EditorContent({
             [
               "预留不分配",
               totals.otherBudget,
-              "暂不分给经销商的钱；每笔需说明原因",
+              "暂不分配给经销商的预算，每笔需说明原因",
             ],
             [
               "当前已分配",
               totals.allocated,
-              "草稿中已分给经销商的钱，部门提交后管理层可见",
+              "草稿中已分配给经销商的预算，部门提交后管理层可见",
             ],
-            ["待分配", totals.gap, "还没安排的钱，可继续分配或填写原因后预留"],
+            ["待分配", totals.gap, "尚未安排的预算，可继续分配或填写原因后预留"],
           ].map(([label, value, note], index) => (
             <Card
               key={label}
@@ -1735,7 +1741,7 @@ function EditorContent({
               ytdCutoffMonth={state.ytdCutoffMonth}
               items={[i]}
               dealers={dealers}
-              metadata={state.reference}
+              masterDealers={activeScopeDealers}
               threshold={state.healthThresholds?.dealerYellow ?? 3}
               sourceVersionId={state.planningVersion?.sourceVersionId}
               sourceRevision={state.planningVersions?.find(version => version.id === state.planningVersion?.sourceVersionId)?.revision}
@@ -1758,7 +1764,6 @@ function EditorContent({
                 </div>
                 {fillNotice && <MissingHistoryNotice {...fillNotice} />}
                 <HistoryControls
-                  ytdCutoffMonth={state.ytdCutoffMonth}
                   period={historyPeriod}
                   onPeriodChange={changeHistoryPeriod}
                   metric={historyMetric}
@@ -1835,7 +1840,6 @@ function EditorContent({
                     action={null}
                   >
                     <HistoryControls
-                      ytdCutoffMonth={state.ytdCutoffMonth}
                       period={historyPeriod}
                       onPeriodChange={changeHistoryPeriod}
                       metric={historyMetric}
@@ -2378,7 +2382,7 @@ function EditorContent({
                                 ))}
                             </NativeSelect>
                           ) : (
-                            state.budgetReasons.find(
+                            state.budgetReasons?.find(
                               (reason) => reason.id === r.reasonId,
                             )?.label || r.reasonId
                           )}
@@ -2532,7 +2536,7 @@ function EditorContent({
                   ? hasUnsavedChanges
                     ? "本页修改尚未保存"
                     : savedForSync
-                      ? "草稿已保存，可以提交"
+                      ? "草稿已保存"
                       : synchronizedRevision
                         ? "当前修订已提交"
                         : activeStep < 3 ? "下一步自动保存草稿" : "提交时自动保存草稿"
@@ -2614,6 +2618,7 @@ function EditorContent({
               }[modal.type]
             }
             close={close}
+            pending={modal.type === "import" && busy}
             action={
               modal.type === "clear-allocations" ? (
                 <Button variant="destructive" onClick={() => doGuard(() => {
@@ -2654,9 +2659,9 @@ function EditorContent({
                 <Button
                   variant="default"
                   className="button primary"
-                  disabled={modal.preview.errors.length > 0}
+                  disabled={busy || modal.preview.errors.length > 0}
                   onClick={async () => {
-                    if (modal.roster && (!editable || modal.versionId !== state.planningVersion?.id || modal.identityKey !== JSON.stringify(identity) || modal.originalRows !== JSON.stringify(i.rows) || modal.originalOther !== JSON.stringify(i.otherBudgets))) {
+                    if (!editable || modal.preview.initiativeId !== i.id || modal.preview.revision !== i.revision || modal.versionId !== state.planningVersion?.id || modal.identityKey !== JSON.stringify(identity) || modal.originalRows !== JSON.stringify(i.rows) || modal.originalOther !== JSON.stringify(i.otherBudgets)) {
                       notify("身份、版本或草稿已变化，请重新上传预览。", true);
                       close();
                       return;
@@ -2666,13 +2671,18 @@ function EditorContent({
                       otherBudgets: modal.preview.otherBudgets,
                       editorState: { ...i.editorState, trial: null },
                     };
-                    if (await saveDraft(i.id, values)) {
-                      setFillNotice(null);
-                      close();
+                    setBusy(true);
+                    try {
+                      if (await saveDraft(i.id, values, undefined, !modal.roster)) {
+                        setFillNotice(null);
+                        close();
+                      }
+                    } finally {
+                      if (alive.current) setBusy(false);
                     }
                   }}
                 >
-                  确认写入
+                  {busy ? "正在写入…" : "确认写入"}
                 </Button>
               ) : null
             }
@@ -2795,7 +2805,7 @@ function EditorContent({
                   {modal.name} ·{" "}
                   {modal.preview.errors.length
                     ? "存在错误，不能写入"
-                    : modal.roster ? "校验通过：确认后新增名单并更新文件中的金额，未列出的经销商和其他预算保持不变。" : "校验通过，确认后完整替换分配明细及其他预算安排"}
+                    : `导入后共 ${modal.preview.rows.length} 家，新增 ${importCounts.新增} 家、修改 ${importCounts.修改} 家、删除 ${importCounts.删除} 家。${modal.roster || modal.preview.dealerOnly ? "预留及其他预算保持原金额。" : "其他预算按文件更新。"}`}
                 </p>
                 {modal.preview.errors.length > 0 && (
                   <ul className="import-errors">
@@ -2804,27 +2814,28 @@ function EditorContent({
                     ))}
                   </ul>
                 )}
-                <Alert className="note-box">
+                {!modal.preview.errors.length && <Alert className="note-box">
                   <AlertDescription>
-                    导入前安排 {wholeMetric(modal.preview.summary.before)} · 导入后安排{" "}
-                    {wholeMetric(modal.preview.summary.after)} · 导入后差额{" "}
-                    {wholeMetric(modal.preview.summary.gap)}
+                    {modal.roster || modal.preview.dealerOnly ? "经销商分配总额导入前" : "经销商分配与其他预算（含预留）合计导入前"} {wholeMetric(modal.preview.summary.dealerBefore ?? modal.preview.summary.before)} 元 · 导入后{" "}
+                    {wholeMetric(modal.preview.summary.dealerAfter ?? modal.preview.summary.after)} 元
+                    {(modal.roster || modal.preview.dealerOnly) && ` · 其他预算（含预留） ${wholeMetric(modal.preview.summary.otherBudget)} 元`}
+                    {" · "}{modal.preview.summary.gap < 0 ? "导入后超出预算" : "导入后待分配"}{" "}
+                    {wholeMetric(Math.abs(modal.preview.summary.gap))} 元
                   </AlertDescription>
-                </Alert>
+                </Alert>}
                 <div className="table-scroll">
                   <Table containerClassName="overflow-visible">
                     <TableHeader>
                       <TableRow>
                         <TableHead>经销商名称</TableHead>
                         <TableHead>经销商编码</TableHead>
-                        <TableHead>导入前</TableHead>
-                        <TableHead>导入后</TableHead>
+                        <TableHead>导入前金额（元）</TableHead>
+                        <TableHead>导入后金额（元）</TableHead>
                         <TableHead>变化</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {(modal.roster ? modal.preview.rosterEntries : modal.preview.changes.filter((c) => !c.otherBudgets))
-                        .map((c) => (
+                      {importRows.map((c) => (
                           <TableRow key={c.dealerId}>
                             <TableCell>{dealerName(c.dealerId)}</TableCell>
                             <TableCell>{dealerCode(c.dealerId)}</TableCell>
@@ -2835,7 +2846,7 @@ function EditorContent({
                               {c.after ? wholeMetric(c.after.amount) : "—"}
                             </TableCell>
                             <TableCell>
-                              {!c.before ? "新增" : !c.after ? "删除" : modal.roster && c.before.amount === c.after.amount ? "未变化" : "修改"}
+                              {importChange(c)}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -2858,7 +2869,7 @@ function EditorContent({
                       {modal.preview.otherBudgets?.map((r, n) => (
                         <TableRow key={n}>
                           <TableCell>
-                            {state.budgetReasons.find(
+                            {state.budgetReasons?.find(
                               (reason) => reason.id === r.reasonId,
                             )?.label || r.reasonId}
                           </TableCell>
