@@ -239,9 +239,12 @@ it("includes all configured reserve reasons in the Owner budget summary", () => 
     apiMode: true,
   };
   const html = renderToStaticMarkup(<HomePage />);
-  expect(html).toMatch(/4\.0(?:\s|<[^>]*>)*万/);
+  expect(html).toMatch(/100,000(?:\s|<[^>]*>)*元/);
+  expect(html).toMatch(/60,000(?:\s|<[^>]*>)*元/);
+  expect(html).toMatch(/40,000(?:\s|<[^>]*>)*元预留/);
   expect(html).toContain("预留 / 待分配");
-  expect(html).toContain("4.0 / 0.0 万");
+  expect(html).toContain("40,000 / 0 元");
+  expect(html).not.toContain("万元");
   expect(html).not.toContain("202701 · 业务目标校准");
 });
 

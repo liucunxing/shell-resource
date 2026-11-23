@@ -46,7 +46,6 @@ const num = (value, digits = 0) =>
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   });
-const wan = (value) => `${num(Number(value || 0) / 10000, 1)} 万`;
 const pct = (value, digits = 1) =>
   value == null ? "—" : `${num(value, digits)}%`;
 export function PageHead({ eyebrow, title, description, children }) {
@@ -97,29 +96,29 @@ export function HomePage() {
           [
             "预算总额",
             <>
-              {num(total.budget / 10000, 1)}
-              <small>万元</small>
+              {num(total.budget)}
+              <small>元</small>
             </>,
           ],
           [
             "已分配到经销商",
             <>
-              {num(total.allocated / 10000, 1)}
-              <small>万元</small>
+              {num(total.allocated)}
+              <small>元</small>
             </>,
           ],
           [
             "未分配合计",
             <>
-              {num((total.otherBudget + Math.max(0, total.gap)) / 10000, 1)}
-              <small>万元</small>
+              {num(total.otherBudget + Math.max(0, total.gap))}
+              <small>元</small>
             </>,
           ],
           [
             "未分配构成",
             <>
-              <span>{num(total.otherBudget / 10000, 1)}<small>万元预留</small></span>{" / "}
-              <span>{num(Math.max(0, total.gap) / 10000, 1)}<small>万元待分配</small></span>
+              <span>{num(total.otherBudget)}<small>元预留</small></span>{" / "}
+              <span>{num(Math.max(0, total.gap))}<small>元待分配</small></span>
             </>,
           ],
         ].map(([label, value], index) => (
@@ -163,18 +162,18 @@ export function HomePage() {
                   {item.sector} / <DepartmentLabel name={item.department} /> · {item.resourceType}
                 </p>
                 <div className="v19-initiative-amount">
-                  {num(item.budget / 10000, 1)} <small>万元</small>
+                  {num(item.budget)} <small>元</small>
                 </div>
                 <dl>
                   <div>
                     <dt>已分配</dt>
-                    <dd>{wan(totals.allocated)}</dd>
+                    <dd>{num(totals.allocated)} 元</dd>
                   </div>
                   <div>
                     <dt>预留 / 待分配</dt>
                     <dd>
-                      {num(totals.otherBudget / 10000, 1)} /{" "}
-                      {num(Math.max(0, totals.gap) / 10000, 1)} 万
+                      {num(totals.otherBudget)} /{" "}
+                      {num(Math.max(0, totals.gap))} 元
                     </dd>
                   </div>
                 </dl>
