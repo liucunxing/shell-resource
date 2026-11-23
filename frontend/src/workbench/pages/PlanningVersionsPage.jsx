@@ -22,6 +22,7 @@ import * as api from "../api.js";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import { versionStatus } from "./PlanningVersionBar.jsx";
 import { WorkflowDialog } from "./WorkflowDialog.jsx";
+import { wholeMetric } from "../domain/metric-precision";
 
 export function versionSummary(version, state) {
   if (
@@ -183,7 +184,7 @@ export function PlanningVersionsPage() {
                 <TableHead>名称</TableHead>
                 <TableHead>创建人</TableHead>
                 <TableHead className="num">启用 Initiative</TableHead>
-                <TableHead className="num">预算合计（万）</TableHead>
+                <TableHead className="num">预算合计（元）</TableHead>
                 <TableHead>状态</TableHead>
                 <TableHead>操作</TableHead>
               </TableRow>
@@ -198,14 +199,12 @@ export function PlanningVersionsPage() {
                   <TableCell>{version.name}</TableCell>
                   <TableCell>{version.createdBy || "—"}</TableCell>
                   <TableCell className="num">
-                    {versionSummary(version, state)?.count ?? "—"}
+                    {wholeMetric(versionSummary(version, state)?.count)}
                   </TableCell>
                   <TableCell className="num" sortValue={versionSummary(version, state)?.budget}>
                     {versionSummary(version, state)?.budget == null
                       ? "—"
-                      : (
-                          versionSummary(version, state).budget / 10000
-                        ).toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                      : wholeMetric(versionSummary(version, state).budget)}
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -347,7 +346,7 @@ export function PlanningVersionsPage() {
             </div>
           ) : dialog.kind === "delete-warning" ? (
             <div className="grid gap-4">
-              <p>该版本有 {dialog.info.submittedCount} 条提交记录。移除后业务用户将无法访问该版本，项目和提交记录保留供审计。</p>
+              <p>该版本有 {wholeMetric(dialog.info.submittedCount)} 条提交记录。移除后业务用户将无法访问该版本，项目和提交记录保留供审计。</p>
               <Label className="flex items-center gap-2"><Checkbox checked={deleteAcknowledged} onCheckedChange={(checked) => setDeleteAcknowledged(checked === true)} />我已了解并确认移除该版本</Label>
             </div>
           ) : dialog.kind === "delete-confirm" ? (

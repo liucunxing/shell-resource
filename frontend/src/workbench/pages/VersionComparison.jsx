@@ -1,3 +1,4 @@
+import { wholeMetric } from "../domain/metric-precision";
 import { keepUnchanged, readWhileMounted } from "../live-read";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "../../components/ui/sheet";
 import { Button } from "../../components/ui/button";
@@ -26,12 +27,7 @@ import { compareVersionGroups } from "../domain/portfolio-analytics.js";
 import { identityScopeKey } from "../identity-scope";
 import { submittedVersionItems } from "../domain/version-baseline.js";
 
-const money = (value) =>
-  value == null
-    ? "不可比较"
-    : (Number(value) / 10000).toLocaleString("zh-CN", {
-        minimumFractionDigits: 1, maximumFractionDigits: 1,
-      });
+const money = (value) => value == null ? "不可比较" : wholeMetric(Number(value));
 export function VersionComparison({ executive }) {
   const { state, identity } = useWorkbench();
   const versions = (state.planningVersions || []).filter(
@@ -182,12 +178,12 @@ export function VersionComparison({ executive }) {
                       : "汇总维度"}
                   </TableHead>
                   {showOwner && <TableHead>Owner</TableHead>}
-                  <TableHead className="num">来源预算（万元）</TableHead>
-                  <TableHead className="num">本版预算（万元）</TableHead>
-                  <TableHead className="num">预算变化（万元）</TableHead>
-                  <TableHead className="num">来源版本投资（万元）</TableHead>
-                  <TableHead className="num">本版投资（万元）</TableHead>
-                  <TableHead className="num">变化金额（万元）</TableHead>
+                  <TableHead className="num">来源预算（元）</TableHead>
+                  <TableHead className="num">本版预算（元）</TableHead>
+                  <TableHead className="num">预算变化（元）</TableHead>
+                  <TableHead className="num">来源版本投资（元）</TableHead>
+                  <TableHead className="num">本版投资（元）</TableHead>
+                  <TableHead className="num">变化金额（元）</TableHead>
                   <TableHead className="num">波动率（%）</TableHead>
                 </TableRow>
               </TableHeader>
@@ -230,10 +226,7 @@ export function VersionComparison({ executive }) {
                         {row.comparable ? money(row.delta) : "不可比较"}
                       </TableCell>
                       <TableCell className="num" sortValue={row.changeRate}>
-                        {row.changeLabel?.replace(/%$/, "") ||
-                          (row.changeRate == null
-                            ? "—"
-                            : Number(row.changeRate).toFixed(1))}
+                        {row.changeRate == null ? (row.changeLabel?.replace(/%$/, "") || "—") : `${row.changeRate > 0 ? "+" : ""}${Number(row.changeRate).toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -248,7 +241,7 @@ export function VersionComparison({ executive }) {
             </Table>
           </div>
           {executive && <nav className="v19-list-pagination" aria-label="版本变化分页">
-            <span>共 {filtered.length} 条 · 每页 20 条</span>
+            <span>共 {wholeMetric(filtered.length)} 条 · 每页 20 条</span>
             <div>
               <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>上一页</Button>
               <span>{currentPage} / {pages}</span>

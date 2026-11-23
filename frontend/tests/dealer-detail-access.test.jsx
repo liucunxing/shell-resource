@@ -11,7 +11,7 @@ describe("dealer drawer role access", () => {
     expect(html.includes("Initiative")).toBe(false);
     expect(html.includes("v20-initiative-chips")).toBe(false);
     expect(/<button[^>]*>经销商甲<\/button>/.test(html)).toBe(role !== "owner");
-    expect(html).toContain("投资金额（万元）");
+    expect(html).toContain("投资金额（元）");
     expect(html).toContain("C3占比");
   });
   it("blocks a direct dealer drawer request for an owner", () => {

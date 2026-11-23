@@ -87,6 +87,31 @@ const draw = (data, countScope = "all") =>
     />,
   );
 
+it.each(["sd", "rsm"])("uses yuan in both workbench and portfolio %s summaries", dimension => {
+  const data = read(items, null, dimension);
+  const workbench = draw(data, "selected");
+  const portfolio = draw(data, "all");
+  expect(workbench).toContain("投资金额（元）");
+  expect(workbench).toContain("客均（元）");
+  expect(workbench).toMatch(/data-column="amount"[^>]*><b>45,000<\/b>/);
+  expect(workbench).toMatch(/data-column="average"[^>]*>45,000/);
+  expect(workbench).toMatch(/data-column="amount"[^>]*>50,000<\/td>/);
+  expect(portfolio).toContain("投资金额（元）");
+  expect(portfolio).toContain("客均（元）");
+  expect(portfolio).toMatch(/data-column="amount"[^>]*><b>45,000<\/b>/);
+});
+
+it("formats large counts and monetary values with thousands separators without changing the source", () => {
+  const data = read();
+  data.groups[0].allocatedCount = 1234;
+  data.groups[0].selectedCount = 5678;
+  data.groups[0].amount = 1234567.89;
+  const html = draw(data, "selected");
+  expect(html).toContain("1,234 / 5,678");
+  expect(html).toContain("1,234,568");
+  expect(data.groups[0].amount).toBe(1234567.89);
+});
+
 it("uses authorized master counts but historical selected-list denominators including zero plans", () => {
   const { groups, totals } = read();
   expect(groups.map((g) => g.key)).toEqual(["SD-A", "SD-B", "SD-C"]);

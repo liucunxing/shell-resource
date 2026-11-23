@@ -1,4 +1,5 @@
 import { MoneyInput } from "./MoneyInput";
+import { wholeMetric } from "../domain/metric-precision";
 import { AlertDescription } from "@/components/ui/alert";
 import {
   NativeSelect,
@@ -32,11 +33,6 @@ import { AdminUsersPanel } from "./AdminUsersPanel.jsx";
 import { HistoricalResourceSettings } from "./HistoricalResourceSettings.jsx";
 import { WorkflowDialog } from "./WorkflowDialog.jsx";
 
-const num = (value, digits = 1) =>
-  Number(value || 0).toLocaleString("zh-CN", {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  });
 const time = (value) => (value ? new Date(value).toLocaleString("zh-CN") : "—");
 const ADMIN_META = {
   "admin-versions": [
@@ -215,10 +211,10 @@ function InitiativesPage({
         });
       }
       setEditMode(false);
-      notify(`已保存 ${saved} 个 Initiative。`);
+      notify(`已保存 ${wholeMetric(saved)} 个 Initiative。`);
     } catch (failure) {
       setError(
-        `${saved ? `已保存 ${saved} 项；其余修改仍保留。` : ""}${failure.message}`,
+        `${saved ? `已保存 ${wholeMetric(saved)} 项；其余修改仍保留。` : ""}${failure.message}`,
       );
     } finally {
       setBusy(false);
@@ -271,7 +267,7 @@ function InitiativesPage({
                     "Department",
                     "Resource Type",
                     "Owner",
-                    "预算（万）",
+                    "预算（元）",
                     "本版状态",
                   ].map((label) => (
                     <TableHead key={label}>{label}</TableHead>
@@ -291,8 +287,8 @@ function InitiativesPage({
                       {owners.find((owner) => owner.value === item.ownerId)
                         ?.label || item.ownerId}
                     </TableCell>
-                    <TableCell sortValue={item.budget / 10000}>
-                      {num(item.budget / 10000)}
+                    <TableCell sortValue={item.budget}>
+                      {wholeMetric(item.budget)}
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -322,12 +318,9 @@ function InitiativesPage({
           <div>
             <h2>本版项目配置 · 编辑中</h2>
             <p>
-              {rows.length} 项 · 总预算{" "}
-              {num(
-                rows.reduce((sum, row) => sum + (Number(row.budget) || 0), 0) /
-                  10000,
-              )}{" "}
-              万
+              {wholeMetric(rows.length)} 项 · 总预算{" "}
+              {wholeMetric(rows.reduce((sum, row) => sum + (Number(row.budget) || 0), 0))}{" "}
+              元
             </p>
           </div>
           <div className="actions">
@@ -368,7 +361,7 @@ function InitiativesPage({
             onChange={(event) => setQuery(event.target.value)}
           />
           <span>
-            显示 {filtered.length} / {rows.length} 项
+            显示 {wholeMetric(filtered.length)} / {wholeMetric(rows.length)} 项
           </span>
         </div>
         {error && (
@@ -533,7 +526,7 @@ export function AuditPage({ audit }) {
   return (
     <Card className="panel studio-admin-panel gap-4 p-4">
       <div className="studio-table-toolbar">
-        <span>共 {filtered.length} 条操作记录</span>
+        <span>共 {wholeMetric(filtered.length)} 条操作记录</span>
         <Input
           type="search"
           placeholder="搜索操作人 / 对象 / 动作"

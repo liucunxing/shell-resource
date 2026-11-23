@@ -301,6 +301,8 @@ function ResourceDetailContent({
   budgetReasons = [],
   onClose,
 }: Props) {
+  const planningUnit = "元";
+  const planningAmount = wholeMetric;
   const {
     initiativeColor: detailInitiativeColor,
     resourceColor,
@@ -507,9 +509,9 @@ function ResourceDetailContent({
       {[
         [
           current.type === "cohort"
-            ? "Top 名单本次投资（万元）"
-            : "本次投资（万元）",
-          n(currentAmount, 10000),
+            ? `Top 名单本次投资（${planningUnit}）`
+            : `本次投资（${planningUnit}）`,
+          planningAmount(currentAmount),
         ],
         [
           current.type === "cohort"
@@ -556,7 +558,7 @@ function ResourceDetailContent({
   );
   const historyTable = (
     <section className="resource-detail-section">
-      <h3>历史表现 · {period === "2025" ? "2025 全年" : "2026 YTD"}（基于 {rows.length} 家经销商统计）</h3>
+      <h3>历史表现 · {period === "2025" ? "2025 全年" : "2026 YTD"}（基于 {wholeMetric(rows.length)} 家经销商统计）</h3>
       <div className="resource-history-grid">
         {[
           ["经销商 target（KL）", n(historical.contract, 1000)],
@@ -576,10 +578,10 @@ function ResourceDetailContent({
               {label === "经销商 target（KL）" && historical.targetCoverage.missing > 0 && (
                 <TooltipProvider><Tooltip>
                   <TooltipTrigger asChild>
-                    <sup className="resource-target-incomplete" tabIndex={0} aria-label={`统计口径${historical.targetCoverage.known}/${historical.targetCoverage.total} 家，数据不完整`}>*</sup>
+                    <sup className="resource-target-incomplete" tabIndex={0} aria-label={`统计口径${wholeMetric(historical.targetCoverage.known)}/${wholeMetric(historical.targetCoverage.total)} 家，数据不完整`}>*</sup>
                   </TooltipTrigger>
                   <TooltipContent sideOffset={6} className="metric-help-content">
-                    统计口径{historical.targetCoverage.known}/{historical.targetCoverage.total} 家，数据不完整
+                    统计口径{wholeMetric(historical.targetCoverage.known)}/{wholeMetric(historical.targetCoverage.total)} 家，数据不完整
                   </TooltipContent>
                 </Tooltip></TooltipProvider>
               )}
@@ -597,7 +599,7 @@ function ResourceDetailContent({
           <TableRow>
             <TableHead>Initiative</TableHead>
             <TableHead>资源大类 / Owner</TableHead>
-            <TableHead className="num">投资（万元）</TableHead>
+            <TableHead className="num">投资（{planningUnit}）</TableHead>
             <TableHead>说明</TableHead>
           </TableRow>
         </TableHeader>
@@ -626,7 +628,7 @@ function ResourceDetailContent({
                 / {item.ownerName || item.ownerId || "—"}
               </TableCell>
               <TableCell className="num" sortValue={sourceAmount(item)}>
-                {n(sourceAmount(item), 10000)}
+                {planningAmount(sourceAmount(item))}
               </TableCell>
               <TableCell>
                 {(item.rows || [])
@@ -688,7 +690,7 @@ function ResourceDetailContent({
             ) : (
               "当前 Top 经销商名单"
             )}
-            （<AnalysisValue tone="neutral">{rows.length} 家</AnalysisValue>
+            （<AnalysisValue tone="neutral">{wholeMetric(rows.length)} 家</AnalysisValue>
             ）获得{" "}
             <AnalysisValue tone="investment">
               {percent(cohortAmountShare)}
@@ -702,7 +704,7 @@ function ResourceDetailContent({
           <p className="resource-detail-note">
             历史参考：{period === "2025" ? "2025 全年" : "2026 YTD"}
             ；投资及产出占比的分母均为当前曲线范围内有可比较历史的{" "}
-            {concentrationBase.length} 家经销商。
+            {wholeMetric(concentrationBase.length)} 家经销商。
             {showCohortDimensions &&
               "切换下方维度仅改变投资构成分组，不改变名单与合计。"}
           </p>
@@ -773,7 +775,7 @@ function ResourceDetailContent({
           {showCohortDimensions
             ? `经销商与 ${dimensionLabel} 分配明细`
             : "经销商与投资明细"}
-          （{rows.length} 家）
+          （{wholeMetric(rows.length)} 家）
         </h3>
         <Input
           aria-label="搜索抽屉经销商"
@@ -799,8 +801,8 @@ function ResourceDetailContent({
               )}
               <TableHead className="num">
                 {showCohortDimensions
-                  ? `投资金额及${dimensionLabel}构成（万元；占比 %）`
-                  : "投资（万元）"}
+                  ? `投资金额及${dimensionLabel}构成（${planningUnit}；占比 %）`
+                  : `投资（${planningUnit}）`}
               </TableHead>
               {!showCohortDimensions && (
                 <TableHead className="num">Delivery Vol（KL）</TableHead>
@@ -847,7 +849,7 @@ function ResourceDetailContent({
                   </TableCell>
                 )}
                 <TableCell className="num" sortValue={row.amount}>
-                  {n(row.amount, 10000)}
+                  {planningAmount(row.amount)}
                   {showCohortDimensions && (
                     <small>
                       投资占比{" "}
@@ -902,11 +904,11 @@ function ResourceDetailContent({
               <TableRow>
                 <TableCell>合计</TableCell>
                 <TableCell>
-                  Top {current.topPercent}% · {rows.length} 家
-                  <small>{cohortInitiativeCount} 个 Initiative</small>
+                  Top {current.topPercent}% · {wholeMetric(rows.length)} 家
+                  <small>{wholeMetric(cohortInitiativeCount)} 个 Initiative</small>
                 </TableCell>
                 <TableCell className="num">
-                  {n(currentAmount, 10000)}
+                  {planningAmount(currentAmount)}
                   <small>投资占比 {n(cohortAmountShare)}</small>
                 </TableCell>
                 <TableCell className="num">
@@ -993,14 +995,14 @@ function ResourceDetailContent({
       <>
         <div className="resource-detail-metrics">
           {[
-            ["本版预算（万元）", n(initiative?.budget, 10000)],
-            ["已分配（万元）", n(allocation, 10000)],
-            ["预留（万元）", n(reserve, 10000)],
+            [`本版预算（${planningUnit}）`, planningAmount(initiative?.budget)],
+            [`已分配（${planningUnit}）`, planningAmount(allocation)],
+            [`预留（${planningUnit}）`, planningAmount(reserve)],
             [
-              "待分配（万元）",
+              `待分配（${planningUnit}）`,
               initiative?.budget == null
                 ? "—"
-                : n(initiative.budget - allocation - reserve, 10000),
+                : planningAmount(initiative.budget - allocation - reserve),
             ],
           ].map(([label, value]) => (
             <Card key={label}>
@@ -1012,7 +1014,7 @@ function ResourceDetailContent({
         {baseline != null && (
           <p className="resource-detail-note">
             较上版已提交投资：{allocation - baseline > 0 ? "+" : ""}
-            {n(allocation - baseline, 10000)} 万元
+            {planningAmount(allocation - baseline)} {planningUnit}
           </p>
         )}
         <section className="resource-detail-section">
@@ -1022,7 +1024,7 @@ function ResourceDetailContent({
               <TableHeader>
                 <TableRow>
                   <TableHead>原因</TableHead>
-                  <TableHead className="num">金额（万元）</TableHead>
+                  <TableHead className="num">金额（{planningUnit}）</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1030,7 +1032,7 @@ function ResourceDetailContent({
                   <TableRow key={row.id || index}>
                     <TableCell>{reason(row.reasonId)}</TableCell>
                     <TableCell className="num" sortValue={row.amount}>
-                      {n(row.amount, 10000)}
+                      {planningAmount(row.amount)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -1133,8 +1135,8 @@ function ResourceDetailContent({
                       <ResourceMixDonut
                         parts={breakdown}
                         title="当前规划"
-                        center={n(currentAmount, 10000)}
-                        unit="万元"
+                        center={planningAmount(currentAmount)}
+                        unit={planningUnit}
                       />
                       {historyMixAvailable && (
                         <ResourceMixDonut
@@ -1152,7 +1154,7 @@ function ResourceDetailContent({
                       <TableHeader>
                         <TableRow>
                           <TableHead>资源大类</TableHead>
-                          <TableHead className="num">当前（万元）</TableHead>
+                          <TableHead className="num">当前（{planningUnit}）</TableHead>
                           <TableHead className="num">当前占比（%）</TableHead>
                           <TableHead className="num">历史占比（%）</TableHead>
                           <TableHead className="num">差值（pp）</TableHead>
@@ -1189,7 +1191,7 @@ function ResourceDetailContent({
                                 </Button>
                               </TableCell>
                               <TableCell className="num" sortValue={row.amount}>
-                                {n(row.amount, 10000)}
+                                {planningAmount(row.amount)}
                               </TableCell>
                               <TableCell className="num" sortValue={now}>
                                 {now == null ? "—" : n(now)}
@@ -1285,7 +1287,7 @@ function ResourceDetailContent({
                               </TableHead>
                               <TableHead className="num">分配 / 名单</TableHead>
                               <TableHead className="num">
-                                投资（万元）
+                                投资（{planningUnit}）
                               </TableHead>
                               <TableHead>占比对照 · 0–100%</TableHead>
                             </TableRow>
@@ -1311,13 +1313,13 @@ function ResourceDetailContent({
                                   className="num"
                                   sortValue={group.allocatedCount}
                                 >
-                                  {group.allocatedCount} / {group.selectedCount}
+                                  {wholeMetric(group.allocatedCount)} / {wholeMetric(group.selectedCount)}
                                 </TableCell>
                                 <TableCell
                                   className="num"
                                   sortValue={group.amount}
                                 >
-                                  {n(group.amount, 10000)}
+                                  {planningAmount(group.amount)}
                                 </TableCell>
                                 <TableCell sortValue={group.amountShare}>
                                   <div className="resource-detail-organization-bars">

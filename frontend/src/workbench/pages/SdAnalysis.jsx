@@ -1,4 +1,5 @@
 import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
+import { wholeMetric } from "../domain/metric-precision";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Alert, AlertDescription } from "../../components/ui/alert";
 import { MetricHelp } from "./MetricHelp";
@@ -460,7 +461,7 @@ export function SdAnalysis({
                   <TableHead>Initiative</TableHead>
                   {showOwner && <TableHead>Owner</TableHead>}
                   {showOwner && <TableHead>资源大类</TableHead>}
-                  <TableHead className="num">已分配（万元）</TableHead>
+                  <TableHead className="num">已分配（元）</TableHead>
                   {sdKeys.map((key) => (
                     <TableHead key={key} className="num">
                       {key}（占比 % / 差值 pp）
@@ -475,7 +476,7 @@ export function SdAnalysis({
                     参照：{showOwner ? "本部门" : "本人"}叠加
                   </TableHead>
                   <TableCell className="num" sortValue={totals.amount}>
-                    {amount(totals.amount, 10000)}
+                    {wholeMetric(totals.amount)}
                   </TableCell>
                   {groups.map((group) => (
                     <TableCell key={group.key} className="num">
@@ -519,12 +520,11 @@ export function SdAnalysis({
                           (sum, group) => sum + group.amount,
                           0,
                         )}>
-                      {amount(
+                      {wholeMetric(
                         itemGroups.reduce(
                           (sum, group) => sum + group.amount,
                           0,
                         ),
-                        10000,
                       )}
                     </TableCell>
                     {sdKeys.map((key) => {
