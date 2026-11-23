@@ -215,8 +215,8 @@ export function V20OrganizationSummary({
               <TableHead colSpan={3} scope="colgroup" className="v20-actual">
                 历史 Actual · {period === "2025" ? "2025 全年" : "2026 YTD"}
               </TableHead>
-              <TableHead colSpan={3} scope="colgroup">投资金额占比</TableHead>
-              <TableHead className="v20-previous">较上版</TableHead>
+              <TableHead colSpan={isSelectedScope ? 2 : 3} scope="colgroup">投资金额占比</TableHead>
+              {!isSelectedScope && <TableHead className="v20-previous">较上版</TableHead>}
             </TableRow>
             <TableRow>
               {[
@@ -230,8 +230,8 @@ export function V20OrganizationSummary({
               {head("history-chart", "占比对照图（%）", "v20-actual", undefined, `刻度 0–${scale}%`)}
               {head("vs-vol", "vs Delivery Vol（pp）", "num")}
               {head("vs-c3", "vs C3（pp）", "num")}
-              {head("judgment", "判断（按偏离程度）")}
-              {head("delta", "增减金额（万元）", "num v20-previous")}
+              {!isSelectedScope && head("judgment", "判断（按偏离程度）")}
+              {!isSelectedScope && head("delta", "增减金额（万元）", "num v20-previous")}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -296,7 +296,7 @@ export function V20OrganizationSummary({
                     "vs-c3",
                     <b data-level={level(gapC3)}>{difference(gapC3).replace(/ pp$/, "")}</b>,
                   )}
-                  <TableCell data-column="judgment">
+                  {!isSelectedScope && <TableCell data-column="judgment">
                     <Badge
                       data-level={level(gap)}
                       variant={
@@ -313,8 +313,8 @@ export function V20OrganizationSummary({
                             ? "投资偏多"
                             : "投资偏少"}
                     </Badge>
-                  </TableCell>
-                  {cell(
+                  </TableCell>}
+                  {!isSelectedScope && cell(
                     "delta",
                     moneyChange(g.comparison?.delta),
                     "v20-previous",
@@ -324,7 +324,7 @@ export function V20OrganizationSummary({
             })}
             {!groups.length && (
               <TableRow>
-                <TableCell colSpan={12} className="empty">
+                <TableCell colSpan={isSelectedScope ? 10 : 12} className="empty">
                   当前范围暂无经销商名单。
                 </TableCell>
               </TableRow>
@@ -352,8 +352,8 @@ export function V20OrganizationSummary({
                   <small>投资金额占比极差 {investmentRange == null ? "—" : `${value(investmentRange)} pp`}</small>
                 )}
               </TableCell>
-              <TableCell colSpan={3} />
-              {cell(
+              <TableCell colSpan={isSelectedScope ? 2 : 3} />
+              {!isSelectedScope && cell(
                 "delta",
                 moneyChange(totals.comparison.delta),
                 "v20-previous",
@@ -385,12 +385,9 @@ export function V20OrganizationSummary({
           : "全部 = 当前授权 Sector 范围内该组织的全部经销商。"}
         历史产出按当前名单去重，包含零投资经销商；仅改金额不会改变历史 Actual 的数值。
         {"三条柱均显示实际占比，全表使用统一刻度，按投资、Vol、C3 的最大占比向上取整至 10% 调整上限。"}
-        较上版按同一
-        Initiative 集合比较，{isSelectedScope ? "只汇总本版显示的组织；" : "保留移除组织的上版投入；"}
-        {sourceVersionId
-          ? `来源版本 ${sourceVersionId}`
-          : "没有来源版本时显示 —"}
-        。
+        {!isSelectedScope && <>较上版按同一 Initiative 集合比较，保留移除组织的上版投入；
+          {sourceVersionId ? `来源版本 ${sourceVersionId}` : "没有来源版本时显示 —"}。
+        </>}
       </p>
     </>
   );

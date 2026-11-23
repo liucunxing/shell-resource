@@ -29,7 +29,7 @@ describe("V19 submitted comparison baseline", () => {
     expect(old.amount).toBe(0);
     expect(old.comparison.previousAmount).toBe(100);
     const html = renderToStaticMarkup(<V20OrganizationSummary
-      {...sdPresentationGroups(groups)} countScope="selected" groupBy={dimension}
+      {...sdPresentationGroups(groups)} countScope="all" groupBy={dimension}
       period="2025" basis="c3" threshold={5} redThreshold={10}
       sourceVersionId="202701" rowId={(key) => key} onOpen={() => {}}
     />);
