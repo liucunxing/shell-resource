@@ -21,8 +21,8 @@ const headers=tree=>nodes(tree).filter(n=>n.props["data-column"]&&Object.hasOwn(
 beforeEach(()=>{harness.slots=[];});
 it("uses detail columns without support/note, plus resource mix and authorized expenses",()=>{
  const keys=headers(render()).map(n=>n.props["data-column"]);
- expect(keys.filter(k=>k!=="mix" && k!=="code")).toEqual(allocationColumnGroups(["MRD","SP&A"]).filter(g=>g.key!=="support").flatMap(g=>g.columns.map(c=>c[0])).filter(key=>key!=="phasing"));
- for(const key of ["initiative","support","note","phasing","expense:Capex","expense:ICE Rebate"])expect(keys).not.toContain(key);
+ expect(keys.filter(k=>k!=="mix" && k!=="code")).toEqual(allocationColumnGroups(["MRD","SP&A"]).filter(g=>g.key!=="support").flatMap(g=>g.columns.map(c=>c[0])));
+ for(const key of ["initiative","support","note","expense:Capex","expense:ICE Rebate"])expect(keys).not.toContain(key);
 });
 it("keeps pp bars, full-roster denominators, units, signed expenses and zero versus null",()=>{
  const tree=render();
@@ -35,12 +35,13 @@ it("keeps pp bars, full-roster denominators, units, signed expenses and zero ver
  expect(text(cells(tree,"c3")[0])).toBe("2");
  expect(text(cells(tree,"investment")[0])).toBe("1.0");
  expect(text(cells(tree,"expense:SP&A")[0])).toBe("-0.2");
- expect(cells(tree,"phasing")).toHaveLength(0);
+ expect(text(cells(tree,"phasing")[0])).toBe("0");
+ expect(text(cells(tree,"phasing")[1])).toBe("—");
 });
-it.each([true, false])("omits Phasing from the stack table in embedded mode %s", embedded => {
+it.each([true, false])("shows Vol Phasing in the stack table in embedded mode %s", embedded => {
  const tree = render({items, dealers, embedded});
- expect(headers(tree).map(node => node.props["data-column"])).not.toContain("phasing");
- expect(cells(tree, "phasing")).toHaveLength(0);
+ expect(text(headers(tree).find(node => node.props["data-column"] === "phasing"))).toContain("Vol Phasing（%）");
+ expect(cells(tree, "phasing")).toHaveLength(3);
 });
 it("rounds displayed volume to whole KL without changing their source",()=>{
  const history=dealers[0].history;

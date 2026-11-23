@@ -61,21 +61,25 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-it("shows three Actual metrics per period in the dealer scope table without Phasing", () => {
+it("shows source Vol Phasing for both periods without explanatory tooltips", () => {
   item().editorState.step = 2;
+  harness.context.data = { ...data, dealers: data.dealers.map(dealer => ({ ...dealer, history: { ...dealer.history, phasing2025: 1.17, phasing2026Ytd: 0 } })) };
   const tree = render();
   const table = elements(tree).find(node => node.props.className === "v19-scope-review");
   const nodes = elements(table);
   const heads = nodes.filter(node => node.type === TableHead);
-  expect(heads.find(node => node.props.children === "2025 全年 Actual").props.colSpan).toBe(3);
-  expect(heads.find(node => node.props.children === "2026 YTD Actual").props.colSpan).toBe(3);
-  for (const label of ["Vol（KL）", "C3（K$）", "Yield"])
+  expect(heads.find(node => node.props.children === "2025 全年 Actual").props.colSpan).toBe(4);
+  expect(heads.find(node => node.props.children === "2026 YTD Actual").props.colSpan).toBe(4);
+  for (const label of ["Vol（KL）", "C3（K$）", "Vol Phasing（%）", "Yield"])
     expect(heads.filter(node => node.props.children === label)).toHaveLength(2);
-  expect(heads.some(node => String(node.props.children).includes("Phasing"))).toBe(false);
   const body = nodes.find(node => node.type === TableBody);
   const firstRow = Array.isArray(body.props.children) ? body.props.children[0] : body.props.children;
   expect(firstRow).toBeDefined();
-  expect(elements(firstRow).filter(node => node.type === TableCell)).toHaveLength(18);
+  expect(elements(firstRow).filter(node => node.type === TableCell)).toHaveLength(20);
+  const phasingCells = elements(firstRow).filter(node => node.type === TableCell && (node.props.sortValue === 1.17 || node.props.sortValue === 0));
+  expect(phasingCells.some(node => node.props.sortValue === 1.17 && node.props.children === "117")).toBe(true);
+  expect(phasingCells.some(node => node.props.sortValue === 0 && node.props.children === "0")).toBe(true);
+  expect(elements(firstRow).some(node => typeof node.props.title === "string" && /phasing/i.test(node.props.title))).toBe(false);
 });
 
 it("previews a full plan and writes only on confirmation", async () => {

@@ -29,6 +29,7 @@ def target_manifest(
         period = target_coverage["periods"][str(year)] if target_coverage else None
         periods[suffix] = {
             "sourceField": f"target_{year}", "sourceFieldPresent": source_present,
+            "sourcePhasingField": f"phasing_{year}",
             "year": year, "startMonth": period["startMonth"] if period else None,
             "latestMonth": period["endMonth"] if period else None,
             "samePeriodAsActual": bool(period and (
@@ -72,6 +73,12 @@ def history_manifest(
     investment_month = coverage["investmentThroughMonth"] if coverage else None
     comparable = bool(coverage and actual_month == investment_month)
     target = target_manifest(records, coverage, target_coverage, target_confirmation_status)
+    phasing_counts = {
+        suffix: sum(record.get("history", {}).get(f"phasing{suffix}") is not None
+                    for record in records)
+        for suffix in ("2025", "2026Ytd")
+    }
+    phasing_available = any(phasing_counts.values())
     target_missing = (
         ["contractVolume"] if not target["sourceFieldsPresent"] else
         ["targetBusinessPeriod"] if not target_coverage else []
@@ -157,6 +164,34 @@ def history_manifest(
                 "unit": "percent",
                 "nonPositiveBaseReason": "no_base",
                 "nonPositiveBaseLabel": "无基期",
+            },
+            "phasing": {
+                "formula": "sourcePhasing * 100",
+                "eligibility": "source phasing is finite and non-null; zero is valid",
+                "sourceFields": {"2025": "phasing_2025", "2026Ytd": "phasing_2026"},
+                "requiresTargetConfirmation": False,
+                "contractPeriod": "same_period_as_actual",
+                "targetKind": "dealer_volume_target",
+                "periodRule": (
+                    "read source phasing for the matching year; "
+                    "aggregate with same-year source targets"
+                ),
+                "unit": "percent",
+                "apiUnit": "ratio",
+                "sourcePhasingUnit": "ratio",
+                "displayMultiplier": 100,
+                "reference": (
+                    "sum(sourcePhasing * sourceTarget) / sum(sourceTarget) for positive targets"
+                ),
+                "trafficLight": {
+                    "relativeYellowBand": 0.1,
+                    "aboveBand": "green",
+                    "belowBand": "red",
+                },
+                "available": phasing_available,
+                "unavailableReason": None if phasing_available else "missing_source_phasing",
+                "sourcePhasingUsed": True,
+                "availableRecordCounts": phasing_counts,
             },
         },
         "asOf": None,

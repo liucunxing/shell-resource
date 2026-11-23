@@ -54,6 +54,8 @@ import {
   historyShareDenominators,
   historyShare,
   historyYield,
+  historyPhasing,
+  aggregateHistoryPhasing,
   finiteHistoryValue,
   historyYoyLabel,
   initiativeDealers,
@@ -973,6 +975,9 @@ function EditorContent({
       : detail?.previewRows
         ? [{ ...i, rows: detail.previewRows }]
         : [i];
+  const weightedPhasing = aggregateHistoryPhasing(
+    i.rows.map((row) => dealerMeta(row.dealerId).history), historyPeriod,
+  ).ratio;
   const allocationValue = (row, key) => {
     const dealer = dealerMeta(row.dealerId),
       h = dealer.history || {};
@@ -1004,6 +1009,7 @@ function EditorContent({
       contractShare: historyShare(h[historyContractKey], currentShareDenominators.contract),
       vol: finiteHistoryValue(h[historyVolKey]),
       c3: finiteHistoryValue(h[historyC3Key]),
+      phasing: historyPhasing(h, historyPeriod),
       investment: historyInvestment(h, historyPeriod),
       yield: historyYield(h, historyPeriod),
       investmentShare: investmentShareFor(row.dealerId, historyPeriod),
@@ -1023,7 +1029,9 @@ function EditorContent({
       ? value == null
         ? "—"
         : fmt(value)
-      : key === "gapVol" || key === "gapC3"
+      : key === "phasing"
+        ? value == null ? "—" : wholeMetric(value * 100)
+        : key === "gapVol" || key === "gapC3"
           ? value == null
             ? "—"
             : `${value > 0 ? "+" : ""}${fmt(value)}`
@@ -1053,6 +1061,7 @@ function EditorContent({
         contractShare: currentShareDenominators.contract > 0 ? 100 : null,
         vol: scopeHistoryTotals.volComplete ? scopeHistoryTotals.vol : null,
         c3: scopeHistoryTotals.c3Complete ? scopeHistoryTotals.c3 : null,
+        phasing: weightedPhasing,
         investment: allocationInvestmentTotal,
         yield: weightedYield,
         investmentShare: currentShareDenominators.investment > 0 ? 100 : null,
@@ -1315,7 +1324,7 @@ function EditorContent({
                     className="v19-scope-review"
                   >
                     <colgroup>
-                      {[80, 280, 130, 180, 100, ...Array(8).fill(110), ...Array(4).fill(180), 200].map((width, index) => (
+                      {[80, 280, 130, 180, 100, ...Array(10).fill(110), ...Array(4).fill(180), 200].map((width, index) => (
                         <col key={index} style={{ width }} />
                       ))}
                     </colgroup>
@@ -1350,12 +1359,12 @@ function EditorContent({
                         <TableHead rowSpan={2}>SD / RSM</TableHead>
                         <TableHead rowSpan={2}>状态</TableHead>
                         <TableHead
-                          colSpan={3}
+                          colSpan={4}
                           className="v19-scope-group-annual"
                         >
                           2025 全年 Actual
                         </TableHead>
-                        <TableHead colSpan={3} className="v19-scope-group-ytd">
+                        <TableHead colSpan={4} className="v19-scope-group-ytd">
                           2026 YTD Actual
                         </TableHead>
                         <TableHead colSpan={2} className="v19-scope-group-yoy">
@@ -1371,7 +1380,7 @@ function EditorContent({
                       </TableRow>
                       <TableRow>
                         {["2025", "2026Ytd"].map((period) =>
-                          ["Vol（KL）", "C3（K$）", "Yield"].map(
+                          ["Vol（KL）", "C3（K$）", "Vol Phasing（%）", "Yield"].map(
                             (label) => (
                               <TableHead className="num" key={period + label}>
                                 {label}
@@ -1486,6 +1495,9 @@ function EditorContent({
                                       period === "2025" ? "c32025" : "c32026Ytd"
                                     ], 1000,
                                   )}
+                                </TableCell>
+                                <TableCell className="num" sortValue={historyPhasing(h, period)}>
+                                  {historyPhasing(h, period) == null ? "—" : wholeMetric(historyPhasing(h, period) * 100)}
                                 </TableCell>
                                 <TableCell
                                   className="num"
@@ -1929,6 +1941,7 @@ function EditorContent({
               </section>
               <div className="v19-allocation-toolbar">
               <div className="v19-ratio-legend">
+                <span>加权平均 Vol Phasing <b>{weightedPhasing == null ? "—" : `${wholeMetric(weightedPhasing * 100)}%`}</b></span>
                 <span title="Yield = 名单 C3（美元）合计 ÷ 同期间历史投资（美元）合计，历史投资已按配置汇率统一为美元；不平均各家比率，数据不完整或 YTD 覆盖未知时显示 —。">
                   加权平均 Yield{" "}
                   <b>

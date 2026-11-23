@@ -5,6 +5,8 @@ import {
   historyShareDenominators,
   historyShare,
   historyYield,
+  historyPhasing,
+  aggregateHistoryPhasing,
   historyYoyLabel,
   configuredYtdLabel,
   initiativeDealers,
@@ -14,6 +16,17 @@ import { allocateByHistory } from "../src/workbench/domain/history-allocation";
 import E from "../src/workbench/domain/engine.js";
 
 describe("imported distributor history", () => {
+  it("uses source Vol Phasing, preserves zero and missing values, and weights source ratios", () => {
+    expect(historyPhasing({ phasing2025: 1.17 }, "2025")).toBe(1.17);
+    expect(historyPhasing({ phasing2026Ytd: 0 }, "2026Ytd")).toBe(0);
+    expect(historyPhasing({ vol2025: 1, contract2025: 2 }, "2025")).toBeNull();
+    expect(aggregateHistoryPhasing([
+      { phasing2025: 0.5, sourceTarget2025: 100 },
+      { phasing2025: 1, sourceTarget2025: 300 },
+      { phasing2025: null, sourceTarget2025: 1000 },
+    ], "2025").ratio).toBe(0.875);
+    expect(aggregateHistoryPhasing([{ phasing2025: 1.17 }], "2025").ratio).toBe(1.17);
+  });
   it("accepts only explicitly active statuses", () => {
     expect(["active", " ACTIVE ", "1", 1].every((status) => isActiveDealer({ id: "a", status }))).toBe(true);
     expect(["closed", "0", 0, "", null, undefined].some((status) => isActiveDealer({ id: "a", status }))).toBe(false);
