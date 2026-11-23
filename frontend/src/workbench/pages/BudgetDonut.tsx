@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider, tooltipContentClassName } from "@/components/ui/tooltip";
 import { donutTooltipPosition } from "./donut-tooltip-position";
+import { wholeMetric } from "../domain/metric-precision";
 
 type Part = { label: string; value: number; color: string; onClick?: () => void };
 
@@ -42,11 +43,11 @@ export function BudgetDonut({ parts, center, caption }: { parts: Part[]; center:
       <circle cx="75" cy="75" r="64" fill="none" stroke="#D9D9D9" strokeWidth="22" />
       {parts.filter(part => part.value > 0).map(part => {
         const percent = part.value / total * 100, start = offset; offset += percent;
-        const text = `${part.label}：${(part.value / 10000).toLocaleString("zh-CN", {minimumFractionDigits: 1, maximumFractionDigits: 1})} 万元 · ${percent.toFixed(1)}%`;
+        const text = `${part.label}：${wholeMetric(part.value)} 元 · ${percent.toLocaleString("zh-CN", {minimumFractionDigits: 1, maximumFractionDigits: 1})}%`;
         return <DonutSegment key={part.label} {...{ part, percent, start, text }} />;
       })}
     </svg>
-    <div style={{ position: "relative", pointerEvents: "none" }}><strong>{center}</strong><span>{caption}</span></div>
+    <div style={{ position: "relative", pointerEvents: "none" }}><strong style={{ fontSize: `${Math.max(10, Math.min(21, Math.floor(190 / Math.max(1, center.length))))}px` }}>{center}</strong><span>{caption}</span></div>
   </div></TooltipProvider>;
 }
 

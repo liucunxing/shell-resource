@@ -117,7 +117,7 @@ export function V19DealerDetails({
             ? "—"
             : number(value)
           : key === "amount"
-            ? number(value, 10000)
+            ? wholeMetric(value)
             : ["investment", "contract"].includes(key) ||
                 key.startsWith("expense:")
               ? number(value, 1000)
@@ -325,7 +325,7 @@ export function V19DealerDetails({
         </div>
         <div className="v19-list-pagination">
           <span>
-            筛选 {visible.length} / {rows.length} 家 · 本页 {Math.min(effectivePageSize, Math.max(0, visible.length - (currentPage - 1) * effectivePageSize))} 家
+            筛选 {wholeMetric(visible.length)} / {wholeMetric(rows.length)} 家 · 本页 {wholeMetric(Math.min(effectivePageSize, Math.max(0, visible.length - (currentPage - 1) * effectivePageSize)))} 家
           </span>
           <div>
             <Label className="v20-page-size">每页

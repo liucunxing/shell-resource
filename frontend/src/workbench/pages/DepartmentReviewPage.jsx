@@ -1,4 +1,5 @@
 import { keepUnchanged, readWhileMounted } from "../live-read";
+import { wholeMetric } from "../domain/metric-precision";
 import { Alert, AlertDescription } from "../../components/ui/alert";
 import { Label } from "../../components/ui/label";
 import {
@@ -246,7 +247,7 @@ export function DepartmentReviewPage() {
                 <p>
                   {loading
                     ? "正在加载提交状态…"
-                    : allScopes ? `${result?.submitted || 0} / ${result?.total || 0} 项已提交` : `${result?.submitted || 0} / ${result?.total || 0} 项已提交 · ${result?.confirmed ? "部门已提交管理层" : "部门未提交管理层"}`}
+                    : allScopes ? `${wholeMetric(result?.submitted || 0)} / ${wholeMetric(result?.total || 0)} 项已提交` : `${wholeMetric(result?.submitted || 0)} / ${wholeMetric(result?.total || 0)} 项已提交 · ${result?.confirmed ? "部门已提交管理层" : "部门未提交管理层"}`}
                 </p>
               </div>
               <div className="actions department-review-actions">
@@ -280,7 +281,7 @@ export function DepartmentReviewPage() {
               <Table sortingMode="manual" containerClassName="overflow-visible">
                 <TableHeader>
                   <TableRow>
-                    {[["name", "Initiative"], ...(allScopes ? [["sector", "业务线"], ["department", "部门"]] : []), ["ownerId", "Owner"], ["status", "Owner 提交状态"], ["confirmed", "部门提交状态"], ["submittedAt", "提交时间"], ["allocated", "分配金额（万元）"]].map(([key,label]) => (
+                    {[["name", "Initiative"], ...(allScopes ? [["sector", "业务线"], ["department", "部门"]] : []), ["ownerId", "Owner"], ["status", "Owner 提交状态"], ["confirmed", "部门提交状态"], ["submittedAt", "提交时间"], ["allocated", "分配金额（元）"]].map(([key,label]) => (
                       <TableHead key={key} aria-sort={sort.key === key ? (sort.direction === 1 ? "ascending" : "descending") : "none"}>
                         <Button variant="ghost" type="button" className="v19-sort" onClick={() => sortBy(key)}>{label}{sort.key === key ? (sort.direction === 1 ? " ↑" : " ↓") : " ↕"}</Button>
                       </TableHead>
@@ -341,7 +342,7 @@ export function DepartmentReviewPage() {
         >
           <p>
             {dialog.action === "confirm"
-              ? `将当前部门范围的 ${result.total} 个项目提交管理层，并锁定 Owner 编辑。`
+              ? `将当前部门范围的 ${wholeMetric(result.total)} 个项目提交管理层，并锁定 Owner 编辑。`
               : dialog.action === "withdraw"
                 ? "撤回当前部门提交后，管理层不再看到该部门分配；本部门全部 Owner 立即恢复编辑，已有提交保留。"
                 : `将驳回版本 ${current.id} · ${current.name} 的全部部门方案，并一键恢复所有 Owner 编辑。本版本将成为唯一开放版本，其他版本自动停用，已有方案和提交记录保留。管理层在各部门重新提交前不展示本版本相应分配。此操作不受当前查看范围限制。`}

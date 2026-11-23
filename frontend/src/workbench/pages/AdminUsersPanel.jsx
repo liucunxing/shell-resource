@@ -1,4 +1,5 @@
 import { AdminImportPanel } from "./AdminImportPanel";
+import { wholeMetric } from "../domain/metric-precision";
 import { UserInitiativePicker } from "./UserInitiativePicker";
 import {
   Dialog,
@@ -394,7 +395,7 @@ export function AdminUsersPanel() {
   return (
     <>
       <div className="user-list-heading">
-        <h2>用户清单 · {result.total} 人</h2>
+        <h2>用户清单 · {wholeMetric(result.total)} 人</h2>
         <div className="actions">
           <AdminImportPanel kind="users" />
           <Button
@@ -645,7 +646,7 @@ export function AdminUsersPanel() {
       </p>
       <div className="user-list-footer">
         <span>
-          共 {result.total} 人 · 第 {Math.floor(offset / PAGE_SIZE) + 1} /{" "}
+          共 {wholeMetric(result.total)} 人 · 第 {wholeMetric(Math.floor(offset / PAGE_SIZE) + 1)} /{" "}
           {Math.max(1, Math.ceil(result.total / PAGE_SIZE))} 页
         </span>
         <div className="actions">

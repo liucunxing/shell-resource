@@ -1,3 +1,4 @@
+import { wholeMetric } from "../domain/metric-precision";
 import { useLegendColors } from "../LegendColors";
 import { MetricHelp } from "./MetricHelp";
 import { useState } from "react";
@@ -223,7 +224,7 @@ export function V19ExecutiveHealth({
                 "当前投资或历史产出合计不足，暂无法计算集中度。"
               ) : flags.length ? (
                 <>
-                  <AnalysisValue tone="alert">{flags.length} 个</AnalysisValue>
+                  <AnalysisValue tone="alert">{wholeMetric(flags.length)} 个</AnalysisValue>
                   资源大类在至少一个 Top
                   档位的投资占比高于产出占比，超过关注阈值。
                 </>
@@ -242,7 +243,7 @@ export function V19ExecutiveHealth({
                 <b>{group.type}</b>
                 <span>
                   投资金额最多的 Top {group.worst.topPercent}% 经销商（
-                  {group.worst.n} 家）：
+                  {wholeMetric(group.worst.n)} 家）：
                   <span className="analysis-phrase">
                     获得{" "}
                     <AnalysisValue tone="investment">
@@ -324,8 +325,8 @@ export function V19ExecutiveHealth({
                       {group.type}
                     </Button>
                     <small>
-                      已分配 {number(group.amount / 10000)} 万元 ·{" "}
-                      {group.included.length}/{group.all.length} 个 Initiative
+                      已分配 {wholeMetric(group.amount)} 元 ·{" "}
+                      {wholeMetric(group.included.length)}/{wholeMetric(group.all.length)} 个 Initiative
                       已确认
                     </small>
                   </div>
@@ -336,7 +337,7 @@ export function V19ExecutiveHealth({
                       ? "暂无可比较数据"
                       : severity === "good"
                         ? attention.length
-                          ? `整体匹配 · ${attention.length} 个 Initiative 集中`
+                          ? `整体匹配 · ${wholeMetric(attention.length)} 个 Initiative 集中`
                           : "与产出匹配"
                         : `${severity === "bad" ? "优先关注" : "建议复核"} · Top${group.worst.topPercent}% ${gap(group.worst.gap)}`}
                   </Badge>
@@ -379,7 +380,7 @@ export function V19ExecutiveHealth({
                     )}
                   </span>
                   <Button variant="link" onClick={() => openCategory(group)}>
-                    查看 {group.included.length} 个 Initiative →
+                    查看 {wholeMetric(group.included.length)} 个 Initiative →
                   </Button>
                 </div>
               </Card>
@@ -474,7 +475,7 @@ export function V19ExecutiveHealth({
                   <TableHead>经销商名称</TableHead>
                   <TableHead>经销商编码</TableHead>
                   <TableHead>SD</TableHead>
-                  <TableHead>投资金额（万元）</TableHead>
+                  <TableHead>投资金额（元）</TableHead>
                   <TableHead>{label}</TableHead>
                   <TableHead>Initiative</TableHead>
                 </TableRow>
@@ -485,8 +486,8 @@ export function V19ExecutiveHealth({
                     <TableCell>{row.name}</TableCell>
                     <TableCell>{row.code || "—"}</TableCell>
                     <TableCell>{row.sd}</TableCell>
-                    <TableCell sortValue={row.amount / 10000}>
-                      {number(row.amount / 10000)}
+                    <TableCell sortValue={row.amount}>
+                      {wholeMetric(row.amount)}
                     </TableCell>
                     <TableCell sortValue={row.metric}>
                       {number(row.metric)}

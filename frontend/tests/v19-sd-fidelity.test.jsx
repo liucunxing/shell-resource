@@ -123,8 +123,8 @@ describe("V19 SD presentation", () => {
     );
     for (const label of [
       "分配 / 全部",
-      "投资金额（万元）",
-      "客均（万元）",
+      "投资金额（元）",
+      "客均（元）",
       "Delivery Vol 占比",
       "C3 占比",
       "占比对照图",
@@ -133,7 +133,7 @@ describe("V19 SD presentation", () => {
       "合计",
     ])
       expect(html).toContain(label);
-    expect(html).toContain(">4.5</b>");
+    expect(html).toContain(">45,000</b>");
     expect(html).not.toContain("PPP");
     expect(html).not.toContain("待配置");
     expect(html).not.toContain("未提交草稿");

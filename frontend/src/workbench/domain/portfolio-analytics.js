@@ -317,7 +317,7 @@ export function versionFluctuation(current, previous, available = true) {
   const changeRate = ((current - previous) / previous) * 100;
   return {
     changeRate,
-    changeLabel: `${changeRate > 0 ? "+" : ""}${changeRate.toFixed(1)}%`,
+    changeLabel: `${changeRate > 0 ? "+" : ""}${changeRate.toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`,
     changeState: "comparable",
   };
 }

@@ -1,4 +1,5 @@
 import { compactColumnLabel } from "../domain/allocation-detail";
+import { wholeMetric } from "../domain/metric-precision";
 import { useMemo, useState } from "react";
 import {
   useReactTable,
@@ -79,8 +80,9 @@ export function V20OrganizationSummary({
   onOpen,
 }) {
   const isSelectedScope = countScope === "selected";
+  const planningAmount = (amount) => wholeMetric(amount);
   const formatCount = (group) =>
-    `${group.allocatedCount} / ${isSelectedScope ? group.selectedCount : group.totalCount}`;
+    `${wholeMetric(group.allocatedCount)} / ${wholeMetric(isSelectedScope ? group.selectedCount : group.totalCount)}`;
   const [sorting, setSorting] = useState([]);
   const columns = useMemo(
     () => [
@@ -206,8 +208,8 @@ export function V20OrganizationSummary({
             <TableRow>
               {[
                 ["count", isSelectedScope ? "分配 / 名单" : "分配 / 全部"],
-                ["amount", "投资金额（万元）"],
-                ["average", "客均（万元） · 偏离均值（%）"],
+                ["amount", "投资金额（元）"],
+                ["average", "客均（元） · 偏离均值（%）"],
                 ["investment-share", "投资金额占比（%）"],
               ].map(([field, title]) => head(field, title, "num"))}
               {head("vol-share", "Delivery Vol 占比（%）", "num v20-actual")}
@@ -247,11 +249,11 @@ export function V20OrganizationSummary({
                     </Button>
                   </TableHead>
                   {cell("count", formatCount(g))}
-                  {cell("amount", <b>{value(g.amount, 10000)}</b>)}
+                  {cell("amount", <b>{planningAmount(g.amount)}</b>)}
                   {cell(
                     "average",
                     <>
-                      {value(g.average, 10000)}
+                      {planningAmount(g.average)}
                       <small>
                         {averageDeviation == null
                           ? "—"
@@ -293,8 +295,8 @@ export function V20OrganizationSummary({
             <TableRow>
               <TableHead>合计</TableHead>
               {cell("count", formatCount(totals))}
-              {cell("amount", value(totals.amount, 10000))}
-              {cell("average", value(totals.average, 10000))}
+              {cell("amount", planningAmount(totals.amount))}
+              {cell("average", planningAmount(totals.average))}
               {cell("investment-share", totals.amount > 0 ? "100.0" : "—")}
               {cell(
                 "vol-share",
