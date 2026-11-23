@@ -1,3 +1,4 @@
+import { wholeMetric } from "../domain/metric-precision";
 import { useLegendColors, DepartmentLabel } from "../LegendColors";
 import {
   Tabs,
@@ -186,7 +187,7 @@ export function HomePage() {
       </div>
       {!items.length && <div className="empty">当前范围没有 Initiative。</div>}
       <div className="v19-list-pagination">
-        <span>{items.length} 条 · 每页9条</span>
+        <span>{wholeMetric(items.length)} 条 · 每页9条</span>
         <div>
           <Button
             variant="outline"
@@ -269,10 +270,10 @@ export function SubmissionPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Initiative</TableHead>
-                <TableHead className="num">本版预算（万元）</TableHead>
-                <TableHead className="num">已分配（万元）</TableHead>
-                <TableHead className="num">预留（万元）</TableHead>
-                <TableHead className="num">待分配（万元）</TableHead>
+                <TableHead className="num">本版预算（元）</TableHead>
+                <TableHead className="num">已分配（元）</TableHead>
+                <TableHead className="num">预留（元）</TableHead>
+                <TableHead className="num">待分配（元）</TableHead>
                 <TableHead>提交状态</TableHead>
                 <TableHead />
               </TableRow>

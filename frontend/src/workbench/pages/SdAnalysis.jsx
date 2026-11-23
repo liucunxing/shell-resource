@@ -1,4 +1,5 @@
 import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
+import { wholeMetric } from "../domain/metric-precision";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Alert, AlertDescription } from "../../components/ui/alert";
 import { MetricHelp } from "./MetricHelp";
@@ -54,17 +55,10 @@ export function sdPresentationGroups(groups) {
     historicalC3: complete("historicalC3"),
     historicalInvestment: complete("historicalInvestment"),
     contractVolume: complete("contractVolume"),
-    phasingVolume: complete("phasingVolume"),
-    phasingTarget: complete("phasingTarget"),
   };
   totals.average = totals.allocatedCount
     ? totals.amount / totals.allocatedCount
     : null;
-  totals.phasing =
-    current.length === 1 ? current[0].phasing :
-    totals.phasingTarget > 0 && totals.phasingVolume != null
-      ? totals.phasingVolume / totals.phasingTarget
-      : null;
   totals.historicalYield =
     totals.historicalInvestment > 0 &&
     totals.historicalC3 > 0 &&
@@ -205,15 +199,12 @@ export function SdAnalysis({
   const [detail, setDetail] = useState(null);
   const [source, setSource] = useState(null),
     [sourceDealers, setSourceDealers] = useState([]),
-    [sourceError, setSourceError] = useState(""),
-    [sourceLoading, setSourceLoading] = useState(false);
+    [sourceError, setSourceError] = useState("");
   useEffect(() => {
     setSource(null);
     setSourceDealers([]);
     setSourceError("");
-    setSourceLoading(false);
     if (!sourceVersionId) return;
-    setSourceLoading(true);
   }, [sourceVersionId, comparisonIdentity]);
   useEffect(() => {
     if (!sourceVersionId) return;
@@ -229,9 +220,6 @@ export function SdAnalysis({
       })
       .catch((failure) => {
         if (active) setSourceError(failure.message);
-      })
-      .finally(() => {
-        if (active) setSourceLoading(false);
       });
     return () => {
       active = false;
@@ -255,7 +243,7 @@ export function SdAnalysis({
     basis,
     period,
     masterDealers,
-    { includeSourceOnly: !isEditor },
+    { includeSourceOnly: false },
   );
   const { groups, totals } = sdPresentationGroups(grouped);
   const facts = initiativeOrganizationFacts(
@@ -342,16 +330,10 @@ export function SdAnalysis({
         </Tabs>
 
       </div>
-      {!isEditor && <p className="studio-table-note">
-        来源版本：{sourceVersionId || "无来源版本"}
-        {sourceLoading ? " · 正在读取最后已提交快照…" : ""}。较上版 = 本版投资 −
-        来源版最后已提交投资（万元）； 只比较同一 Initiative
-        集合，保留本版已移除组织的上版投入。
-      </p>}
-      {!isEditor && sourceError && (
+      {sourceError && (
         <Alert variant="destructive" className="note-box warn" role="alert">
           <AlertDescription>
-            来源快照读取失败：{sourceError}；较上版金额暂不可比较。
+            来源快照读取失败：{sourceError}；详情中的来源版本信息不可用。
           </AlertDescription>
         </Alert>
       )}
@@ -479,7 +461,7 @@ export function SdAnalysis({
                   <TableHead>Initiative</TableHead>
                   {showOwner && <TableHead>Owner</TableHead>}
                   {showOwner && <TableHead>资源大类</TableHead>}
-                  <TableHead className="num">已分配（万元）</TableHead>
+                  <TableHead className="num">已分配（元）</TableHead>
                   {sdKeys.map((key) => (
                     <TableHead key={key} className="num">
                       {key}（占比 % / 差值 pp）
@@ -494,7 +476,7 @@ export function SdAnalysis({
                     参照：{showOwner ? "本部门" : "本人"}叠加
                   </TableHead>
                   <TableCell className="num" sortValue={totals.amount}>
-                    {amount(totals.amount, 10000)}
+                    {wholeMetric(totals.amount)}
                   </TableCell>
                   {groups.map((group) => (
                     <TableCell key={group.key} className="num">
@@ -538,12 +520,11 @@ export function SdAnalysis({
                           (sum, group) => sum + group.amount,
                           0,
                         )}>
-                      {amount(
+                      {wholeMetric(
                         itemGroups.reduce(
                           (sum, group) => sum + group.amount,
                           0,
                         ),
-                        10000,
                       )}
                     </TableCell>
                     {sdKeys.map((key) => {

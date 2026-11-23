@@ -71,7 +71,7 @@ describe("V19 version table and deadlines", () => {
     });
     const html = renderToStaticMarkup(<PlanningVersionsPage />);
     expect(html).toContain("启用 Initiative");
-    expect(html).toContain("预算合计（万）");
+    expect(html).toContain("预算合计（元）");
     expect(html).not.toContain("提交截止时间");
     expect(html).toContain("admin@example.com");
     expect(html).not.toContain("<h2>提交截止时间</h2>");

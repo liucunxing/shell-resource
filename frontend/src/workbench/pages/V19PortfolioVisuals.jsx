@@ -40,7 +40,7 @@ const n = (value, digits = 1) =>
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   });
-const wan = (value) => `${n(value / 10000)} 万元`,
+const yuan = (value) => `${wholeMetric(value)} 元`,
   pct = (value) => (value == null ? "—" : `${n(value)}%`),
   pp = (value) =>
     value == null ? "—" : `${value > 0 ? "+" : ""}${n(value)}pp`;
@@ -137,7 +137,7 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
           : "未开始拆分",
       pending,
       "#D9D9D9",
-      `${notStarted.length} 个 Initiative`,
+      `${wholeMetric(notStarted.length)} 个 Initiative`,
     ],
   ];
   const reason = (item) =>
@@ -160,7 +160,7 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
         description="预算去了哪里，还有多少待安排"
       >
         <Badge variant="secondary">
-          {started.length} / {items.length} 个 Initiative{" "}
+          {wholeMetric(started.length)} / {wholeMetric(items.length)} 个 Initiative{" "}
           {mode === "department"
             ? "已提交"
             : mode === "exec"
@@ -174,7 +174,7 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
             <h3>预算去向</h3>
             <div className="v19-donut-layout">
               <BudgetDonut parts={parts.map(([label, value, color]) => ({label, value, color}))}
-                center={n(total.budget / 10000)} caption="万元 · 预算总额" />
+                center={wholeMetric(total.budget)} caption="元 · 预算总额" />
               <div className="v19-budget-legend">
                 {parts.map(([label, value, color, note]) => (
                   <div key={label}>
@@ -183,7 +183,7 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                       {label}
                       {note && <small>{note}</small>}
                     </span>
-                    <strong>{wan(value)}</strong>
+                    <strong>{yuan(value)}</strong>
                     <span>
                       {pct(total.budget ? (value / total.budget) * 100 : 0)}
                     </span>
@@ -212,7 +212,7 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                           {type}
                         </Button>
                       </span>
-                      <strong>{wan(groupTotal.budget)}</strong>
+                      <strong>{yuan(groupTotal.budget)}</strong>
                       <span>
                         {pct(
                           total.budget
@@ -236,7 +236,7 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                       : mode === "department"
                         ? "未提交"
                         : "未开始拆分"}
-                    的 Initiative（{notStarted.length}）
+                    的 Initiative（{wholeMetric(notStarted.length)}）
                   </h3>
                   <Button
                     variant="outline"
@@ -252,7 +252,7 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                       <TableRow>
                         <TableHead>Initiative</TableHead>
                         <TableHead>资源大类 · Owner</TableHead>
-                        <TableHead className="num">预算（万元）</TableHead>
+                        <TableHead className="num">预算（元）</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -274,8 +274,8 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                           <TableCell>
                             {i.resourceType} · {i.ownerName || i.ownerId}
                           </TableCell>
-                          <TableCell className="num" sortValue={i.budget / 10000}>
-                            {n(i.budget / 10000)}
+                          <TableCell className="num" sortValue={i.budget}>
+                            {wholeMetric(i.budget)}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -311,10 +311,10 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                 <TableRow>
                   {[
                     "资源大类",
-                    "预算（万元）",
-                    "已分配（万元）",
-                    "预留（万元）",
-                    "未确认（万元）",
+                    "预算（元）",
+                    "已分配（元）",
+                    "预留（元）",
+                    "未确认（元）",
                     "分配进度（%）",
                     "获配经销商（家）",
                     "已确认",
@@ -338,17 +338,17 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                           {type}
                         </Button>
                       </TableCell>
-                      <TableCell className="num" sortValue={t.budget / 10000}>
-                        {n(t.budget / 10000)}
+                      <TableCell className="num" sortValue={t.budget}>
+                        {wholeMetric(t.budget)}
                       </TableCell>
-                      <TableCell className="num" sortValue={t.allocated / 10000}>
-                        {n(t.allocated / 10000)}
+                      <TableCell className="num" sortValue={t.allocated}>
+                        {wholeMetric(t.allocated)}
                       </TableCell>
-                      <TableCell className="num" sortValue={t.otherBudget / 10000}>
-                        {n(t.otherBudget / 10000)}
+                      <TableCell className="num" sortValue={t.otherBudget}>
+                        {wholeMetric(t.otherBudget)}
                       </TableCell>
-                      <TableCell className="num" sortValue={Math.max(0, t.gap) / 10000}>
-                        {n(Math.max(0, t.gap) / 10000)}
+                      <TableCell className="num" sortValue={Math.max(0, t.gap)}>
+                        {wholeMetric(Math.max(0, t.gap))}
                       </TableCell>
                       <TableCell sortValue={t.budget ? t.allocated / t.budget : null}>
                         <AllocationBar total={t} />
@@ -358,7 +358,7 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                       </TableCell>
                       <TableCell>{dealers}</TableCell>
                       <TableCell sortValue={confirmed.length}>
-                        {confirmed.length} / {group.length}
+                        {wholeMetric(confirmed.length)} / {wholeMetric(group.length)}
                       </TableCell>
                     </TableRow>
                   ),
@@ -372,7 +372,7 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                   <TableHead>Initiative</TableHead>
                   <TableHead>资源大类 · Owner</TableHead>
                   <TableHead>预留原因</TableHead>
-                  <TableHead className="num">预留金额（万元）</TableHead>
+                  <TableHead className="num">预留金额（元）</TableHead>
                   <TableHead className="num">占预留（%）</TableHead>
                 </TableRow>
               </TableHeader>
@@ -397,7 +397,7 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                       {item.resourceType} · {item.ownerName || item.ownerId}
                     </TableCell>
                     <TableCell>{reason(item)}</TableCell>
-                    <TableCell className="num" sortValue={reserve(item)}>{n(reserve(item) / 10000)}</TableCell>
+                    <TableCell className="num" sortValue={reserve(item)}>{wholeMetric(reserve(item))}</TableCell>
                     <TableCell className="num" sortValue={total.otherBudget
                           ? (reserve(item) / total.otherBudget) * 100
                           : 0}>
@@ -423,7 +423,7 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                 <TableRow>
                   <TableCell colSpan={3}>合计</TableCell>
                   <TableCell className="num" sortValue={total.otherBudget}>
-                    {n(total.otherBudget / 10000)}
+                    {wholeMetric(total.otherBudget)}
                   </TableCell>
                   <TableCell className="num">
                     {total.otherBudget ? "100.0" : "—"}
@@ -451,9 +451,9 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
               <TableRow>
                 <TableHead>Initiative</TableHead>
                 <TableHead>Owner</TableHead>
-                <TableHead>预算（万元）</TableHead>
-                <TableHead>已分配（万元）</TableHead>
-                <TableHead>预留（万元）</TableHead>
+                <TableHead>预算（元）</TableHead>
+                <TableHead>已分配（元）</TableHead>
+                <TableHead>预留（元）</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -470,9 +470,9 @@ export function V19BudgetOverview({ items, dealers = [], mode, state }) {
                     </Button>
                   </TableCell>
                   <TableCell>{i.ownerName || i.ownerId}</TableCell>
-                  <TableCell sortValue={i.budget}>{n(i.budget / 10000)}</TableCell>
-                  <TableCell sortValue={paid(i)}>{n(paid(i) / 10000)}</TableCell>
-                  <TableCell sortValue={reserve(i)}>{n(reserve(i) / 10000)}</TableCell>
+                  <TableCell sortValue={i.budget}>{wholeMetric(i.budget)}</TableCell>
+                  <TableCell sortValue={paid(i)}>{wholeMetric(paid(i))}</TableCell>
+                  <TableCell sortValue={reserve(i)}>{wholeMetric(reserve(i))}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -498,7 +498,7 @@ function AllocationBar({ total }) {
     <div
       className="v19-allocation-bar"
       role="img"
-      aria-label={`已分配${wan(total.allocated)}，预留${wan(total.otherBudget)}，待分配${wan(Math.max(0, total.gap))}`}
+      aria-label={`已分配${yuan(total.allocated)}，预留${yuan(total.otherBudget)}，待分配${yuan(Math.max(0, total.gap))}`}
     >
       {[
         [total.allocated, "#FBCE07"],
@@ -737,7 +737,7 @@ export function V19Health({
               <>
                 <p className="v19-concentration-statement">
                   {mode === "owner" ? "本人整体" : "当前范围"}：投资金额最多的{" "}
-                  {top}% 经销商（{result.n} 家）获得{" "}
+                  {top}% 经销商（{wholeMetric(result.n)} 家）获得{" "}
                   <b className="v19-investment-emphasis">{pct(result.amountShare)}</b> 的投资金额，贡献{" "}
                   <b className="v19-output-emphasis">{pct(result.metricShare)}</b> 的{label}
                 </p>
@@ -756,7 +756,7 @@ export function V19Health({
                       : "与产出基本匹配"}
                 </Badge>
                 <small className="v19-denominator">
-                  分母：名单内有历史的 {result.count} 家
+                  分母：名单内有历史的 {wholeMetric(result.count)} 家
                 </small>
               </>
             ) : (
@@ -876,7 +876,7 @@ export function V19Health({
                           <TableCell>{group.resourceType}</TableCell>
                         )}
                         <TableCell>
-                          {group.stats?.count ?? 0}
+                          {wholeMetric(group.stats?.count ?? 0)}
                           <small>Top {group.stats?.n ?? 0}</small>
                         </TableCell>
                         <TableCell sortValue={group.stats?.amountShare}>
@@ -988,7 +988,7 @@ export function V19Stack({
     if (field === "vol" || field === "c3") return wholeMetric(value, 1000);
     if (field === "phasing") return wholeMetric(value);
     if (["amountShare", "volShare", "c3Share", "contractShare", "investmentShare"].includes(field)) return n(value);
-    if (field === "amount") return n(value / 10000, 1);
+    if (field === "amount") return wholeMetric(value);
     if (["contract", "investment"].includes(field) || field.startsWith("expense:")) return n(value / 1000, 1);
     return typeof value === "number" ? n(value, 1) : value || "—";
   };
@@ -1010,12 +1010,12 @@ export function V19Stack({
   const Wrapper = embedded ? "section" : Card;
   return (
     <Wrapper className={embedded ? "v19-subpanel v20-stack-module" : "v19-board-section"}>
-      {embedded ? <div className="v19-subpanel-heading"><h3><span className="v20-section-number">2</span> 叠加后 · 哪些经销商投资占比高于贡献 <MetricHelp>比较经销商投资占比与所选历史产出占比，按阈值识别偏离。</MetricHelp></h3><Badge variant="secondary" className="v20-over-badge">{over.length} 家超配 &gt;{thresholds.dealerYellow ?? 3}pp</Badge></div> : <Heading
+      {embedded ? <div className="v19-subpanel-heading"><h3><span className="v20-section-number">2</span> 叠加后 · 哪些经销商投资占比高于贡献 <MetricHelp>比较经销商投资占比与所选历史产出占比，按阈值识别偏离。</MetricHelp></h3><Badge variant="secondary" className="v20-over-badge">{wholeMetric(over.length)} 家超配 &gt;{thresholds.dealerYellow ?? 3}pp</Badge></div> : <Heading
         title="叠加后 · 哪些经销商投资占比高于贡献"
         description={`投资金额占比与历史 ${label} 占比对照`}
       >
         <Badge variant="secondary" className="v20-over-badge">
-          {over.length} 家超配 &gt;{thresholds.dealerYellow ?? 3}pp
+          {wholeMetric(over.length)} 家超配 &gt;{thresholds.dealerYellow ?? 3}pp
         </Badge>
       </Heading>}
       <div className={embedded ? "v20-stack-module-body" : "v19-board-body"}>
@@ -1027,15 +1027,15 @@ export function V19Stack({
         <div className="v20-stack-overview">
           <div className="v20-stack-conclusion">
             <h3>叠加分析结论（可比较名单） <MetricHelp>仅比较有当前期间历史产出的经销商；投资占比与产出占比按可比较名单分别计算，缺少历史的经销商不纳入差值判断。</MetricHelp></h3>
-            <p>叠加后 <strong>{over.length} 家</strong>经销商的投资占比比其 {label} 占比高出 {thresholds.dealerYellow ?? 3}pp 以上；合计获得 <b>{pct(over.reduce((sum,r)=>sum+r.amountShare,0))}</b> 的可比较投资，贡献 <b>{pct(over.reduce((sum,r)=>sum+r.metricShare,0))}</b> 的 {label}。</p>
-            <p>另有 {deviations.filter(r => r.gap < -(thresholds.dealerYellow ?? 3)).length} 家投资占比低于贡献 {thresholds.dealerYellow ?? 3}pp 以上。</p>
-            <small>无有效历史：{rows.length - deviations.length} 家，不参与比较。资源构成图按对应名单的投资金额计算。</small>
+            <p>叠加后 <strong>{wholeMetric(over.length)} 家</strong>经销商的投资占比比其 {label} 占比高出 {thresholds.dealerYellow ?? 3}pp 以上；合计获得 <b>{pct(over.reduce((sum,r)=>sum+r.amountShare,0))}</b> 的可比较投资，贡献 <b>{pct(over.reduce((sum,r)=>sum+r.metricShare,0))}</b> 的 {label}。</p>
+            <p>另有 {wholeMetric(deviations.filter(r => r.gap < -(thresholds.dealerYellow ?? 3)).length)} 家投资占比低于贡献 {thresholds.dealerYellow ?? 3}pp 以上。</p>
+            <small>无有效历史：{wholeMetric(rows.length - deviations.length)} 家，不参与比较。资源构成图按对应名单的投资金额计算。</small>
           </div>
           <div className="v20-stack-distributions" aria-label="投资资源大类构成对比">
             {[ [over, overTotal, over.length, "超配部分"], [rows, total, rows.length, "全部名单"] ].map(([set, sum, count, title]) => {
               let cursor = 0;
               const segments = types.map(type => { const amount = distribution(set, type), percent = sum > 0 ? amount / sum * 100 : 0, start = cursor; cursor += percent; return { type, amount, percent, start }; });
-              return <div className="v20-stack-donut-wrap" key={title}><div className="v20-stack-donut" role="img" aria-label={`${title} ${count} 家，按投资金额展示资源大类构成`}><TooltipProvider><svg viewBox="0 0 112 112" width="112" height="112" style={{position: "absolute", inset: 0}}><circle cx="56" cy="56" r="47" fill="none" stroke="#dce5eb" strokeWidth="18" />{segments.filter(segment => segment.percent > 0).map(segment => <DonutSegment key={segment.type} center={56} radius={47} strokeWidth={18} part={{label: segment.type, value: segment.amount, color: resourceColor(segment.type)}} percent={segment.percent} start={segment.start} text={`${segment.type}：${n(segment.amount / 10000)} 万元 · ${segment.percent.toFixed(1)}%`} />)}</svg></TooltipProvider><div><strong>{count} 家</strong><small>{title}</small></div></div></div>;
+              return <div className="v20-stack-donut-wrap" key={title}><div className="v20-stack-donut" role="img" aria-label={`${title} ${wholeMetric(count)} 家，按投资金额展示资源大类构成`}><TooltipProvider><svg viewBox="0 0 112 112" width="112" height="112" style={{position: "absolute", inset: 0}}><circle cx="56" cy="56" r="47" fill="none" stroke="#dce5eb" strokeWidth="18" />{segments.filter(segment => segment.percent > 0).map(segment => <DonutSegment key={segment.type} center={56} radius={47} strokeWidth={18} part={{label: segment.type, value: segment.amount, color: resourceColor(segment.type)}} percent={segment.percent} start={segment.start} text={`${segment.type}：${wholeMetric(segment.amount)} 元 · ${n(segment.percent)}%`} />)}</svg></TooltipProvider><div><strong>{wholeMetric(count)} 家</strong><small>{title}</small></div></div></div>;
             })}
             <div className="v20-stack-legend">{types.map(type=><div key={type}><Dot color={resourceColor(type)} /><Button variant="link" onClick={()=>setSelected({type:"resource",resourceType:type,period,basis})}>{type}</Button><span>{pct(overTotal ? distribution(over,type)/overTotal*100 : null)} vs {pct(total ? distribution(rows,type)/total*100 : null)}</span></div>)}<small>超配部分 vs 全部名单</small></div>
           </div>
@@ -1068,7 +1068,7 @@ export function V19Stack({
                     const value = read(row, field);
                     return <TableCell key={field} data-column={field} className={!["name", "code", "sd", "rsm", "mix"].includes(field) ? "num" : undefined} sortValue={value}>
                       {field === "name" ? <><DealerDetailButton variant="link" onClick={() => setSelected({type:"dealer", dealerKey:row.key, period, basis})}>{row.name}</DealerDetailButton><small>{row.sector}</small></>
-                      : field === "mix" ? <div className="v19-stack-bar">{types.map(type => <span key={type} title={`${type} ${wan(distribution([row], type))}`} style={{background:resourceColor(type),width:`${row.amount ? distribution([row], type) / row.amount * 100 : 0}%`}} />)}</div>
+                      : field === "mix" ? <div className="v19-stack-bar">{types.map(type => <span key={type} title={`${type} ${yuan(distribution([row], type))}`} style={{background:resourceColor(type),width:`${row.amount ? distribution([row], type) / row.amount * 100 : 0}%`}} />)}</div>
                       : field === "gapC3" || field === "gapVol" ? value == null ? "—" : <div className="v19-diverging"><i style={{left:`${value < 0 ? 50 + value / max * 45 : 50}%`,width:`${Math.abs(value) / max * 45}%`,background:value > 0 ? "#EB8705" : "#89CFDC"}} /><span>{`${value > 0 ? "+" : ""}${n(value)}`}</span></div>
                       : format(value, field)}
                     </TableCell>;
@@ -1080,7 +1080,7 @@ export function V19Stack({
           </TableBody>
         </Table>
         <div className="v19-list-pagination v20-stack-pagination">
-          <span>筛选 {matching.length} / {rows.length} 家 · 本页 {list.length} 家</span>
+          <span>筛选 {wholeMetric(matching.length)} / {wholeMetric(rows.length)} 家 · 本页 {wholeMetric(list.length)} 家</span>
           <div>
             <label className="v20-page-size">每页
               <NativeSelect aria-label="叠加经销商每页显示记录数" value={String(pageSize)} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}>
@@ -1136,10 +1136,10 @@ export function V19Destination({
             <TableRow>
               <TableHead>Initiative</TableHead>
               <TableHead>资源大类</TableHead>
-              <TableHead className="num">预算（万元）</TableHead>
-              <TableHead className="num">已分配（万元）</TableHead>
-              <TableHead className="num">预留（万元）</TableHead>
-              <TableHead className="num">待分配（万元）</TableHead>
+              <TableHead className="num">预算（元）</TableHead>
+              <TableHead className="num">已分配（元）</TableHead>
+              <TableHead className="num">预留（元）</TableHead>
+              <TableHead className="num">待分配（元）</TableHead>
               <TableHead>结构</TableHead>
               <TableHead>获配经销商（家）</TableHead>
               <TableHead>拆分依据</TableHead>
@@ -1180,21 +1180,21 @@ export function V19Destination({
                         {i.resourceType}
                       </Button>
                     </TableCell>
-                    <TableCell className="num" sortValue={i.budget / 10000}>{n(i.budget / 10000)}</TableCell>
-                    <TableCell className="num" sortValue={t.allocated / 10000}>
-                      {n(t.allocated / 10000)}
+                    <TableCell className="num" sortValue={i.budget}>{wholeMetric(i.budget)}</TableCell>
+                    <TableCell className="num" sortValue={t.allocated}>
+                      {wholeMetric(t.allocated)}
                     </TableCell>
-                    <TableCell className="num" sortValue={t.otherBudget / 10000}>
-                      {n(t.otherBudget / 10000)}
+                    <TableCell className="num" sortValue={t.otherBudget}>
+                      {wholeMetric(t.otherBudget)}
                     </TableCell>
                     <TableCell className="num">
-                      {t.gap ? n(Math.max(0, t.gap) / 10000) : "—"}
+                      {t.gap ? wholeMetric(Math.max(0, t.gap)) : "—"}
                     </TableCell>
                     <TableCell sortValue={t.budget ? t.allocated / t.budget : null}>
                       <AllocationBar total={t} />
                     </TableCell>
                     <TableCell>
-                      {(i.rows || []).filter((r) => r.amount > 0).length}
+                      {wholeMetric((i.rows || []).filter((r) => r.amount > 0).length)}
                     </TableCell>
                     <TableCell>
                       <Button variant="outline" className="v20-rationale-chip" onClick={() => setDetail({ type: "rationale", initiativeId: i.id })}>
@@ -1211,15 +1211,15 @@ export function V19Destination({
           <TableFooter>
             <TableRow>
               <TableHead colSpan={2}>合计</TableHead>
-              <TableCell className="num" sortValue={total.budget / 10000}>{n(total.budget / 10000)}</TableCell>
-              <TableCell className="num" sortValue={total.allocated / 10000}>
-                {n(total.allocated / 10000)}
+              <TableCell className="num" sortValue={total.budget}>{wholeMetric(total.budget)}</TableCell>
+              <TableCell className="num" sortValue={total.allocated}>
+                {wholeMetric(total.allocated)}
               </TableCell>
-              <TableCell className="num" sortValue={total.otherBudget / 10000}>
-                {n(total.otherBudget / 10000)}
+              <TableCell className="num" sortValue={total.otherBudget}>
+                {wholeMetric(total.otherBudget)}
               </TableCell>
-              <TableCell className="num" sortValue={Math.max(0, total.gap) / 10000}>
-                {n(Math.max(0, total.gap) / 10000)}
+              <TableCell className="num" sortValue={Math.max(0, total.gap)}>
+                {wholeMetric(Math.max(0, total.gap))}
               </TableCell>
               <TableCell>
                 <AllocationBar total={total} />

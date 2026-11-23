@@ -136,7 +136,7 @@ describe("V19 selection and comparison", () => {
       summaries.every((row) => row.metricShare === null && row.gap === null),
     ).toBe(true);
     expect(summaries[0]).not.toHaveProperty("pppVol");
-    expect(summaries[0].phasing).toBeNull();
+    expect(summaries[0]).not.toHaveProperty("phasing");
   });
 
   it("deduplicates directory counts and keeps other sectors out of coverage", () => {
@@ -182,7 +182,7 @@ describe("V19 selection and comparison", () => {
       source,
     )[0];
     expect(summary.historicalYield).toBe(2.5);
-    expect(summary.phasing).toBe(0.76);
+    expect(summary).not.toHaveProperty("phasing");
   });
 
   const versionItem = (changes = {}) => ({

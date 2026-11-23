@@ -75,7 +75,7 @@ it("does not issue another status query or report complete success after workspa
   expect(harness.context.notify).toHaveBeenCalledWith(expect.stringContaining("刷新失败"), true);
 });
 
-it("sorts the 万元 summary by the exact submitted amount and omits unsubmitted draft amounts", async () => {
+it("sorts the yuan summary by the exact submitted amount and omits unsubmitted draft amounts", async () => {
   harness.read.mockResolvedValue({
     version,
     items: [
@@ -86,7 +86,7 @@ it("sorts the 万元 summary by the exact submitted amount and omits unsubmitted
   });
   render();
   await flush();
-  find(render(), node => node.props?.children?.[0] === "分配金额（万元）").props.onClick();
+  find(render(), node => node.props?.children?.[0] === "分配金额（元）").props.onClick();
 
   const ascending = render();
   expect(find(ascending, node => node.type === PlanningSummaryAmount)?.props.value).toBe(3040000.02);

@@ -62,7 +62,7 @@ const items = [
 
 it.each([9, null])("keeps both period and metric choices without the organization period explanation (%s)", month => {
   const html = renderToStaticMarkup(<SdAnalysis items={items} dealers={dealers} ytdCutoffMonth={month} />);
-  const controls = html.split('class="studio-inline-controls"')[1].split('class="studio-table-note"')[0];
+  const controls = html.split('class="studio-inline-controls"')[1].split('class="v19-sd-facts"')[0];
   for (const label of ["2025 全年", "2026 YTD", "Vol", "C3"])
     expect(controls).toContain(`>${label}</button>`);
   expect(controls).not.toContain("metric-explanation");
@@ -86,6 +86,31 @@ const draw = (data, countScope = "all") =>
       onOpen={() => {}}
     />,
   );
+
+it.each(["sd", "rsm"])("uses yuan in both workbench and portfolio %s summaries", dimension => {
+  const data = read(items, null, dimension);
+  const workbench = draw(data, "selected");
+  const portfolio = draw(data, "all");
+  expect(workbench).toContain("投资金额（元）");
+  expect(workbench).toContain("客均（元）");
+  expect(workbench).toMatch(/data-column="amount"[^>]*><b>45,000<\/b>/);
+  expect(workbench).toMatch(/data-column="average"[^>]*>45,000/);
+  expect(workbench).toMatch(/data-column="amount"[^>]*>50,000<\/td>/);
+  expect(portfolio).toContain("投资金额（元）");
+  expect(portfolio).toContain("客均（元）");
+  expect(portfolio).toMatch(/data-column="amount"[^>]*><b>45,000<\/b>/);
+});
+
+it("formats large counts and monetary values with thousands separators without changing the source", () => {
+  const data = read();
+  data.groups[0].allocatedCount = 1234;
+  data.groups[0].selectedCount = 5678;
+  data.groups[0].amount = 1234567.89;
+  const html = draw(data, "selected");
+  expect(html).toContain("1,234 / 5,678");
+  expect(html).toContain("1,234,568");
+  expect(data.groups[0].amount).toBe(1234567.89);
+});
 
 it("uses authorized master counts but historical selected-list denominators including zero plans", () => {
   const { groups, totals } = read();
@@ -129,9 +154,7 @@ it("retains removed organization allocations and produces signed money deltas", 
   );
   expect(result.totals.comparison.delta).toBe(20000);
   const html = draw(result);
-  expect(html).toContain("−3.0");
-  expect(html).toContain("+2.0");
-  expect(html).not.toContain("−100%");
+  expect(html).not.toMatch(/data-column="(?:delta|judgment)"|较上版/);
 });
 
 it("RSM facts aggregate RSM membership and do not reuse SD names", () => {

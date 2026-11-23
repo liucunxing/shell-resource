@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { LegendColorProvider, DepartmentLabel, resolveInitiativeColor, resolveResourceColor, resolveDepartmentColor } from "../src/workbench/LegendColors";
 import { ResourceMixDonut, InitiativeContributionBar } from "../src/workbench/pages/ResourceDetailCharts";
+import { BudgetDonut } from "../src/workbench/pages/BudgetDonut";
 import { InitiativeChip } from "../src/workbench/pages/V19PortfolioVisuals.jsx";
 import { AdminLegendColors, legendColorPayload } from "../src/workbench/pages/AdminLegendColors.jsx";
 import { useWorkbench } from "../src/workbench/WorkbenchContext.jsx";
@@ -26,6 +27,17 @@ describe("configured legend colors", () => {
     const defaults = renderToStaticMarkup(<LegendColorProvider>{child}</LegendColorProvider>);
     expect(defaults).not.toContain("#123456");
     expect(defaults).not.toContain("#234567");
+  });
+  it("uses yuan with thousands separators in contribution tooltips", () => {
+    const props = { sources: [{ id: "21", name: "甲", amount: 123456 }], maxAmount: 123456 };
+    const yuan = renderToStaticMarkup(<LegendColorProvider><InitiativeContributionBar {...props} /></LegendColorProvider>);
+    expect(yuan).toContain("123,456 元");
+  });
+  it("fits large yuan amounts inside donut centers", () => {
+    const child = <><BudgetDonut parts={[]} center="370,992,000" caption="元 · 预算总额" /><ResourceMixDonut parts={[]} title="资源" center="370,992,000" unit="元" /></>;
+    const html = renderToStaticMarkup(<LegendColorProvider>{child}</LegendColorProvider>);
+    expect(html).toContain('font-size:17px');
+    expect(html).toContain('textLength="80"');
   });
   it("stores only overrides; empty fields restore defaults and invalid values are rejected", () => {
     expect(legendColorPayload({initiatives:{b:"#AABBCC"}, resources:{MRD:"#abcdef"}})).toEqual({initiatives:{b:"#AABBCC"},resources:{MRD:"#ABCDEF"},departments:{}});

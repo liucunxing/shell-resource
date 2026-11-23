@@ -788,11 +788,15 @@
 .v19-editor .v19-allocation-table [data-column="support"] {
   border-left: 2px solid #d5dde3;
 }
-.v20-reserve-review label {
+.v19-editor .v20-reserve-review > [data-slot="label"] {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-weight: 600;
+  font-weight: 700;
+  color: #435663;
+}
+.v19-editor .v20-reserve-review > [data-slot="label"]:has(> [data-slot="checkbox"][data-state="unchecked"]:not(:disabled)) {
+  color: var(--destructive);
 }
 .v20-reserve-review p {
   font-size: 12px;

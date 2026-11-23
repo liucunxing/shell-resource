@@ -14,6 +14,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { DonutSegment } from "./BudgetDonut";
+import { wholeMetric } from "../domain/metric-precision";
 
 export const RESOURCE_DETAIL_COLORS = DEFAULT_RESOURCE_COLORS;
 export const detailInitiativeColor = resolveInitiativeColor;
@@ -60,7 +61,7 @@ export function ResourceMixDonut({
               key={part.type}
               center={66} radius={51} strokeWidth={20}
               part={{ label: part.type, value: part.amount, color: resourceColor(part.type) }}
-              percent={length} start={start} text={`${part.type}：${length.toFixed(1)}%`}
+              percent={length} start={start} text={`${part.type}：${length.toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
             />
           );
         })}
@@ -68,6 +69,8 @@ export function ResourceMixDonut({
           x="66"
           y="64"
           textAnchor="middle"
+          textLength={center.length > 8 ? 80 : undefined}
+          lengthAdjust={center.length > 8 ? "spacingAndGlyphs" : undefined}
           className="resource-donut-value"
         >
           {center}
@@ -205,7 +208,7 @@ export function DetailConcentrationCurve({
                 fill="#FBCE07"
                 stroke="#8A6A00"
               />
-              <title>{`Top ${top}%：投资 ${p.amount.toFixed(1)}% / ${metricLabel} ${p.metric.toFixed(1)}%`}</title>
+              <title>{`Top ${top}%：投资 ${p.amount.toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% / ${metricLabel} ${p.metric.toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}</title>
             </g>
           );
         })}
@@ -254,7 +257,7 @@ export function InitiativeContributionBar({
               background: detailInitiativeColor(source),
             }}
           >
-            <title>{`${source.name}：${(source.amount / 10000).toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} 万元`}</title>
+            <title>{`${source.name}：${wholeMetric(source.amount)} 元`}</title>
           </span>
         ))}
     </div>
@@ -280,7 +283,7 @@ export function CohortContributionBar({
         {parts
           .filter((part) => part.amount > 0)
           .map((part) => {
-            const description = `${part.name}：${(part.amount / 10000).toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} 万元，占该经销商投资 ${total > 0 ? ((part.amount / total) * 100).toFixed(1) : "—"}%`;
+            const description = `${part.name}：${wholeMetric(part.amount)} 元，占该经销商投资 ${total > 0 ? ((part.amount / total) * 100).toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "—"}%`;
             return (
               <Tooltip key={part.id}>
                 <TooltipTrigger asChild>

@@ -257,7 +257,7 @@ export function RawPage() {
                     <TableCell key={c.key} sortValue={r[c.key]}>
                       {typeof r[c.key] === "number"
                         ? c.key === "yield"
-                          ? r[c.key].toFixed(1)
+                          ? fmt(r[c.key])
                           : isHistoricalOutput(c.key) ? wholeMetric(r[c.key]) : fmt(r[c.key])
                         : r[c.key]}
                     </TableCell>
@@ -276,7 +276,7 @@ export function RawPage() {
         </div>
         <div className="toolbar raw-pagination">
           <span>
-            共 {rows.length} 行 · 第 {current} / {pages} 页
+            共 {wholeMetric(rows.length)} 行 · 第 {wholeMetric(current)} / {wholeMetric(pages)} 页
           </span>
           <Button
             variant="outline"

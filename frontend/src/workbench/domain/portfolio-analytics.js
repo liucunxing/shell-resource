@@ -1,4 +1,4 @@
-import { aggregateHistoryPhasing, historyInvestment } from "./dealer-history";
+import { historyInvestment } from "./dealer-history";
 
 const number = (value) =>
   value === null || value === undefined || value === ""
@@ -262,7 +262,6 @@ export function groupSummary(
             ],
         ),
       );
-      const phasing = aggregateHistoryPhasing(group.rows.map((row) => row.history), period);
       const aligned =
         period === "2025" ||
         group.rows.every((row) => !row.history?.ytdYieldUnavailableReason);
@@ -292,9 +291,6 @@ export function groupSummary(
         contractVolume,
         analyticalVol,
         analyticalC3,
-        phasing: phasing.ratio,
-        phasingVolume: phasing.volume,
-        phasingTarget: phasing.target,
         yieldAligned: aligned,
         historicalYield:
           aligned && historicalC3 > 0 && historicalInvestment > 0
@@ -321,7 +317,7 @@ export function versionFluctuation(current, previous, available = true) {
   const changeRate = ((current - previous) / previous) * 100;
   return {
     changeRate,
-    changeLabel: `${changeRate > 0 ? "+" : ""}${changeRate.toFixed(1)}%`,
+    changeLabel: `${changeRate > 0 ? "+" : ""}${changeRate.toLocaleString("zh-CN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`,
     changeState: "comparable",
   };
 }
