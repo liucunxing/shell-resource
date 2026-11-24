@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Checkbox } from "../../components/ui/checkbox";
@@ -10,6 +10,21 @@ import "./filter-menu.css";
 export function FilterMenu({ label, options, selected = [], onChange, searchable }) {
   const id = useId();
   const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const contentRef = useRef(null);
+  const scrollDismissedRef = useRef(false);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const handleScroll = (event) => {
+      if (event.target instanceof Node && contentRef.current?.contains(event.target)) return;
+      scrollDismissedRef.current = true;
+      setOpen(false);
+      setQuery("");
+    };
+    document.addEventListener("scroll", handleScroll, true);
+    return () => document.removeEventListener("scroll", handleScroll, true);
+  }, [open]);
   const allLabel = searchable ? `全部 ${label}` : `全部${label}`;
   const search = query.trim().toLowerCase();
   const matches = search
@@ -18,7 +33,11 @@ export function FilterMenu({ label, options, selected = [], onChange, searchable
       ))
     : options;
   return (
-    <Popover onOpenChange={(open) => { if (!open) setQuery(""); }}>
+    <Popover open={open} onOpenChange={(nextOpen) => {
+      if (nextOpen) scrollDismissedRef.current = false;
+      setOpen(nextOpen);
+      if (!nextOpen) setQuery("");
+    }}>
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -31,7 +50,17 @@ export function FilterMenu({ label, options, selected = [], onChange, searchable
           <ChevronDown aria-hidden="true" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="v19-filter-popover" aria-label={`${label}筛选`}>
+      <PopoverContent
+        ref={contentRef}
+        className="v19-filter-popover"
+        aria-label={`${label}筛选`}
+        onCloseAutoFocus={(event) => {
+          if (scrollDismissedRef.current) {
+            event.preventDefault();
+            scrollDismissedRef.current = false;
+          }
+        }}
+      >
         {searchable && (
           <Input
             type="search"

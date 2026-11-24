@@ -8,7 +8,7 @@
   max-height: min(350px, var(--radix-popover-content-available-height));
   padding: 8px;
 }
-.v19-filter-options { overflow: auto; min-height: 0; }
+.v19-filter-options { overflow: auto; min-height: 0; overscroll-behavior: contain; }
 .v19-filter-option { display: flex; align-items: center; padding: 0 8px; gap: 8px; border-radius: 4px; }
 .v19-filter-option:hover { background: var(--accent); }
 .v19-filter-option [data-slot="label"] { flex: 1; display: block; padding: 8px 0; cursor: pointer; overflow-wrap: anywhere; }
