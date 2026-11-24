@@ -318,12 +318,12 @@ export function SdAnalysis({
         </div>
       </header>
       <div className="studio-inline-controls">
-        <Tabs value={groupBy} onValueChange={setGroupBy} aria-label="组织视角">
+        {showRsm && <Tabs value={groupBy} onValueChange={setGroupBy} aria-label="组织视角">
           <TabsList>
             <TabsTrigger value="sd">按 SD</TabsTrigger>
-            {showRsm && <TabsTrigger value="rsm">按 RSM</TabsTrigger>}
+            <TabsTrigger value="rsm">按 RSM</TabsTrigger>
           </TabsList>
-        </Tabs>
+        </Tabs>}
         {groupBy === "rsm" && <span>RSM 仅统计 PCMO</span>}
         <span>历史参考</span>
         <HistoryPeriodTabs value={period} onValueChange={setPeriod} />

@@ -64,7 +64,9 @@ it("offers the RSM view for PCMO and hides it for other sectors", () => {
   const pcmo = renderToStaticMarkup(<SdAnalysis items={items} dealers={dealers} />);
   const nonPcmo = renderToStaticMarkup(<SdAnalysis items={[{ ...items[0], sector: "B2B" }]} dealers={dealers} />);
   expect(pcmo).toContain("按 RSM");
+  expect(pcmo).toContain(">按 SD</button>");
   expect(nonPcmo).not.toContain("按 RSM");
+  expect(nonPcmo).not.toContain(">按 SD</button>");
   expect(nonPcmo).toContain("按 SD 看");
 });
 

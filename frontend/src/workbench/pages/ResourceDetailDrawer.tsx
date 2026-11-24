@@ -1238,7 +1238,7 @@ function ResourceDetailContent({
                       按 {showRsm ? "SD/RSM" : "SD"} 结构 · 投入 vs Delivery Vol vs C3
                     </AccordionTrigger>
                     <AccordionContent>
-                      <Tabs
+                      {showRsm && <Tabs
                         value={organizationBy}
                         onValueChange={(value) =>
                           setOrganizationBy(value as "sd" | "rsm")
@@ -1246,9 +1246,9 @@ function ResourceDetailContent({
                       >
                         <TabsList>
                           <TabsTrigger value="sd">按 SD</TabsTrigger>
-                          {showRsm && <TabsTrigger value="rsm">按 RSM</TabsTrigger>}
+                          <TabsTrigger value="rsm">按 RSM</TabsTrigger>
                         </TabsList>
-                      </Tabs>
+                      </Tabs>}
                       <section className="resource-detail-section">
                         <Table>
                           <TableHeader>

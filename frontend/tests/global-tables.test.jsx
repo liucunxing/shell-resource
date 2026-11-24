@@ -23,8 +23,18 @@ import {
   tableHeaderLayout,
 } from "../src/components/ui/table-sorting";
 import { tableColumnAlignment } from "../src/components/ui/table-alignment";
+import { Checkbox } from "../src/components/ui/checkbox";
 
 describe("global table behavior", () => {
+  it("keeps select-all controls independent of column sorting", () => {
+    const html = renderToStaticMarkup(<Table>
+      <TableHeader><TableRow><TableHead sortable={false}><span><Checkbox aria-label="全选筛选结果" />全选</span></TableHead><TableHead>经销商</TableHead></TableRow></TableHeader>
+      <TableBody><TableRow><TableCell>A</TableCell><TableCell>甲</TableCell></TableRow></TableBody>
+    </Table>);
+    expect(html).toContain('aria-label="全选筛选结果"');
+    expect(html).not.toMatch(/aria-label="按[^\"]*全选[^\"]*排序"/);
+    expect(html).toContain('aria-label="按经销商排序"');
+  });
   it("keeps names and numeric identifiers left while centering numeric columns", () => {
     expect(tableColumnAlignment(<TableHead>经销商</TableHead>, [<TableCell>甲公司</TableCell>])).toBe("left");
     expect(tableColumnAlignment(<TableHead>Initiative</TableHead>, [<TableCell>零售返利计划</TableCell>])).toBe("left");
