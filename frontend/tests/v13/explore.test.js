@@ -15,7 +15,7 @@ vitestTest(
     };
     const lead = { role: "lead", department: "MKT", affiliation_sector: "PCMO", affiliation_department: "MKT" },
       owner = { role: "owner", department: "MKT", ownerId: "MKT-1", affiliation_sector: "PCMO", affiliation_department: "MKT" },
-      management = { role: "management", affiliation_sector: "PCMO", affiliation_department: "MKT", history_resources: ["MRD", "SP&A", "ICE Rebate", "Capex"] },
+      management = { role: "management", sectors: ["PCMO"], history_resources: [] },
       admin = { role: "admin", affiliation_sector: "PCMO", affiliation_department: "MKT", history_resources: ["MRD", "SP&A", "ICE Rebate", "Capex"] };
     const working = E.createState(D, "working"),
       submitted = E.createState(D, "submitted");
@@ -259,7 +259,7 @@ vitestTest(
         null,
       );
     });
-    test("historyReference periods and resources respect V20 home department boundary for every role", () => {
+    test("historyReference periods and resources respect effective business permissions for every role", () => {
       for (const identity of [
         owner,
         lead,
@@ -274,8 +274,10 @@ vitestTest(
           [true, true, false],
         );
         assert.equal(m.periods[2].label, "2026 YTD");
-        assert.equal(m.allResources, false);
-        const labels = identity.affiliation_department === "MKT"
+        assert.equal(m.allResources, identity.role === "management");
+        const labels = identity.role === "management"
+          ? ["2025 MRD (K$)", "2025 SP&A (K$)", "2025 ICE Rebate (K$)", "2025 Capex (K$)"]
+          : identity.affiliation_department === "MKT"
             ? ["2025 MRD (K$)", "2025 SP&A (K$)"]
             : identity.affiliation_department === "ICE"
               ? ["2025 SP&A (K$)", "2025 ICE Rebate (K$)"]

@@ -6,7 +6,6 @@ import { UserPreviewBanner } from "../src/workbench/UserPreviewBanner";
 import { EditorPage } from "../src/workbench/pages/EditorPage.jsx";
 import WorkbenchApp from "../src/workbench/WorkbenchApp.jsx";
 import { AdminUsersPanel } from "../src/workbench/pages/AdminUsersPanel.jsx";
-import { HistoricalResourceSettings } from "../src/workbench/pages/HistoricalResourceSettings.jsx";
 
 const shared = vi.hoisted(() => ({ context: null }));
 vi.mock("../src/workbench/WorkbenchContext.jsx", () => ({ useWorkbench: () => shared.context }));
@@ -57,9 +56,6 @@ describe("user preview read-only surfaces", () => {
     shared.context.identity.role = "admin";
     const users = renderToStaticMarkup(<AdminUsersPanel />);
     expect(users).toMatch(/<button[^>]*disabled=""[^>]*>＋ 新增用户<\/button>/);
-    const settings = renderToStaticMarkup(<HistoricalResourceSettings mapping={{ MKT: ["MRD"] }}
-      departments={["MKT"]} saveConfig={vi.fn()} readOnly />);
-    expect(settings).toMatch(/<input[^>]*disabled=""/);
-    expect(settings).toMatch(/<button[^>]*disabled=""[^>]*>保存部门默认<\/button>/);
+    expect(users).not.toContain("保存部门默认");
   });
 });

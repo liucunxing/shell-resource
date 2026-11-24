@@ -3,6 +3,8 @@
 from collections.abc import Mapping
 from typing import Any
 
+from app.core.departments import departments
+
 RESOURCE_TYPES = ("MRD", "SP&A", "ICE Rebate", "Capex")
 SECTORS = ("PCMO", "CRTO", "B2B", "OEM")
 def valid_management_sectors(value: object) -> bool:
@@ -30,15 +32,26 @@ def historical_resource_access(
     department_resources: dict | None = None,
     role_resources: dict | None = None,
 ) -> dict:
-    """Department is the ceiling; department/user configuration can only narrow it.
-
-    Business row scope and role are deliberately not expense-column grants. Existing
-    role configuration is accepted for API compatibility but never widens the ceiling.
-    Explicit empty or malformed configuration fails closed.
-    """
+    """Resolve expense columns within the caller's independently enforced business scope."""
     del role_resources
+
     def value(name: str) -> Any:
         return user.get(name) if isinstance(user, Mapping) else getattr(user, name, None)
+
+    role = value("role")
+    if role == "management":
+        sectors = value("sectors") if value("sectors") is not None else value("sector")
+        resources = list(RESOURCE_TYPES) if valid_management_sectors(sectors) else []
+        return {"source": "authorized-sectors", "resources": resources}
+    if role in {"owner", "lead"}:
+        limits = default_department_resources()
+        visible = {
+            field for dep in departments(value("department")) for field in limits.get(dep, [])
+        }
+        return {
+            "source": "authorized-departments",
+            "resources": [field for field in RESOURCE_TYPES if field in visible],
+        }
 
     sector, department = value("affiliation_sector"), value("affiliation_department")
     if sector not in SECTORS or department not in AFFILIATION_DEPARTMENTS:
