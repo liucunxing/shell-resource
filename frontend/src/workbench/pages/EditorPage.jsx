@@ -6,6 +6,7 @@ import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
 import { MetricHelp } from "./MetricHelp";
 import { InitiativeSwitcher } from "./InitiativeSwitcher";
 import { SdAnalysis } from "./SdAnalysis.jsx";
+import { FilterMenu } from "./FilterMenu";
 import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
 import {
   compactColumnLabel,
@@ -474,8 +475,8 @@ function EditorContent({
     [activeStep, setActiveStep] = useState(() => restoredEditorStep(identity, state.planningVersion?.id, i, editable)),
     [balanceIds, setBalanceIds] = useState([]),
     [scopeSearch, setScopeSearch] = useState(""),
-    [scopeSd, setScopeSd] = useState("all"),
-    [scopeRsm, setScopeRsm] = useState("all"),
+    [scopeSd, setScopeSd] = useState([]),
+    [scopeRsm, setScopeRsm] = useState([]),
     [scopePage, setScopePage] = useState(1),
     [trialCompare, setTrialCompare] = useState(false),
     [fillNotice, setFillNotice] = useState(null),
@@ -723,8 +724,8 @@ function EditorContent({
         `${dealer.code || dealer.id} ${dealer.name || ""}`
           .toLowerCase()
           .includes(term)) &&
-      (scopeSd === "all" || dealer.sd === scopeSd) &&
-      (!showRsm || scopeRsm === "all" || dealer.rsm === scopeRsm)
+      (!scopeSd.length || scopeSd.includes(dealer.sd)) &&
+      (!showRsm || !scopeRsm.length || scopeRsm.includes(dealer.rsm))
     );
   });
   const scopeOptions = (key) =>
@@ -1286,36 +1287,8 @@ function EditorContent({
                       setScopePage(1);
                     }}
                   />
-                  <NativeSelect
-                    value={scopeSd}
-                    onChange={(event) => {
-                      setScopeSd(event.target.value);
-                      setScopePage(1);
-                    }}
-                  >
-                    <NativeSelectOption value="all">全部 SD</NativeSelectOption>
-                    {scopeOptions("sd").map((value) => (
-                      <NativeSelectOption key={value}>
-                        {value}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
-                  {showRsm && <NativeSelect
-                    value={scopeRsm}
-                    onChange={(event) => {
-                      setScopeRsm(event.target.value);
-                      setScopePage(1);
-                    }}
-                  >
-                    <NativeSelectOption value="all">
-                      全部 RSM
-                    </NativeSelectOption>
-                    {scopeOptions("rsm").map((value) => (
-                      <NativeSelectOption key={value}>
-                        {value}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>}
+                  <FilterMenu label="SD" searchable options={scopeOptions("sd").map((value) => ({ value, label: value }))} selected={scopeSd} onChange={(values) => { setScopeSd(values); setScopePage(1); }} />
+                  {showRsm && <FilterMenu label="RSM" searchable options={scopeOptions("rsm").map((value) => ({ value, label: value }))} selected={scopeRsm} onChange={(values) => { setScopeRsm(values); setScopePage(1); }} />}
                 </div>
                 <div className="table-scroll studio-wide-table" role="region" aria-label="经销商范围表，可上下和横向滚动" tabIndex={0}>
                   <Table
