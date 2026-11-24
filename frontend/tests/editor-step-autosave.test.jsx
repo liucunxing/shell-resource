@@ -62,6 +62,17 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+it("highlights the review card until the budget is acknowledged", () => {
+  item().editorState.reserveAcknowledgement = "";
+  const card = () => elements(render()).find(node => node.props.className === "panel v20-reserve-review");
+  expect(card().props["data-review-required"]).toBe("true");
+  expect(elements(card()).some(node => node.type === "p")).toBe(false);
+  const checkbox = elements(card()).find(node => node.props["aria-label"] === "已核对本版预算与预留，明确本次分配范围");
+  checkbox.props.onCheckedChange(true);
+  expect(card().props["data-review-required"]).toBeUndefined();
+  expect(elements(card()).find(node => node.props["aria-label"] === "已核对本版预算与预留，明确本次分配范围").props.checked).toBe(true);
+});
+
 it.each([["PCMO", true], ["CRTO", false], ["B2B", false], ["OEM", false]])("shows RSM controls only for PCMO (%s)", (sector, expected) => {
   item().sector = sector;
   item().editorState.step = 2;
