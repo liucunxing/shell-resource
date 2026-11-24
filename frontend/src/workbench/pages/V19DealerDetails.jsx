@@ -362,10 +362,6 @@ export function V19DealerDetails({
             </Button>
           </div>
         </div>
-        <p className="studio-table-note">
-          历史参考：{period === "2025" ? "2025 全年" : "2026 YTD"}。Vol /
-          C3及两项占比同时显示。各历史占比以当前名单中该指标有值的经销商合计为分母，缺失项不计入且保留“—”；搜索、排序和分页不改变分母。四类费用仅显示接口已授权返回的字段；缺失数据保留“—”。
-        </p>
       </div>
       {detail && (
         <ResourceDetailDrawer

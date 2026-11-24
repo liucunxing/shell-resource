@@ -334,14 +334,6 @@ export function V20OrganizationSummary({
           C3 占比
         </span>
       </div>
-      <p className="studio-table-note">
-        {isSelectedScope ? "已分配" : "分配"} = 获得投资的经销商家数；
-        {isSelectedScope
-          ? "总名单 = 本项目在该组织勾选的经销商。"
-          : "全部 = 当前授权 Sector 范围内该组织的全部经销商。"}
-        历史产出按当前名单去重，包含零投资经销商；仅改金额不会改变历史 Actual 的数值。
-        {"三条柱均显示实际占比，全表使用统一刻度，按投资、Vol、C3 的最大占比向上取整至 10% 调整上限。"}
-      </p>
     </>
   );
 }

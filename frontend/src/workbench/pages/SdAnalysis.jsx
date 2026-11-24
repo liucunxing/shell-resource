@@ -580,13 +580,6 @@ export function SdAnalysis({
               </TableBody>
             </Table>
           </div>
-          <p className="studio-table-note">
-            每格 = 该 Initiative 投到该 {groupBy.toUpperCase()}{" "}
-            的投资金额占其已分配的比例；下方为该
-            {groupBy.toUpperCase()} 在该 Initiative
-            名单内的产出占比及差值。未覆盖的组织
-            不参与偏离判断，项目按最大绝对偏离排序。
-          </p>
         </>
       )}
       {detail && (

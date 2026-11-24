@@ -192,6 +192,7 @@ it("renders the Step 3 summary without judgment or previous-version columns", ()
   ]);
   expect(heading).not.toContain("较上版");
   expect(html).toContain("已分配 / 总名单");
+  expect(html).not.toContain("获得投资的经销商家数");
   expect(html).toMatch(/data-column="count"[^>]*>2 \/ 2</);
   expect(html).not.toMatch(/data-column="(?:delta|judgment)"|较上版|来源版本|判断（按偏离程度）/);
   expect(html).toContain("投资金额占比极差 80.0 pp");
@@ -199,6 +200,11 @@ it("renders the Step 3 summary without judgment or previous-version columns", ()
   expect(html).toContain('class="v20-share-value">90.0');
   expect(html).toContain('data-organization="SD-C"');
   expect(html).not.toMatch(/分配 \/ 全部|合同量|Phasing|波动率|PPP/);
+});
+
+it("hides the organization note in the portfolio too", () => {
+  const html = renderToStaticMarkup(<SdAnalysis items={items} dealers={dealers} />);
+  expect(html).not.toContain("获得投资的经销商家数");
 });
 
 it.each(["sd", "rsm"])("shows every active organization in the editor, including unselected %s groups", (dimension) => {
