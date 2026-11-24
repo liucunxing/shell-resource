@@ -1,4 +1,5 @@
 import { wholeMetric } from "../domain/metric-precision";
+import { hasRsm, scopeHasRsm } from "../domain/organization-display";
 import { DealerDetailButton, useDealerDetailAccess } from "../DealerDetailAccess";
 import { InitiativeLabel, useLegendColors } from "../LegendColors";
 import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
@@ -180,7 +181,7 @@ export function detailScope(
     rows = rows.filter((row) => detail.scopeDealerKeys!.includes(row.key));
   if (detail.type === "organization")
     rows = rows.filter(
-      (row) => row[detail.groupBy || "sd"] === detail.groupKey,
+      (row) => (detail.groupBy !== "rsm" || hasRsm(row.sector)) && row[detail.groupBy || "sd"] === detail.groupKey,
     );
   if (detail.type === "dealer")
     rows = rows.filter((row) =>
@@ -299,7 +300,6 @@ function ResourceDetailContent({
   detail,
   items,
   dealers,
-  sourceItems,
   budgetReasons = [],
   onClose,
 }: Props) {
@@ -314,7 +314,7 @@ function ResourceDetailContent({
   const [period, setPeriod] = useState<HistoryPeriod>(detail.period || "2025");
   const [basis, setBasis] = useState<"vol" | "c3">(detail.basis || "c3");
   const [query, setQuery] = useState("");
-  const [organizationBy, setOrganizationBy] = useState<"sd" | "rsm">("sd");
+  const [selectedOrganizationBy, setOrganizationBy] = useState<"sd" | "rsm">("sd");
   const [cohortDimension, setCohortDimension] = useState<CohortDimension>(() =>
     defaultCohortDimension(detail.cohortFilteredDimensions),
   );
@@ -344,6 +344,8 @@ function ResourceDetailContent({
   const rows = scope.rows,
     historical = historicalDetailTotals(rows, period),
     suffix = period === "2025" ? "2025" : "2026Ytd";
+  const showRsm = scopeHasRsm([...scope.items, ...rows]);
+  const organizationBy = showRsm ? selectedOrganizationBy : "sd";
   const currentAmount = sum(rows.map((row) => row.amount)),
     allInvestment = completeSum(
       allRows.map((row) => historyInvestment(row.history, period)),
@@ -377,7 +379,7 @@ function ResourceDetailContent({
     setQuery("");
   };
   const visible = rows.filter((row) =>
-    `${row.code} ${row.name} ${row.sd} ${row.rsm}`
+    `${row.code} ${row.name} ${row.sd} ${hasRsm(row.sector) ? row.rsm : ""}`
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
@@ -458,7 +460,7 @@ function ResourceDetailContent({
     !negativeExpenses &&
     expenses.every((type) => readExpense(type) != null);
   const maxDealerAmount = Math.max(0, ...rows.map((row) => row.amount));
-  const organizations = groupSummary(rows, dealers, organizationBy, period);
+  const organizations = groupSummary(organizationBy === "rsm" ? rows.filter((row) => hasRsm(row.sector)) : rows, organizationBy === "rsm" ? dealers.filter((dealer) => hasRsm(dealer.sector)) : dealers, organizationBy, period);
   const totalVol = completeSum(
     organizations.map((group) => group.analyticalVol),
   );
@@ -652,9 +654,6 @@ function ResourceDetailContent({
           ))}
         </TableBody>
       </Table>
-      <p className="resource-detail-note">
-        仅当前调用页面传入的组合；不加载其他 Owner 或未确认的方案。
-      </p>
     </section>
   );
   const dealerHistoryCell = (
@@ -784,7 +783,7 @@ function ResourceDetailContent({
           aria-label="搜索抽屉经销商"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="经销商 / 编码 / SD / RSM"
+          placeholder={showRsm ? "经销商 / 编码 / SD / RSM" : "经销商 / 编码 / SD"}
         />
       </div>
       <div
@@ -800,7 +799,7 @@ function ResourceDetailContent({
               <TableHead>经销商</TableHead>
               <TableHead>经销商编码</TableHead>
               {!showCohortDimensions && (
-                <TableHead>Sector / SD / RSM</TableHead>
+                <TableHead>{showRsm ? "Sector / SD / RSM" : "Sector / SD"}</TableHead>
               )}
               <TableHead className="num">
                 {showCohortDimensions
@@ -841,14 +840,14 @@ function ResourceDetailContent({
                   </DealerDetailButton>
                   {showCohortDimensions && (
                     <small>
-                      {row.sector} · {row.sd} · {row.rsm}
+                      {row.sector} · {row.sd}{hasRsm(row.sector) && ` · ${row.rsm}`}
                     </small>
                   )}
                 </TableCell>
                 <TableCell>{row.code || "—"}</TableCell>
                 {!showCohortDimensions && (
                   <TableCell>
-                    {row.sector} / {row.sd} / {row.rsm}
+                    {row.sector} / {row.sd}{hasRsm(row.sector) && ` / ${row.rsm}`}
                   </TableCell>
                 )}
                 <TableCell className="num" sortValue={row.amount}>
@@ -953,14 +952,6 @@ function ResourceDetailContent({
           )}
         </Table>
       </div>
-      <p className="resource-detail-note">
-        {showCohortDimensions
-          ? "仅展示当前 Top 名单；投资条按同一最大投资金额刻度展示，悬停或键盘聚焦色块可看金额及该家构成占比。"
-          : current.type === "cohort"
-            ? "仅展示当前 Top 名单；"
-            : "包含已勾选但未获配的经销商；"}
-        搜索只筛选显示，不改变分析分母。
-      </p>
       {current.type === "cohort" && !showCohortDimensions && (
         <div className="resource-detail-legend" aria-label="Initiative 图例">
           {matchingItems.map((item) => (
@@ -983,17 +974,6 @@ function ResourceDetailContent({
   const initiativeBudget = () => {
     const allocation = sum((initiative?.rows || []).map((row) => row.amount)),
       reserve = sum((initiative?.otherBudgets || []).map((row) => row.amount));
-    const previous = sourceItems?.find(
-      (item) =>
-        String(item.initiativeKey || item.id) ===
-        String(initiative?.initiativeKey || initiative?.id),
-    );
-    const baseline =
-      previous?.allocationVisible === false
-        ? null
-        : previous
-          ? sum((previous.rows || []).map((row) => row.amount))
-          : null;
     return (
       <>
         <div className="resource-detail-metrics">
@@ -1014,12 +994,6 @@ function ResourceDetailContent({
             </Card>
           ))}
         </div>
-        {baseline != null && (
-          <p className="resource-detail-note">
-            较上版已提交投资：{allocation - baseline > 0 ? "+" : ""}
-            {planningAmount(allocation - baseline)} {planningUnit}
-          </p>
-        )}
         <section className="resource-detail-section">
           <h3>预留原因</h3>
           {initiative?.otherBudgets?.length ? (
@@ -1097,7 +1071,7 @@ function ResourceDetailContent({
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>
             {current.type === "dealer" && single
-              ? `${single.code} · ${single.sector} · ${single.sd} / ${single.rsm}`
+              ? `${single.code} · ${single.sector} · ${single.sd}${hasRsm(single.sector) ? ` / ${single.rsm}` : ""}`
               : current.type === "initiative"
                 ? `${initiative?.sector || "—"} / ${initiative?.department || "—"} · ${initiative?.resourceType || "—"} · ${initiative?.ownerName || initiative?.ownerId || "—"}`
                 : "当前业务范围 · 只读详情"}
@@ -1213,12 +1187,6 @@ function ResourceDetailContent({
                       </TableBody>
                     </Table>
                   </div>
-                  <p className="resource-detail-note">
-                    本次规划是人民币，历史费用是美元；不直接计算两者金额差。
-                    {negativeExpenses
-                      ? "历史费用含负数，保留净额明细，不绘制正向构成占比。"
-                      : ""}
-                  </p>
                 </section>
               )}
               {(current.type === "initiative" ||
@@ -1267,10 +1235,10 @@ function ResourceDetailContent({
                 <Accordion type="single" collapsible>
                   <AccordionItem value="organization">
                     <AccordionTrigger>
-                      按 SD/RSM 结构 · 投入 vs Delivery Vol vs C3
+                      按 {showRsm ? "SD/RSM" : "SD"} 结构 · 投入 vs Delivery Vol vs C3
                     </AccordionTrigger>
                     <AccordionContent>
-                      <Tabs
+                      {showRsm && <Tabs
                         value={organizationBy}
                         onValueChange={(value) =>
                           setOrganizationBy(value as "sd" | "rsm")
@@ -1280,7 +1248,7 @@ function ResourceDetailContent({
                           <TabsTrigger value="sd">按 SD</TabsTrigger>
                           <TabsTrigger value="rsm">按 RSM</TabsTrigger>
                         </TabsList>
-                      </Tabs>
+                      </Tabs>}
                       <section className="resource-detail-section">
                         <Table>
                           <TableHeader>

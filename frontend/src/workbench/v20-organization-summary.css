@@ -74,7 +74,19 @@
   max-width: 250px;
 }
 .v20-organization-summary[data-count-scope="selected"] .v20-history-bars {
-  width: 180px;
+  width: 100%;
+  max-width: none;
+}
+.v20-organization-summary[data-count-scope="selected"] {
+  table-layout: fixed;
+  min-width: 1400px;
+  font-size: 14px;
+}
+.v19-fidelity-shell .v20-organization-summary[data-count-scope="selected"] [data-slot="button"] {
+  font-size: 13px;
+}
+.v20-organization-summary[data-count-scope="selected"] .v20-history-line > span {
+  font-size: 12px;
 }
 .v20-history-line {
   display: grid;

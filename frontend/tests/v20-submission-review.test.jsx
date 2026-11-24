@@ -63,9 +63,6 @@ describe("V20 batch submission reserve review", () => {
     expect(submitButton(renderToStaticMarkup(<SubmissionPage />))).toContain(
       'disabled=""',
     );
-    expect(renderToStaticMarkup(<SubmissionPage />)).toContain(
-      "待核对预算与预留",
-    );
     values.set(
       reserveAcknowledgementKey(identity, "202701", item.id),
       reserveAcknowledgementFingerprint(item),

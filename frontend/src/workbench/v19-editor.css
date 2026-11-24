@@ -224,6 +224,10 @@
 .v19-editor .studio-table-toolbar [data-slot="native-select-wrapper"] {
   flex: 0 1 160px;
 }
+.v19-editor .studio-table-toolbar > .v19-filter-trigger {
+  width: 160px;
+  justify-content: space-between;
+}
 .v19-editor .studio-table-toolbar select {
   height: 32px;
 }
@@ -798,11 +802,8 @@
 .v19-editor .v20-reserve-review > [data-slot="label"]:has(> [data-slot="checkbox"][data-state="unchecked"]:not(:disabled)) {
   color: var(--destructive);
 }
-.v20-reserve-review p {
-  font-size: 12px;
-  line-height: 1.7;
-  color: #677f8d;
-  margin: 10px 0 0;
+.v19-editor .v20-reserve-review[data-review-required="true"] {
+  border: 2px solid #d71920;
 }
 
 .v19-editor .allocation-scroll {
@@ -876,7 +877,7 @@
 .v19-editor .scope-select-all[data-state="checked"], .v19-editor .scope-select-all[data-state="indeterminate"] { border-color: #b58b00; background: #ffce00; color: #243c4d; }
 
 /* Reserve room for every sortable heading; the table scrolls instead of compressing columns. */
-.v19-editor .v19-scope-review { table-layout: fixed; width: 2790px; min-width: 2790px; }
+.v19-editor .v19-scope-review { table-layout: fixed; width: 2890px; min-width: 2890px; }
 .v19-editor .v19-scope-review tbody td:nth-child(4) { white-space: normal; overflow-wrap: anywhere; }
 /* Keep the selection and dealer columns together during horizontal scrolling. */
 @media (min-width: 641px) {

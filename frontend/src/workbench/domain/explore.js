@@ -297,7 +297,7 @@ function rawData(state, identity, data, tab) {
       ["dealerCode", "经销商编码"],
       ["dealerName", "经销商名称"],
       ["sd", "SD"],
-      ["rsm", "RSM"],
+      ...(data.dealers.some((d) => String(d.sector || "").toUpperCase() === "PCMO") ? [["rsm", "RSM"]] : []),
       ["status", "状态"],
       ...history,
       ["yoyVol2425", "2025 vs 2024 Delivery Vol YoY (%)"],
@@ -311,7 +311,7 @@ function rawData(state, identity, data, tab) {
     model.rows = data.dealers.map((d) => {
       const h = d.history || {},
         row = { sector: d.sector || "—", dealerCode: d.id, dealerName: d.name || "—", dealerId: d.id,
-          sd: d.sd || "—", rsm: d.rsm || "—", status: d.status || "—" };
+          sd: d.sd || "—", rsm: String(d.sector || "").toUpperCase() === "PCMO" ? d.rsm || "—" : "—", status: d.status || "—" };
       history.forEach(([k]) => (row[k] = toDisplayUnit(h[k])));
       row.yoyVol2425 = Number.isFinite(h.yoyVol2425) ? h.yoyVol2425 : null;
       row.yoyC32425 = Number.isFinite(h.yoyC32425) ? h.yoyC32425 : null;

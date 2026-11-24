@@ -29,6 +29,16 @@ it("replaces the selected roster, releasing removed amounts while keeping reserv
   const item = { id: "I", ownerId: "owner", sector: "OEM", department: "MKT", budget: 100, revision: 1, rows, otherBudgets };
   const state = { departments: { MKT: { status: "collecting", versions: [] } }, initiatives: [item] };
   const file = await X.exportSelectedRoster([rows[1]], dealers);
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(file);
+  expect(workbook.getWorksheet("已选经销商").getColumn(4).hidden).toBe(true);
+  workbook.getWorksheet("已选经销商").getCell("D2").value = "";
+  const withoutRsm = await X.previewRosterImport(await workbook.xlsx.writeBuffer(), state, item.id, identity, dealers);
+  expect(withoutRsm.errors).toEqual([]);
+  expect(withoutRsm.rows[0].dealerId).toBe("B");
+  const ambiguousDealers = [...dealers, { ...dealers[1], id: "B2", rsm: "Other" }];
+  const ambiguous = await X.previewRosterImport(await workbook.xlsx.writeBuffer(), state, item.id, identity, ambiguousDealers);
+  expect(ambiguous.errors.join()).toContain("无法唯一匹配");
   const preview = await X.previewRosterImport(file, state, item.id, identity, dealers);
   expect(preview.errors).toEqual([]);
   expect(preview.rosterEntries).toEqual([

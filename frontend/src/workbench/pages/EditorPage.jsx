@@ -6,6 +6,7 @@ import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
 import { MetricHelp } from "./MetricHelp";
 import { InitiativeSwitcher } from "./InitiativeSwitcher";
 import { SdAnalysis } from "./SdAnalysis.jsx";
+import { FilterMenu } from "./FilterMenu";
 import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
 import {
   compactColumnLabel,
@@ -64,6 +65,7 @@ import {
 import { exportExcelInWorker, previewExcelInWorker } from "../file-import.js";
 import { concentration, portfolioRows } from "../domain/portfolio-analytics.js";
 import { RotateCcw } from "lucide-react";
+import { hasRsm } from "../domain/organization-display";
 import {
   reserveAcknowledgementKey,
   reserveAcknowledgementFingerprint,
@@ -100,7 +102,7 @@ export function dealerBusinessCode(dealerId, dealer = {}, row = {}) {
 export function dealerDisplayLabel(dealerId, dealer = {}, row = {}) {
   const code = dealerBusinessCode(dealerId, dealer, row);
   const name = dealer.name ? `${dealer.name}（${code}）` : code;
-  const organization = [dealer.sd || row.sd, dealer.rsm || row.rsm]
+  const organization = [dealer.sd || row.sd, hasRsm(dealer.sector || row.sector) && (dealer.rsm || row.rsm)]
     .filter(Boolean)
     .join(" / ");
   return organization ? `${name} · ${organization}` : name;
@@ -451,6 +453,7 @@ function EditorContent({
   notify,
 }) {
   const i = view.initiatives.find((item) => item.id === initiativeId);
+  const showRsm = hasRsm(i?.sector);
   const editable = Boolean(i && !previewMode && E.canEdit(state, i.id, identity));
   const previouslySubmitted = hasCurrentVersionSubmission(
     i,
@@ -472,8 +475,7 @@ function EditorContent({
     [activeStep, setActiveStep] = useState(() => restoredEditorStep(identity, state.planningVersion?.id, i, editable)),
     [balanceIds, setBalanceIds] = useState([]),
     [scopeSearch, setScopeSearch] = useState(""),
-    [scopeSd, setScopeSd] = useState("all"),
-    [scopeRsm, setScopeRsm] = useState("all"),
+    [scopeFilters, setScopeFilters] = useState({ sd: [], rsm: [] }),
     [scopePage, setScopePage] = useState(1),
     [trialCompare, setTrialCompare] = useState(false),
     [fillNotice, setFillNotice] = useState(null),
@@ -709,11 +711,12 @@ function EditorContent({
   const dealerLabel = (dealerId) =>
     dealerDisplayLabel(
       dealerId,
-      dealerMeta(dealerId),
+      { ...dealerMeta(dealerId), sector: i.sector },
       i.rows.find((row) => row.dealerId === dealerId),
     );
   const activeScopeDealers = dealers.filter(isActiveDealer);
   const selectedScopeRows = i.rows;
+  const { sd: scopeSd, rsm: scopeRsm } = scopeFilters;
   const scopeDealers = activeScopeDealers.filter((dealer) => {
     const term = scopeSearch.trim().toLowerCase();
     return (
@@ -721,16 +724,28 @@ function EditorContent({
         `${dealer.code || dealer.id} ${dealer.name || ""}`
           .toLowerCase()
           .includes(term)) &&
-      (scopeSd === "all" || dealer.sd === scopeSd) &&
-      (scopeRsm === "all" || dealer.rsm === scopeRsm)
+      (!scopeSd.length || scopeSd.includes(dealer.sd)) &&
+      (!showRsm || !scopeRsm.length || scopeRsm.includes(dealer.rsm))
     );
   });
-  const scopeOptions = (key) =>
-    [
-      ...new Set(
-        activeScopeDealers.map((dealer) => dealer[key]).filter(Boolean),
-      ),
-    ].sort();
+  const scopeOptions = (key, relatedSelection = []) => {
+    const relatedKey = key === "sd" ? "rsm" : "sd";
+    const matchingDealers = relatedSelection.length
+      ? activeScopeDealers.filter((dealer) => relatedSelection.includes(dealer[relatedKey]))
+      : activeScopeDealers;
+    return [...new Set(matchingDealers.map((dealer) => dealer[key]).filter(Boolean))].sort();
+  };
+  const changeScopeFilter = (key, values) => {
+    const relatedKey = key === "sd" ? "rsm" : "sd";
+    setScopeFilters((current) => {
+      const available = scopeOptions(relatedKey, values);
+      return {
+        [key]: values,
+        [relatedKey]: current[relatedKey].filter((value) => available.includes(value)),
+      };
+    });
+    setScopePage(1);
+  };
   const changeRow = (n, amount) =>
     update({
       rows: i.rows.map((r, index) => (index === n ? { ...r, amount } : r)),
@@ -963,7 +978,7 @@ function EditorContent({
       ),
     ),
   );
-  const allocationGroups = allocationColumnGroups(allocationExpenses, true, true);
+  const allocationGroups = allocationColumnGroups(allocationExpenses, true, true, showRsm);
   const allocationColumns = allocationGroups.flatMap((group) => group.columns);
   const awardsByDealer = awardedInitiativesByDealer(i, view.initiatives);
   const detailItems = detail?.ownerOthers
@@ -1232,9 +1247,6 @@ function EditorContent({
                 <div className="panel-header">
                   <div>
                     <h2>定义适用经销商</h2>
-                    <p className="small-text muted">
-                      直接来自历史列表；SD、RSM、状态及历史指标只读。
-                    </p>
                   </div>
                 </div>
                 <div className="studio-scope-summary">
@@ -1284,36 +1296,22 @@ function EditorContent({
                       setScopePage(1);
                     }}
                   />
-                  <NativeSelect
-                    value={scopeSd}
-                    onChange={(event) => {
-                      setScopeSd(event.target.value);
-                      setScopePage(1);
-                    }}
-                  >
-                    <NativeSelectOption value="all">全部 SD</NativeSelectOption>
-                    {scopeOptions("sd").map((value) => (
-                      <NativeSelectOption key={value}>
-                        {value}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
-                  <NativeSelect
-                    value={scopeRsm}
-                    onChange={(event) => {
-                      setScopeRsm(event.target.value);
-                      setScopePage(1);
-                    }}
-                  >
-                    <NativeSelectOption value="all">
-                      全部 RSM
-                    </NativeSelectOption>
-                    {scopeOptions("rsm").map((value) => (
-                      <NativeSelectOption key={value}>
-                        {value}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
+                  <FilterMenu
+                    label="SD"
+                    searchable
+                    options={scopeOptions("sd", showRsm ? scopeRsm : []).map((value) => ({ value, label: value }))}
+                    selected={scopeSd}
+                    onChange={(values) => changeScopeFilter("sd", values)}
+                  />
+                  {showRsm && (
+                    <FilterMenu
+                      label="RSM"
+                      searchable
+                      options={scopeOptions("rsm", scopeSd).map((value) => ({ value, label: value }))}
+                      selected={scopeRsm}
+                      onChange={(values) => changeScopeFilter("rsm", values)}
+                    />
+                  )}
                 </div>
                 <div className="table-scroll studio-wide-table" role="region" aria-label="经销商范围表，可上下和横向滚动" tabIndex={0}>
                   <Table
@@ -1324,13 +1322,13 @@ function EditorContent({
                     className="v19-scope-review"
                   >
                     <colgroup>
-                      {[80, 280, 130, 180, 100, ...Array(10).fill(110), ...Array(4).fill(180), 200].map((width, index) => (
+                      {[80, 280, 130, 180, 100, 110, 110, 160, 110, 110, 110, 160, 110, 110, 110, ...Array(4).fill(180), 200].map((width, index) => (
                         <col key={index} style={{ width }} />
                       ))}
                     </colgroup>
                     <TableHeader>
                       <TableRow>
-                        <TableHead rowSpan={2}>
+                        <TableHead rowSpan={2} sortable={false}>
                           <span className="inline-flex items-center gap-2">
                             <Checkbox
                               className="scope-select-all"
@@ -1356,7 +1354,7 @@ function EditorContent({
                         </TableHead>
                         <TableHead rowSpan={2}>经销商</TableHead>
                         <TableHead rowSpan={2}>经销商编码</TableHead>
-                        <TableHead rowSpan={2}>SD / RSM</TableHead>
+                        <TableHead rowSpan={2}>{showRsm ? "SD / RSM" : "SD"}</TableHead>
                         <TableHead rowSpan={2}>状态</TableHead>
                         <TableHead
                           colSpan={4}
@@ -1457,7 +1455,7 @@ function EditorContent({
                             </TableCell>
                             <TableCell sortValue={dealerCode(dealer.id)}>{dealerCode(dealer.id) || "—"}</TableCell>
                             <TableCell>
-                              {dealer.sd || "—"} / {dealer.rsm || "—"}
+                              {dealer.sd || "—"}{showRsm && ` / ${dealer.rsm || "—"}`}
                             </TableCell>
                             <TableCell>
                               {dealer.status || "—"}
@@ -1601,10 +1599,6 @@ function EditorContent({
                     <h2 id="selected-roster-title">
                       最终名单 · {wholeMetric(selectedScopeRows.length)} 家
                     </h2>
-                    <p className="small-text muted">
-                      已选经销商（仅 Active），不受上方搜索、SD / RSM
-                      筛选和分页影响。
-                    </p>
                   </div>
                   <div className="actions">
                     <Button variant="outline" disabled={busy} onClick={() => download(true)}>下载名单 Excel</Button>
@@ -1627,7 +1621,7 @@ function EditorContent({
                         <TableHead>编码</TableHead>
                         <TableHead>名称</TableHead>
                         <TableHead>SD</TableHead>
-                        <TableHead>RSM</TableHead>
+                        {showRsm && <TableHead>RSM</TableHead>}
                         <TableHead>状态</TableHead>
                         <TableHead className="num">已分配（元）</TableHead>
                         <TableHead>操作</TableHead>
@@ -1657,7 +1651,7 @@ function EditorContent({
                                 </DealerDetailButton>
                               </TableCell>
                               <TableCell>{dealer.sd || "—"}</TableCell>
-                              <TableCell>{dealer.rsm || "—"}</TableCell>
+                              {showRsm && <TableCell>{dealer.rsm || "—"}</TableCell>}
                               <TableCell>
                                 Active
                               </TableCell>
@@ -1695,7 +1689,7 @@ function EditorContent({
                         })
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={7} className="empty">
+                          <TableCell colSpan={showRsm ? 7 : 6} className="empty">
                             尚未选择 Active 经销商
                           </TableCell>
                         </TableRow>
@@ -1703,7 +1697,7 @@ function EditorContent({
                     </TableBody>
                     <TableFooter>
                       <TableRow>
-                        <TableCell colSpan={5}>
+                        <TableCell colSpan={showRsm ? 5 : 4}>
                           合计 · {wholeMetric(selectedScopeRows.length)} 家
                         </TableCell>
                         <TableCell className="num">
@@ -1748,9 +1742,6 @@ function EditorContent({
                 <div className="panel-header">
                   <div>
                     <h2>试算方案</h2>
-                    <p className="small-text muted">
-                      采用试算会直接覆盖当前金额，保留名单与主动预留；请检查明细并保存草稿。
-                    </p>
                   </div>
                 </div>
                 {fillNotice && <MissingHistoryNotice {...fillNotice} />}
@@ -1819,7 +1810,7 @@ function EditorContent({
                       setAllocationQuery(event.target.value);
                       setAllocationPage(1);
                     }}
-                    placeholder="搜索经销商 / 编码 / SD / RSM"
+                    placeholder={showRsm ? "搜索经销商 / 编码 / SD / RSM" : "搜索经销商 / 编码 / SD"}
                     aria-label="查找经销商分配"
                   />
                 </div>
@@ -2278,8 +2269,7 @@ function EditorContent({
               </div>
               <div className="v19-allocation-pagination">
                 <span>
-                  显示 {wholeMetric(allocationFiltered.length)} / {wholeMetric(i.rows.length)} 家 ·
-                  占比分母按完整名单中的有效值合计，缺失行不视为零；加权值按完整名单计算
+                  显示 {wholeMetric(allocationFiltered.length)} / {wholeMetric(i.rows.length)} 家
                 </span>
                 <div>
                   <Button
@@ -2319,9 +2309,6 @@ function EditorContent({
               <div className="panel-header">
                 <div>
                   <h2>多笔预留 · 原因与金额</h2>
-                  <p className="small-text muted">
-                    按原因逐项登记，可添加多行；金额纳入本项预算平衡。
-                  </p>
                 </div>
               </div>
               <div className="table-scroll">
@@ -2457,7 +2444,7 @@ function EditorContent({
             </Card>
           )}
           {activeStep === 1 && (
-            <Card className="panel v20-reserve-review">
+            <Card className="panel v20-reserve-review" data-review-required={editable && !reserveConfirmed ? "true" : undefined}>
               <Label>
                 <Checkbox
                   aria-label="已核对本版预算与预留，明确本次分配范围"
@@ -2469,13 +2456,6 @@ function EditorContent({
                 />
                 已核对本版预算与预留，明确本次分配范围
               </Label>
-              <p>
-                {previouslySubmitted
-                  ? "本版已有提交记录，可直接进入经销商范围和试算修改，无需重复勾选。保存和提交仍需符合预算及权限要求。"
-                  : editable
-                  ? "勾选后可进入经销商名单和试算。预算、预留金额或原因改变后，需要重新核对。"
-                  : "已提交或只读方案可浏览，不要求重新确认。"}
-              </p>
             </Card>
           )}
           {activeStep === 3 &&

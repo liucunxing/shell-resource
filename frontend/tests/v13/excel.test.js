@@ -100,7 +100,7 @@ vitestTest(
       }));
       assert.equal(directory.worksheets.length, 1);
       assert.deepEqual(directory.getWorksheet("经销商列表").getRow(2).values.slice(1),
-        ["OEM", "NEW", "New Dealer", "SD-N", "RSM-N", "active"]);
+        ["OEM", "NEW", "New Dealer", "SD-N", "", "active"]);
       assert.equal(directory.getWorksheet("经销商列表").rowCount, 3);
       assert.equal(directory.getWorksheet("经销商列表").getCell("A3").value, "CRTO");
       assert.equal(book.getWorksheet("原因类型参考").getCell("A2").value, "新增经销商预留");
