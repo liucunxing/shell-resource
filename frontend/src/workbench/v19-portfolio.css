@@ -657,6 +657,10 @@
   }
 }
 @media (max-width: 600px) {
+  .v19-executive-health .v19-board-body,
+  .v19-exec-concentration-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .v19-exec-category-body {
     grid-template-columns: 1fr;
   }

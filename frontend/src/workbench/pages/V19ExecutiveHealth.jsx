@@ -18,6 +18,7 @@ import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
 import { AnalysisConclusion, AnalysisValue } from "./AnalysisConclusion";
 import {
   CumulativeChart,
+  CumulativeChartLegend,
   HistoryControls,
   orderedResourceTypes,
 } from "./V19PortfolioVisuals.jsx";
@@ -199,11 +200,7 @@ export function V19ExecutiveHealth({
                   basis={basis}
                   onSelect={(top) => openTop(rows, "全部资源大类", top)}
                 />
-                <div className="v19-chart-legend">
-                  <span>● 投资金额</span>
-                  <span>○ {label}</span>
-                  <span>经销商按投入从高到低排序</span>
-                </div>
+                <CumulativeChartLegend metricLabel={label} />
                 <TopRows
                   rows={rows}
                   basis={basis}

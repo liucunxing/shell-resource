@@ -517,6 +517,25 @@ function AllocationBar({ total }) {
   );
 }
 
+const cumulativeInvestmentColor = "#E0A800";
+const cumulativeOutputColor = "#595959";
+
+export function CumulativeChartLegend({ metricLabel }) {
+  return (
+    <div className="v19-chart-legend">
+      <span>
+        <Dot color={cumulativeInvestmentColor} />
+        投资金额累计占比
+      </span>
+      <span>
+        <Dot color={cumulativeOutputColor} />
+        {metricLabel} 的累计占比
+      </span>
+      <span>┄ 平均分配</span>
+    </div>
+  );
+}
+
 export function CumulativeChart({ rows, top, basis, onSelect }) {
   const eligible = rankedConcentrationRows(rows),
     a = eligible.reduce((s, r) => s + r.amount, 0),
@@ -576,13 +595,13 @@ export function CumulativeChart({ rows, top, basis, onSelect }) {
       <polyline
         points={path("a")}
         fill="none"
-        stroke="#E0A800"
+        stroke={cumulativeInvestmentColor}
         strokeWidth="3"
       />
       <polyline
         points={path("m")}
         fill="none"
-        stroke="#595959"
+        stroke={cumulativeOutputColor}
         strokeWidth="3"
       />
       {[0, 20, 50, 80, 100].map((x) => (
@@ -630,7 +649,7 @@ export function CumulativeChart({ rows, top, basis, onSelect }) {
                 cx={48 + q.x * 5.2}
                 cy={226 - q.a * 1.9}
                 r="6"
-                fill="#E0A800"
+                fill={cumulativeInvestmentColor}
                 stroke="white"
                 strokeWidth="2"
                 pointerEvents="none"
@@ -639,7 +658,7 @@ export function CumulativeChart({ rows, top, basis, onSelect }) {
                 cx={48 + q.x * 5.2}
                 cy={226 - q.m * 1.9}
                 r="5"
-                fill="#595959"
+                fill={cumulativeOutputColor}
                 stroke="white"
                 strokeWidth="2"
                 pointerEvents="none"
@@ -770,17 +789,7 @@ export function V19Health({
                   basis={basis}
                   onSelect={openTop}
                 />
-                <div className="v19-chart-legend">
-                  <span>
-                    <Dot color="#E0A800" />
-                    投资金额累计占比
-                  </span>
-                  <span>
-                    <Dot color="#595959" />
-                    {label} 的累计占比
-                  </span>
-                  <span>┄ 平均分配</span>
-                </div>
+                <CumulativeChartLegend metricLabel={label} />
                 <p className="v19-chart-footnote">
                   两条线之间的阴影越大 = 投资比产出更集中
                 </p>
