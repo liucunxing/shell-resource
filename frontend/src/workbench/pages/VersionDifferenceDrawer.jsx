@@ -125,6 +125,7 @@ export function VersionDifferenceDrawer({
   previousVersion,
   currentVersion,
   executive,
+  filters,
   budgetReasons = [],
   ytdCutoffMonth = null,
   onClose,
@@ -141,9 +142,10 @@ export function VersionDifferenceDrawer({
   }, [detail]);
   const current = trail.at(-1),
     data = versionDifferenceDetail(result, current, executive);
+  const hasFilters = Object.values(filters || {}).some((values) => values.length);
   const stateLabel = (side) =>
     !side.items.length
-      ? "该版本无此项，按 0 比较"
+      ? hasFilters ? "该版本在当前筛选范围内无此项，按 0 比较" : "该版本无此项，按 0 比较"
       : !side.available
         ? executive
           ? "存在未确认项目，不可比较"
@@ -156,7 +158,7 @@ export function VersionDifferenceDrawer({
           `${item.sector || "—"} / ${item.department || "—"} · ${item.resourceType || "—"} · ${item.ownerName || item.ownerId || "—"}`,
       )
       .filter((value, index, array) => array.indexOf(value) === index)
-      .join("；") || "该版本不存在";
+      .join("；") || (hasFilters ? "当前筛选范围内无此项" : "该版本不存在");
   const visible = data.dealers.filter((row) =>
     `${row.name} ${row.code} ${row.sector}`
       .toLowerCase()

@@ -26,9 +26,10 @@ import { useWorkbench } from "../WorkbenchContext.jsx";
 import { compareVersionGroups } from "../domain/portfolio-analytics.js";
 import { identityScopeKey } from "../identity-scope";
 import { submittedVersionItems } from "../domain/version-baseline.js";
+import { filterManagementItems } from "../domain/management-filters.js";
 
 const money = (value) => value == null ? "不可比较" : wholeMetric(Number(value));
-export function VersionComparison({ executive }) {
+export function VersionComparison({ executive, filters }) {
   const { state, identity } = useWorkbench();
   const versions = (state.planningVersions || []).filter(
     (version) => version.published,
@@ -43,7 +44,7 @@ export function VersionComparison({ executive }) {
     [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
-  useEffect(() => setPage(1), [query, left, right, dimension]);
+  useEffect(() => setPage(1), [query, left, right, dimension, filters]);
   const leftRevision = versions.find(version => version.id === left)?.revision;
   const rightRevision = versions.find(version => version.id === right)?.revision;
   const [detail, setDetail] = useState(null);
@@ -74,14 +75,14 @@ export function VersionComparison({ executive }) {
     () =>
       result
         ? compareVersionGroups(
-            result.current,
-            result.previous,
+            filterManagementItems(result.current, filters),
+            filterManagementItems(result.previous, filters),
             [],
             dimension,
             { requireConfirmed: executive },
           )
         : [],
-    [result, dimension, executive],
+    [result, dimension, executive, filters],
   );
   const showOwner = executive && dimension === "initiative";
   const filtered = rows.filter(row =>
@@ -233,7 +234,7 @@ export function VersionComparison({ executive }) {
                 {!filtered.length && (
                   <TableRow>
                     <TableCell colSpan={showOwner ? 9 : 8}>
-                      <div className="empty">{rows.length ? "没有匹配的项目。" : "当前授权范围没有可比较项目。"}</div>
+                      <div className="empty">{rows.length ? "没有匹配的项目。" : "当前范围没有可比较项目。"}</div>
                     </TableCell>
                   </TableRow>
                 )}
@@ -259,6 +260,7 @@ export function VersionComparison({ executive }) {
           previousVersion={left}
           currentVersion={right}
           executive={executive}
+          filters={filters}
           ytdCutoffMonth={state.ytdCutoffMonth}
           budgetReasons={state.budgetReasons}
           onClose={() => setDetail(null)}
@@ -292,7 +294,16 @@ function LoadVersionDifference(props) {
           }));
       }), { onError: failure => { setError(failure.message); if ([401, 403].includes(failure.status)) setResult(null); } });
   }, [props.previousVersion, props.currentVersion, props.leftRevision, props.rightRevision]);
-  if (result) return <VersionDifferenceDrawer {...props} result={result} />;
+  if (result) return (
+    <VersionDifferenceDrawer
+      {...props}
+      result={{
+        ...result,
+        previous: filterManagementItems(result.previous, props.filters),
+        current: filterManagementItems(result.current, props.filters),
+      }}
+    />
+  );
   return (
     <Sheet open onOpenChange={(open) => { if (!open) props.onClose(); }}>
       <SheetContent className="resource-detail-drawer">

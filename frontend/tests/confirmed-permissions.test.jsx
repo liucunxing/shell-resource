@@ -24,6 +24,11 @@ it("management overview follows the customer V19 readonly board", () => {
   expect(html).toContain("总盘 · 资源大类");
   expect(html).toContain("集中度");
   expect(html).toContain("叠加到经销商");
+  expect(html).toContain('aria-label="全部业务线"');
+  expect(html).toContain('aria-label="全部部门"');
+  expect(html).toContain('aria-label="全部资源大类"');
+  expect(html).toContain('aria-label="全部 Initiative"');
+  expect(html).not.toContain("v19-version-scope");
   expect(html).not.toContain("经销商明细");
   expect(html).not.toContain("当前工作稿（含未同步调整）");
   expect(html).not.toContain("查看 / 调整");
