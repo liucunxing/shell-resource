@@ -876,7 +876,7 @@
 .v19-editor .scope-select-all[data-state="checked"], .v19-editor .scope-select-all[data-state="indeterminate"] { border-color: #b58b00; background: #ffce00; color: #243c4d; }
 
 /* Reserve room for every sortable heading; the table scrolls instead of compressing columns. */
-.v19-editor .v19-scope-review { table-layout: fixed; width: 2790px; min-width: 2790px; }
+.v19-editor .v19-scope-review { table-layout: fixed; width: 2890px; min-width: 2890px; }
 .v19-editor .v19-scope-review tbody td:nth-child(4) { white-space: normal; overflow-wrap: anywhere; }
 /* Keep the selection and dealer columns together during horizontal scrolling. */
 @media (min-width: 641px) {
