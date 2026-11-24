@@ -72,9 +72,12 @@ it("coalesces the user list reload until the saved workspace permissions finish 
   expect(find(render(), node => node.props?.title === "修改人员").props.saving).toBe(true);
   expect(harness.context.refresh).toHaveBeenCalledWith({ preservePage: true });
   expect(harness.list).toHaveBeenCalledTimes(1);
+  expect(harness.context.notify).not.toHaveBeenCalled();
   finish(); await saving;
-  render(); await flush();
+  const finished = render(); await flush();
+  expect(find(finished, node => node.props?.title === "修改人员")).toBeNull();
   expect(harness.list).toHaveBeenCalledTimes(2);
+  expect(harness.context.notify).toHaveBeenCalledExactlyOnceWith("人员修改成功。");
 });
 
 it("retains list errors after a refresh rather than showing a successful empty list", async () => {
