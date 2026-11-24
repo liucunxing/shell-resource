@@ -1302,7 +1302,7 @@ function EditorContent({
                     </colgroup>
                     <TableHeader>
                       <TableRow>
-                        <TableHead rowSpan={2}>
+                        <TableHead rowSpan={2} sortable={false}>
                           <span className="inline-flex items-center gap-2">
                             <Checkbox
                               className="scope-select-all"

@@ -89,6 +89,8 @@ it("combines multiple SD and RSM selections without changing the saved roster", 
   harness.context.data = { ...data, dealers: original.map((dealer, index) => ({ ...dealer, sector: "PCMO", sd: ["A", "A", "B", "C"][index], rsm: ["X", "Y", "X", "Z"][index] })) };
   item().rows = [{ dealerId: original[3].id, amount: 0, note: "" }];
   const menu = (label) => elements(render()).find(node => node.type === FilterMenu && node.props.label === label);
+  const selectAllHeader = elements(render()).find(node => node.type === TableHead && elements(node).some(child => child.props.className === "scope-select-all"));
+  expect(selectAllHeader.props.sortable).toBe(false);
   const displayedIds = () => {
     const table = elements(render()).find(node => node.props.className === "v19-scope-review");
     const body = elements(table).find(node => node.type === TableBody);
@@ -99,8 +101,9 @@ it("combines multiple SD and RSM selections without changing the saved roster", 
   expect(displayedIds()).toHaveLength(3);
   menu("SD").props.onChange(["B"]);
   expect(displayedIds()).toHaveLength(1);
-  menu("SD").props.onChange([]);
   menu("RSM").props.onChange([]);
+  expect(displayedIds()).toHaveLength(1);
+  menu("SD").props.onChange([]);
   expect(displayedIds()).toHaveLength(4);
   expect(item().rows).toEqual([{ dealerId: original[3].id, amount: 0, note: "" }]);
 });
