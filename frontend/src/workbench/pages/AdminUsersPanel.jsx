@@ -1,4 +1,5 @@
 import { AdminImportPanel } from "./AdminImportPanel";
+import { ListFilter } from "lucide-react";
 import { wholeMetric } from "../domain/metric-precision";
 import { UserInitiativePicker } from "./UserInitiativePicker";
 import {
@@ -371,12 +372,12 @@ export function AdminUsersPanel() {
       const action = { create: "新增", edit: "修改", delete: "删除" }[
         dialog.kind
       ];
-      notify(`人员${action}成功。`);
       if (dialog.kind === "delete" && result.items.length === 1 && offset > 0)
         setOffset(Math.max(0, offset - PAGE_SIZE));
       else setRevision((value) => value + 1);
       await refresh({ preservePage: true });
       setDialog(null);
+      notify(`人员${action}成功。`);
     } catch (error) {
       if (
         dialog.kind === "delete" &&
@@ -400,12 +401,14 @@ export function AdminUsersPanel() {
           <AdminImportPanel kind="users" />
           <Button
             variant="ghost"
-            size="sm"
+            size="icon-sm"
             type="button"
+            aria-label={filtersVisible ? "收起筛选" : "展开筛选"}
             aria-expanded={filtersVisible}
+            aria-controls="admin-user-filters"
             onClick={() => setFiltersVisible((value) => !value)}
           >
-            筛选
+            <ListFilter aria-hidden="true" />
           </Button>
           <Button
             variant="default"
@@ -419,6 +422,7 @@ export function AdminUsersPanel() {
       </div>
       {filtersVisible && (
         <form
+          id="admin-user-filters"
           className="user-filters"
           onSubmit={(event) => {
             event.preventDefault();
