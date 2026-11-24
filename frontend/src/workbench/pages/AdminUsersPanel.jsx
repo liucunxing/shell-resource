@@ -214,6 +214,7 @@ export function AdminUsersPanel() {
   const [form, setForm] = useState(EMPTY_USER);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
+  const sectorLocked = Boolean(dialog?.user?.has_initiatives && form.role !== "lead");
   const ownerAllowedSectors = ownerSectorOptions(
     form.department,
     result.lead_sectors_by_department,
@@ -790,7 +791,9 @@ export function AdminUsersPanel() {
                 {dialog.user?.has_initiatives && (
                   <Alert role="note" className="note-box">
                     <AlertDescription>
-                      已有预算事项，账号、姓名、角色、业务线和启用状态已锁定。
+                      {sectorLocked
+                        ? "已有预算事项，账号、姓名、角色、业务线和启用状态已锁定。"
+                        : "已有预算事项，账号、姓名、角色和启用状态已锁定。"}
                     </AlertDescription>
                   </Alert>
                 )}
@@ -830,7 +833,7 @@ export function AdminUsersPanel() {
                                 department,
                                 sector:
                                   form.role === "owner" &&
-                                  !dialog.user?.has_initiatives &&
+                                  !sectorLocked &&
                                   !allowed.includes(form.sector[0])
                                     ? []
                                     : form.sector,
@@ -861,7 +864,7 @@ export function AdminUsersPanel() {
                             className="sector-choice"
                             aria-pressed={form.sector.includes(value)}
                             disabled={
-                              dialog.user?.has_initiatives ||
+                              sectorLocked ||
                               (form.role === "owner" &&
                                 !ownerAllowedSectors.includes(value))
                             }
@@ -885,7 +888,9 @@ export function AdminUsersPanel() {
                           ? ownerAllowedSectors.length
                             ? `Owner 仅可选择所有所选部门负责人共同覆盖的业务线：${ownerAllowedSectors.join("、")}。`
                             : "请先为该部门配置启用的部门负责人及其业务线。"
-                          : form.role === "management" ? "管理层仅可查看所选业务线的全部部门；未配置时不能查看数据。" : "部门负责人可选择一至四条业务线。"}
+                          : form.role === "management"
+                            ? "管理层仅可查看所选业务线的全部部门；未配置时不能查看数据。"
+                            : "部门负责人可选择一至四条业务线。本人负责的 Initiative 所在业务线须保留。"}
                       </small>
                     </div>
                   </div>

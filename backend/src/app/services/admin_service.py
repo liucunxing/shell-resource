@@ -121,6 +121,38 @@ class AdminService(WorkspaceService):
             if (department, sector) not in covered
         }
 
+    @staticmethod
+    def _validate_assigned_user_fields(
+        user: UserPermissionDO, payload: AdminUserDTO, *, row: int | None = None,
+    ) -> None:
+        identity_unchanged = payload.email == user.email.strip().lower() and all(
+            getattr(payload, field) == getattr(user, field)
+            for field in ("display_name", "role", "enabled")
+        )
+        sector_allowed = user.role == "lead" or payload.sector == list(user.sector or [])
+        if identity_unchanged and sector_allowed:
+            return
+        fields = (
+            "账号、姓名、角色和启用状态" if user.role == "lead"
+            else "账号、姓名、角色、业务线和启用状态"
+        )
+        prefix = f"第 {row} 行，" if row is not None else ""
+        raise HTTPException(409, f"{prefix}该用户当前已有 Initiative 预算事项，{fields}已锁定")
+
+    @staticmethod
+    def _validate_assigned_budget_scopes(
+        payload: AdminUserDTO, assigned: set[tuple[str, str]], *, row: int | None = None,
+    ) -> None:
+        prefix = f"第 {row} 行，" if row is not None else ""
+        if not {department for department, _ in assigned}.issubset(payload.department):
+            raise HTTPException(409, f"{prefix}不能移除仍有项目的部门")
+        if payload.role == "lead":
+            missing_sectors = sorted({sector for _, sector in assigned}.difference(payload.sector))
+            if missing_sectors:
+                raise HTTPException(
+                    409, f"{prefix}不能移除仍有本人项目的业务线（{'、'.join(missing_sectors)}）",
+                )
+
     async def import_users(self, payload: AdminUsersImportDTO) -> dict:
         self._admin()
         try:
@@ -137,8 +169,8 @@ class AdminService(WorkspaceService):
             # A partial import must not be blocked by unrelated legacy gaps;
             # it still cannot create a new gap or remove existing lead coverage.
             previous_gaps = self._uncovered_owner_scopes(users)
-            assigned_by_email = await self.admin_repository.assigned_departments_by_email([
-                by_email[item.email].email for item in payload.items if item.email in by_email
+            assigned_by_email = await self.admin_repository.assigned_budget_scopes_by_email([
+                item.email for item in payload.items if item.email in by_email
             ])
             created, updated = 0, 0
             audit_changes = []
@@ -147,13 +179,8 @@ class AdminService(WorkspaceService):
                 before = self._user_record(user) if user else None
                 assigned = assigned_by_email.get(item.email, set())
                 if user and assigned:
-                    unchanged = all(getattr(item, field) == getattr(user, field)
-                                    for field in ("email", "display_name", "role", "enabled"))
-                    if (not unchanged or item.sector != list(user.sector or [])
-                            or not assigned.issubset(item.department)):
-                        raise HTTPException(
-                            409, f"第 {index} 行：该用户已有项目，不可更改身份或移除项目部门",
-                        )
+                    self._validate_assigned_user_fields(user, item, row=index)
+                    self._validate_assigned_budget_scopes(item, assigned, row=index)
                 if user is None:
                     user = UserPermissionDO(**item.model_dump())
                     self.session.add(user)
@@ -234,20 +261,12 @@ class AdminService(WorkspaceService):
             user = await self.admin_repository.locked_user(user_id)
             if user is None:
                 raise HTTPException(status_code=404, detail="人员不存在")
-            had_budgets = await self.admin_repository.user_has_budgets(user.email)
-            if had_budgets:
-                unchanged = all(
-                    getattr(payload, field) == getattr(user, field)
-                    for field in ("email", "display_name", "role", "enabled")
-                ) and payload.sector == list(user.sector or [])
-                if not unchanged:
-                    raise HTTPException(
-                        status_code=409,
-                        detail=(
-                            "该用户当前已有 Initiative 预算事项，仅可调整部门，"
-                            "且不能移除仍有项目的部门。"
-                        ),
-                    )
+            assigned_by_email = await self.admin_repository.assigned_budget_scopes_by_email([
+                user.email,
+            ])
+            assigned = assigned_by_email.get(user.email.strip().lower(), set())
+            if assigned:
+                self._validate_assigned_user_fields(user, payload)
             duplicate = await self.admin_repository.user_by_email(payload.email)
             if duplicate is not None and duplicate.id != user.id:
                 raise HTTPException(status_code=409, detail="邮箱已存在")
@@ -284,10 +303,14 @@ class AdminService(WorkspaceService):
                     )
                     self.repository.add_log(budget.id, "OWNER_TRANSFER", self.user.email,
                                             {"ownerId": previous_owner}, {"ownerId": next_owner})
-            if had_budgets:
-                assigned = await self.admin_repository.assigned_departments(user.email)
-                if not assigned.issubset(payload.department):
-                    raise HTTPException(409, "不能移除仍有项目的部门")
+                if assigned:
+                    # The transfer changes which scopes this user must retain.
+                    await self.session.flush()
+                    assigned_by_email = await self.admin_repository.assigned_budget_scopes_by_email(
+                        [user.email],
+                    )
+                    assigned = assigned_by_email.get(user.email, set())
+            self._validate_assigned_budget_scopes(payload, assigned)
             after = self._user_record(user)
             if before != after:
                 self.repository.add_log(

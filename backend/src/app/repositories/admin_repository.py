@@ -100,7 +100,8 @@ class AdminRepository:
         statement = (
             select(UserPermissionDO, assigned_emails.c.email.is_not(None), matches)
             .outerjoin(
-                assigned_emails, assigned_emails.c.email == func.lower(UserPermissionDO.email),
+                assigned_emails,
+                assigned_emails.c.email == func.lower(func.trim(UserPermissionDO.email)),
             )
             .order_by(UserPermissionDO.email)
             .execution_options(populate_existing=True)
@@ -152,32 +153,24 @@ class AdminRepository:
                 result.setdefault(department, set()).update(lead.sector or [])
         return {department: sorted(sectors) for department, sectors in result.items()}
 
-    async def assigned_departments(self, email: str) -> set[str]:
-        return set(
-            (
-                await self.session.scalars(
-                    select(BudgetDO.department)
-                    .where(func.lower(func.trim(BudgetDO.owner_email)) == email.lower())
-                    .distinct()
-                )
-            ).all()
-        )
-
-    async def assigned_departments_by_email(self, emails: list[str]) -> dict[str, set[str]]:
+    async def assigned_budget_scopes_by_email(
+        self, emails: list[str],
+    ) -> dict[str, set[tuple[str, str]]]:
         if not emails:
             return {}
         email = func.lower(func.trim(BudgetDO.owner_email))
         rows = await self.session.execute(
-            select(email, BudgetDO.department)
-            .where(email.in_([value.lower() for value in emails])).distinct()
+            select(email, BudgetDO.department, BudgetDO.sector)
+            .where(email.in_([value.strip().lower() for value in emails]))
+            .distinct()
         )
-        result: dict[str, set[str]] = {}
-        for owner_email, department in rows:
-            result.setdefault(str(owner_email), set()).add(str(department))
+        result: dict[str, set[tuple[str, str]]] = {}
+        for owner_email, department, sector in rows:
+            result.setdefault(str(owner_email), set()).add((str(department), str(sector)))
         return result
 
     async def user_has_budgets(self, email: str) -> bool:
-        return bool(await self.session.scalar(select(self._budget_for_email(email))))
+        return bool(await self.session.scalar(select(self._budget_for_email(email.strip()))))
 
     async def locked_config(self) -> WorkspaceConfigDO | None:
         return (

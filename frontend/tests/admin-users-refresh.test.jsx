@@ -91,6 +91,34 @@ it("retains list errors after a refresh rather than showing a successful empty l
   expect(error).toBeTruthy();
 });
 
+it("allows a department lead with initiatives to add and remove sector selections", async () => {
+  const lead = { ...user, role: "lead", sector: ["B2B", "CRTO"], has_initiatives: true };
+  harness.list.mockResolvedValue({ items: [lead], total: 1 });
+  render(); await flush();
+  find(render(), node => node.props?.children === "编辑").props.onClick();
+  const sectorButton = (label) => find(render(), node =>
+    node.props?.children === label && typeof node.props["aria-pressed"] === "boolean");
+  expect(sectorButton("B2B").props.disabled).toBe(false);
+  sectorButton("PCMO").props.onClick();
+  sectorButton("CRTO").props.onClick();
+  await find(render(), node => node.props?.title === "修改人员").props.onConfirm();
+  expect(harness.update).toHaveBeenCalledWith(lead.id, expect.objectContaining({
+    sector: ["B2B", "PCMO"],
+  }));
+});
+
+it("keeps the sector selection locked for an Owner with initiatives", async () => {
+  harness.list.mockResolvedValue({
+    items: [{ ...user, has_initiatives: true }], total: 1,
+    lead_sectors_by_department: { MKT: ["B2B", "PCMO"] },
+  });
+  render(); await flush();
+  find(render(), node => node.props?.children === "编辑").props.onClick();
+  const sectorButton = find(render(), node =>
+    node.props?.children === "PCMO" && typeof node.props["aria-pressed"] === "boolean");
+  expect(sectorButton.props.disabled).toBe(true);
+});
+
 it("saves only changed project assignments against the version opened for editing", async () => {
   harness.context.state.planningVersion = { id: "202702", revision: 5 };
   harness.context.state.initiatives = [

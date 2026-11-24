@@ -396,6 +396,108 @@ async def test_existing_owner_can_add_department_but_not_remove_used_department(
     assert restored.json()["data"]["department"] == ["MKT"]
 
 
+@pytest.mark.parametrize("via_import", [False, True], ids=["user-editor", "bulk-import"])
+@pytest.mark.asyncio
+async def test_lead_sector_changes_keep_assigned_initiatives_and_owner_coverage(api, via_import):
+    client, engine = api
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        lead = await session.scalar(select(UserPermissionDO).where(
+            UserPermissionDO.email == "mkt-lead@example.com",
+        ))
+        lead.department = ["MKT", "ICE"]
+        lead.sector = ["PCMO", "B2B"]
+        former_project = await session.get(BudgetDO, 2)
+        former_project.planning_year = 2026
+        former_project.sector = "B2B"
+        former_project.enabled = False
+        former_project.owner_email = " MKT-LEAD@EXAMPLE.COM "
+        backup = UserPermissionDO(
+            email="backup@example.com", display_name="Backup", role="lead",
+            department=["MKT"], sector=["PCMO"], enabled=False,
+        )
+        session.add(backup)
+        await session.commit()
+
+    async def save(sectors):
+        body = payload(
+            email=lead.email, display_name=lead.display_name, role="lead",
+            department=["MKT", "ICE"], sector=sectors,
+        )
+        if via_import:
+            listed = (await client.get("admin/users", headers=headers())).json()["data"]
+            return await client.post("admin/users/import", headers=headers(), json={
+                "expected_revision": listed["revision"], "items": [body], "preview": False,
+            })
+        return await client.put(f"admin/users/{lead.id}", headers=headers(), json=body)
+
+    added = await save(["PCMO", "B2B", "OEM"])
+    assert added.status_code == 200, added.text
+    async with AsyncSession(engine) as session:
+        assert (await session.get(UserPermissionDO, lead.id)).sector == ["PCMO", "B2B", "OEM"]
+
+    removed = await save(["PCMO", "B2B"])
+    assert removed.status_code == 200, removed.text
+    still_assigned = await save(["PCMO"])
+    assert still_assigned.status_code == 409
+    assert "不能移除仍有本人项目的业务线（B2B）" in still_assigned.json()["msg"]
+    uncovered = await save(["B2B"])
+    assert uncovered.status_code == 422
+    assert "MKT" in uncovered.json()["msg"] and "PCMO" in uncovered.json()["msg"]
+
+    async with AsyncSession(engine) as session:
+        assert (await session.get(UserPermissionDO, lead.id)).sector == ["PCMO", "B2B"]
+        (await session.get(UserPermissionDO, backup.id)).enabled = True
+        await session.commit()
+    covered_by_backup = await save(["B2B"])
+    assert covered_by_backup.status_code == 200, covered_by_backup.text
+
+
+@pytest.mark.asyncio
+async def test_lead_can_remove_a_sector_after_transferring_all_its_projects_in_the_same_save(api):
+    client, engine = api
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        lead = await session.scalar(select(UserPermissionDO).where(
+            UserPermissionDO.email == "mkt-lead@example.com",
+        ))
+        lead.sector = ["PCMO", "B2B"]
+        next_lead = UserPermissionDO(
+            email="replacement@example.com", display_name="Replacement", role="lead",
+            department=["MKT"], sector=["B2B"], enabled=True,
+        )
+        session.add_all([next_lead, PlanningVersionDO(
+            id="202701", name="Plan", planning_year=2027, created_by="admin@example.com",
+        )])
+        for budget in (await session.scalars(select(BudgetDO))).all():
+            budget.planning_version_id = "202701"
+            budget.sector = "B2B"
+            budget.owner_email = lead.email
+        await session.commit()
+
+    body = payload(
+        email=lead.email, display_name=lead.display_name, role="lead",
+        department=["MKT"], sector=["PCMO"],
+    )
+    body["assignments"] = {
+        "version_id": "202701", "expected_revision": 0,
+        "transfers": [{"budget_id": 1, "owner_email": next_lead.email}],
+    }
+    path = f"admin/users/{lead.id}"
+    failed = await client.put(path, json=body, headers=headers())
+    assert failed.status_code == 409
+    assert "不能移除仍有本人项目的业务线（B2B）" in failed.json()["msg"]
+    async with AsyncSession(engine) as session:
+        assert (await session.get(BudgetDO, 1)).owner_email == lead.email
+        assert (await session.get(UserPermissionDO, lead.id)).sector == ["PCMO", "B2B"]
+        assert (await session.get(PlanningVersionDO, "202701")).revision == 0
+
+    body["assignments"]["transfers"].append({"budget_id": 2, "owner_email": next_lead.email})
+    saved = await client.put(path, json=body, headers=headers())
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["data"]["sector"] == ["PCMO"]
+    async with AsyncSession(engine) as session:
+        assert set(await session.scalars(select(BudgetDO.owner_email))) == {next_lead.email}
+
+
 @pytest.mark.asyncio
 async def test_edit_person_transfers_current_version_projects_atomically(api):
     client, engine = api

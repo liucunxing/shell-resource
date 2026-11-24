@@ -67,6 +67,8 @@ Databricks 只能使用应用 Service Principal 对应且获授权的 schema，�
 
 管理员可从“管理后台 → 人员与权限”模拟查看不同用户的只读视角，操作与验证范围见 [管理员模拟用户视角](docs/ADMIN_USER_PREVIEW.md)。
 
+人员业务授权中，Owner 选择一条业务线。部门负责人可增减业务线，保存时须保留本人项目所在业务线，并维持各部门启用 Owner 的负责人覆盖。
+
 Portal JWT 独立入口的配置、迁移、联调与回滚见 [Portal 接入说明](deploy/portal-jwt.md)。该能力默认关闭，现有帆软 URL 邮箱入口保留；本轮仅接入资源工具。
 
 V20 本地试用：编译前端后，在 `backend` 使用已安装项目依赖的 Python 执行
