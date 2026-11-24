@@ -41,8 +41,7 @@ import { SdAnalysis } from "./SdAnalysis.jsx";
 import { V19ExecutiveHealth } from "./V19ExecutiveHealth.jsx";
 import { V19DealerDetails } from "./V19DealerDetails.jsx";
 import { hasReserveAcknowledgement } from "../domain/reserve-review.js";
-import { filterManagementItems, retainAvailableManagementFilters } from "../domain/management-filters.js";
-import { ManagementFilters, managementFilterFields } from "./ManagementFilters.jsx";
+import { ManagementFilters, resolveManagementFilters } from "./ManagementFilters.jsx";
 
 const num = (value, digits = 0) =>
   Number(value || 0).toLocaleString("zh-CN", {
@@ -344,24 +343,22 @@ function PortfolioDashboard({ mode }) {
     const accessible = new Set(initiatives.map((item) => item.id));
     return latestPublished(state).filter((item) => executive || accessible.has(item.id));
   }, [executive, mode, state.planningVersion, state.publications, view.initiatives]);
-  const fields = useMemo(
-    () => executive ? managementFilterFields(source) : [],
-    [executive, source],
-  );
   const [selections, setSelections] = useState({});
   const [departmentInitiative, setDepartmentInitiative] = useState("");
-  const filters = useMemo(
-    () => retainAvailableManagementFilters(selections, fields),
-    [selections, fields],
+  const selection = useMemo(
+    () => executive ? resolveManagementFilters(source, selections) : null,
+    [executive, source, selections],
   );
+  const filters = selection?.filters;
   useEffect(() => {
-    setSelections((current) => retainAvailableManagementFilters(current, fields));
-  }, [fields]);
-  const scoped = executive
-    ? filterManagementItems(source, filters)
-    : departmentInitiative
+    if (filters && filters !== selections)
+      setSelections((current) => current === selections ? filters : current);
+  }, [filters, selections]);
+  const scoped = selection?.scopedItems ?? (
+    departmentInitiative
       ? source.filter((item) => String(item.id) === departmentInitiative)
-      : source;
+      : source
+  );
   const analysisItems =
     mode === "department"
       ? scoped.filter(
@@ -423,9 +420,9 @@ function PortfolioDashboard({ mode }) {
               : `${[...new Set(source.map((i) => i.sector))].join(" / ")} · ${[...new Set(source.map((i) => i.department))].join(" / ")}`
           }
         >
-          {executive && (
+          {selection && (
             <ManagementFilters
-              fields={fields}
+              fields={selection.fields}
               filters={filters}
               setFilters={setSelections}
             />
