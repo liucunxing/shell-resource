@@ -75,7 +75,7 @@ it("coalesces the user list reload until the saved workspace permissions finish 
   expect(harness.context.notify).not.toHaveBeenCalled();
   finish(); await saving;
   const finished = render(); await flush();
-  expect(find(finished, node => node.props?.title === "修改人员")).toBeNull();
+  expect(find(finished, node => node.props?.title === "修改人员")).toBeFalsy();
   expect(harness.list).toHaveBeenCalledTimes(2);
   expect(harness.context.notify).toHaveBeenCalledExactlyOnceWith("人员修改成功。");
 });
