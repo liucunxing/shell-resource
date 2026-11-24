@@ -163,7 +163,7 @@ export function V19ExecutiveHealth({
           "resourceType",
           "sector",
           "department",
-        ].filter((key) => filters[key] && filters[key] !== "all"),
+        ].filter((key) => filters[key]?.length === 1),
         scopeItems,
       });
   };
