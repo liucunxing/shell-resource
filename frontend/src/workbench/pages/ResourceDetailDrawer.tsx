@@ -300,7 +300,6 @@ function ResourceDetailContent({
   detail,
   items,
   dealers,
-  sourceItems,
   budgetReasons = [],
   onClose,
 }: Props) {
@@ -655,9 +654,6 @@ function ResourceDetailContent({
           ))}
         </TableBody>
       </Table>
-      <p className="resource-detail-note">
-        仅当前调用页面传入的组合；不加载其他 Owner 或未确认的方案。
-      </p>
     </section>
   );
   const dealerHistoryCell = (
@@ -956,14 +952,6 @@ function ResourceDetailContent({
           )}
         </Table>
       </div>
-      <p className="resource-detail-note">
-        {showCohortDimensions
-          ? "仅展示当前 Top 名单；投资条按同一最大投资金额刻度展示，悬停或键盘聚焦色块可看金额及该家构成占比。"
-          : current.type === "cohort"
-            ? "仅展示当前 Top 名单；"
-            : "包含已勾选但未获配的经销商；"}
-        搜索只筛选显示，不改变分析分母。
-      </p>
       {current.type === "cohort" && !showCohortDimensions && (
         <div className="resource-detail-legend" aria-label="Initiative 图例">
           {matchingItems.map((item) => (
@@ -986,17 +974,6 @@ function ResourceDetailContent({
   const initiativeBudget = () => {
     const allocation = sum((initiative?.rows || []).map((row) => row.amount)),
       reserve = sum((initiative?.otherBudgets || []).map((row) => row.amount));
-    const previous = sourceItems?.find(
-      (item) =>
-        String(item.initiativeKey || item.id) ===
-        String(initiative?.initiativeKey || initiative?.id),
-    );
-    const baseline =
-      previous?.allocationVisible === false
-        ? null
-        : previous
-          ? sum((previous.rows || []).map((row) => row.amount))
-          : null;
     return (
       <>
         <div className="resource-detail-metrics">
@@ -1017,12 +994,6 @@ function ResourceDetailContent({
             </Card>
           ))}
         </div>
-        {baseline != null && (
-          <p className="resource-detail-note">
-            较上版已提交投资：{allocation - baseline > 0 ? "+" : ""}
-            {planningAmount(allocation - baseline)} {planningUnit}
-          </p>
-        )}
         <section className="resource-detail-section">
           <h3>预留原因</h3>
           {initiative?.otherBudgets?.length ? (
@@ -1216,12 +1187,6 @@ function ResourceDetailContent({
                       </TableBody>
                     </Table>
                   </div>
-                  <p className="resource-detail-note">
-                    本次规划是人民币，历史费用是美元；不直接计算两者金额差。
-                    {negativeExpenses
-                      ? "历史费用含负数，保留净额明细，不绘制正向构成占比。"
-                      : ""}
-                  </p>
                 </section>
               )}
               {(current.type === "initiative" ||

@@ -293,9 +293,6 @@ export function VersionDifferenceDrawer({
                   ))}
                 </TableBody>
               </Table>
-              <p className="resource-detail-note">
-                此汇总按两版各自归属计算；点击项目查看该项目在两版的完整差异，包括转入、转出后的归属。
-              </p>
             </section>
           )}
           <section className="resource-detail-section">
@@ -412,11 +409,6 @@ export function VersionDifferenceDrawer({
                 </TableBody>
               </Table>
             </div>
-            <p className="resource-detail-note">
-              同编码跨 Sector 按不同身份；新增经销商来源金额为
-              0，移除经销商本版金额为
-              0。只有两侧快照可用才计算差额；搜索不改变汇总。
-            </p>
           </section>
         </div>
         <footer className="resource-detail-footer">

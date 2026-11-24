@@ -290,13 +290,6 @@ export function V19ExecutiveHealth({
                 </span>
               </Button>
             ))}
-            <p className="studio-table-note">
-              {period === "2025" ? "2025 全年" : "2026 YTD"} · {label}
-              ；每个资源大类按各自有历史产出的名单计算。差值 &gt;
-              {thresholds.concentrationYellow ?? 5}pp 建议复核，&gt;
-              {thresholds.concentrationRed ?? 10}pp 优先关注。点击资源大类查看
-              Initiative。
-            </p>
           </AnalysisConclusion>
         </div>
         <div className="v19-exec-category-grid">

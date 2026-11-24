@@ -1235,9 +1235,6 @@ function EditorContent({
                 <div className="panel-header">
                   <div>
                     <h2>定义适用经销商</h2>
-                    <p className="small-text muted">
-                      直接来自历史列表；{showRsm ? "SD、RSM" : "SD"}、状态及历史指标只读。
-                    </p>
                   </div>
                 </div>
                 <div className="studio-scope-summary">
@@ -1576,10 +1573,6 @@ function EditorContent({
                     <h2 id="selected-roster-title">
                       最终名单 · {wholeMetric(selectedScopeRows.length)} 家
                     </h2>
-                    <p className="small-text muted">
-                      已选经销商（仅 Active），不受上方搜索、{showRsm ? "SD / RSM" : "SD"}
-                      筛选和分页影响。
-                    </p>
                   </div>
                   <div className="actions">
                     <Button variant="outline" disabled={busy} onClick={() => download(true)}>下载名单 Excel</Button>
@@ -1723,9 +1716,6 @@ function EditorContent({
                 <div className="panel-header">
                   <div>
                     <h2>试算方案</h2>
-                    <p className="small-text muted">
-                      采用试算会直接覆盖当前金额，保留名单与主动预留；请检查明细并保存草稿。
-                    </p>
                   </div>
                 </div>
                 {fillNotice && <MissingHistoryNotice {...fillNotice} />}
@@ -2253,8 +2243,7 @@ function EditorContent({
               </div>
               <div className="v19-allocation-pagination">
                 <span>
-                  显示 {wholeMetric(allocationFiltered.length)} / {wholeMetric(i.rows.length)} 家 ·
-                  占比分母按完整名单中的有效值合计，缺失行不视为零；加权值按完整名单计算
+                  显示 {wholeMetric(allocationFiltered.length)} / {wholeMetric(i.rows.length)} 家
                 </span>
                 <div>
                   <Button
@@ -2294,9 +2283,6 @@ function EditorContent({
               <div className="panel-header">
                 <div>
                   <h2>多笔预留 · 原因与金额</h2>
-                  <p className="small-text muted">
-                    按原因逐项登记，可添加多行；金额纳入本项预算平衡。
-                  </p>
                 </div>
               </div>
               <div className="table-scroll">
