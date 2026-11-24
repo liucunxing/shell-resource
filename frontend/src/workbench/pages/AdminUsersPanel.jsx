@@ -296,8 +296,8 @@ export function AdminUsersPanel() {
         setFormError("姓名不能为空。");
         return;
       }
-      if (!hasValidAffiliation(form)) {
-        setFormError("所有角色都必须选择所属 Sector 和 Department。");
+      if (form.role === "admin" && !hasValidAffiliation(form)) {
+        setFormError("系统管理员必须选择所属 Sector 和 Department。");
         return;
       }
       if (["owner", "lead"].includes(form.role) && !form.department.length) {
@@ -342,8 +342,8 @@ export function AdminUsersPanel() {
             : [],
           sector: ["owner", "lead", "management"].includes(form.role) ? form.sector : [],
           enabled: form.enabled,
-          affiliation_sector: form.affiliation_sector,
-          affiliation_department: form.affiliation_department,
+          affiliation_sector: form.affiliation_sector || null,
+          affiliation_department: form.affiliation_department || null,
           history_resources:
             form.history_resources == null
               ? null
@@ -585,7 +585,7 @@ export function AdminUsersPanel() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="actions">
+                    <div className="user-row-actions">
                       <Button
                         variant="outline"
                         size="sm"
@@ -618,9 +618,11 @@ export function AdminUsersPanel() {
                   <TableCell>
                     {hasValidAffiliation(user)
                       ? `${user.affiliation_sector} / ${user.affiliation_department}`
-                      : "待配置"}
+                      : user.role === "admin" ? "待配置" : "—"}
                     <small className="v19-user-permission-source">
-                      {user.history_resources == null
+                      {user.role === "management" ? "按授权业务线"
+                        : ["owner", "lead"].includes(user.role) ? "按授权部门"
+                        : user.history_resources == null
                         ? "沿用所属部门"
                         : `用户单独配置：${user.history_resources.join("、") || "全部隐藏"}`}
                     </small>
@@ -897,7 +899,7 @@ export function AdminUsersPanel() {
                   )}
                 </section>
               )}
-              <section>
+              {form.role === "admin" && <section>
                 <h3>所属组织与历史费用</h3>
                 <div className="user-editor-pair">
                   <Label className="form-field">
@@ -999,7 +1001,7 @@ export function AdminUsersPanel() {
                     Yield 仍可见。
                   </small>
                 </div>
-              </section>
+              </section>}
             </div>
           )}
           {formError && (

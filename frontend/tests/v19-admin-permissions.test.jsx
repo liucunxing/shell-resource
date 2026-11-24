@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { departmentExpenseFields, departmentExpenseLimit } from "../src/workbench/pages/HistoricalResourceSettings.jsx";
+import { departmentExpenseFields, departmentExpenseLimit } from "../src/workbench/domain/history-permissions";
 import { initiativesForUser } from "../src/workbench/pages/AdminUsersPanel.jsx";
 
 const user = { id: 1, email: "owner@example.test", display_name: "Owner", role: "owner", department: ["MKT", "ICE"], sector: ["PCMO"], enabled: false, affiliation_sector: "B2B", affiliation_department: "MKT", history_resources: ["MRD"], has_initiatives: true };

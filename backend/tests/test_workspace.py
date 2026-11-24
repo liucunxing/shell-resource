@@ -194,7 +194,7 @@ async def test_role_read_boundaries() -> None:
 
 
 @pytest.mark.asyncio
-async def test_admin_and_management_keep_all_dealers_but_only_home_department_fees() -> None:
+async def test_admin_and_management_keep_granted_dealers_and_role_specific_fees() -> None:
     session = await _session()
     for role in ("admin", "management"):
         service = _workspace_service(
@@ -209,10 +209,10 @@ async def test_admin_and_management_keep_all_dealers_but_only_home_department_fe
         dealers = (await service.get_workspace(2027))["data"]["dealers"]
         assert [dealer["id"] for dealer in dealers] == ["d1", "d2", "d3"]
         assert [dealer["name"] for dealer in dealers] == ["Dealer 1", "Dealer 2", "Dealer 3"]
-        assert set(dealers[0]["history"]["resources2025"]) == {
-            "MRD",
-            "SP&A",
-        }
+        expected = {"MRD", "SP&A"}
+        if role == "management":
+            expected.update({"ICE Rebate", "Capex"})
+        assert set(dealers[0]["history"]["resources2025"]) == expected
         assert "totalInvestment2025" in dealers[0]["history"]
         assert "yield" in dealers[0]["history"]
 

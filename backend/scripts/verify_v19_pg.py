@@ -549,25 +549,26 @@ async def check_api(connection: AsyncConnection, checks: list[dict[str, str]]) -
 
 
 async def check_user_permissions(api: AcceptanceAPI, checks: list[dict[str, str]]) -> None:
+    mkt_ice = {"MRD", "SP&A", "ICE Rebate"}
     record(
         checks,
-        "expense_department_default",
-        visible_expenses(await api.workspace("owner-a")) == {"MRD"},
+        "authorized_department_union",
+        visible_expenses(await api.workspace("owner-a")) == mkt_ice,
     )
     record(
         checks,
-        "expense_user_override_cannot_cross_home_department",
-        visible_expenses(await api.workspace("owner-b")) == set(),
+        "legacy_override_uses_authorized_department",
+        visible_expenses(await api.workspace("owner-b")) == {"MRD", "SP&A"},
     )
     record(
         checks,
-        "expense_home_department_default_without_role_fallback",
+        "single_department_grant",
         visible_expenses(await api.workspace("owner-c")) == {"MRD", "SP&A"},
     )
     record(
         checks,
-        "missing_affiliation_denies_even_explicit_expense_override",
-        visible_expenses(await api.workspace("unaffiliated")) == set(),
+        "missing_affiliation_uses_business_departments",
+        visible_expenses(await api.workspace("unaffiliated")) == {"MRD", "SP&A"},
     )
     users = await api.call("GET", "admin/users?department=ICE")
     emails = {row["email"] for row in users["items"]}
@@ -585,47 +586,32 @@ async def check_user_permissions(api: AcceptanceAPI, checks: list[dict[str, str]
         "sector": ["PCMO"],
         "enabled": True,
     }
-    await api.call("POST", "admin/users", status=422, body=body)
-    body.update(
-        affiliation_sector="CRTO", affiliation_department="MKT", history_resources=["Capex"]
-    )
     created = await api.call("POST", "admin/users", body=body)
     record(
         checks,
-        "user_affiliation_required_and_independent_from_business_array_scope",
+        "create_owner_with_authorized_scope_only",
         created["department"] == ["MKT", "ICE"]
         and created["sector"] == ["PCMO"]
-        and created["affiliation_sector"] == "CRTO",
+        and created["affiliation_sector"] is None,
     )
     view = await api.workspace("new-owner", SECOND)
     record(
         checks,
         "affiliation_and_expense_override_do_not_expand_sector_scope",
-        visible_expenses(view) == set()
+        visible_expenses(view) == mkt_ice
         and {row["sector"] for row in view["data"]["dealers"]} == {"PCMO"},
     )
-    await api.call("PUT", f"admin/users/{created['id']}", body={**body, "history_resources": []})
-    record(
-        checks,
-        "explicit_empty_user_override_denies_all_expense_columns",
-        visible_expenses(await api.workspace("new-owner", SECOND)) == set(),
-    )
-    await api.call("PUT", f"admin/users/{created['id']}", body={**body, "history_resources": None})
-    record(
-        checks,
-        "null_override_inherits_home_department_ceiling",
-        visible_expenses(await api.workspace("new-owner", SECOND)) == {"MRD", "SP&A"},
-    )
     await api.call(
-        "PUT",
-        f"admin/users/{created['id']}",
-        body={**body, "history_resources": None, "affiliation_sector": "PCMO"},
+        "PUT", f"admin/users/{created['id']}",
+        body={**body, "history_resources": [], "affiliation_sector": "PCMO",
+              "affiliation_department": "CAPEX"},
     )
     record(
         checks,
-        "configured_department_default_takes_precedence_over_role",
-        visible_expenses(await api.workspace("new-owner", SECOND)) == {"MRD"},
+        "legacy_home_department_and_override_do_not_replace_authorized_departments",
+        visible_expenses(await api.workspace("new-owner", SECOND)) == mkt_ice,
     )
+
 
 
 async def run_acceptance(report_path: Path) -> int:

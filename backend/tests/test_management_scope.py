@@ -29,8 +29,7 @@ async def scoped_api():
     db = await _session()
     manager = UserPermissionDO(
         email="manager@example.test", display_name="Manager", role="management",
-        department=[], sector=["PCMO"], affiliation_sector="B2B",
-        affiliation_department="MKT", enabled=True,
+        department=[], sector=["PCMO"], history_resources=[], enabled=True,
     )
     db.add_all([manager, UserPermissionDO(
         email="admin@example.test", display_name="Admin", role="admin", enabled=True,
@@ -125,6 +124,9 @@ async def test_all_reads_respect_multi_sector_grants(scoped_api, grants, preview
         assert all(not i["otherBudgets"] for i in items if i["department"] == "ICE")
         assert {d["sector"] for d in payload["data"]["dealers"]} == set(grants)
         same = [d for d in payload["data"]["dealers"] if d["code"] == "same-code"]
+        for dealer in same:
+            for year in ("resources2025", "resources2026Ytd"):
+                assert set(dealer["history"][year]) == {"MRD", "SP&A", "ICE Rebate", "Capex"}
         assert len(same) == len(grants)
         assert len({(d["sector"], d["id"]) for d in same}) == len(grants)
         assert sum(d["history"]["vol2025"] for d in same) == sum(

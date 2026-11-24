@@ -65,7 +65,7 @@ async def test_admin_reads_drafts_versions_and_all_logs_but_cannot_write():
 
 
 @pytest.mark.asyncio
-async def test_home_department_controls_expenses_without_expanding_business_scope():
+async def test_authorized_department_union_controls_expenses_without_expanding_business_scope():
     session = await _session()
     try:
         admin = AdminService(session, user("admin"))
@@ -80,8 +80,8 @@ async def test_home_department_controls_expenses_without_expanding_business_scop
             ws = await WorkspaceService(session, user(role, ("MKT", "ICE"))).get_workspace(2027)
             assert {row["id"] for row in ws["data"]["dealers"]} == {"d1", "d2"}
             for row in ws["data"]["dealers"]:
-                assert set(row["history"]["resources2025"]) == {"MRD"}
-                assert row["history"]["restrictedResources2025"] == ["Capex", "ICE Rebate", "SP&A"]
+                assert set(row["history"]["resources2025"]) == {"MRD", "SP&A", "ICE Rebate"}
+                assert row["history"]["restrictedResources2025"] == ["Capex"]
                 assert "yield" in row["history"]
                 assert "totalInvestment2025" in row["history"]
         # A missing home affiliation denies detail even for a privileged role.

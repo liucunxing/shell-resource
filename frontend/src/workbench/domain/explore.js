@@ -1,6 +1,6 @@
 import { isHistoricalOutput, wholeMetric } from "./metric-precision";
 import E from "./engine.js";
-import { departmentExpenseFields } from "./history-permissions";
+import { departmentExpenseFields, departmentExpenseLimit } from "./history-permissions";
 ("use strict");
 const esc = (v) =>
   String(v == null ? "" : v).replace(
@@ -260,13 +260,25 @@ function rawData(state, identity, data, tab) {
     );
     model.notes.push("每一行对应一条其他预算安排；同一 Initiative 可有多条。");
   } else {
-    const mapping = state.departmentResources || { MKT: ["MRD", "SP&A"], ICE: ["ICE Rebate", "SP&A"], CAPEX: ["Capex"] };
     const resourceTypes = ["MRD", "SP&A", "ICE Rebate", "Capex"];
-    const validHome = ["PCMO", "CRTO", "B2B", "OEM"].includes(identity.affiliation_sector)
-      && ["MKT", "ICE", "CAPEX"].includes(identity.affiliation_department);
-    const departmental = validHome ? departmentExpenseFields(mapping, identity.affiliation_sector, identity.affiliation_department) : [];
-    const configured = identity.history_resources == null ? departmental
-      : departmental.filter((resource) => identity.history_resources.includes(resource));
+    let configured = [];
+    let expenseScope = "仅公共指标";
+    if (identity.role === "management") {
+      const sectors = identity.sectors;
+      if (Array.isArray(sectors) && sectors.length && new Set(sectors).size === sectors.length
+        && sectors.every(sector => ["PCMO", "CRTO", "B2B", "OEM"].includes(sector))) {
+        configured = resourceTypes;
+        expenseScope = "按授权业务线";
+      }
+    } else if (["owner", "lead"].includes(identity.role)) {
+      configured = E.departments(identity.department).flatMap(departmentExpenseLimit);
+      expenseScope = "按授权部门";
+    } else if (admin && ["PCMO", "CRTO", "B2B", "OEM"].includes(identity.affiliation_sector)
+      && ["MKT", "ICE", "CAPEX"].includes(identity.affiliation_department)) {
+      const limit = departmentExpenseFields(state.departmentResources || {}, identity.affiliation_sector, identity.affiliation_department);
+      configured = identity.history_resources == null ? limit : limit.filter(field => identity.history_resources.includes(field));
+      expenseScope = identity.affiliation_sector + " / " + identity.affiliation_department;
+    }
     // API responses are already filtered. Never recreate an absent protected column.
     const resources = resourceTypes.filter(resource => configured.includes(resource)
       && (state.scenario !== "api" || data.dealers.some(dealer =>
@@ -316,14 +328,14 @@ function rawData(state, identity, data, tab) {
       row.yield = Number.isFinite(h.yield) && h.yield > 0 ? h.yield : null;
       return row;
     });
-    model.scopeLabel = `授权经销商历史 · ${validHome ? identity.affiliation_sector + " / " + identity.affiliation_department + " 费用列权限" : "未配置所属部门，仅公共指标"}`;
+    model.scopeLabel = `授权经销商历史 · ${expenseScope}`;
     model.basisLabel = `源历史数据 · 共 ${new Set(data.dealers.map((d) => String(d.id))).size} 家经销商 / ${data.dealers.length} 条业务线记录`;
     model.notes.push(
       "2024、2025 为全年；2026 为 YTD 累计，不默认同比或年化。",
       "Yield 向所有角色只读开放，仅在 C3 与完整历史投资总额均大于 0 时计算比值，不转换为百分比。",
       "经销商范围由服务端业务授权确定；历史投资总额、Vol、C3、Yield 为公共参考指标。",
       "SP&A 使用全部历史合计，暂不按部门拆分。",
-      "费用列限于本人所属部门对应大类，部门和用户配置只能进一步收窄；管理层和管理员也不跨部门扩大费用权限。",
+      "最高管理层可查看授权业务线内全部费用大类，Owner 和部门负责人按授权部门查看对应费用大类。",
     );
   }
   return model;

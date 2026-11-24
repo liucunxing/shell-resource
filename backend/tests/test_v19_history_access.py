@@ -28,53 +28,44 @@ def person(role="owner", **overrides):
     )
 
 
-@pytest.mark.parametrize("role", ["owner", "lead", "management", "admin"])
-def test_missing_home_affiliation_denies_expense_columns_for_every_role(role):
-    assert historical_resource_access(person(role, affiliation_department=None), {}, {}) == {
-        "source": "missing-department", "resources": [],
-    }
-    assert historical_resource_access(person(role, affiliation_sector="UNKNOWN"))["resources"] == []
+def test_management_uses_only_valid_sector_grants_for_expenses():
+    manager = person("management", affiliation_department=None, history_resources=())
+    assert historical_resource_access(manager, {"MKT": []})["resources"] == list(RESOURCE_TYPES)
+    for invalid in [(), ("UNKNOWN",), ("PCMO", "PCMO")]:
+        assert historical_resource_access(replace(manager, sectors=invalid))["resources"] == []
 
 
-def test_department_ceiling_intersects_configuration_and_user_override():
-    mapping = {"MKT": ["MRD"], "ICE": ["SP&A"], "PCMO|MKT": ["Capex"]}
-    assert historical_resource_access(person(), mapping)["resources"] == []
-    assert historical_resource_access(person(history_resources=()), mapping)["resources"] == []
-    assert historical_resource_access(person(history_resources=("SP&A",)), mapping) == {
-        "source": "user", "resources": [],
-    }
-    assert historical_resource_access(person(), {"MKT": ["MRD"]})["resources"] == ["MRD"]
-    assert historical_resource_access(person("admin"), {})["resources"] == ["MRD", "SP&A"]
-    assert historical_resource_access(person("owner"), {})["resources"] == ["MRD", "SP&A"]
-    assert historical_resource_access(
-        person(history_resources=("MRD", "SP&A")), {"MKT": ["MRD"]},
-    )["resources"] == ["MRD"]
+@pytest.mark.parametrize("role", ["owner", "lead"])
+def test_business_departments_define_expense_union(role):
+    user = person(role, affiliation_department=None, history_resources=())
+    access = historical_resource_access(user, {"ICE": []})
+    assert access["resources"] == ["MRD", "SP&A", "ICE Rebate"]
+    assert historical_resource_access(replace(user, department="CAPEX"))["resources"] == ["Capex"]
+    assert historical_resource_access(replace(user, department=[]))["resources"] == []
 
 
-@pytest.mark.parametrize("role", ["owner", "lead", "management", "admin"])
-@pytest.mark.parametrize("department,expected", [
-    ("MKT", ["MRD", "SP&A"]), ("ICE", ["SP&A", "ICE Rebate"]), ("CAPEX", ["Capex"]),
-])
-def test_every_role_and_explicit_override_stay_inside_home_department(role, department, expected):
-    user = person(role, affiliation_department=department, history_resources=RESOURCE_TYPES)
-    assert historical_resource_access(
-        user, {department: list(RESOURCE_TYPES)}, {role: list(RESOURCE_TYPES)},
-    )["resources"] == expected
+def test_admin_retains_existing_department_ceiling_and_individual_restrictions():
+    admin = person("admin")
+    assert historical_resource_access(admin, {"MKT": ["Capex", "MRD"]})["resources"] == ["MRD"]
+    assert historical_resource_access(replace(admin, history_resources=()))["resources"] == []
+    missing = replace(admin, affiliation_department=None)
+    assert historical_resource_access(missing)["resources"] == []
 
 
 @pytest.mark.parametrize("role", ["owner", "lead", "management", "admin"])
-def test_user_changes_require_explicit_home_affiliation_without_changing_authorized_scope(role):
+def test_user_changes_follow_role_authorization(role):
     body = dict(email="new@example.com", display_name="New", role=role,
                 department=["ICE"] if role in {"owner", "lead"} else [],
-                sector=["PCMO"] if role in {"owner", "lead", "management"} else [])
-    with pytest.raises(ValidationError):
-        AdminUserDTO(**body)
+                sector=["PCMO"] if role != "admin" else [])
+    if role == "admin":
+        with pytest.raises(ValidationError):
+            AdminUserDTO(**body)
+    else:
+        assert AdminUserDTO(**body).affiliation_department is None
     payload = AdminUserDTO(**body, affiliation_sector="b2b", affiliation_department="mkt")
     assert payload.department == body["department"]
     assert payload.sector == body["sector"]
     assert payload.affiliation_sector == "B2B"
-    with pytest.raises(ValidationError):
-        AdminUserDTO(**body, affiliation_sector="PCMO", affiliation_department="UNKNOWN")
 
 
 @pytest.mark.asyncio
@@ -106,7 +97,8 @@ async def test_reference_user_scope_cannot_be_widened_by_explicit_sector_argumen
             2027, sectors=("PCMO", "CRTO"), user=person(history_resources=())
         )
         assert {row["id"] for row in dealers} == {"d1", "d2"}
-        assert all(row["history"]["resources2025"] == {} for row in dealers)
+        expected = {"MRD", "SP&A", "ICE Rebate"}
+        assert all(set(row["history"]["resources2025"]) == expected for row in dealers)
         assert all("totalInvestment2025" in row["history"] for row in dealers)
         assert all(row["history"]["totalInvestment2025"] is None for row in dealers)
     finally:

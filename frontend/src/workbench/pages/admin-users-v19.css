@@ -10,63 +10,10 @@
   color: #595959;
   font-size: 11px;
 }
-.v19-user-table .actions {
-  display: flex;
-  flex-wrap: wrap;
+.v19-user-table .user-row-actions {
+  display: inline-grid;
+  grid-template-columns: repeat(2, var(--action-width));
   gap: 6px;
-}
-.v19-history-permissions [data-slot="native-select-wrapper"] {
-  min-width: 180px;
-}
-.v19-history-permissions .panel-header,
-.v19-department-permissions .panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 18px;
-}
-.v19-history-permissions h2,
-.v19-department-permissions h2 {
-  font-size: 15px;
-  font-weight: 700;
-}
-.v19-history-permissions .v19-permission-description,
-.v19-department-permissions .v19-permission-description {
-  color: #595959;
-  font-size: 12px;
-  margin: 4px 0 0;
-}
-.v19-history-permissions h3 {
-  font-size: 13px;
-  font-weight: 700;
-  margin: 18px 18px 10px;
-}
-.v19-history-permissions .v19-permission-error,
-.v19-department-permissions .v19-permission-error {
-  margin: 12px 18px;
-}
-.v19-department-permissions .v19-department-permission-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  gap: 14px;
-  padding: 0 18px 16px;
-}
-.v19-department-permissions .v19-department-permission-controls label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.v19-department-permissions
-  .v19-department-permission-controls
-  .v19-permission-check {
-  flex-direction: row;
-  align-items: center;
-  min-height: 36px;
-}
-.v19-department-permissions > .small-text {
-  margin: 0;
-  padding: 0 18px 18px;
 }
 
 .user-editor-dialog[data-slot="dialog-content"] { --dialog-width: 800px; }
