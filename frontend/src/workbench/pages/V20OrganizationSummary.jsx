@@ -196,6 +196,9 @@ export function V20OrganizationSummary({
           className="v20-organization-summary"
           data-count-scope={countScope}
         >
+          {isSelectedScope && <colgroup>
+            {[7, 10, 10, 10, 10, 10, 9, 16, 10, 8].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}
+          </colgroup>}
           <TableHeader>
             <TableRow>
               {head("key", groupBy.toUpperCase(), "", 2)}
@@ -207,7 +210,7 @@ export function V20OrganizationSummary({
             </TableRow>
             <TableRow>
               {[
-                ["count", isSelectedScope ? "分配 / 名单" : "分配 / 全部"],
+                ["count", isSelectedScope ? "已分配 / 总名单" : "分配 / 全部"],
                 ["amount", "投资金额（元）"],
                 ["average", "客均（元） · 偏离均值（%）"],
                 ["investment-share", "投资金额占比（%）"],
@@ -334,14 +337,6 @@ export function V20OrganizationSummary({
           C3 占比
         </span>
       </div>
-      <p className="studio-table-note">
-        分配 = 获得投资的经销商家数；
-        {isSelectedScope
-          ? "名单 = 本项目在该组织勾选的经销商。"
-          : "全部 = 当前授权 Sector 范围内该组织的全部经销商。"}
-        历史产出按当前名单去重，包含零投资经销商；仅改金额不会改变历史 Actual 的数值。
-        {"三条柱均显示实际占比，全表使用统一刻度，按投资、Vol、C3 的最大占比向上取整至 10% 调整上限。"}
-      </p>
     </>
   );
 }

@@ -58,7 +58,9 @@
   height: auto;
   min-height: 32px;
   padding: 2px 4px;
-  white-space: inherit;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
   color: inherit;
   font: inherit;
 }

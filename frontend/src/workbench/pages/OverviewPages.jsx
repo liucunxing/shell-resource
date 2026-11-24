@@ -1,4 +1,5 @@
 import { wholeMetric } from "../domain/metric-precision";
+import { scopeHasRsm } from "../domain/organization-display";
 import { useLegendColors, DepartmentLabel } from "../LegendColors";
 import {
   Tabs,
@@ -265,7 +266,6 @@ export function SubmissionPage() {
           </Button>
         </div>
         {reviewError && <p role="alert">{reviewError}</p>}
-        <p className="muted">批量提交仅包含已保存配平、已核对本版预算与预留的项目；核对状态随草稿保存。</p>
         <div className="table-scroll">
           <Table containerClassName="overflow-visible">
             <TableHeader>
@@ -301,7 +301,6 @@ export function SubmissionPage() {
                     </TableCell>
                     <TableCell sortValue={item.status}>
                       <Status status={item.status} />{" "}
-                      {item.workflow?.editable !== false && !hasReserveAcknowledgement(identity, state.planningVersion?.id, item) && <small className="block muted">待核对预算与预留</small>}
                     </TableCell>
                     <TableCell>
                       <Button
@@ -321,9 +320,6 @@ export function SubmissionPage() {
             </TableBody>
           </Table>
         </div>
-        <p className="small-text muted">
-          提交覆盖仅限当前版本可提交项目，保留修订审计。已取消项目不显示为待提交，历史版本不被删除。
-        </p>
       </Card>
     </TooltipProvider>
   );
@@ -389,7 +385,7 @@ function PortfolioDashboard({ mode }) {
         ["overview", "总览"],
         ["health", "健康检查"],
         ["destination", "投资去向"],
-        ["sd", "按 SD/RSM 看"],
+        ["sd", scopeHasRsm(scoped) ? "按 SD/RSM 看" : "按 SD 看"],
         ...(mode === "owner" ? [["dealers", "经销商明细"]] : [["stack", "叠加到经销商"]]),
         ...(mode === "department" ? [["versions", "版本变化"]] : []),
       ];

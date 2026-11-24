@@ -1,4 +1,5 @@
 import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
+import { hasRsm, scopeHasRsm } from "../domain/organization-display";
 import { wholeMetric } from "../domain/metric-precision";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Alert, AlertDescription } from "../../components/ui/alert";
@@ -183,7 +184,7 @@ export function SdAnalysis({
   // Resolve the current organization the same way; source snapshots retain their
   // own attribution for the optional comparison column.
   const activeByIdentity = new Map(masterDealers.map((dealer) => [`${dealer.sector}:${dealer.id}`, dealer]));
-  const items = isEditor ? visibleItems.map((item) => ({
+  const baseItems = isEditor ? visibleItems.map((item) => ({
     ...item,
     selected: (item.rows || []).map((row) => row.dealerId),
     rows: (item.rows || []).map((row) => {
@@ -194,7 +195,10 @@ export function SdAnalysis({
   const id = useId().replaceAll(":", "");
   const [period, setPeriod] = useState("2025"),
     [basis, setBasis] = useState("c3"),
-    [groupBy, setGroupBy] = useState("sd");
+    [selectedGroupBy, setGroupBy] = useState("sd");
+  const showRsm = scopeHasRsm(baseItems);
+  const groupBy = showRsm ? selectedGroupBy : "sd";
+  const items = groupBy === "rsm" ? baseItems.filter((item) => hasRsm(item.sector)) : baseItems;
   const [highlight, setHighlight] = useState("");
   const [detail, setDetail] = useState(null);
   const [source, setSource] = useState(null),
@@ -237,12 +241,12 @@ export function SdAnalysis({
   const scopeDealers = dealers.filter((dealer) => sectors.has(dealer.sector));
   const grouped = sdGroupsWithComparison(
     items,
-    source,
+    groupBy === "rsm" && source ? source.filter((item) => hasRsm(item.sector)) : source,
     comparisonDealers,
     groupBy,
     basis,
     period,
-    masterDealers,
+    groupBy === "rsm" ? masterDealers.filter((dealer) => hasRsm(dealer.sector)) : masterDealers,
     { includeSourceOnly: false },
   );
   const { groups, totals } = sdPresentationGroups(grouped);
@@ -304,7 +308,7 @@ export function SdAnalysis({
           <h2>
             {isEditor
               ? `投入结构 · 按 ${groupBy.toUpperCase()} 汇总`
-              : `按 SD/RSM 看 · 各 ${groupBy.toUpperCase()} 分得是否均衡`}
+              : `按 ${showRsm ? "SD/RSM" : "SD"} 看 · 各 ${groupBy.toUpperCase()} 分得是否均衡`}
           </h2>
           <p>
             {isEditor
@@ -314,12 +318,13 @@ export function SdAnalysis({
         </div>
       </header>
       <div className="studio-inline-controls">
-        <Tabs value={groupBy} onValueChange={setGroupBy} aria-label="组织视角">
+        {showRsm && <Tabs value={groupBy} onValueChange={setGroupBy} aria-label="组织视角">
           <TabsList>
             <TabsTrigger value="sd">按 SD</TabsTrigger>
             <TabsTrigger value="rsm">按 RSM</TabsTrigger>
           </TabsList>
-        </Tabs>
+        </Tabs>}
+        {groupBy === "rsm" && <span>RSM 仅统计 PCMO</span>}
         <span>历史参考</span>
         <HistoryPeriodTabs value={period} onValueChange={setPeriod} />
         <Tabs value={basis} onValueChange={setBasis}>
@@ -575,13 +580,6 @@ export function SdAnalysis({
               </TableBody>
             </Table>
           </div>
-          <p className="studio-table-note">
-            每格 = 该 Initiative 投到该 {groupBy.toUpperCase()}{" "}
-            的投资金额占其已分配的比例；下方为该
-            {groupBy.toUpperCase()} 在该 Initiative
-            名单内的产出占比及差值。未覆盖的组织
-            不参与偏离判断，项目按最大绝对偏离排序。
-          </p>
         </>
       )}
       {detail && (

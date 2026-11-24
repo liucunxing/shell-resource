@@ -139,7 +139,7 @@ describe("V19 SD presentation", () => {
     expect(html).not.toContain("未提交草稿");
     expect(html).not.toMatch(/较上版|判断（按偏离程度）|增减金额（万元）/);
     expect(html).not.toMatch(/>\d+(?:\.\d+)?x</);
-    expect(html).toContain("仅改金额不会改变历史 Actual");
+    expect(html).not.toContain("仅改金额不会改变历史 Actual");
     expect(html).not.toContain("名单覆盖率");
   });
 });

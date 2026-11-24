@@ -42,6 +42,7 @@ export function allocationColumnGroups(
   expenses: string[],
   editable = false,
   splitDealerIdentity = false,
+  showRsm = true,
 ): DetailColumnGroup[] {
   return [
     {
@@ -59,7 +60,7 @@ export function allocationColumnGroups(
       title: "组织属性",
       columns: [
         ["sd", "SD"],
-        ["rsm", "RSM"],
+        ...(showRsm ? [["rsm", "RSM"]] as [string, string][] : []),
       ],
     },
     {
