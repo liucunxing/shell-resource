@@ -1,4 +1,5 @@
 import { wholeMetric } from "../domain/metric-precision";
+import { hasRsm, scopeHasRsm } from "../domain/organization-display";
 import { DealerDetailButton } from "../DealerDetailAccess";
 import { MetricHelp } from "./MetricHelp";
 import { useRef, useState } from "react";
@@ -57,10 +58,13 @@ export function V19DealerDetails({
   const expenses = EXPENSE_COLUMN_ORDER.filter((type) =>
     rows.some((row) => Object.hasOwn(row.resources, type)),
   );
-  const groups = allocationColumnGroups(expenses).map(group => ({ ...group, columns: group.columns.flatMap(column => column[0] === "name" ? [column, ["code", "经销商编码"]] : [column]) })),
+  const showRsm = scopeHasRsm(items);
+  const groups = allocationColumnGroups(expenses, false, false, showRsm).map(group => ({ ...group, columns: group.columns.flatMap(column => column[0] === "name" ? [column, ["code", "经销商编码"]] : [column]) })),
     columns = groups.flatMap((group) => group.columns);
   const read = (row, key) =>
-    key.startsWith("expense:")
+    key === "rsm" && !hasRsm(row.sector)
+      ? null
+      : key.startsWith("expense:")
       ? row.resources[key.slice(8)]
       : key === "support"
         ? row.initiativeSources.filter((source) => source.amount > 0).length
@@ -71,7 +75,7 @@ export function V19DealerDetails({
     .filter(
       (row) =>
         (!onlyFunded || row.amount > 0) &&
-        `${row.code} ${row.name} ${row.sd} ${row.rsm}`
+        `${row.code} ${row.name} ${row.sd} ${hasRsm(row.sector) ? row.rsm : ""}`
           .toLowerCase()
           .includes(search.toLowerCase()),
     )
@@ -135,7 +139,7 @@ export function V19DealerDetails({
           {row.sector}
         </small>
       </>
-    ) : key === "support" ? (
+    ) : key === "rsm" && !hasRsm(row.sector) ? "—" : key === "support" ? (
       <DealerDetailButton variant="link" onClick={() => open(row)}>
         {read(row, key)} 个 Initiative
       </DealerDetailButton>
@@ -204,7 +208,7 @@ export function V19DealerDetails({
           </div>}
           <Input
             aria-label="搜索经销商或编码"
-            placeholder="搜索经销商 / 编码 / SD / RSM"
+            placeholder={showRsm ? "搜索经销商 / 编码 / SD / RSM" : "搜索经销商 / 编码 / SD"}
             value={search}
             onChange={(event) => {
               setSearch(event.target.value);

@@ -60,6 +60,14 @@ const items = [
   },
 ];
 
+it("offers the RSM view for PCMO and hides it for other sectors", () => {
+  const pcmo = renderToStaticMarkup(<SdAnalysis items={items} dealers={dealers} />);
+  const nonPcmo = renderToStaticMarkup(<SdAnalysis items={[{ ...items[0], sector: "B2B" }]} dealers={dealers} />);
+  expect(pcmo).toContain("按 RSM");
+  expect(nonPcmo).not.toContain("按 RSM");
+  expect(nonPcmo).toContain("按 SD 看");
+});
+
 it.each([9, null])("keeps both period and metric choices without the organization period explanation (%s)", month => {
   const html = renderToStaticMarkup(<SdAnalysis items={items} dealers={dealers} ytdCutoffMonth={month} />);
   const controls = html.split('class="studio-inline-controls"')[1].split('class="v19-sd-facts"')[0];

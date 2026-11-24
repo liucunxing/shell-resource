@@ -1,4 +1,5 @@
 import { wholeMetric } from "../domain/metric-precision";
+import { hasRsm, scopeHasRsm } from "../domain/organization-display";
 import { dealerDetailRows } from "../domain/dealer-detail-rows.js";
 import { allocationColumnGroups, EXPENSE_COLUMN_ORDER } from "../domain/allocation-detail";
 import { Input } from "../../components/ui/input";
@@ -968,7 +969,8 @@ export function V19Stack({
     over = deviations.filter((r) => r.gap > (thresholds.dealerYellow ?? 3)),
     label = basis === "c3" ? "C3" : "Delivery Vol";
   const expenses = EXPENSE_COLUMN_ORDER.filter(type => rows.some(row => Object.hasOwn(row.resources, type)));
-  const columns = allocationColumnGroups(expenses)
+  const showRsm = scopeHasRsm(items);
+  const columns = allocationColumnGroups(expenses, false, false, showRsm)
     .filter(group => group.key !== "support")
     .flatMap(group => group.columns)
     .flatMap(column => column[0] === "name" ? [["name", "经销商名称"], ["code", "经销商编码"]] : column[0] === "amount" ? [column, ["mix", "资源大类构成"]] : [column])
@@ -980,14 +982,14 @@ export function V19Stack({
   const rankByKey = new Map(ranked.map((row, index) => [row.key, index + 1]));
   const ordered = [...ranked, ...rows.filter(row => row[basisGap] == null)];
   const read = (row, field) => field.startsWith("expense:") ? row.resources[field.slice(8)]
-    : field === "mix" ? typesForSort(row) : row[field];
+    : field === "mix" ? typesForSort(row) : field === "rsm" && !hasRsm(row.sector) ? null : row[field];
   function typesForSort(row) { return row.initiativeSources.map(source => items.find(item => String(item.id) === source.id)?.resourceType || "").sort().join("、"); }
   const sorted = sort ? [...ordered].sort((a,b) => {
     const x = read(a, sort.field), y = read(b, sort.field);
     if (x == null || y == null) return x == null ? (y == null ? 0 : 1) : -1;
     return (typeof x === "number" && typeof y === "number" ? x-y : String(x).localeCompare(String(y), "zh-CN")) * (sort.asc ? 1 : -1) || String(a.key).localeCompare(String(b.key));
   }) : ordered;
-  const matching = sorted.filter(row => `${row.name} ${row.code} ${row.sector} ${row.sd} ${row.rsm}`.toLowerCase().includes(search.trim().toLowerCase()));
+  const matching = sorted.filter(row => `${row.name} ${row.code} ${row.sector} ${row.sd} ${hasRsm(row.sector) ? row.rsm : ""}`.toLowerCase().includes(search.trim().toLowerCase()));
   const pages = Math.max(1, Math.ceil(matching.length / pageSize));
   const currentPage = Math.min(page, pages);
   const list = matching.slice((currentPage - 1) * pageSize, currentPage * pageSize),
@@ -1058,7 +1060,7 @@ export function V19Stack({
           </Tabs>
         </div>
         <div className="v20-stack-table-tools">
-          <Input aria-label="搜索叠加经销商" value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} placeholder="经销商 / 编码 / Sector / SD / RSM" />
+          <Input aria-label="搜索叠加经销商" value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} placeholder={showRsm ? "经销商 / 编码 / Sector / SD / RSM" : "经销商 / 编码 / Sector / SD"} />
           <small>表格投资占比按完整名单、历史占比按各指标有效名单计算，与上方仅含可比较名单的结论口径不同；搜索和排序不改变分母，无有效历史的差值显示 —。高亮标注当前方向按差值排名前 10 的可比较经销商；搜索和排序不改变排名。</small>
         </div>
         <Table sortingMode="manual" className="v20-stack-table" containerClassName="v20-stack-scroll v20-stack-scroll-all">

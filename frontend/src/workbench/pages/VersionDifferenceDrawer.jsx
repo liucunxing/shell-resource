@@ -1,4 +1,5 @@
 import { wholeMetric } from "../domain/metric-precision";
+import { hasRsm, scopeHasRsm } from "../domain/organization-display";
 import { DealerDetailButton } from "../DealerDetailAccess";
 import { ResourceDetailDrawer } from "./ResourceDetailDrawer";
 import { useEffect, useRef, useState } from "react";
@@ -362,8 +363,8 @@ export function VersionDifferenceDrawer({
                     <TableHead>经销商</TableHead>
                     <TableHead>经销商编码</TableHead>
                     <TableHead>Sector</TableHead>
-                    <TableHead>{previousVersion} SD / RSM</TableHead>
-                    <TableHead>{currentVersion} SD / RSM</TableHead>
+                    <TableHead>{previousVersion} {scopeHasRsm(data.dealers) ? "SD / RSM" : "SD"}</TableHead>
+                    <TableHead>{currentVersion} {scopeHasRsm(data.dealers) ? "SD / RSM" : "SD"}</TableHead>
                     <TableHead>来源投资（元）</TableHead>
                     <TableHead>本版投资（元）</TableHead>
                     <TableHead>变化（元）</TableHead>
@@ -384,12 +385,12 @@ export function VersionDifferenceDrawer({
                       <TableCell>{row.sector}</TableCell>
                       <TableCell>
                         {row.previous
-                          ? `${row.previous.sd} / ${row.previous.rsm}`
+                          ? `${row.previous.sd}${hasRsm(row.sector) ? ` / ${row.previous.rsm}` : ""}`
                           : "未覆盖"}
                       </TableCell>
                       <TableCell>
                         {row.current
-                          ? `${row.current.sd} / ${row.current.rsm}`
+                          ? `${row.current.sd}${hasRsm(row.sector) ? ` / ${row.current.rsm}` : ""}`
                           : "本版移除"}
                       </TableCell>
                       <TableCell sortValue={row.previousAmount}>{money(row.previousAmount)}</TableCell>

@@ -1,4 +1,5 @@
 import { wholeMetric } from "../domain/metric-precision";
+import { scopeHasRsm } from "../domain/organization-display";
 import { useLegendColors, DepartmentLabel } from "../LegendColors";
 import {
   Tabs,
@@ -389,7 +390,7 @@ function PortfolioDashboard({ mode }) {
         ["overview", "总览"],
         ["health", "健康检查"],
         ["destination", "投资去向"],
-        ["sd", "按 SD/RSM 看"],
+        ["sd", scopeHasRsm(scoped) ? "按 SD/RSM 看" : "按 SD 看"],
         ...(mode === "owner" ? [["dealers", "经销商明细"]] : [["stack", "叠加到经销商"]]),
         ...(mode === "department" ? [["versions", "版本变化"]] : []),
       ];

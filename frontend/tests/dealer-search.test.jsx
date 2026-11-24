@@ -23,10 +23,11 @@ const dealers = [
 describe("dealer picker search", () => {
   it("shows the business identity and organization without leaking internal history keys", () => {
     const id = "history:0815e96d954e716b";
-    const dealer = { id, code: "D001", name: "验收经销商", sd: "North", rsm: "RSM-A" };
+    const dealer = { id, code: "D001", name: "验收经销商", sector: "PCMO", sd: "North", rsm: "RSM-A" };
     expect(dealerBusinessCode(id, dealer)).toBe("D001");
     expect(dealerDisplayLabel(id, dealer)).toBe("验收经销商（D001） · North / RSM-A");
-    expect(dealerDisplayLabel(id, {}, { dealerCode: "D001", sd: "South", rsm: "RSM-B" })).toBe("D001 · South / RSM-B");
+    expect(dealerDisplayLabel(id, {}, { dealerCode: "D001", sector: "PCMO", sd: "South", rsm: "RSM-B" })).toBe("D001 · South / RSM-B");
+    expect(dealerDisplayLabel(id, { ...dealer, sector: "B2B" })).toBe("验收经销商（D001） · North");
     expect(dealerDisplayLabel(id)).toBe("编码未提供");
     expect(dealerDisplayLabel(id)).not.toContain("history:");
   });
