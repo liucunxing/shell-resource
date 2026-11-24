@@ -170,6 +170,9 @@ it("renders executive category curves and excludes unconfirmed allocations from 
     <V19ExecutiveHealth items={items} dealers={healthDealers} />,
   );
   expect(html).toContain("全部资源大类叠加 · 累计集中度");
+  expect(html).toContain("投资金额累计占比");
+  expect(html).toContain("C3 的累计占比");
+  expect(html).toContain("┄ 平均分配");
   expect(html).toContain("结论");
   expect(html).toContain("v19-exec-category-grid");
   expect(html).toContain("优先关注");
