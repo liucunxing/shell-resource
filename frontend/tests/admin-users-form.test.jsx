@@ -50,7 +50,7 @@ describe("管理员人员业务线选择", () => {
   });
 });
 
-it("requires explicit valid home affiliation for every role without using business scope", () => {
+it("recognizes stored home affiliation independently of business scope", () => {
   for (const role of ["owner", "lead", "management", "admin"]) {
     expect(hasValidAffiliation({ role, department: ["MKT"], sector: ["PCMO"] })).toBe(false);
     expect(hasValidAffiliation({ role, affiliation_sector: "PCMO", affiliation_department: "MKT" })).toBe(true);

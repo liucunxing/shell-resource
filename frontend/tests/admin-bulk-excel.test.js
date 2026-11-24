@@ -147,6 +147,8 @@ describe("administrator batch templates", () => {
 
 
 it("requires management Sector grants and leaves departments empty", () => {
+  const sectorOnly = [...user.slice(0, 6), "", "", ""];
+  expect(parseAdminRows("users", [{ rowNumber: 2, cells: sectorOnly }]).errors).toEqual([]);
   const empty = [...user]; empty[4] = "";
   expect(parseAdminRows("users", [{ rowNumber: 2, cells: empty }]).errors[0].message).toContain("管理层");
   const department = [...user]; department[3] = "MKT";

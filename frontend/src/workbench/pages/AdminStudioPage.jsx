@@ -30,7 +30,6 @@ import { PlanningVersionBar as VersionBar } from "./PlanningVersionBar.jsx";
 import { PlanningVersionsPage } from "./PlanningVersionsPage.jsx";
 import { StudioConfiguration } from "./StudioConfiguration.jsx";
 import { AdminUsersPanel } from "./AdminUsersPanel.jsx";
-import { HistoricalResourceSettings } from "./HistoricalResourceSettings.jsx";
 import { WorkflowDialog } from "./WorkflowDialog.jsx";
 
 const time = (value) => (value ? new Date(value).toLocaleString("zh-CN") : "—");
@@ -617,18 +616,9 @@ export function AdminStudioPage() {
         />
       )}
       {page === "admin-users" && (
-        <>
-          <Card className="panel studio-admin-panel gap-4 p-4">
-            <AdminUsersPanel />
-          </Card>
-          <HistoricalResourceSettings
-            mapping={state.departmentResources || {}}
-            roleMapping={state.roleResources}
-            departments={[...new Set(items.map((item) => item.department))]}
-            saveConfig={context.saveConfig}
-            readOnly={context.previewMode}
-          />
-        </>
+        <Card className="panel studio-admin-panel gap-4 p-4">
+          <AdminUsersPanel />
+        </Card>
       )}
       {page === "admin-enums" && <StudioConfiguration />}
       {page === "admin-thresholds" && <StudioConfiguration thresholds />}

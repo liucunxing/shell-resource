@@ -85,8 +85,8 @@ export function parseAdminRows(kind, rows, context = {}) {
         department: list(deps),
         sector: list(scopes),
         enabled: enabled(active),
-        affiliation_sector: homeSector,
-        affiliation_department: homeDepartment,
+        affiliation_sector: homeSector || null,
+        affiliation_department: homeDepartment || null,
         history_resources:
           !history || history === "默认"
             ? null
@@ -100,8 +100,8 @@ export function parseAdminRows(kind, rows, context = {}) {
         fail("角色必须为 owner、lead、management 或 admin");
       if (!validEnabled(active)) fail("启用列须填启用/停用");
       if (
-        !sectors.includes(homeSector) ||
-        !departments.includes(homeDepartment)
+        (role === "admin" || homeSector || homeDepartment) &&
+        (!sectors.includes(homeSector) || !departments.includes(homeDepartment))
       )
         fail("所属Sector和所属部门必须使用模板枚举");
       if (
@@ -258,11 +258,11 @@ export async function exportWorkbook(kind, context = {}) {
     ],
     [
       "所属组织",
-      "所有角色必填所属Sector和所属部门，与授权范围独立；管理员授权范围两列留空；管理层授权部门留空，授权Sector必填1–4条。",
+      "仅系统管理员必填所属组织。管理层仅填1–4条授权Sector；Owner和部门负责人按授权部门查看历史费用。",
     ],
     [
       "历史费用权限",
-      "默认/空白=按所属部门；无=不显示费用明细；或填写资源大类（逗号分隔），不能超出所属部门上限。",
+      "仅系统管理员使用。默认/空白=按所属部门；无=不显示费用明细；或填写资源大类（逗号分隔），不能超出所属部门上限。",
     ],
     [
       "已有项目用户",

@@ -273,7 +273,7 @@ export function AdminImportPanel({ kind }) {
                         item.display_name,
                         item.role,
                         `${item.sector.join("、")} / ${item.department.join("、")}`,
-                        `${item.affiliation_sector} / ${item.affiliation_department}`,
+                        item.affiliation_department ? `${item.affiliation_sector} / ${item.affiliation_department}` : "—",
                         item.enabled ? "启用" : "停用",
                       ]
                     : [

@@ -37,8 +37,9 @@ async def test_v20_fixture_defaults_and_explicit_restrictions_preserve_business_
             assert [v["budgetCny"] for v in manifest["versions"]] == [51520000, 52220000]
             assert manifest["permissionAdaptation"]["businessValuesChanged"] is False
             for user_id, expected in (
-                ("U01", set() if restrict else {"MRD", "SP&A"}),
-                ("U02", {"ICE Rebate", "SP&A"}), ("U05", {"Capex"}),
+                ("U01", {"MRD", "SP&A", "ICE Rebate"}),
+                ("U02", {"MRD", "SP&A", "ICE Rebate", "Capex"}),
+                ("U05", {"MRD", "SP&A", "ICE Rebate", "Capex"}),
             ):
                 user = await resolve_workbench_permission(
                     session, f"v19-{user_id.lower()}@example.test",

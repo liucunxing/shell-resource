@@ -18,26 +18,26 @@ class AdminUserDTO(BaseModel):
     department: list[str] = Field(default_factory=list)
     sector: list[str] = Field(default_factory=list, max_length=4)
     enabled: bool = True
-    affiliation_sector: str = Field(min_length=1, max_length=32)
-    affiliation_department: str = Field(min_length=1, max_length=32)
+    affiliation_sector: str | None = None
+    affiliation_department: str | None = None
     history_resources: list[str] | None = None
 
     @field_validator("affiliation_sector", "affiliation_department", mode="before")
     @classmethod
     def normalize_affiliation(cls, value: Any) -> Any:
-        return value.strip().upper() if isinstance(value, str) else value
+        return (value.strip().upper() or None) if isinstance(value, str) else value
 
     @field_validator("affiliation_sector")
     @classmethod
-    def valid_affiliation_sector(cls, value: str) -> str:
-        if value not in SECTORS:
+    def valid_affiliation_sector(cls, value: str | None) -> str | None:
+        if value is not None and value not in SECTORS:
             raise ValueError("请选择有效的所属 Sector")
         return value
 
     @field_validator("affiliation_department")
     @classmethod
-    def valid_affiliation_department(cls, value: str) -> str:
-        if value not in AFFILIATION_DEPARTMENTS:
+    def valid_affiliation_department(cls, value: str | None) -> str | None:
+        if value is not None and value not in AFFILIATION_DEPARTMENTS:
             raise ValueError("请选择有效的所属 Department")
         return value
 
@@ -104,6 +104,10 @@ class AdminUserDTO(BaseModel):
 
     @model_validator(mode="after")
     def valid_department(self) -> "AdminUserDTO":
+        if bool(self.affiliation_sector) != bool(self.affiliation_department):
+            raise ValueError("所属 Sector 和 Department 须成对填写")
+        if self.role == "admin" and not self.affiliation_department:
+            raise ValueError("系统管理员必须选择所属 Sector 和 Department")
         if self.role in {"owner", "lead"} and not self.department:
             raise ValueError("Owner 和部门负责人必须填写部门")
         if self.role in {"management", "admin"} and self.department:

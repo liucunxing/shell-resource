@@ -467,12 +467,12 @@ def test_distributor_history_field_mapping_and_department_scope():
         assert dealer["history"]["vol2025"] == 3
         assert dealer["history"]["c32026Ytd"] == 6
         assert dealer["history"]["yield"] == pytest.approx(4 / 34)
-        assert dealer["history"]["resources2025"] == {"MRD": 7, "SP&A": 9}
+        assert dealer["history"]["resources2025"] == {"MRD": 7, "SP&A": 9, "ICE Rebate": 8}
         assert dealer["history"]["totalInvestment2025"] == 34
         assert dealer["history"]["totalInvestment2026Ytd"] is None
-        assert dealer["history"]["restrictedResources2025"] == ["Capex", "ICE Rebate"]
-        # Multiple business-authorized departments never union home-affiliation expense access.
-        ice_user = WorkbenchUser("lead@example.com", "lead", ["MKT", "ICE"], "Lead",
+        assert dealer["history"]["restrictedResources2025"] == ["Capex"]
+        # A single authorized department exposes only its fee categories.
+        ice_user = WorkbenchUser("lead@example.com", "lead", ["ICE"], "Lead",
                                  ("PCMO",), affiliation_sector="PCMO", affiliation_department="ICE")
         ice = (await ReferenceService(session).get_dealers(2027, user=ice_user))[0]
         assert ice["history"]["resources2025"] == {"ICE Rebate": 8, "SP&A": 9}

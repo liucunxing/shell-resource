@@ -69,13 +69,13 @@
 .v20-organization-summary { --status-label-width: 6em; }
 
 /* Match peer actions even when one row omits or disables a button. */
-.v19-fidelity-shell :is(.version-row-actions, .department-review-actions, .v19-user-table .actions) > [data-slot="button"],
+.v19-fidelity-shell :is(.version-row-actions, .department-review-actions, .v19-user-table .user-row-actions) > [data-slot="button"],
 .v19-fidelity-shell .v19-trial-quick-options > button[aria-pressed] {
   min-inline-size: var(--action-width);
   justify-content: center;
 }
 .version-row-actions { --action-width: calc(2em + 1.5rem + 2px); }
-.v19-user-table .actions { --action-width: calc(4em + 1.5rem + 2px); }
+.v19-user-table .user-row-actions { --action-width: calc(4em + 1.5rem + 2px); }
 .department-review-actions { --action-width: calc(9em + 2rem + 2px); }
 .v19-trial-quick-options { --action-width: calc(12em + 1.5rem); }
 
