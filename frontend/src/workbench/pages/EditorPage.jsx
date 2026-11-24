@@ -1324,7 +1324,7 @@ function EditorContent({
                     className="v19-scope-review"
                   >
                     <colgroup>
-                      {[80, 280, 130, 180, 100, ...Array(10).fill(110), ...Array(4).fill(180), 200].map((width, index) => (
+                      {[80, 280, 130, 180, 100, 110, 110, 160, 110, 110, 110, 160, 110, 110, 110, ...Array(4).fill(180), 200].map((width, index) => (
                         <col key={index} style={{ width }} />
                       ))}
                     </colgroup>
