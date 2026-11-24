@@ -196,6 +196,9 @@ export function V20OrganizationSummary({
           className="v20-organization-summary"
           data-count-scope={countScope}
         >
+          {isSelectedScope && <colgroup>
+            {[7, 10, 10, 10, 10, 10, 9, 16, 10, 8].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}
+          </colgroup>}
           <TableHeader>
             <TableRow>
               {head("key", groupBy.toUpperCase(), "", 2)}

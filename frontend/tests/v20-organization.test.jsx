@@ -192,6 +192,7 @@ it("renders the Step 3 summary without judgment or previous-version columns", ()
   ]);
   expect(heading).not.toContain("较上版");
   expect(html).toContain("已分配 / 总名单");
+  expect(html).toContain('<col style="width:16%"/>');
   expect(html).not.toContain("获得投资的经销商家数");
   expect(html).toMatch(/data-column="count"[^>]*>2 \/ 2</);
   expect(html).not.toMatch(/data-column="(?:delta|judgment)"|较上版|来源版本|判断（按偏离程度）/);

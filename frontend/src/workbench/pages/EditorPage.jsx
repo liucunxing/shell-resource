@@ -2418,7 +2418,7 @@ function EditorContent({
             </Card>
           )}
           {activeStep === 1 && (
-            <Card className="panel v20-reserve-review">
+            <Card className="panel v20-reserve-review" data-review-required={editable && !reserveConfirmed ? "true" : undefined}>
               <Label>
                 <Checkbox
                   aria-label="已核对本版预算与预留，明确本次分配范围"
@@ -2430,13 +2430,6 @@ function EditorContent({
                 />
                 已核对本版预算与预留，明确本次分配范围
               </Label>
-              <p>
-                {previouslySubmitted
-                  ? "本版已有提交记录，可直接进入经销商范围和试算修改，无需重复勾选。保存和提交仍需符合预算及权限要求。"
-                  : editable
-                  ? "勾选后可进入经销商名单和试算。预算、预留金额或原因改变后，需要重新核对。"
-                  : "已提交或只读方案可浏览，不要求重新确认。"}
-              </p>
             </Card>
           )}
           {activeStep === 3 &&
