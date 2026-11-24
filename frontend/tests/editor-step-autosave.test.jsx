@@ -17,6 +17,7 @@ vi.mock("react", async (original) => ({
 vi.mock("../src/workbench/WorkbenchContext.jsx", () => ({ useWorkbench: () => harness.context }));
 vi.mock("../src/workbench/file-import.js", () => ({ previewExcelInWorker: harness.previewExcel, exportExcelInWorker: vi.fn() }));
 import { TableBody, TableCell, TableHead } from "../src/components/ui/table";
+import { FilterMenu } from "../src/workbench/pages/FilterMenu";
 import { EditorPage } from "../src/workbench/pages/EditorPage.jsx";
 import E from "../src/workbench/domain/engine.js";
 import data from "../src/workbench/domain/demo-data.json";
@@ -65,9 +66,32 @@ it.each([["PCMO", true], ["CRTO", false], ["B2B", false], ["OEM", false]])("show
   item().sector = sector;
   item().editorState.step = 2;
   const nodes = elements(render());
-  expect(nodes.some(node => node.props.children === "全部 RSM")).toBe(expected);
+  expect(nodes.some(node => node.type === FilterMenu && node.props.label === "RSM")).toBe(expected);
   expect(nodes.some(node => node.type === TableHead && node.props.children === (expected ? "SD / RSM" : "SD"))).toBe(true);
   expect(nodes.some(node => node.type === TableHead && node.props.children === "RSM")).toBe(expected);
+});
+
+it("combines multiple SD and RSM selections without changing the saved roster", () => {
+  item().sector = "PCMO";
+  item().editorState.step = 2;
+  const original = data.dealers.slice(0, 4);
+  harness.context.data = { ...data, dealers: original.map((dealer, index) => ({ ...dealer, sector: "PCMO", sd: ["A", "A", "B", "C"][index], rsm: ["X", "Y", "X", "Z"][index] })) };
+  item().rows = [{ dealerId: original[3].id, amount: 0, note: "" }];
+  const menu = (label) => elements(render()).find(node => node.type === FilterMenu && node.props.label === label);
+  const displayedIds = () => {
+    const table = elements(render()).find(node => node.props.className === "v19-scope-review");
+    const body = elements(table).find(node => node.type === TableBody);
+    return elements(body).filter(node => node.props["aria-label"]?.startsWith("选择 ")).map(node => node.props["aria-label"]);
+  };
+  menu("SD").props.onChange(["A", "B"]);
+  menu("RSM").props.onChange(["X", "Y"]);
+  expect(displayedIds()).toHaveLength(3);
+  menu("SD").props.onChange(["B"]);
+  expect(displayedIds()).toHaveLength(1);
+  menu("SD").props.onChange([]);
+  menu("RSM").props.onChange([]);
+  expect(displayedIds()).toHaveLength(4);
+  expect(item().rows).toEqual([{ dealerId: original[3].id, amount: 0, note: "" }]);
 });
 
 it("shows source Vol Phasing for both periods without explanatory tooltips", () => {

@@ -224,6 +224,10 @@
 .v19-editor .studio-table-toolbar [data-slot="native-select-wrapper"] {
   flex: 0 1 160px;
 }
+.v19-editor .studio-table-toolbar > .v19-filter-trigger {
+  width: 160px;
+  justify-content: space-between;
+}
 .v19-editor .studio-table-toolbar select {
   height: 32px;
 }

@@ -1,0 +1,15 @@
+.v19-filter-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: max-content;
+  min-width: var(--radix-popover-trigger-width);
+  max-width: min(340px, var(--radix-popover-content-available-width));
+  max-height: min(350px, var(--radix-popover-content-available-height));
+  padding: 8px;
+}
+.v19-filter-options { overflow: auto; min-height: 0; }
+.v19-filter-option { display: flex; align-items: center; padding: 0 8px; gap: 8px; border-radius: 4px; }
+.v19-filter-option:hover { background: var(--accent); }
+.v19-filter-option [data-slot="label"] { flex: 1; display: block; padding: 8px 0; cursor: pointer; overflow-wrap: anywhere; }
+.v19-filter-option small { display: block; margin-top: 4px; color: var(--muted-foreground); }
