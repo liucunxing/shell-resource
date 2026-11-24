@@ -475,8 +475,7 @@ function EditorContent({
     [activeStep, setActiveStep] = useState(() => restoredEditorStep(identity, state.planningVersion?.id, i, editable)),
     [balanceIds, setBalanceIds] = useState([]),
     [scopeSearch, setScopeSearch] = useState(""),
-    [scopeSd, setScopeSd] = useState([]),
-    [scopeRsm, setScopeRsm] = useState([]),
+    [scopeFilters, setScopeFilters] = useState({ sd: [], rsm: [] }),
     [scopePage, setScopePage] = useState(1),
     [trialCompare, setTrialCompare] = useState(false),
     [fillNotice, setFillNotice] = useState(null),
@@ -717,6 +716,7 @@ function EditorContent({
     );
   const activeScopeDealers = dealers.filter(isActiveDealer);
   const selectedScopeRows = i.rows;
+  const { sd: scopeSd, rsm: scopeRsm } = scopeFilters;
   const scopeDealers = activeScopeDealers.filter((dealer) => {
     const term = scopeSearch.trim().toLowerCase();
     return (
@@ -728,12 +728,24 @@ function EditorContent({
       (!showRsm || !scopeRsm.length || scopeRsm.includes(dealer.rsm))
     );
   });
-  const scopeOptions = (key) =>
-    [
-      ...new Set(
-        activeScopeDealers.map((dealer) => dealer[key]).filter(Boolean),
-      ),
-    ].sort();
+  const scopeOptions = (key, relatedSelection = []) => {
+    const relatedKey = key === "sd" ? "rsm" : "sd";
+    const matchingDealers = relatedSelection.length
+      ? activeScopeDealers.filter((dealer) => relatedSelection.includes(dealer[relatedKey]))
+      : activeScopeDealers;
+    return [...new Set(matchingDealers.map((dealer) => dealer[key]).filter(Boolean))].sort();
+  };
+  const changeScopeFilter = (key, values) => {
+    const relatedKey = key === "sd" ? "rsm" : "sd";
+    setScopeFilters((current) => {
+      const available = scopeOptions(relatedKey, values);
+      return {
+        [key]: values,
+        [relatedKey]: current[relatedKey].filter((value) => available.includes(value)),
+      };
+    });
+    setScopePage(1);
+  };
   const changeRow = (n, amount) =>
     update({
       rows: i.rows.map((r, index) => (index === n ? { ...r, amount } : r)),
@@ -1284,8 +1296,22 @@ function EditorContent({
                       setScopePage(1);
                     }}
                   />
-                  <FilterMenu label="SD" searchable options={scopeOptions("sd").map((value) => ({ value, label: value }))} selected={scopeSd} onChange={(values) => { setScopeSd(values); setScopePage(1); }} />
-                  {showRsm && <FilterMenu label="RSM" searchable options={scopeOptions("rsm").map((value) => ({ value, label: value }))} selected={scopeRsm} onChange={(values) => { setScopeRsm(values); setScopePage(1); }} />}
+                  <FilterMenu
+                    label="SD"
+                    searchable
+                    options={scopeOptions("sd", showRsm ? scopeRsm : []).map((value) => ({ value, label: value }))}
+                    selected={scopeSd}
+                    onChange={(values) => changeScopeFilter("sd", values)}
+                  />
+                  {showRsm && (
+                    <FilterMenu
+                      label="RSM"
+                      searchable
+                      options={scopeOptions("rsm", scopeSd).map((value) => ({ value, label: value }))}
+                      selected={scopeRsm}
+                      onChange={(values) => changeScopeFilter("rsm", values)}
+                    />
+                  )}
                 </div>
                 <div className="table-scroll studio-wide-table" role="region" aria-label="经销商范围表，可上下和横向滚动" tabIndex={0}>
                   <Table

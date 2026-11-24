@@ -82,13 +82,23 @@ it.each([["PCMO", true], ["CRTO", false], ["B2B", false], ["OEM", false]])("show
   expect(nodes.some(node => node.type === TableHead && node.props.children === "RSM")).toBe(expected);
 });
 
-it("combines multiple SD and RSM selections without changing the saved roster", () => {
+it("links the PCMO SD and RSM options in both directions without changing the saved roster", () => {
   item().sector = "PCMO";
   item().editorState.step = 2;
-  const original = data.dealers.slice(0, 4);
-  harness.context.data = { ...data, dealers: original.map((dealer, index) => ({ ...dealer, sector: "PCMO", sd: ["A", "A", "B", "C"][index], rsm: ["X", "Y", "X", "Z"][index] })) };
+  const original = data.dealers.slice(0, 6);
+  harness.context.data = {
+    ...data,
+    dealers: original.map((dealer, index) => ({
+      ...dealer,
+      sector: index === 5 ? "B2B" : "PCMO",
+      status: index === 4 ? "closed" : "active",
+      sd: ["A", "A", "B", "C", "A", "A"][index],
+      rsm: ["X", "Y", "X", "Z", "Closed", "Other sector"][index],
+    })),
+  };
   item().rows = [{ dealerId: original[3].id, amount: 0, note: "" }];
   const menu = (label) => elements(render()).find(node => node.type === FilterMenu && node.props.label === label);
+  const options = (label) => menu(label).props.options.map(({ value }) => value);
   const selectAllHeader = elements(render()).find(node => node.type === TableHead && elements(node).some(child => child.props.className === "scope-select-all"));
   expect(selectAllHeader.props.sortable).toBe(false);
   const displayedIds = () => {
@@ -96,15 +106,33 @@ it("combines multiple SD and RSM selections without changing the saved roster", 
     const body = elements(table).find(node => node.type === TableBody);
     return elements(body).filter(node => node.props["aria-label"]?.startsWith("选择 ")).map(node => node.props["aria-label"]);
   };
+  expect(options("SD")).toEqual(["A", "B", "C"]);
+  expect(options("RSM")).toEqual(["X", "Y", "Z"]);
+  menu("SD").props.onChange(["B"]);
+  expect(options("RSM")).toEqual(["X"]);
   menu("SD").props.onChange(["A", "B"]);
+  expect(options("RSM")).toEqual(["X", "Y"]);
   menu("RSM").props.onChange(["X", "Y"]);
   expect(displayedIds()).toHaveLength(3);
   menu("SD").props.onChange(["B"]);
+  expect(menu("RSM").props.selected).toEqual(["X"]);
   expect(displayedIds()).toHaveLength(1);
   menu("RSM").props.onChange([]);
+  expect(options("SD")).toEqual(["A", "B", "C"]);
   expect(displayedIds()).toHaveLength(1);
   menu("SD").props.onChange([]);
   expect(displayedIds()).toHaveLength(4);
+
+  menu("RSM").props.onChange(["X", "Y"]);
+  expect(options("SD")).toEqual(["A", "B"]);
+  menu("SD").props.onChange(["A", "B"]);
+  menu("RSM").props.onChange(["Y"]);
+  expect(options("SD")).toEqual(["A"]);
+  expect(menu("SD").props.selected).toEqual(["A"]);
+  expect(displayedIds()).toHaveLength(1);
+  menu("SD").props.onChange([]);
+  expect(options("RSM")).toEqual(["X", "Y", "Z"]);
+  expect(displayedIds()).toHaveLength(1);
   expect(item().rows).toEqual([{ dealerId: original[3].id, amount: 0, note: "" }]);
 });
 
