@@ -11,7 +11,6 @@ import {
   V19Health,
   V19Stack,
   V19Destination,
-  orderedResourceTypes,
 } from "./V19PortfolioVisuals.jsx";
 import "../v19-portfolio.css";
 import { Badge } from "../../components/ui/badge";
@@ -31,7 +30,7 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from "../../components/ui/native-select";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useWorkbench } from "../WorkbenchContext.jsx";
 import E from "../domain/engine.js";
 import { PlanningVersionBar as VersionBar } from "./PlanningVersionBar.jsx";
@@ -41,6 +40,8 @@ import { SdAnalysis } from "./SdAnalysis.jsx";
 import { V19ExecutiveHealth } from "./V19ExecutiveHealth.jsx";
 import { V19DealerDetails } from "./V19DealerDetails.jsx";
 import { hasReserveAcknowledgement } from "../domain/reserve-review.js";
+import { filterManagementItems, retainAvailableManagementFilters } from "../domain/management-filters.js";
+import { ManagementFilters, managementFilterFields } from "./ManagementFilters.jsx";
 
 const num = (value, digits = 0) =>
   Number(value || 0).toLocaleString("zh-CN", {
@@ -333,68 +334,38 @@ function latestPublished(state) {
     .map((rows) => rows.at(-1)?.initiative)
     .filter(Boolean);
 }
-function BoardFilters({ items, filters, setFilters, executive }) {
-  const options = (key) =>
-    key === "resourceType"
-      ? orderedResourceTypes(items.map((item) => item[key]))
-      : [...new Set(items.map((item) => item[key]).filter(Boolean))].sort();
-  const keys = executive
-    ? [
-        ["sector", "Sector"],
-        ["department", "部门"],
-        ["resourceType", "资源大类"],
-      ]
-    : [["name", "Initiative"]];
-  return (
-    <div className="v19-executive-filters" role="group" aria-label="管理层筛选">
-      {keys.map(([key, label]) => (
-        <Label key={key}>
-          <span className="sr-only">{label}</span>
-          <NativeSelect
-            aria-label={label}
-            value={filters[key]}
-            onChange={(event) =>
-              setFilters({ ...filters, [key]: event.target.value })
-            }
-          >
-            <NativeSelectOption value="all">全部{label}</NativeSelectOption>
-            {options(key).map((value) => (
-              <NativeSelectOption key={value}>{value}</NativeSelectOption>
-            ))}
-          </NativeSelect>
-        </Label>
-      ))}
-    </div>
-  );
-}
-
 function PortfolioDashboard({ mode }) {
   const { view, state, data, identity } = useWorkbench();
-  const accessible = new Set((view.initiatives || []).map((item) => item.id));
-  const published = latestPublished(state).filter(
-    (item) => mode === "exec" || accessible.has(item.id),
+  const executive = mode === "exec";
+  const source = useMemo(() => {
+    const initiatives = view.initiatives || [];
+    if (mode === "owner") return initiatives;
+    if (state.planningVersion) {
+      return executive ? initiatives : initiatives.map((item) =>
+        !item.workflow?.submitted ? { ...item, rows: [], otherBudgets: [] } : item,
+      );
+    }
+    const accessible = new Set(initiatives.map((item) => item.id));
+    return latestPublished(state).filter((item) => executive || accessible.has(item.id));
+  }, [executive, mode, state.planningVersion, state.publications, view.initiatives]);
+  const fields = useMemo(
+    () => executive ? managementFilterFields(source) : [],
+    [executive, source],
   );
-  const source = state.planningVersion
-    ? (view.initiatives || []).map((item) =>
-        mode === "department" && !item.workflow?.submitted
-          ? { ...item, rows: [], otherBudgets: [] }
-          : item,
-      )
-    : mode === "owner"
-      ? view.initiatives || []
-      : published;
-  const [filters, setFilters] = useState({
-    sector: "all",
-    department: "all",
-    resourceType: "all",
-    name: "all",
-    id: "all",
-  });
-  const scoped = source.filter((item) =>
-    Object.entries(filters).every(
-      ([key, value]) => value === "all" || String(item[key]) === value,
-    ),
+  const [selections, setSelections] = useState({});
+  const [departmentInitiative, setDepartmentInitiative] = useState("");
+  const filters = useMemo(
+    () => retainAvailableManagementFilters(selections, fields),
+    [selections, fields],
   );
+  useEffect(() => {
+    setSelections((current) => retainAvailableManagementFilters(current, fields));
+  }, [fields]);
+  const scoped = executive
+    ? filterManagementItems(source, filters)
+    : departmentInitiative
+      ? source.filter((item) => String(item.id) === departmentInitiative)
+      : source;
   const analysisItems =
     mode === "department"
       ? scoped.filter(
@@ -407,7 +378,6 @@ function PortfolioDashboard({ mode }) {
               item.workflow?.confirmed ?? item.allocationVisible !== false,
           )
         : scoped;
-  const executive = mode === "exec";
   const tabs = executive
     ? [
         ["overview", "总览"],
@@ -431,7 +401,7 @@ function PortfolioDashboard({ mode }) {
       : "部门投入组合";
   return (
     <div className="v19-portfolio">
-      <div className="v19-portfolio-heading">
+      <div className={executive ? "v19-portfolio-heading v19-management-heading" : "v19-portfolio-heading"}>
         <PageHead
           eyebrow={
             executive
@@ -453,28 +423,25 @@ function PortfolioDashboard({ mode }) {
           fixed={mode === "owner"}
           scope={
             executive
-              ? `${(identity.sectors || []).join(" / ")} · 全部部门`
+              ? undefined
               : `${[...new Set(source.map((i) => i.sector))].join(" / ")} · ${[...new Set(source.map((i) => i.department))].join(" / ")}`
           }
         >
           {executive && (
-            <BoardFilters
-              items={source}
+            <ManagementFilters
+              fields={fields}
               filters={filters}
-              setFilters={setFilters}
-              executive
+              setFilters={setSelections}
             />
           )}
           {mode === "department" && (
             <Label className="v19-department-filter">
               <span className="sr-only">Initiative</span>
               <NativeSelect
-                value={filters.id}
-                onChange={(event) =>
-                  setFilters({ ...filters, id: event.target.value })
-                }
+                value={departmentInitiative}
+                onChange={(event) => setDepartmentInitiative(event.target.value)}
               >
-                <NativeSelectOption value="all">
+                <NativeSelectOption value="">
                   全部 Initiative
                 </NativeSelectOption>
                 {source.map((item) => (
@@ -567,7 +534,7 @@ function PortfolioDashboard({ mode }) {
           />
         </TabsContent>}
         <TabsContent value="versions">
-          <VersionComparison executive={executive} />
+          <VersionComparison executive={executive} filters={executive ? filters : undefined} />
         </TabsContent>
       </Tabs>
     </div>

@@ -17,7 +17,7 @@ import { VersionComparison } from "../src/workbench/pages/VersionComparison.jsx"
 
 const original = { id: "1", initiativeKey: "one", name: "项目甲", ownerId: "old@example.test", budget: 100, rows: [], workflow: { confirmed: true } };
 const current = { ...original, ownerId: "new@example.test" };
-function render(executive = true) { harness.cursor = 0; return VersionComparison({ executive }); }
+function render(executive = true, filters) { harness.cursor = 0; return VersionComparison({ executive, filters }); }
 function nodes(element) {
   if (Array.isArray(element)) return element.flatMap(nodes);
   if (!element || typeof element !== "object" || !element.props) return [];
@@ -44,4 +44,18 @@ it("uses the previous owner for removed initiatives and keeps other views unchan
   expect(nodes(render(false)).some(node => node.props.children === "Owner")).toBe(false);
   harness.slots[2] = "department";
   expect(nodes(render()).some(node => node.props.children === "Owner")).toBe(false);
+});
+
+it("matches management filters against each version's own attribution and the stable Initiative key", () => {
+  const moved = {
+    previous: { ...original, id: "older-budget", sector: "PCMO", department: "MKT", budget: 111 },
+    current: { ...current, id: "newer-budget", sector: "B2B", department: "ICE", budget: 222 },
+  };
+  const another = { ...original, id: "other-budget", initiativeKey: "two", name: "项目乙", sector: "PCMO", department: "ICE", budget: 333 };
+  harness.slots[3] = { previous: [moved.previous, another], current: [moved.current, another] };
+  const all = nodes(render(true, { sector: ["PCMO", "B2B"], department: ["MKT"], initiative: ["one"] }));
+  expect(all.some(node => node.props.children === "项目甲")).toBe(true);
+  expect(all.some(node => node.props.children === "项目乙")).toBe(false);
+  expect(all.some(node => node.props.sortValue === 111)).toBe(true);
+  expect(all.some(node => node.props.sortValue === 222)).toBe(false);
 });
