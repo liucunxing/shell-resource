@@ -1,5 +1,6 @@
 import engine from "./engine.js";
 import { initiativeDealers, isActiveDealer } from "./dealer-history";
+import { hasRsm } from "./organization-display";
 const excelLibrary = async () => (await import("exceljs")).default;
 ("use strict");
 const LEGACY_FORMAT = "资源投资分配模板 V1.3",
@@ -180,6 +181,7 @@ async function exportWorkbook(state, id, identity, data = {}) {
   style(rows, [24, 48, 18, 24, 24, 20, 65, 24, 20]);
   rows.getColumn(6).numFmt = "#,##0.00";
   rows.getColumn(8).hidden = true;
+  rows.getColumn(5).hidden = !hasRsm(i.sector);
   rows.getColumn(9).hidden = true;
   rows.getCell("I1").value = json({ format: "allocation-v2", id: i.id, fields: fields(i).slice(0, -1), versionId: state.planningVersion?.id ?? null });
   addDealerDirectory(book, data);
@@ -194,11 +196,12 @@ function addDealerDirectory(book, data) {
       String(dealer.code || dealer.id),
       String(dealer.name || ""),
       String(dealer.sd || ""),
-      String(dealer.rsm || ""),
+      hasRsm(dealer.sector) ? String(dealer.rsm || "") : "",
       String(dealer.status || ""),
     ]),
   );
   style(directory, [20, 24, 48, 24, 24, 18]);
+  directory.getColumn(5).hidden = !dealerDirectory(data).some((dealer) => hasRsm(dealer.sector));
 }
 async function exportDealerDirectory(data) {
   const book = new (await excelLibrary()).Workbook();
@@ -230,17 +233,18 @@ async function exportSelectedRoster(rows, dealers, data = { dealers }) {
     ]);
   }
   style(sheet, [24, 48, 24, 24, 18, 24]);
+  sheet.getColumn(4).hidden = !dealers.some((dealer) => hasRsm(dealer.sector));
   addDealerDirectory(book, data);
   return book.xlsx.writeBuffer();
 }
 function dealerMatchKey(code, sd, rsm) {
   return json([code, sd, rsm].map(value => String(value ?? "").trim()));
 }
-function activeDealerIndex(dealers, sector) {
+function activeDealerIndex(dealers, sector, ignoreRsm = false) {
   const matches = new Map();
   for (const dealer of dealers) {
     if (!isActiveDealer(dealer) || (dealer.sector && dealer.sector !== sector)) continue;
-    const key = dealerMatchKey(dealer.code || dealer.id, dealer.sd, dealer.rsm);
+    const key = dealerMatchKey(dealer.code || dealer.id, dealer.sd, ignoreRsm ? "" : dealer.rsm);
     matches.set(key, matches.has(key) ? null : dealer);
   }
   return matches;
@@ -264,13 +268,14 @@ async function previewRosterImport(buffer, state, id, identity, dealers) {
   checkHeaders(read, out, sheet, ["经销商编码", "经销商名称", "SD", "RSM", "状态", "已分配（元）"]);
   checkWidth(out, sheet, 6);
   const activeDealers = activeDealerIndex(dealers, initiative.sector);
+  const dealersBySd = hasRsm(initiative.sector) ? null : activeDealerIndex(dealers, initiative.sector, true);
   const seen = new Set();
   for (let n = 2; n <= sheet.rowCount; n++) {
     const cells = [1, 2, 3, 4, 5, 6].map((column) => read(sheet, n, column));
     if (cells.every((value) => value === "")) continue;
     const [code, , sd, rsm, , amount] = cells;
-    const dealer = activeDealers.get(dealerMatchKey(code, sd, rsm));
-    if (!dealer) { out.errors.push(`第${n}行编码、SD、RSM 无法唯一匹配当前业务线的 Active 经销商。`); continue; }
+    const dealer = activeDealers.get(dealerMatchKey(code, sd, rsm)) || (!rsm ? dealersBySd?.get(dealerMatchKey(code, sd, "")) : null);
+    if (!dealer) { out.errors.push(`第${n}行编码、${hasRsm(initiative.sector) ? "SD、RSM" : "SD"} 无法唯一匹配当前业务线的 Active 经销商。`); continue; }
     const dealerId = dealer.id;
     if (seen.has(String(dealerId))) { out.errors.push(`第${n}行经销商重复。`); continue; }
     seen.add(String(dealerId));
@@ -427,14 +432,17 @@ async function previewImport(buffer, state, id, identity, data) {
     const activeDealers = activeDealerIndex(
       initiativeDealers(data.dealers || [], data.distributorDirectory || [], i.sector), i.sector,
     );
+    const dealersBySd = hasRsm(i.sector) ? null : activeDealerIndex(
+      initiativeDealers(data.dealers || [], data.distributorDirectory || [], i.sector), i.sector, true,
+    );
     const ids = new Set();
     for (let n = 2; n <= sheet.rowCount; n++) {
       const row = ALLOCATION_HEAD.map((_, column) => read(sheet, n, column + 1));
       if (row.every((value) => value === "")) continue;
       const [code, , , sd, rsm, amount, note] = row;
-      const match = activeDealers.get(dealerMatchKey(code, sd, rsm));
+      const match = activeDealers.get(dealerMatchKey(code, sd, rsm)) || (!rsm ? dealersBySd?.get(dealerMatchKey(code, sd, "")) : null);
       if (!match) {
-        out.errors.push(`经销商分配 第${n}行编码、SD、RSM 无法唯一匹配当前业务线的 Active 经销商。`);
+        out.errors.push(`经销商分配 第${n}行编码、${hasRsm(i.sector) ? "SD、RSM" : "SD"} 无法唯一匹配当前业务线的 Active 经销商。`);
         continue;
       }
       const dealer = match.id;

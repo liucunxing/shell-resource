@@ -1,4 +1,5 @@
 import { wholeMetric } from "../domain/metric-precision";
+import { hasRsm, scopeHasRsm } from "../domain/organization-display";
 import { DealerDetailButton, useDealerDetailAccess } from "../DealerDetailAccess";
 import { InitiativeLabel, useLegendColors } from "../LegendColors";
 import { HistoryPeriodTabs } from "./HistoryPeriodTabs";
@@ -180,7 +181,7 @@ export function detailScope(
     rows = rows.filter((row) => detail.scopeDealerKeys!.includes(row.key));
   if (detail.type === "organization")
     rows = rows.filter(
-      (row) => row[detail.groupBy || "sd"] === detail.groupKey,
+      (row) => (detail.groupBy !== "rsm" || hasRsm(row.sector)) && row[detail.groupBy || "sd"] === detail.groupKey,
     );
   if (detail.type === "dealer")
     rows = rows.filter((row) =>
@@ -314,7 +315,7 @@ function ResourceDetailContent({
   const [period, setPeriod] = useState<HistoryPeriod>(detail.period || "2025");
   const [basis, setBasis] = useState<"vol" | "c3">(detail.basis || "c3");
   const [query, setQuery] = useState("");
-  const [organizationBy, setOrganizationBy] = useState<"sd" | "rsm">("sd");
+  const [selectedOrganizationBy, setOrganizationBy] = useState<"sd" | "rsm">("sd");
   const [cohortDimension, setCohortDimension] = useState<CohortDimension>(() =>
     defaultCohortDimension(detail.cohortFilteredDimensions),
   );
@@ -344,6 +345,8 @@ function ResourceDetailContent({
   const rows = scope.rows,
     historical = historicalDetailTotals(rows, period),
     suffix = period === "2025" ? "2025" : "2026Ytd";
+  const showRsm = scopeHasRsm([...scope.items, ...rows]);
+  const organizationBy = showRsm ? selectedOrganizationBy : "sd";
   const currentAmount = sum(rows.map((row) => row.amount)),
     allInvestment = completeSum(
       allRows.map((row) => historyInvestment(row.history, period)),
@@ -377,7 +380,7 @@ function ResourceDetailContent({
     setQuery("");
   };
   const visible = rows.filter((row) =>
-    `${row.code} ${row.name} ${row.sd} ${row.rsm}`
+    `${row.code} ${row.name} ${row.sd} ${hasRsm(row.sector) ? row.rsm : ""}`
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
@@ -458,7 +461,7 @@ function ResourceDetailContent({
     !negativeExpenses &&
     expenses.every((type) => readExpense(type) != null);
   const maxDealerAmount = Math.max(0, ...rows.map((row) => row.amount));
-  const organizations = groupSummary(rows, dealers, organizationBy, period);
+  const organizations = groupSummary(organizationBy === "rsm" ? rows.filter((row) => hasRsm(row.sector)) : rows, organizationBy === "rsm" ? dealers.filter((dealer) => hasRsm(dealer.sector)) : dealers, organizationBy, period);
   const totalVol = completeSum(
     organizations.map((group) => group.analyticalVol),
   );
@@ -784,7 +787,7 @@ function ResourceDetailContent({
           aria-label="搜索抽屉经销商"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="经销商 / 编码 / SD / RSM"
+          placeholder={showRsm ? "经销商 / 编码 / SD / RSM" : "经销商 / 编码 / SD"}
         />
       </div>
       <div
@@ -800,7 +803,7 @@ function ResourceDetailContent({
               <TableHead>经销商</TableHead>
               <TableHead>经销商编码</TableHead>
               {!showCohortDimensions && (
-                <TableHead>Sector / SD / RSM</TableHead>
+                <TableHead>{showRsm ? "Sector / SD / RSM" : "Sector / SD"}</TableHead>
               )}
               <TableHead className="num">
                 {showCohortDimensions
@@ -841,14 +844,14 @@ function ResourceDetailContent({
                   </DealerDetailButton>
                   {showCohortDimensions && (
                     <small>
-                      {row.sector} · {row.sd} · {row.rsm}
+                      {row.sector} · {row.sd}{hasRsm(row.sector) && ` · ${row.rsm}`}
                     </small>
                   )}
                 </TableCell>
                 <TableCell>{row.code || "—"}</TableCell>
                 {!showCohortDimensions && (
                   <TableCell>
-                    {row.sector} / {row.sd} / {row.rsm}
+                    {row.sector} / {row.sd}{hasRsm(row.sector) && ` / ${row.rsm}`}
                   </TableCell>
                 )}
                 <TableCell className="num" sortValue={row.amount}>
@@ -1097,7 +1100,7 @@ function ResourceDetailContent({
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>
             {current.type === "dealer" && single
-              ? `${single.code} · ${single.sector} · ${single.sd} / ${single.rsm}`
+              ? `${single.code} · ${single.sector} · ${single.sd}${hasRsm(single.sector) ? ` / ${single.rsm}` : ""}`
               : current.type === "initiative"
                 ? `${initiative?.sector || "—"} / ${initiative?.department || "—"} · ${initiative?.resourceType || "—"} · ${initiative?.ownerName || initiative?.ownerId || "—"}`
                 : "当前业务范围 · 只读详情"}
@@ -1267,7 +1270,7 @@ function ResourceDetailContent({
                 <Accordion type="single" collapsible>
                   <AccordionItem value="organization">
                     <AccordionTrigger>
-                      按 SD/RSM 结构 · 投入 vs Delivery Vol vs C3
+                      按 {showRsm ? "SD/RSM" : "SD"} 结构 · 投入 vs Delivery Vol vs C3
                     </AccordionTrigger>
                     <AccordionContent>
                       <Tabs
@@ -1278,7 +1281,7 @@ function ResourceDetailContent({
                       >
                         <TabsList>
                           <TabsTrigger value="sd">按 SD</TabsTrigger>
-                          <TabsTrigger value="rsm">按 RSM</TabsTrigger>
+                          {showRsm && <TabsTrigger value="rsm">按 RSM</TabsTrigger>}
                         </TabsList>
                       </Tabs>
                       <section className="resource-detail-section">

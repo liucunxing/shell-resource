@@ -19,6 +19,16 @@ function render(props={items,dealers}){harness.cursor=0;return V19Stack(props);}
 const cells=(tree,key)=>nodes(tree).filter(n=>n.props["data-column"]===key&&Object.hasOwn(n.props,"sortValue"));
 const headers=tree=>nodes(tree).filter(n=>n.props["data-column"]&&Object.hasOwn(n.props,"aria-sort"));
 beforeEach(()=>{harness.slots=[];});
+it("shows RSM only for PCMO rows in mixed-sector views",()=>{
+ const otherItems=items.map(item=>({...item,sector:"B2B"}));
+ const otherDealers=dealers.map(dealer=>({...dealer,sector:"B2B"}));
+ expect(headers(render({items:otherItems,dealers:otherDealers})).some(n=>n.props["data-column"]==="rsm")).toBe(false);
+ harness.slots=[];
+ const tree=render({items:[...items,...otherItems.map(item=>({...item,id:"other"}))],dealers:[...dealers,...otherDealers]});
+ expect(headers(tree).some(n=>n.props["data-column"]==="rsm")).toBe(true);
+ expect(cells(tree,"rsm").map(text)).toContain("—");
+ expect(cells(tree,"rsm").map(text)).toContain("R1");
+});
 it("uses detail columns without support/note, plus resource mix and authorized expenses",()=>{
  const keys=headers(render()).map(n=>n.props["data-column"]);
  expect(keys.filter(k=>k!=="mix" && k!=="code")).toEqual(allocationColumnGroups(["MRD","SP&A"]).filter(g=>g.key!=="support").flatMap(g=>g.columns.map(c=>c[0])));

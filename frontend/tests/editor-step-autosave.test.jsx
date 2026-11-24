@@ -61,6 +61,15 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+it.each([["PCMO", true], ["CRTO", false], ["B2B", false], ["OEM", false]])("shows RSM controls only for PCMO (%s)", (sector, expected) => {
+  item().sector = sector;
+  item().editorState.step = 2;
+  const nodes = elements(render());
+  expect(nodes.some(node => node.props.children === "全部 RSM")).toBe(expected);
+  expect(nodes.some(node => node.type === TableHead && node.props.children === (expected ? "SD / RSM" : "SD"))).toBe(true);
+  expect(nodes.some(node => node.type === TableHead && node.props.children === "RSM")).toBe(expected);
+});
+
 it("shows source Vol Phasing for both periods without explanatory tooltips", () => {
   item().editorState.step = 2;
   harness.context.data = { ...data, dealers: data.dealers.map(dealer => ({ ...dealer, history: { ...dealer.history, phasing2025: 1.17, phasing2026Ytd: 0 } })) };

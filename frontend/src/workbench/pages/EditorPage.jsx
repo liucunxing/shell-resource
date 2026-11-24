@@ -64,6 +64,7 @@ import {
 import { exportExcelInWorker, previewExcelInWorker } from "../file-import.js";
 import { concentration, portfolioRows } from "../domain/portfolio-analytics.js";
 import { RotateCcw } from "lucide-react";
+import { hasRsm } from "../domain/organization-display";
 import {
   reserveAcknowledgementKey,
   reserveAcknowledgementFingerprint,
@@ -100,7 +101,7 @@ export function dealerBusinessCode(dealerId, dealer = {}, row = {}) {
 export function dealerDisplayLabel(dealerId, dealer = {}, row = {}) {
   const code = dealerBusinessCode(dealerId, dealer, row);
   const name = dealer.name ? `${dealer.name}（${code}）` : code;
-  const organization = [dealer.sd || row.sd, dealer.rsm || row.rsm]
+  const organization = [dealer.sd || row.sd, hasRsm(dealer.sector || row.sector) && (dealer.rsm || row.rsm)]
     .filter(Boolean)
     .join(" / ");
   return organization ? `${name} · ${organization}` : name;
@@ -451,6 +452,7 @@ function EditorContent({
   notify,
 }) {
   const i = view.initiatives.find((item) => item.id === initiativeId);
+  const showRsm = hasRsm(i?.sector);
   const editable = Boolean(i && !previewMode && E.canEdit(state, i.id, identity));
   const previouslySubmitted = hasCurrentVersionSubmission(
     i,
@@ -709,7 +711,7 @@ function EditorContent({
   const dealerLabel = (dealerId) =>
     dealerDisplayLabel(
       dealerId,
-      dealerMeta(dealerId),
+      { ...dealerMeta(dealerId), sector: i.sector },
       i.rows.find((row) => row.dealerId === dealerId),
     );
   const activeScopeDealers = dealers.filter(isActiveDealer);
@@ -722,7 +724,7 @@ function EditorContent({
           .toLowerCase()
           .includes(term)) &&
       (scopeSd === "all" || dealer.sd === scopeSd) &&
-      (scopeRsm === "all" || dealer.rsm === scopeRsm)
+      (!showRsm || scopeRsm === "all" || dealer.rsm === scopeRsm)
     );
   });
   const scopeOptions = (key) =>
@@ -963,7 +965,7 @@ function EditorContent({
       ),
     ),
   );
-  const allocationGroups = allocationColumnGroups(allocationExpenses, true, true);
+  const allocationGroups = allocationColumnGroups(allocationExpenses, true, true, showRsm);
   const allocationColumns = allocationGroups.flatMap((group) => group.columns);
   const awardsByDealer = awardedInitiativesByDealer(i, view.initiatives);
   const detailItems = detail?.ownerOthers
@@ -1233,7 +1235,7 @@ function EditorContent({
                   <div>
                     <h2>定义适用经销商</h2>
                     <p className="small-text muted">
-                      直接来自历史列表；SD、RSM、状态及历史指标只读。
+                      直接来自历史列表；{showRsm ? "SD、RSM" : "SD"}、状态及历史指标只读。
                     </p>
                   </div>
                 </div>
@@ -1298,7 +1300,7 @@ function EditorContent({
                       </NativeSelectOption>
                     ))}
                   </NativeSelect>
-                  <NativeSelect
+                  {showRsm && <NativeSelect
                     value={scopeRsm}
                     onChange={(event) => {
                       setScopeRsm(event.target.value);
@@ -1313,7 +1315,7 @@ function EditorContent({
                         {value}
                       </NativeSelectOption>
                     ))}
-                  </NativeSelect>
+                  </NativeSelect>}
                 </div>
                 <div className="table-scroll studio-wide-table" role="region" aria-label="经销商范围表，可上下和横向滚动" tabIndex={0}>
                   <Table
@@ -1356,7 +1358,7 @@ function EditorContent({
                         </TableHead>
                         <TableHead rowSpan={2}>经销商</TableHead>
                         <TableHead rowSpan={2}>经销商编码</TableHead>
-                        <TableHead rowSpan={2}>SD / RSM</TableHead>
+                        <TableHead rowSpan={2}>{showRsm ? "SD / RSM" : "SD"}</TableHead>
                         <TableHead rowSpan={2}>状态</TableHead>
                         <TableHead
                           colSpan={4}
@@ -1457,7 +1459,7 @@ function EditorContent({
                             </TableCell>
                             <TableCell sortValue={dealerCode(dealer.id)}>{dealerCode(dealer.id) || "—"}</TableCell>
                             <TableCell>
-                              {dealer.sd || "—"} / {dealer.rsm || "—"}
+                              {dealer.sd || "—"}{showRsm && ` / ${dealer.rsm || "—"}`}
                             </TableCell>
                             <TableCell>
                               {dealer.status || "—"}
@@ -1602,7 +1604,7 @@ function EditorContent({
                       最终名单 · {wholeMetric(selectedScopeRows.length)} 家
                     </h2>
                     <p className="small-text muted">
-                      已选经销商（仅 Active），不受上方搜索、SD / RSM
+                      已选经销商（仅 Active），不受上方搜索、{showRsm ? "SD / RSM" : "SD"}
                       筛选和分页影响。
                     </p>
                   </div>
@@ -1627,7 +1629,7 @@ function EditorContent({
                         <TableHead>编码</TableHead>
                         <TableHead>名称</TableHead>
                         <TableHead>SD</TableHead>
-                        <TableHead>RSM</TableHead>
+                        {showRsm && <TableHead>RSM</TableHead>}
                         <TableHead>状态</TableHead>
                         <TableHead className="num">已分配（元）</TableHead>
                         <TableHead>操作</TableHead>
@@ -1657,7 +1659,7 @@ function EditorContent({
                                 </DealerDetailButton>
                               </TableCell>
                               <TableCell>{dealer.sd || "—"}</TableCell>
-                              <TableCell>{dealer.rsm || "—"}</TableCell>
+                              {showRsm && <TableCell>{dealer.rsm || "—"}</TableCell>}
                               <TableCell>
                                 Active
                               </TableCell>
@@ -1695,7 +1697,7 @@ function EditorContent({
                         })
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={7} className="empty">
+                          <TableCell colSpan={showRsm ? 7 : 6} className="empty">
                             尚未选择 Active 经销商
                           </TableCell>
                         </TableRow>
@@ -1703,7 +1705,7 @@ function EditorContent({
                     </TableBody>
                     <TableFooter>
                       <TableRow>
-                        <TableCell colSpan={5}>
+                        <TableCell colSpan={showRsm ? 5 : 4}>
                           合计 · {wholeMetric(selectedScopeRows.length)} 家
                         </TableCell>
                         <TableCell className="num">
@@ -1819,7 +1821,7 @@ function EditorContent({
                       setAllocationQuery(event.target.value);
                       setAllocationPage(1);
                     }}
-                    placeholder="搜索经销商 / 编码 / SD / RSM"
+                    placeholder={showRsm ? "搜索经销商 / 编码 / SD / RSM" : "搜索经销商 / 编码 / SD"}
                     aria-label="查找经销商分配"
                   />
                 </div>
