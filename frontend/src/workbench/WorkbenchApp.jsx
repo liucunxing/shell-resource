@@ -304,7 +304,7 @@ export function PortalLogin({
           </span>
           <span>
             <strong>壳牌 · 资源投资</strong>
-            <small>RESOURCE INVESTMENT</small>
+            <small>RESOURCE STUDIO</small>
           </span>
         </div>
 
