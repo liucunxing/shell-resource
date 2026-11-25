@@ -105,9 +105,10 @@ describe("V20 drawer chart semantics and reserve submission guard", () => {
         unit="万元"
       />,
     );
-    expect(donut).toContain('stroke="#003C88"');
-    expect(donut).toContain('stroke="#641964"');
-    expect(donut).toContain('stroke-dasharray="90 10"');
+    expect(donut).toContain('fill="#003C88"');
+    expect(donut).toContain('fill="#641964"');
+    expect(donut).toContain('aria-label="MRD：90.0%"');
+    expect(donut).toContain('aria-label="Capex：10.0%"');
     const bar = renderToStaticMarkup(
       <InitiativeContributionBar
         sources={[

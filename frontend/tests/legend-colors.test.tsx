@@ -39,6 +39,21 @@ describe("configured legend colors", () => {
     expect(html).toContain('font-size:17px');
     expect(html).toContain('textLength="80"');
   });
+  it("draws separate resource arcs and a complete single-category ring", () => {
+    const parts = [
+      { label: "ICE Rebate", value: 50000000, color: "#ee8700", onClick: () => {} },
+      { label: "MRD", value: 8000000, color: "#003c88" },
+      { label: "SP&A", value: 132756700, color: "#008344" },
+      { label: "Capex", value: 100000000, color: "#611962" },
+    ];
+    const html = renderToStaticMarkup(<BudgetDonut parts={parts} center="4" caption="个资源大类" />);
+    expect((html.match(/<path /g) || [])).toHaveLength(4);
+    expect(html).not.toContain("stroke-dasharray");
+    expect(html).toContain('role="button"');
+    const single = renderToStaticMarkup(<BudgetDonut parts={[parts[0]]} center="1" caption="个资源大类" />);
+    expect(single).toContain('stroke="#ee8700"');
+    expect(single).not.toContain("<path ");
+  });
   it("stores only overrides; empty fields restore defaults and invalid values are rejected", () => {
     expect(legendColorPayload({initiatives:{b:"#AABBCC"}, resources:{MRD:"#abcdef"}})).toEqual({initiatives:{b:"#AABBCC"},resources:{MRD:"#ABCDEF"},departments:{}});
     expect(() => legendColorPayload({ resources: { MRD: "red" } })).toThrow();
