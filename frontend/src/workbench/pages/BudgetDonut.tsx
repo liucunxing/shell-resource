@@ -6,6 +6,16 @@ import { wholeMetric } from "../domain/metric-precision";
 
 type Part = { label: string; value: number; color: string; onClick?: () => void };
 
+function segmentPath(center: number, radius: number, strokeWidth: number, start: number, percent: number) {
+  const point = (r: number, angle: number) => {
+    const radians = (angle / 100 * 360 - 90) * Math.PI / 180;
+    return `${center + r * Math.cos(radians)} ${center + r * Math.sin(radians)}`;
+  };
+  const outer = radius + strokeWidth / 2, inner = radius - strokeWidth / 2;
+  const end = start + percent, largeArc = percent > 50 ? 1 : 0;
+  return `M ${point(outer, start)} A ${outer} ${outer} 0 ${largeArc} 1 ${point(outer, end)} L ${point(inner, end)} A ${inner} ${inner} 0 ${largeArc} 0 ${point(inner, start)} Z`;
+}
+
 export function DonutSegment({ part, percent, start, text, center = 75, radius = 64, strokeWidth = 22 }: { part: Part; percent: number; start: number; text: string; center?: number; radius?: number; strokeWidth?: number }) {
   const [point, setPoint] = useState<{ x: number; y: number } | null>(null);
   const [focused, setFocused] = useState(false);
@@ -17,13 +27,14 @@ export function DonutSegment({ part, percent, start, text, center = 75, radius =
     tip.style.left = `${left}px`;
     tip.style.top = `${top}px`;
   }, [point]);
+  const fullCircle = percent >= 100 - 1e-10;
+  const Shape = fullCircle ? "circle" : "path";
   return <>
     <Tooltip open={focused && !point} onOpenChange={open => { if (!open) setFocused(false); }}>
       <TooltipTrigger asChild>
-        <circle cx={center} cy={center} r={radius} fill="none" stroke={part.color} strokeWidth={strokeWidth}
-          pathLength="100" strokeDasharray={`${percent} ${100 - percent}`} strokeDashoffset={-start}
-          transform={`rotate(-90 ${center} ${center})`} tabIndex={0} aria-label={text}
-          role={part.onClick ? "button" : "img"} style={{pointerEvents:"stroke", cursor:part.onClick ? "pointer" : "default"}}
+        <Shape {...(fullCircle ? { cx: center, cy: center, r: radius, fill: "none", stroke: part.color, strokeWidth } : { d: segmentPath(center, radius, strokeWidth, start, percent), fill: part.color })}
+          tabIndex={0} aria-label={text}
+          role={part.onClick ? "button" : "img"} style={{pointerEvents:fullCircle ? "stroke" : "visiblePainted", cursor:part.onClick ? "pointer" : "default"}}
           onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
           onPointerMove={event => { if (event.pointerType === "mouse") setPoint({ x: event.clientX, y: event.clientY }); }}
           onPointerLeave={() => setPoint(null)}

@@ -145,7 +145,7 @@ export function HomePage() {
                 ? ["已提交 · 待确认", "pending"]
                 : item.workflow?.requiresResubmission
                   ? ["待重新提交", "resubmit"]
-                  : totals.allocated || totals.otherBudget
+                  : (item.workflow ? item.workflow.hasSavedDraft : totals.allocated || totals.otherBudget)
                     ? ["草稿", "draft"]
                     : ["未开始", "not-started"];
             return (

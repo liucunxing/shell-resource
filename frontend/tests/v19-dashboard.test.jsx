@@ -251,6 +251,29 @@ it("includes all configured reserve reasons in the Owner budget summary", () => 
   expect(html).not.toContain("202701 · 业务目标校准");
 });
 
+it("shows a saved zero-amount draft independently of its totals", () => {
+  const initiative = {
+    id: "1", name: "项目", sector: "PCMO", department: "MKT", budget: 100,
+    rows: [{ dealerId: "D1", amount: 0 }], otherBudgets: [],
+  };
+  mock.context = {
+    state: { planningVersion: { id: "202701", name: "规划" }, planningVersions: [] },
+    view: { initiatives: [{ ...initiative, workflow: { hasSavedDraft: false } }] },
+    navigate: vi.fn(), selectPlanningVersion: vi.fn(), apiMode: true,
+  };
+  expect(renderToStaticMarkup(<HomePage />)).toContain("未开始");
+  mock.context.view.initiatives[0].rows[0].amount = 10;
+  expect(renderToStaticMarkup(<HomePage />)).toContain("未开始");
+  mock.context.view.initiatives[0].rows[0].amount = 0;
+  mock.context.view.initiatives[0].workflow.hasSavedDraft = true;
+  let html = renderToStaticMarkup(<HomePage />);
+  expect(html).toContain("草稿");
+  expect(html).not.toContain("未开始");
+  mock.context.view.initiatives[0].workflow.submitted = true;
+  html = renderToStaticMarkup(<HomePage />);
+  expect(html).toContain("已提交 · 待确认");
+});
+
 it("renders the executive budget composition ring and the complete resource category table", () => {
   const html = renderToStaticMarkup(
     <V19BudgetOverview

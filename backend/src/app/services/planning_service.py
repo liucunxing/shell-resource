@@ -183,7 +183,8 @@ class PlanningService:
         )
         if version is None and budget.planning_version_id:
             version = await self.version(budget.planning_version_id)
-        return self._workflow_projection(budget, version, state, publication)
+        saves = await self.repository.latest_draft_save_revisions([budget.id])
+        return self._workflow_projection(budget, version, state, publication, saves.get(budget.id))
 
     async def workflows(
         self, budgets: list[BudgetDO], version: PlanningVersionDO,
@@ -192,6 +193,7 @@ class PlanningService:
         if not budgets:
             return {}
         states = await self.states_for(budgets)
+        saves = await self.repository.latest_draft_save_revisions([budget.id for budget in budgets])
         known_publications = {
             item.id: item for history in publications.values() for item in history
         }
@@ -200,6 +202,7 @@ class PlanningService:
                 budget, version, states.get(budget.id),
                 known_publications.get(states[budget.id].publication_id or 0)
                 if budget.id in states and states[budget.id].publication_id is not None else None,
+                saves.get(budget.id),
             )
             for budget in budgets
         }
@@ -207,6 +210,7 @@ class PlanningService:
     def _workflow_projection(
         self, budget: BudgetDO, version: PlanningVersionDO | None,
         state: InitiativeWorkflowDO | None, publication: WorkspacePublicationDO | None,
+        saved_revision: int | None = None,
     ) -> dict:
         submitted = bool(publication and state and not state.requires_resubmission
                          and publication.published_revision == budget.revision)
@@ -216,6 +220,10 @@ class PlanningService:
         return {
             "submitted": submitted,
             "confirmed": confirmed,
+            "hasSavedDraft": saved_revision is not None and (
+                not state or state.draft_reset_revision is None
+                or saved_revision > state.draft_reset_revision
+            ),
             "requiresResubmission": bool(state and state.requires_resubmission),
             "draftResetRevision": state.draft_reset_revision if state else None,
             "ownerEditLocked": bool(state and state.confirmed_publication_id),
