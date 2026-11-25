@@ -1,5 +1,4 @@
 import { AdminImportPanel } from "./AdminImportPanel";
-import { ListFilter } from "lucide-react";
 import { wholeMetric } from "../domain/metric-precision";
 import { UserInitiativePicker } from "./UserInitiativePicker";
 import {
@@ -203,7 +202,6 @@ export function AdminUsersPanel() {
   const opener = useRef(null);
   const [transfers, setTransfers] = useState({});
   const [draftFilters, setDraftFilters] = useState(EMPTY_FILTERS);
-  const [filtersVisible, setFiltersVisible] = useState(false);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [offset, setOffset] = useState(0);
   const [revision, setRevision] = useState(0);
@@ -401,17 +399,6 @@ export function AdminUsersPanel() {
         <div className="actions">
           <AdminImportPanel kind="users" />
           <Button
-            variant="ghost"
-            size="icon-sm"
-            type="button"
-            aria-label={filtersVisible ? "收起筛选" : "展开筛选"}
-            aria-expanded={filtersVisible}
-            aria-controls="admin-user-filters"
-            onClick={() => setFiltersVisible((value) => !value)}
-          >
-            <ListFilter aria-hidden="true" />
-          </Button>
-          <Button
             variant="default"
             type="button"
             disabled={previewMode || workspaceLoading || loading || saving}
@@ -421,7 +408,6 @@ export function AdminUsersPanel() {
           </Button>
         </div>
       </div>
-      {filtersVisible && (
         <form
           id="admin-user-filters"
           className="user-filters"
@@ -522,7 +508,6 @@ export function AdminUsersPanel() {
             </Button>
           </div>
         </form>
-      )}
       {loadError && (
         <Alert variant="destructive" className="note-box error" role="alert">
           <AlertDescription>
