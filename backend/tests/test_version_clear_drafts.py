@@ -22,13 +22,20 @@ async def test_clear_only_this_version_and_start_a_new_submission_cycle():
     try:
         first, second = budgets
         owner = service(session, user(first.owner_email))
+        assert not (await owner.get_draft(first.id))["workflow"]["hasSavedDraft"]
+        zero = await owner.save_draft(first.id, InitiativeDraftUpdateDTO(
+            expected_revision=first.revision, rows=[{"dealerId": "d1", "amount": 0}],
+        ))
+        assert zero["workflow"]["hasSavedDraft"]
+        workspace = await owner.get_workspace(2027, version_id="202701")
+        assert workspace["state"]["initiatives"][0]["workflow"]["hasSavedDraft"]
         await owner.save_draft(first.id, InitiativeDraftUpdateDTO(
-            expected_revision=0, rows=[{"dealerId": "d1", "amount": 50}],
+            expected_revision=first.revision, rows=[{"dealerId": "d1", "amount": 50}],
             otherBudgets=[{"id": "reserve", "reasonId": "misc", "amount": 50, "note": "reserve"}],
             editorState={"step": 3, "reserveAcknowledgement": "old"},
             changeReason="old",
         ))
-        await owner.publish(first.id, PublishDTO(expected_revision=1))
+        await owner.publish(first.id, PublishDTO(expected_revision=first.revision))
         await submit(session, second)
         await act(session, "confirm")
         version = await session.get(PlanningVersionDO, "202701")
@@ -56,6 +63,7 @@ async def test_clear_only_this_version_and_start_a_new_submission_cycle():
         assert first.editor_state is None
         draft = await owner.get_draft(first.id)
         assert draft["workflow"]["draftResetRevision"] == first.revision
+        assert not draft["workflow"]["hasSavedDraft"]
         assert draft["rows"] == draft["otherBudgets"] == []
         assert draft["workflow"]["editable"] and not draft["workflow"]["submitted"]
         assert not draft["workflow"]["confirmed"] and not draft["workflow"]["changeReason"]
@@ -67,6 +75,7 @@ async def test_clear_only_this_version_and_start_a_new_submission_cycle():
         assert workspace["state"]["publications"] == {}
         workflow = workspace["state"]["initiatives"][0]["workflow"]
         assert workflow["draftResetRevision"] == first.revision
+        assert not workflow["hasSavedDraft"]
         summary = await owner.get_workspace(2027, version_id="202701", comparison_summary=True)
         assert not summary["initiatives"][0]["allocationVisible"]
         assert summary["initiatives"][0]["allocationTotal"] == 0
@@ -89,6 +98,7 @@ async def test_clear_only_this_version_and_start_a_new_submission_cycle():
             assert sum(r.distributor_budget_amount for r in await admin.repository.rows_for(
                 copied.id)) == expected
         assert (await submit(session, first))["number"] == 2
+        assert (await owner.get_draft(first.id))["workflow"]["hasSavedDraft"]
         assert len(await owner.publications(first.id)) == 1
         historical = await session.get(WorkspacePublicationDO, publication.id)
         assert historical.snapshot == previous_snapshot

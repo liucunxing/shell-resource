@@ -123,6 +123,19 @@ class WorkspaceRepository:
             for model in (BudgetDistributorDO, OtherBudgetDO):
                 await self.session.execute(delete(model).where(model.budget_id.in_(budget_ids)))
 
+    async def latest_draft_save_revisions(self, budget_ids: list[int]) -> dict[int, int]:
+        if not budget_ids:
+            return {}
+        latest = (select(func.max(BudgetChangeLogDO.id).label("id"))
+                  .where(BudgetChangeLogDO.budget_id.in_(budget_ids),
+                         BudgetChangeLogDO.operation_type == "DRAFT_SAVE")
+                  .group_by(BudgetChangeLogDO.budget_id).subquery())
+        logs = await self.session.scalars(
+            select(BudgetChangeLogDO).join(latest, BudgetChangeLogDO.id == latest.c.id)
+        )
+        return {log.budget_id: revision for log in logs
+                if isinstance((revision := (log.after_data or {}).get("revision")), int)}
+
     @staticmethod
     def _publication_since_reset() -> ColumnElement[bool]:
         # Snapshots predating a reset remain immutable for audit and publication numbering.
