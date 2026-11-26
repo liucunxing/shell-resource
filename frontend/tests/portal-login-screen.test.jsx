@@ -8,6 +8,7 @@ describe("Portal-only login screen", () => {
     expect(html).toContain("<strong>资源投资工作台</strong>");
     expect(html).toContain("<small>RESOURCE STUDIO</small>");
     expect(html).toContain("让资源 分得细 看得全");
+    expect(html).toContain('<p class="login-footer">Resource Studio 资源投资工作台</p>');
     expect(html).not.toContain("壳牌");
     expect(html).not.toContain("内部系统");
   });

@@ -398,7 +398,7 @@ export function PortalLogin({
             </p>
           )}
         </form>
-        <p className="login-footer">资源投资工作台</p>
+        <p className="login-footer">Resource Studio 资源投资工作台</p>
       </section>
     </main>
   );
