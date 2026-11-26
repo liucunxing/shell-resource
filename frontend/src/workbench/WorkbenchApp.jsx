@@ -305,6 +305,7 @@ export function PortalLogin({
           <span>
             <strong>资源投资工作台</strong>
             <small>RESOURCE STUDIO</small>
+            <span className="login-slogan">让资源 分得细 看得全</span>
           </span>
         </div>
 

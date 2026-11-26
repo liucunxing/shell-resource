@@ -3779,6 +3779,14 @@ tbody tr:hover {
   font-weight: 700;
   letter-spacing: 0.18em;
 }
+.login-slogan {
+  display: block;
+  margin-top: 5px;
+  color: #5d491e;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.45;
+}
 .login-story-copy {
   max-width: 680px;
   margin-block: clamp(54px, 9vh, 118px);
