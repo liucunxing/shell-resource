@@ -9,12 +9,14 @@ describe("Portal-only login screen", () => {
     expect(html).toContain("<small>RESOURCE STUDIO</small>");
     expect(html).toContain("让资源 分得细 看得全");
     expect(html).not.toContain("壳牌");
+    expect(html).not.toContain("内部系统");
   });
 
   it("does not render an editable email field or a manual login action", () => {
     const html = renderToStaticMarkup(<PortalLogin email="portal@example.com" loading={false} onSubmit={() => {}} error="" editable={false} />);
     expect(html).toContain("portal@example.com");
     expect(html).toContain("邮箱由帆软 Portal 自动传入，不能手工修改。");
+    expect(html).toContain("请从已授权的帆软 Portal 链接跳转至本系统");
     expect(html).toMatch(/<input[^>]*readonly/);
     expect(html).toContain("进入工作台");
   });
@@ -25,7 +27,7 @@ describe("Portal-only login screen", () => {
     expect(html).not.toMatch(/<input[^>]*readonly=""/);
     expect(html).toContain('aria-readonly="false"');
     expect(html).toContain("请输入工作邮箱");
-    expect(html).toContain("仅限已获授权的内部用户使用。");
+    expect(html).not.toContain('class="login-session-note"');
   });
 
   it("prevents editing and repeat submission while checking permissions", () => {

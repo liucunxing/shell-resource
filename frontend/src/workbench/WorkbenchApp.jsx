@@ -391,14 +391,14 @@ export function PortalLogin({
             <ArrowRight size={20} weight="bold" aria-hidden="true" />
           </Button>
 
-          <p className="login-session-note">
-            <LockKey size={15} aria-hidden="true" />
-            {editable
-              ? "仅限已获授权的内部用户使用。"
-              : "请从已授权的帆软 Portal 链接跳转至本系统；直接访问不会建立登录身份。"}
-          </p>
+          {!editable && (
+            <p className="login-session-note">
+              <LockKey size={15} aria-hidden="true" />
+              请从已授权的帆软 Portal 链接跳转至本系统；直接访问不会建立登录身份。
+            </p>
+          )}
         </form>
-        <p className="login-footer">资源投资工作台 · 内部系统</p>
+        <p className="login-footer">资源投资工作台</p>
       </section>
     </main>
   );
