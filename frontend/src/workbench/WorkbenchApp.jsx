@@ -297,13 +297,13 @@ export function PortalLogin({
   const loginEmail = (editable ? draftEmail : email).trim();
   return (
     <main className="login-shell">
-      <section className="login-story" aria-label="壳牌资源投资工作台介绍">
+      <section className="login-story" aria-label="资源投资工作台介绍">
         <div className="login-brand">
           <span className="login-brandmark" aria-hidden="true">
             <ChartLineUp size={28} weight="bold" />
           </span>
           <span>
-            <strong>壳牌 · 资源投资</strong>
+            <strong>资源投资工作台</strong>
             <small>RESOURCE STUDIO</small>
           </span>
         </div>
@@ -397,7 +397,7 @@ export function PortalLogin({
               : "请从已授权的帆软 Portal 链接跳转至本系统；直接访问不会建立登录身份。"}
           </p>
         </form>
-        <p className="login-footer">壳牌资源投资规划工作台 · 内部系统</p>
+        <p className="login-footer">资源投资工作台 · 内部系统</p>
       </section>
     </main>
   );

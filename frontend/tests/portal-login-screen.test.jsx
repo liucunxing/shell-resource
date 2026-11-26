@@ -3,6 +3,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { PortalLogin } from "../src/workbench/WorkbenchApp.jsx";
 
 describe("Portal-only login screen", () => {
+  it("shows the current Resource Studio branding", () => {
+    const html = renderToStaticMarkup(<PortalLogin email="" loading={false} onSubmit={() => {}} error="" editable={false} />);
+    expect(html).toContain("<strong>资源投资工作台</strong>");
+    expect(html).toContain("<small>RESOURCE STUDIO</small>");
+    expect(html).not.toContain("壳牌");
+  });
+
   it("does not render an editable email field or a manual login action", () => {
     const html = renderToStaticMarkup(<PortalLogin email="portal@example.com" loading={false} onSubmit={() => {}} error="" editable={false} />);
     expect(html).toContain("portal@example.com");
