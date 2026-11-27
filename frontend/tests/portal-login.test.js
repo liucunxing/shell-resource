@@ -22,21 +22,21 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("FineReport Portal email handoff", () => {
   it("replaces the old identity before the first workspace request and cleans only the email", async () => {
-    const browser = navigate("?user_email=%20Example.User02%40Example.Invalid%20&view=admin#details");
+    const browser = navigate("?user_email=%20B58996C504C5638798EB6B511E6F49AF%20&view=admin#details");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true, status: 200, json: async () => ({ code: 200, data: { identity: { role: "admin" } } }),
     }));
     acceptPortalEmail();
-    expect(getDevelopmentEmail()).toBe("example.user02@example.invalid");
+    expect(getDevelopmentEmail()).toBe("b58996c504c5638798eb6b511e6f49af");
     expect(browser.history.replaceState).toHaveBeenCalledWith({ keep: true }, "", "/?view=admin#details");
     await workspace();
-    expect(fetch.mock.calls[0][1].headers["X-User-Email"]).toBe("example.user02@example.invalid");
+    expect(fetch.mock.calls[0][1].headers["X-User-Email"]).toBe("b58996c504c5638798eb6b511e6f49af");
   });
 
   it("accepts the space after ? in the supplied Portal URL", () => {
-    navigate("?%20user_email=example.user02@example.invalid");
+    navigate("?%20user_email=b58996c504c5638798eb6b511e6f49af");
     acceptPortalEmail();
-    expect(getDevelopmentEmail()).toBe("example.user02@example.invalid");
+    expect(getDevelopmentEmail()).toBe("b58996c504c5638798eb6b511e6f49af");
   });
 
   it("accepts an MD5 handoff and sends it to the workbench API", async () => {
@@ -83,19 +83,29 @@ describe("FineReport Portal email handoff", () => {
     expect(getDevelopmentEmail()).toBe("lead@example.test");
   });
 
-  it.each(["?user_email=", "?user_email=invalid", "?user_email=a%0D%0A@example.com", "?user_email=a@example.com&user_email=b@example.com", "?user_email=a@example.com&%20user_email=b@example.com"])("clears stale identity for invalid handoff %s", (query) => {
+  it.each(["?user_email=", "?user_email=invalid", "?user_email=a@example.com", "?user_email=a%0D%0A@example.com", "?user_email=a@example.com&user_email=b@example.com", "?user_email=a@example.com&%20user_email=b@example.com", "?user_email=b58996c504c5638798eb6b511e6f49af&user_email=b58996c504c5638798eb6b511e6f49af"])("clears stale identity for invalid handoff %s", (query) => {
     navigate(query);
     acceptPortalEmail();
     expect(getDevelopmentEmail()).toBe("");
   });
 
-  it("surfaces the API denial for an unmapped email", async () => {
-    navigate("?user_email=unknown@example.com");
+  it("keeps manually submitted email login available", async () => {
+    navigate("");
+    setDevelopmentEmail("owner@example.test");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ code: 200, data: {} }),
+    }));
+    await workspace();
+    expect(fetch.mock.calls[0][1].headers["X-User-Email"]).toBe("owner@example.test");
+  });
+
+  it("surfaces the API denial for an unmapped digest", async () => {
+    navigate("?user_email=00000000000000000000000000000000");
     acceptPortalEmail();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: false, status: 403, json: async () => ({ code: 403, msg: "当前邮箱没有工作台权限" }),
     }));
     await expect(workspace()).rejects.toMatchObject({ status: 403, message: "当前邮箱没有工作台权限" });
-    expect(getDevelopmentEmail()).toBe("unknown@example.com");
+    expect(getDevelopmentEmail()).toBe("00000000000000000000000000000000");
   });
 });

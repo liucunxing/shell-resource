@@ -40,9 +40,7 @@ export function acceptPortalEmail() {
   if (!entries.length) return;
   const email = entries.length === 1 ? entries[0][1].trim().toLowerCase() : "";
   // An invalid handoff must never fall back to a previously logged-in account.
-  const valid = email.length <= 255 && (
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || /^[0-9a-f]{32}$/.test(email)
-  );
+  const valid = /^[0-9a-f]{32}$/.test(email);
   setDevelopmentEmail(valid ? email : "");
   for (const [key] of entries) url.searchParams.delete(key);
   window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
