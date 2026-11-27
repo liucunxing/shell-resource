@@ -39,6 +39,19 @@ describe("FineReport Portal email handoff", () => {
     expect(getDevelopmentEmail()).toBe("example.user02@example.invalid");
   });
 
+  it("accepts an MD5 handoff and sends it to the workbench API", async () => {
+    const browser = navigate("?user_email=B58996C504C5638798EB6B511E6F49AF");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ code: 200, data: {} }),
+    }));
+    acceptPortalEmail();
+    expect(getDevelopmentEmail()).toBe("b58996c504c5638798eb6b511e6f49af");
+    expect(browser.history.replaceState).toHaveBeenCalledWith({ keep: true }, "", "/");
+    await workspace();
+    expect(fetch.mock.calls[0][1].headers["X-User-Email"])
+      .toBe("b58996c504c5638798eb6b511e6f49af");
+  });
+
   it("restores the saved email on refresh and clears it on logout", () => {
     const browser = navigate("?view=admin");
     acceptPortalEmail();

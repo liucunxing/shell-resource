@@ -1,8 +1,10 @@
 from collections.abc import Mapping, Sequence
 from decimal import Decimal
+from hashlib import md5
 from typing import cast
 
 from sqlalchemy import Table, delete, exists, func, insert, select
+from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -36,6 +38,18 @@ class WorkspaceRepository:
         )
         permission = (await self.session.scalars(statement)).one_or_none()
         return permission if permission is not None and permission.enabled else None
+
+    async def email_for_md5(self, digest: str) -> str | None:
+        emails = await self.session.scalars(select(UserPermissionDO.email))
+        matches = [
+            email for email in emails
+            if md5(
+                email.strip().lower().encode("utf-8"), usedforsecurity=False
+            ).hexdigest() == digest
+        ]
+        if len(matches) > 1:
+            raise MultipleResultsFound
+        return matches[0] if matches else None
 
     async def list_users(self) -> list[UserPermissionDO]:
         return list(

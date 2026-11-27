@@ -1,4 +1,6 @@
+import re
 from dataclasses import dataclass
+from hashlib import md5
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, status
@@ -63,9 +65,18 @@ async def get_current_workbench_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="生产环境需要可信身份认证"
         )
-    email = (x_user_email or "").strip().lower()
-    if not email:
+    value = (x_user_email or "").strip().lower()
+    if not value:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="缺少 X-User-Email")
+    digest = value if re.fullmatch(r"[0-9a-f]{32}", value) else md5(
+        value.encode("utf-8"), usedforsecurity=False
+    ).hexdigest()
+    try:
+        email = await WorkspaceRepository(session).email_for_md5(digest)
+    except MultipleResultsFound:
+        raise HTTPException(status_code=403, detail="邮箱权限记录冲突，请联系管理员") from None
+    if email is None:
+        raise HTTPException(status_code=403, detail="当前邮箱没有工作台权限")
     return await resolve_workbench_permission(session, email)
 
 

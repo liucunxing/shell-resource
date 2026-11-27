@@ -1,6 +1,7 @@
 """HTTP contract tests with the real email dependency and SQLite transactions."""
 
 from decimal import Decimal
+from hashlib import md5
 from io import BytesIO
 from zipfile import ZipFile
 
@@ -64,6 +65,25 @@ async def api():
 
 def headers(email="a@example.com"):
     return {"X-User-Email": email}
+
+
+@pytest.mark.asyncio
+async def test_md5_identity_and_manual_email_resolve_same_permissions(api):
+    client, engine = api
+    digest = md5(b"a@example.com", usedforsecurity=False).hexdigest()
+    direct = await client.get("identity", headers=headers(digest.upper()))
+    manual = await client.get("identity", headers=headers(" A@Example.Com "))
+    assert direct.status_code == manual.status_code == 200
+    assert direct.json()["data"] == manual.json()["data"]
+    assert (await client.get("identity", headers=headers("0" * 32))).status_code == 403
+
+    async with AsyncSession(engine) as session:
+        permission = await session.scalar(
+            select(UserPermissionDO).where(UserPermissionDO.email == "a@example.com")
+        )
+        permission.enabled = False
+        await session.commit()
+    assert (await client.get("identity", headers=headers(digest))).status_code == 403
 
 
 @pytest.mark.asyncio
